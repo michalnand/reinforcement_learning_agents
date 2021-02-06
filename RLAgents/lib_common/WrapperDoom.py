@@ -93,3 +93,5 @@ def WrapperDoom(scenario, set_window_visible=False, set_sound_enabled = False, h
    
     return env
     
+def WrapperDoomRender(scenario):
+    return WrapperDoom(scenario, set_window_visible=True, set_sound_enabled=True)

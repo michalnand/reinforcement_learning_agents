@@ -7,8 +7,11 @@ import gym
 class MultiEnvSeq:
 	def __init__(self, env_name, wrapper, envs_count):
 
-		dummy_env 	= gym.make(env_name)
-		dummy_env 	= wrapper(dummy_env)
+		try:
+			dummy_env 	= gym.make(env_name)
+			dummy_env 	= wrapper(dummy_env)
+		except:
+			dummy_env 	= wrapper(env_name)
 
 		self.observation_space 	= dummy_env.observation_space
 		self.action_space 		= dummy_env.action_space
@@ -16,8 +19,13 @@ class MultiEnvSeq:
 		self.envs	= []
 
 		for i in range(envs_count):
-			env 	= gym.make(env_name)
-			env 	= wrapper(env)
+
+			try:
+				env 	= gym.make(env_name)
+				env 	= wrapper(env)
+			except:
+				env 	= wrapper(env_name)
+
 			self.envs.append(env)
 
 	def close(self):
@@ -57,8 +65,13 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 	envs 	= []
 
 	for _ in range(count):
-		env 	= gym.make(env_name)
-		env  	= wrapper(env)
+		
+		try:
+			env 	= gym.make(env_name)
+			env 	= wrapper(env)
+		except:
+			env 	= wrapper(env_name)
+
 		envs.append(env)
 	
 	while True:
@@ -103,9 +116,11 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 class MultiEnvParallel:
 	def __init__(self, env_name, wrapper, envs_count, envs_per_thread = 8):
-
-		dummy_env 	= gym.make(env_name)
-		dummy_env	= wrapper(dummy_env)
+		try:
+			dummy_env 	= gym.make(env_name)
+			dummy_env 	= wrapper(dummy_env)
+		except:
+			dummy_env 	= wrapper(env_name)
 
 		self.observation_space 	= dummy_env.observation_space
 		self.action_space 		= dummy_env.action_space

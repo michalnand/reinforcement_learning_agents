@@ -9,7 +9,7 @@ from .TrainingLog           import TrainingLog
 
 
 from .WrapperAtari          import WrapperAtari
-from .WrapperDoom           import WrapperDoom
+from .WrapperDoom           import WrapperDoom, WrapperDoomRender
 from .WrapperMontezuma      import WrapperMontezuma
 from .WrapperRetro          import WrapperRetro
 from .WrapperSuperMario     import WrapperSuperMario
