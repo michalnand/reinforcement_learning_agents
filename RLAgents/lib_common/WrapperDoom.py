@@ -64,6 +64,8 @@ class ResizeEnv(gym.ObservationWrapper):
         self.state = numpy.zeros(state_shape, dtype=self.dtype)
 
     def observation(self, state):
+        state = numpy.moveaxis(state, 0,2)
+        
         img = Image.fromarray(state, 'RGB')
         img = img.convert('L')
         img = img.resize((self.height, self.width))
@@ -94,4 +96,4 @@ def WrapperDoom(scenario, set_window_visible=False, set_sound_enabled = False, h
     return env
     
 def WrapperDoomRender(scenario):
-    return WrapperDoom(scenario, set_window_visible=True, set_sound_enabled=True)
+    return WrapperDoom(scenario, set_window_visible=True, set_sound_enabled=False)
