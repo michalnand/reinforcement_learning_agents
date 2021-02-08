@@ -62,16 +62,6 @@ class ResizeEnv(gym.ObservationWrapper):
 
         return self.state
 
-class FireResetEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-
-    def reset(self):
-        self.env.reset()
-        obs, _, _, _ = self.env.step(1)
-        obs, _, _, _ = self.env.step(2)
-
-        return obs
 
 
 class EpisodicLifeEnv(gym.Wrapper):
@@ -131,11 +121,9 @@ def WrapperSuperMario(env, height = 96, width = 96, frame_stacking=4, frame_skip
     env = NopOpsEnv(env)
     env = SkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = FireResetEnv(env) 
     env = EpisodicLifeEnv(env)
     env = ClipRewardEnv(env)
 
-    for i in range(5):
-        env.reset()
+    env.reset()
 
     return env
