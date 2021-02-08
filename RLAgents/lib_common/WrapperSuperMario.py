@@ -119,7 +119,7 @@ class ClipRewardEnv(gym.Wrapper):
 
         reward = numpy.clip(reward/15.0, -1.0, 1.0)
 
-        if numpy.abs(reward) < 0.2:
+        if numpy.abs(reward) < 0.8:
             reward = 0.0
 
         return obs, reward, done, info
