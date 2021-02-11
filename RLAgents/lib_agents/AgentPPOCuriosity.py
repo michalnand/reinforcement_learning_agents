@@ -5,7 +5,7 @@ import time
 from torch.distributions import Categorical
 
 from .PolicyBuffer import *
-
+ 
 class AgentPPOCuriosity():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs
