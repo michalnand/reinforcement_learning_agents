@@ -2,29 +2,46 @@ import gym
 import numpy
 from PIL import Image
 
-class MaxAndSkipEnv(gym.Wrapper):
-    def __init__(self, env, skip=4):
-        gym.Wrapper.__init__(self, env)
-
-        self._obs_buffer = numpy.zeros((2,) + env.observation_space.shape, dtype=numpy.uint8)
-        self._skip = skip
+class StickyActionEnv(gym.Wrapper):
+    def __init__(self, env, p=0.25):
+        super(StickyActionEnv, self).__init__(env)
+        self.p = p
+        self.last_action = 0
 
     def step(self, action):
-        total_reward = 0.0
-        done = None
-        for i in range(self._skip):
-            obs, reward, done, info = self.env.step(action)
-            if i == self._skip - 2: self._obs_buffer[0] = obs
-            if i == self._skip - 1: self._obs_buffer[1] = obs
-            total_reward += reward
+        if numpy.random.uniform() < self.p:
+            action = self.last_action
+
+        self.last_action = action
+        return self.env.step(action)
+
+    def reset(self):
+        self.last_action = 0
+        return self.env.reset()
+ 
+
+class RepeatActionEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
+
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        reward, done = 0, False
+        for t in range(4):
+            state, r, done, info = self.env.step(action)
+            if t == 2:
+                self.successive_frame[0] = state
+            elif t == 3:
+                self.successive_frame[1] = state
+            reward += r
             if done:
                 break
 
-        max_frame = self._obs_buffer.max(axis=0)
-        return max_frame, total_reward, done, info
-
-    def reset(self):
-        return self.env.reset()
+        state = self.successive_frame.max(axis=0)
+        return state, reward, done, info
 
 
 class ResizeEnv(gym.ObservationWrapper):
@@ -86,15 +103,13 @@ class RawScoreEnv(gym.Wrapper):
     def reset(self):
         self.steps = 0
         return self.env.reset()
+ 
 
 
-
-def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps = 4500):
-    env = MaxAndSkipEnv(env, frame_skipping)
+def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, max_steps = 4500):
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     env = RawScoreEnv(env, max_steps)
-    env.observation_space.shape = (frame_stacking, height, width)
 
     return env
-
-
