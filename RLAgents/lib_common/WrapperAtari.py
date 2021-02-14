@@ -131,10 +131,10 @@ class EpisodicLifeEnv(gym.Wrapper):
         
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
-            done    = True
-            reward  = -1.0
+            done    = True 
+            reward  = -10.0
         if lives == 0 and self.inital_lives > 0:
-            reward = -1.0
+            reward = -10.0 
 
         self.raw_score+= reward
         self.raw_score_total+= reward
@@ -147,8 +147,7 @@ class EpisodicLifeEnv(gym.Wrapper):
             
             self.raw_score = 0.0
 
-        if reward > 0:
-            reward = numpy.clip(reward*self.reward_scale, 0.0, 1.0)
+        reward = numpy.clip(reward*self.reward_scale, -1.0, 1.0)
 
         self.lives = lives
         return obs, reward, done, info
@@ -167,7 +166,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 
 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps = 4000, reward_scale = 0.1):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps = 4000, reward_scale = 0.01):
     env = NopOpsEnv(env)
     env = FireResetEnv(env) 
     env = MaxAndSkipEnv(env, frame_skipping)
