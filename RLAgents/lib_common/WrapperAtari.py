@@ -133,7 +133,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.raw_score_total+= reward
 
 
-         if self.was_real_done:
+        if self.was_real_done:
             self.raw_episodes+= 1
 
             k = 0.1
