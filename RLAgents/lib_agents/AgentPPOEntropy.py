@@ -281,12 +281,15 @@ class AgentPPOEntropy():
             self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
               
     def _entropy(self, states_t):
+
+        self.model_autoencoder.eval()
+
         #compute features
         features_t  = self.model_autoencoder.eval_features(states_t)
         features_np = features_t.detach().to("cpu").numpy()
  
         entropy_motivation = numpy.zeros(self.actors)
-
+ 
         for e in range(self.actors):
             #put current features and action into episodic memory, on random place
             idx = numpy.random.randint(self.episodic_memory_size)
@@ -297,5 +300,7 @@ class AgentPPOEntropy():
 
             #compute motivation 
             entropy_motivation[e]  = self.beta2*numpy.tanh(episodic_memory_std)
+
+        self.model_autoencoder.train()
 
         return entropy_motivation
