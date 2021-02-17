@@ -93,9 +93,7 @@ class AgentPPOEntropy():
         curiosity_t         = self._curiosity(states_t, action_one_hot_t)
         curiosity_np        = self.beta1*numpy.tanh(curiosity_t.detach().to("cpu").numpy())
 
-        entropy_np = self._add_episodic_memory(states_t)
-
-        print(entropy_np)
+        entropy_np = self._entropy(states_t)
 
         states, rewards, dones, _ = self.envs.step(actions)
 
@@ -281,7 +279,7 @@ class AgentPPOEntropy():
         for i in range(self.episodic_memory_size):
             self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
               
-    def _add_episodic_memory(self, states_t):
+    def _entropy(self, states_t):
         #compute features
         features_t  = self.model_autoencoder.eval_features(states_t)
         features_np = features_t.detach().to("cpu").numpy()
