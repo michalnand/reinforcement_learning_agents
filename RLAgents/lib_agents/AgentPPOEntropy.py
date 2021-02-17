@@ -93,16 +93,16 @@ class AgentPPOEntropy():
         curiosity_t         = self._curiosity(states_t, action_one_hot_t)
         curiosity_np        = self.beta1*numpy.tanh(curiosity_t.detach().to("cpu").numpy())
 
+        entropy_np = self._add_episodic_memory(states_t)
+
         states, rewards, dones, _ = self.envs.step(actions)
 
         entropy_motivation = []
         for e in range(self.actors):            
             if self.enabled_training:
 
-                entropy_np = self._add_episodic_memory(e, states_np[e])
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_np[e], actions[e], rewards[e] + curiosity_np[e] + entropy_np, dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_np[e], actions[e], rewards[e] + curiosity_np[e] + entropy_np[e], dones[e])
 
-                entropy_motivation.append(entropy_np)
                 if self.policy_buffer.is_full():
                     self.train()
 
@@ -114,7 +114,7 @@ class AgentPPOEntropy():
 
         k = 0.02
         self.curiosity_motivation   = (1.0 - k)*self.curiosity_motivation + k*curiosity_np.mean()
-        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation + k*numpy.mean(entropy_motivation)
+        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation + k*entropy_np.mean()
         
         self.iterations+= 1
         return rewards[0], dones[0]
@@ -279,20 +279,23 @@ class AgentPPOEntropy():
         for i in range(self.episodic_memory_size):
             self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
               
-    def _add_episodic_memory(self, env_idx, state):
+    def _add_episodic_memory(self, states):
         #compute features
-        state_t     = torch.from_numpy(state).to(self.model_autoencoder.device).unsqueeze(0).float()
+        state_t     = torch.from_numpy(states).to(self.model_autoencoder.device).float()
         features_t  = self.model_autoencoder.eval_features(state_t)
         features_np = features_t.detach().to("cpu").numpy()
 
-        #put current features and action into episodic memory, on random place
-        idx = numpy.random.randint(self.episodic_memory_size)
-        self.episodic_memory_features[env_idx][idx] = features_np.copy()
+        entropy_motivation = numpy.zeros(self.actors)
 
-        #compute entropy
-        episodic_memory_std = self.episodic_memory_features.std(axis=0).mean() 
+        for e in range(self.actors):
+            #put current features and action into episodic memory, on random place
+            idx = numpy.random.randint(self.episodic_memory_size)
+            self.episodic_memory_features[e][idx] = features_np[e].copy()
 
-        #compute motivation
-        entropy_motivation  = self.beta2*numpy.tanh(episodic_memory_std)
+            #compute entropy
+            episodic_memory_std = self.episodic_memory_features[e].std(axis=0).mean() 
+
+            #compute motivation 
+            entropy_motivation[e]  = self.beta2*numpy.tanh(episodic_memory_std)
 
         return entropy_motivation
