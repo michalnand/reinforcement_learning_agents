@@ -281,7 +281,7 @@ class AgentPPOEntropy():
               
     def _add_episodic_memory(self, states_t):
         #compute features
-        features_t  = self.model_autoencoder.eval_features(state_t)
+        features_t  = self.model_autoencoder.eval_features(states_t)
         features_np = features_t.detach().to("cpu").numpy()
  
         entropy_motivation = numpy.zeros(self.actors)
