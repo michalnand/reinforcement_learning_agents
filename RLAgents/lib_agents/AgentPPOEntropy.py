@@ -95,6 +95,8 @@ class AgentPPOEntropy():
 
         entropy_np = self._add_episodic_memory(states_t)
 
+        print(entropy_np)
+
         states, rewards, dones, _ = self.envs.step(actions)
 
         entropy_motivation = []
