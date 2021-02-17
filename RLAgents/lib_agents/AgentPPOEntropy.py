@@ -152,6 +152,8 @@ class AgentPPOEntropy():
 
         batch_count = self.steps//self.batch_size
 
+        k = 0.02
+
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, values, actions, rewards, dones, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
@@ -171,19 +173,18 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
+                if e == 0:
+                    #train autoencoder model, MSE loss
+                    state_predicted_t, _    = self.model_autoencoder(states)
+                    loss_autoencoder        = (states.detach() - state_predicted_t)**2
+                    loss_autoencoder = loss_autoencoder.mean()
+                    self.optimizer_autoencoder.zero_grad()
+                    loss_autoencoder.backward()
+                    self.optimizer_autoencoder.step()
 
-                #train autoencoder model, MSE loss
-                state_predicted_t, _    = self.model_autoencoder(states)
-                loss_autoencoder        = (states.detach() - state_predicted_t)**2
-                loss_autoencoder = loss_autoencoder.mean()
-                self.optimizer_autoencoder.zero_grad()
-                loss_autoencoder.backward()
-                self.optimizer_autoencoder.step()
-
- 
-                k = 0.02
+                    self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+                
                 self.loss_forward       = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
-                self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
