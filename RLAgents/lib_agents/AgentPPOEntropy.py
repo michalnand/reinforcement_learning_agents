@@ -279,12 +279,11 @@ class AgentPPOEntropy():
         for i in range(self.episodic_memory_size):
             self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
               
-    def _add_episodic_memory(self, states):
+    def _add_episodic_memory(self, states_t):
         #compute features
-        state_t     = torch.from_numpy(states).to(self.model_autoencoder.device).float()
         features_t  = self.model_autoencoder.eval_features(state_t)
         features_np = features_t.detach().to("cpu").numpy()
-
+ 
         entropy_motivation = numpy.zeros(self.actors)
 
         for e in range(self.actors):
