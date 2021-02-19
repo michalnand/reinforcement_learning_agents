@@ -107,8 +107,6 @@ class PolicyBufferIM:
         
         self.advantages_int_b = (self.advantages_int_b - numpy.mean(self.advantages_int_b))/(numpy.std(self.advantages_int_b) + 1e-10)
 
-        
-
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
