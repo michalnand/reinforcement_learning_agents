@@ -173,16 +173,15 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
-                if e == 0:
-                    #train autoencoder model, MSE loss
-                    state_predicted_t, _    = self.model_autoencoder(states)
-                    loss_autoencoder        = (states.detach() - state_predicted_t)**2
-                    loss_autoencoder = loss_autoencoder.mean()
-                    self.optimizer_autoencoder.zero_grad()
-                    loss_autoencoder.backward()
-                    self.optimizer_autoencoder.step()
+                #train inverse model, MSE loss
+                action_predicted_t    = self.model_inverse(states)
+                loss_autoencoder        = (action_one_hot_t.detach() - action_predicted_t)**2
+                loss_autoencoder = loss_autoencoder.mean()
+                self.optimizer_autoencoder.zero_grad()
+                loss_autoencoder.backward()
+                self.optimizer_autoencoder.step()
 
-                    self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+                self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
                 
                 self.loss_forward       = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
 
@@ -280,27 +279,23 @@ class AgentPPOEntropy():
         for i in range(self.episodic_memory_size):
             self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
               
-    def _entropy(self, states_t):
+   
 
-        self.model_autoencoder.eval()
+    def _entropy(states_t):
+        features_t    = self.model_inverse.eval_features(states_t)
+        features_np   = features_t.detach().to("cpu").numpy()
 
-        #compute features
-        features_t  = self.model_autoencoder.eval_features(states_t)
-        features_np = features_t.detach().to("cpu").numpy()
- 
-        entropy_motivation = numpy.zeros(self.actors)
- 
+        mean = numpy.zeros(self.actors)
+        std  = numpy.zeros(self.actors)
+
         for e in range(self.actors):
-            #put current features and action into episodic memory, on random place
-            idx = numpy.random.randint(self.episodic_memory_size)
-            self.episodic_memory_features[e][idx] = features_np[e].copy()
+            count       = features_np[e].shape[0]
+            fa_dots     = (features_np[e]*features_np[e]).sum(axis=1).reshape((count,1))*numpy.ones(shape=(1,count))
+            fb_dots     = (features_np[e]*features_np[e]).sum(axis=1)*numpy.ones(shape=(count,1))
+            distances   = fa_dots + fb_dots - 2*features_np[e].dot(features_np[e].T)
 
-            #compute entropy
-            episodic_memory_std = self.episodic_memory_features[e].std(axis=0).mean() 
+            mean[e] = numpy.mean(distances)
+            std[e]  = numpy.std(distances)
 
-            #compute motivation 
-            entropy_motivation[e]  = self.beta2*numpy.tanh(episodic_memory_std)
+        return mean, std
 
-        self.model_autoencoder.train()
-
-        return entropy_motivation

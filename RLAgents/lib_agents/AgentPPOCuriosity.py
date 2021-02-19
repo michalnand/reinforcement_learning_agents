@@ -4,7 +4,7 @@ import time
 
 from torch.distributions import Categorical
 
-from .PolicyBuffer import *
+from .PolicyBufferIM import *
  
 class AgentPPOCuriosity():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
@@ -12,22 +12,20 @@ class AgentPPOCuriosity():
 
         config = Config.Config()
 
-        self.gamma              = config.gamma
+        self.gamma_ext          = config.gamma_ext
+        self.gamma_int          = config.gamma_int
+        
+        self.ext_adv_coeff      = config.ext_adv_coeff
+        self.int_adv_coeff      = config.int_adv_coeff
+
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
-
-        if hasattr(config, "critic_loss_proportion"):
-            self.critic_loss_proportion = config.critic_loss_proportion
-        else:
-            self.critic_loss_proportion = 1.0
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
-
-        self.beta               = config.beta
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -40,7 +38,7 @@ class AgentPPOCuriosity():
 
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape, self.actions_count)
 
-        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         self.states = []
         for e in range(self.actors):
@@ -63,11 +61,12 @@ class AgentPPOCuriosity():
     def main(self):
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
  
-        logits_t, values_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
 
-        states_np = states_t.detach().to("cpu").numpy()
-        logits_np = logits_t.detach().to("cpu").numpy()
-        values_np = values_t.detach().to("cpu").numpy()
+        states_np       = states_t.detach().to("cpu").numpy()
+        logits_np       = logits_t.detach().to("cpu").numpy()
+        values_ext_np   = values_ext_t.detach().to("cpu").numpy()
+        values_int_np   = values_int_t.detach().to("cpu").numpy()
 
         actions = []
         for e in range(self.actors):
@@ -77,13 +76,13 @@ class AgentPPOCuriosity():
 
         self._update_states_running_stats(states_t)
         curiosity_t         = self._curiosity(states_t, action_one_hot_t)
-        curiosity_np        = self.beta*numpy.tanh(curiosity_t.detach().to("cpu").numpy())
+        curiosity_np        = numpy.tanh(curiosity_t.detach().to("cpu").numpy())
 
         states, rewards, dones, _ = self.envs.step(actions)
 
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_np[e], actions[e], rewards[e] + curiosity_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
 
                 if self.policy_buffer.is_full():
                     self.train()
@@ -123,15 +122,15 @@ class AgentPPOCuriosity():
         return action_t.item() 
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma)
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
         batch_count = self.steps//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values, actions, rewards, dones, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                loss = self._compute_loss(states, logits, actions, returns, advantages)
+                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
                 loss.backward()
@@ -152,26 +151,37 @@ class AgentPPOCuriosity():
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions, returns, advantages):
+    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
         probs_old     = torch.nn.functional.softmax(logits, dim = 1).detach()
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        logits_new, values_new   = self.model_ppo.forward(states)
+        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
         '''
-        compute critic loss, as MSE
+        compute external critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_new = values_new.squeeze(1)
-        loss_value = (returns.detach() - values_new)**2
-        loss_value = self.critic_loss_proportion*loss_value.mean()
+        values_ext_new  = values_ext_new.squeeze(1)
+        loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
+        loss_ext_value  = loss_ext_value.mean()
+
+
+        '''
+        compute internal critic loss, as MSE
+        L = (T - V(s))^2
+        '''
+        values_int_new  = values_int_new.squeeze(1)
+        loss_int_value  = (returns_int.detach() - values_int_new)**2
+        loss_int_value  = loss_int_value.mean()
 
         ''' 
         compute actor loss, surrogate loss
         '''
+        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
@@ -188,7 +198,7 @@ class AgentPPOCuriosity():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = loss_value + loss_policy + loss_entropy
+        loss = loss_ext_value + loss_int_value + loss_policy + loss_entropy
 
         return loss
 

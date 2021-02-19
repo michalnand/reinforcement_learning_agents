@@ -13,7 +13,7 @@ class PolicyBuffer:
 
         self.clear()
 
-    def add(self, env, state, logits, value, action, reward, done):
+    def add(self, env, state, logits, value, action, reward, done, internal = 0.0):
 
         if done != 0: 
             done_ = 1.0
@@ -41,14 +41,15 @@ class PolicyBuffer:
         self.states_b           = numpy.zeros((self.envs_count, self.buffer_size, ) + self.state_shape, dtype=numpy.float32)
         self.logits_b           = numpy.zeros((self.envs_count, self.buffer_size, self.actions_size), dtype=numpy.float32)
         
-        self.values_b           = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.values_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
         self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=int)
         self.rewards_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
        
         self.returns_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.advantages_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        
+        self.advantages_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
         self.ptr = 0 
 
@@ -73,24 +74,7 @@ class PolicyBuffer:
                 self.advantages_b[e][n] = last_gae
         
         self.advantages_b = (self.advantages_b - numpy.mean(self.advantages_b))/(numpy.std(self.advantages_b) + 1e-10)
-
-        '''
-        for e in range(self.envs_count):
-            count   = len(self.rewards_b[e])
-            value   = self.values_b[e][count-1]
-            for n in reversed(range(count-1)):
-                if self.dones_b[e][n] > 0:
-                    gamma_ = 0.0 
-                else:
-                    gamma_ = gamma 
-
-                value = self.rewards_b[e][n] + gamma_*value
-
-                self.returns_b[e][n] = value
         
-        self.advantages_b = self.returns_b - self.values_b
-        self.advantages_b = (self.advantages_b - numpy.mean(self.advantages_b))/(numpy.std(self.advantages_b) + 1e-10)
-        '''
 
     def sample_batch(self, batch_size, device):
 
@@ -131,60 +115,3 @@ class PolicyBuffer:
         advantages  = advantages.reshape((self.envs_count*batch_size, ))
 
         return states, logits, values, actions, rewards, dones, returns, advantages 
-
-    def permute(self):
-        indices = numpy.random.permutation(range(self.buffer_size))
-
-        self.states_b           = self.states_b[:, indices]
-        self.logits_b           = self.logits_b[:, indices]
-        
-        self.values_b           = self.values_b[:, indices]
-
-        self.actions_b          = self.actions_b[:, indices]
-        self.rewards_b          = self.rewards_b[:, indices]
-        self.dones_b            = self.dones_b[:, indices]
-       
-        self.returns_b          = self.returns_b[:, indices]
-        self.advantages_b       = self.advantages_b[:, indices]
-
-
-    def take_batch(self, batch_size, batch_idx, device):
-        
-        states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        logits           = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
-        
-        values           = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-
-        actions          = torch.zeros((self.envs_count, batch_size, ), dtype=int).to(self.device)
-        rewards          = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        dones            = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-       
-        returns          = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        advantages       = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-
-        for env_idx in range(self.envs_count):
-            indices     = numpy.array(range(batch_size)) + batch_size*batch_idx        
-
-            states[env_idx]   = torch.from_numpy(numpy.take(self.states_b[env_idx], indices, axis=0)).to(device)
-            logits[env_idx]   = torch.from_numpy(numpy.take(self.logits_b[env_idx], indices, axis=0)).to(device)
-            
-            values[env_idx]   = torch.from_numpy(numpy.take(self.values_b[env_idx], indices, axis=0)).to(device)
-            
-            actions[env_idx]  = torch.from_numpy(numpy.take(self.actions_b[env_idx], indices, axis=0)).to(device)
-            rewards[env_idx]  = torch.from_numpy(numpy.take(self.rewards_b[env_idx], indices, axis=0)).to(device)
-            dones[env_idx]    = torch.from_numpy(numpy.take(self.dones_b[env_idx], indices, axis=0)).to(device)
-
-            returns[env_idx]      = torch.from_numpy(numpy.take(self.returns_b[env_idx], indices, axis=0)).to(device)
-            advantages[env_idx]   = torch.from_numpy(numpy.take(self.advantages_b[env_idx], indices, axis=0)).to(device)
-        
-
-        states      = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        logits      = logits.reshape((self.envs_count*batch_size, self.actions_size))
-        values      = values.reshape((self.envs_count*batch_size, ))
-        actions     = actions.reshape((self.envs_count*batch_size, ))
-        rewards     = rewards.reshape((self.envs_count*batch_size, ))
-        dones       = dones.reshape((self.envs_count*batch_size, ))
-        returns     = returns.reshape((self.envs_count*batch_size, ))
-        advantages  = advantages.reshape((self.envs_count*batch_size, ))
-
-        return states, logits, values, actions, rewards, dones, returns, advantages     

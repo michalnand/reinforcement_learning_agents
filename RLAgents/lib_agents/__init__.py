@@ -1,6 +1,7 @@
 from .ExperienceBuffer              import ExperienceBuffer
 from .ExperienceBufferContinuous    import ExperienceBufferContinuous
 from .PolicyBuffer                  import PolicyBuffer
+from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .AgentRandom                   import AgentRandom
