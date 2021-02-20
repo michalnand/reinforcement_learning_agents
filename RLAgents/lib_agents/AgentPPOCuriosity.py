@@ -134,6 +134,7 @@ class AgentPPOCuriosity():
 
                 self.optimizer_ppo.zero_grad()        
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
                 
                 #train forward model, MSE loss

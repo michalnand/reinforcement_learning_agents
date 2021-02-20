@@ -91,27 +91,6 @@ class FireResetEnv(gym.Wrapper):
         return obs
 
 
-class MaxStepsEnv(gym.Wrapper):
-    def __init__(self, env, max_steps):
-        gym.Wrapper.__init__(self, env)
-
-        self.steps      = 0
-        self.max_steps  = max_steps
-
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-
-        self.steps+= 1
-        if self.steps >= self.max_steps:
-            self.steps = 0
-            done = True
-
-        return obs, reward, done, info
-
-    def reset(self):
-        return self.env.reset()
-        
-
 class EpisodicLifeEnv(gym.Wrapper):
     def __init__(self, env, reward_scale = 1.0):
         gym.Wrapper.__init__(self, env)
@@ -132,13 +111,12 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.raw_score+= reward
         self.raw_score_total+= reward
 
-
         if self.was_real_done:
             self.raw_episodes+= 1
 
             k = 0.1
-            self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
-            
+
+            self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
         
 
@@ -149,9 +127,9 @@ class EpisodicLifeEnv(gym.Wrapper):
         if lives == 0 and self.inital_lives > 0:
             reward = -10.0 
 
-        reward = numpy.clip(reward*self.reward_scale, -1.0, 1.0)
-
         self.lives = lives
+
+        reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
         return obs, reward, done, info
 
     def reset(self, **kwargs):
@@ -168,14 +146,13 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 
 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps = 4000, reward_scale = 0.1):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale = 1.0):
     env = NopOpsEnv(env)
     env = FireResetEnv(env) 
     env = MaxAndSkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = MaxStepsEnv(env, max_steps)
     env = EpisodicLifeEnv(env, reward_scale)
 
-    env.observation_space.shape = (frame_stacking, height, width)
+    #env.observation_space.shape = (frame_stacking, height, width)
 
     return env
