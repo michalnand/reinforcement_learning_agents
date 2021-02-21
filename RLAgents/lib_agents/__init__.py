@@ -4,6 +4,8 @@ from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
+from .RunningStats                  import RunningStats
+
 from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
 

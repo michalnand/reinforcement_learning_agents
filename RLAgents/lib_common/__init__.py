@@ -9,6 +9,8 @@ from .TrainingLog           import TrainingLog
 
 
 from .WrapperAtari          import WrapperAtari
+from .WrapperAtari          import WrapperAtariNoRewards
+
 from .WrapperDoom           import WrapperDoom, WrapperDoomRender
 from .WrapperMontezuma      import WrapperMontezuma
 from .WrapperRetro          import WrapperRetro

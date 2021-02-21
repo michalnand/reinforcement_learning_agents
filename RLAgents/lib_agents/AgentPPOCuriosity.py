@@ -4,7 +4,8 @@ import time
 
 from torch.distributions import Categorical
 
-from .PolicyBufferIM import *
+from .PolicyBufferIM    import *
+from .RunningStats      import *
  
 class AgentPPOCuriosity():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
@@ -44,10 +45,11 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
 
-        self._init_states_running_stats(numpy.array(self.states))
+        self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
+        self.int_reward_running_stats   = RunningStats()
 
         self.enable_training()
-        self.iterations = 0
+        self.iterations = 0 
 
         self.loss_forward           = 0.0
         self.internal_motivation    = 0.0
@@ -74,9 +76,12 @@ class AgentPPOCuriosity():
         
         action_one_hot_t    = self._action_one_hot(numpy.array(actions))
 
-        self._update_states_running_stats(states_t)
-        curiosity_t         = self._curiosity(states_t, action_one_hot_t)
-        curiosity_np        = numpy.tanh(curiosity_t.detach().to("cpu").numpy())
+        self.states_running_stats.update(states_np)
+
+        curiosity_np         = self._curiosity(states_t, action_one_hot_t).detach().to("cpu").numpy()
+        self.int_reward_running_stats.update(curiosity_np)
+
+        curiosity_np        = curiosity_np - self.int_reward_running_stats.mean
 
         states, rewards, dones, _ = self.envs.step(actions)
 
@@ -213,7 +218,7 @@ class AgentPPOCuriosity():
         return action_one_hot_t
 
     def _curiosity(self, state_t, action_one_hot_t):
-        state_norm_t = state_t - self.states_running_mean_t
+        state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
 
         features_predicted_t    = self.model_forward(state_norm_t, action_one_hot_t)
         features_target_t       = self.model_forward_target(state_norm_t, action_one_hot_t)
@@ -222,11 +227,3 @@ class AgentPPOCuriosity():
         curiosity_t    = curiosity_t.mean(dim=1)
 
         return curiosity_t
-
-    def _init_states_running_stats(self, initial_states):
-        initial_states_mean        = initial_states.mean(axis=0)
-        self.states_running_mean_t = torch.from_numpy(initial_states_mean).to(self.model_ppo.device)
-
-    def _update_states_running_stats(self, state_t, eps = 0.001):
-        mean_t = state_t.mean(dim = 0).detach()
-        self.states_running_mean_t = (1.0 - eps)*self.states_running_mean_t + eps*mean_t

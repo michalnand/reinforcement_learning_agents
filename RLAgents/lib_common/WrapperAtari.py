@@ -153,6 +153,8 @@ def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=
     env = ResizeEnv(env, height, width, frame_stacking)
     env = EpisodicLifeEnv(env, reward_scale)
 
-    #env.observation_space.shape = (frame_stacking, height, width)
-
     return env
+
+
+def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+    return WrapperAtari(env, height, width, frame_stacking, frame_skipping, reward_scale=0.0)
