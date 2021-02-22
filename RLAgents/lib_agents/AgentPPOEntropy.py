@@ -293,6 +293,6 @@ class AgentPPOEntropy():
 
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):
-            entropy[e] = numpy.std(features_np[e], axis=0).mean()
+            entropy[e] = numpy.var(features_np[e], axis=0).mean()
         
         return entropy

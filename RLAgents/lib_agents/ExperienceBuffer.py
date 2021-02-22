@@ -39,7 +39,7 @@ class ExperienceBuffer():
 
     def sample(self, batch_size, device = "cpu"):
         indices         = numpy.random.randint(0, self.size, size=batch_size)
-        indices_next    = (indices + 1)%self.size
+        indices_next    = (indices + 1)%self.size 
 
         state_t         = torch.from_numpy(numpy.take(self.state_b,     indices, axis=0)).to(device)
         state_next_t    = torch.from_numpy(numpy.take(self.state_b,     indices_next, axis=0)).to(device)
@@ -50,26 +50,3 @@ class ExperienceBuffer():
 
         return state_t, state_next_t, action_t, reward_t, done_t, ir_t
 
-
-    def sample_reachable_pairs(self, batch_size, pair_distance_max = 2, horizon_distance_max = 16, device = "cpu"):
-        states_a_t, states_b_t, distances, _ = self.sample_distance_pairs(batch_size, distance_max = horizon_distance_max, device = device)
-
-        labels   = 1.0*(distances <= pair_distance_max)
-        labels_t = torch.from_numpy(labels).unsqueeze(1).to(device)
-                
-        return states_a_t, states_b_t, labels_t
-
-
-    def sample_distance_pairs(self, batch_size, distance_max = 8, device = "cpu"):
-        indices         = numpy.random.randint(0, self.size,    size=batch_size)
-        distances       = numpy.random.randint(0, distance_max, size=batch_size)
-        indices_next    = (indices + distances)%self.size
-
-        states_a_t      = torch.from_numpy(numpy.take(self.state_b, indices, axis=0)).to(device)
-        states_b_t      = torch.from_numpy(numpy.take(self.state_b, indices_next, axis=0)).to(device)
-
-        distances_np    = distances/distance_max
-
-        distances_t     = torch.from_numpy(distances_np).unsqueeze(1).to(device)
-
-        return states_a_t, states_b_t, distances, distances_t
