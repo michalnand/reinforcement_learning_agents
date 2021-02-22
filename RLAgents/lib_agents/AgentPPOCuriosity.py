@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *
 from .RunningStats      import *
  
-class AgentPPOCuriosity():
+class AgentPPOCuriosity(): 
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs
 

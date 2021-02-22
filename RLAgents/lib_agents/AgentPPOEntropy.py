@@ -4,8 +4,10 @@ import time
 
 from torch.distributions import Categorical
 
-from .PolicyBufferIM import *
- 
+from .PolicyBufferIM    import *
+from .RunningStats      import *
+
+  
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
         self.envs = envs
@@ -44,14 +46,18 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
 
-        self._init_states_running_stats(numpy.array(self.states))
-
 
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
+        self.states_running_stats                   = RunningStats(self.state_shape, numpy.array(self.states))
+        self.int_curiosity_reward_running_stats     = RunningStats()
+        self.int_entropy_reward_running_stats       = RunningStats()
+
         self.episodic_memory_size   = config.episodic_memory_size 
         self._init_episodic_memory(numpy.array(self.states))
+
+        
 
         self.enable_training()
         self.iterations = 0
@@ -86,11 +92,14 @@ class AgentPPOEntropy():
         
         action_one_hot_t    = self._action_one_hot(numpy.array(actions))
 
-        self._update_states_running_stats(states_t)
-        curiosity_t         = self._curiosity(states_t, action_one_hot_t)
-        curiosity_np        = numpy.tanh(curiosity_t.detach().to("cpu").numpy())
+        curiosity_np         = self._curiosity(states_t, action_one_hot_t).detach().to("cpu").numpy()
+        self.int_curiosity_reward_running_stats.update(curiosity_np)
+        curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
 
-        entropy_np = self._entropy(states_t)
+        entropy_np          = self._entropy(states_t)
+        self.int_entropy_reward_running_stats.update(entropy_np)
+        entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
+
 
         states, rewards, dones, _ = self.envs.step(actions)
 
@@ -245,7 +254,7 @@ class AgentPPOEntropy():
         return action_one_hot_t
 
     def _curiosity(self, state_t, action_one_hot_t):
-        state_norm_t = state_t - self.states_running_mean_t
+        state_norm_t = state_t - self.states_running_stats.mean
 
         features_predicted_t    = self.model_forward(state_norm_t, action_one_hot_t)
         features_target_t       = self.model_forward_target(state_norm_t, action_one_hot_t)
@@ -254,14 +263,6 @@ class AgentPPOEntropy():
         curiosity_t    = curiosity_t.mean(dim=1)
 
         return curiosity_t
-
-    def _init_states_running_stats(self, initial_states):
-        initial_states_mean        = initial_states.mean(axis=0)
-        self.states_running_mean_t = torch.from_numpy(initial_states_mean).to(self.model_ppo.device)
-
-    def _update_states_running_stats(self, state_t, eps = 0.001):
-        mean_t = state_t.mean(dim = 0).detach()
-        self.states_running_mean_t = (1.0 - eps)*self.states_running_mean_t + eps*mean_t
 
     def _init_episodic_memory(self, states):
         states_t        = torch.from_numpy(states).to(self.model_autoencoder.device).float()
@@ -273,7 +274,6 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             for i in range(self.episodic_memory_size):
                 self.episodic_memory_features[e][i] = features_np[e].copy()
-
 
     def _reset_episodic_memory(self, env_idx, state):
         states_t        = torch.from_numpy(state).unsqueeze(0).to(self.model_autoencoder.device).float()
@@ -293,6 +293,6 @@ class AgentPPOEntropy():
 
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):
-            entropy[e] = numpy.tanh(numpy.std(features_np[e], axis=0).mean())
+            entropy[e] = numpy.std(features_np[e], axis=0).mean()
         
         return entropy

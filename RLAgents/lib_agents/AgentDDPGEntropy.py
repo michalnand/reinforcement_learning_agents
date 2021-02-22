@@ -9,12 +9,12 @@ class AgentDDPGEntropy():
 
         config = Config.Config()
 
-        self.batch_size     = config.batch_size
-        self.gamma          = config.gamma
-        self.update_frequency = config.update_frequency
-        self.tau                =  config.tau
-        self.beta1           = config.beta1
-        self.beta2           = config.beta2
+        self.batch_size         = config.batch_size
+        self.gamma              = config.gamma
+        self.update_frequency   = config.update_frequency
+        self.tau                = config.tau
+        self.beta1              = config.beta1
+        self.beta2              = config.beta2
 
         self.exploration    = config.exploration
     
@@ -43,11 +43,11 @@ class AgentDDPGEntropy():
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape, self.actions_count)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.forward_learning_rate)
 
-        self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
-        self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr= config.autoencoder_learning_rate)
+        self.model_autoencoder      = ModelAutoencoder.Model(self.state_shape)
+        self.optimizer_autoencoder  = torch.optim.Adam(self.model_autoencoder.parameters(), lr= config.autoencoder_learning_rate)
 
-        self.state              = env.reset()
-        self.iterations         = 0
+        self.state                  = env.reset()
+        self.iterations             = 0
 
         self.episodic_memory_size   = config.episodic_memory_size 
         self._init_episodic_memory(self.state)
