@@ -306,14 +306,14 @@ class AgentPPOEntropy():
         return curiosity_t
 
    
-    def _add_episodic_memory(self, state_t):
+    def _add_episodic_memory(self, states_t):
         features_t    = self.model_autoencoder.eval_features(states_t)
         features_np   = features_t.detach().to("cpu").numpy()
-
+ 
         for e in range(len(self.episodic_memory)):
             self.episodic_memory[e].add(features_np[e]) 
               
-    def _entropy(self):
+    def _entropy(self): 
         entropy       = numpy.zeros(self.actors)
         for e in range(len(self.episodic_memory)):
             entropy[e] = self.episodic_memory[e].entropy()
