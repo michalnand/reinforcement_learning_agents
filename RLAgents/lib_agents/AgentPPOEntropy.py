@@ -82,10 +82,10 @@ class AgentPPOEntropy():
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         self.states = []
-        self.episodic_memory = []
+        self.episodic_memory = [] 
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
-            self.episodic_memory.append(EpisodicMemory(self.episodic_memory_size))
+            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size))
             
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
@@ -135,7 +135,7 @@ class AgentPPOEntropy():
         curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
 
         self._add_episodic_memory.add(states_np[e])
-        
+
         entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
         entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
