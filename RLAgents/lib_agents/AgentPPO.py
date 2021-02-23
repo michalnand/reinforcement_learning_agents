@@ -72,7 +72,7 @@ class AgentPPO():
                 self.states[e] = states[e].copy()
 
         self.iterations+= 1
-        return rewards[0], dones[0]
+        return states_np[0], rewards[0], dones[0]
     
     def save(self, save_path):
         self.model.save(save_path + "trained/")

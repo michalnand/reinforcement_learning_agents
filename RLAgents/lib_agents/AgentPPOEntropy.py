@@ -7,6 +7,44 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *
 from .RunningStats      import *
 
+class EpisodicMemory:
+    def __init__(self, size, initial_count = 16):
+        self.size               = size
+        self.initial_count      = initial_count
+        self.episodic_memory    = None
+
+    def reset(self, state):
+        self.episodic_memory = numpy.zeros((self.size , ) + state.shape)
+        for i in range(self.size):
+            self.episodic_memory[i] = state.copy()
+        self.count = 0
+
+    def add(self, state):
+        if self.episodic_memory is None:
+            self.reset(state)
+        else:
+            if self.count < self.initial_count: 
+                n = self.size//self.initial_count
+                for i in range(n):
+                    idx = numpy.random.randint(self.size)
+                    self.episodic_memory[idx] = state.copy()
+            else:
+                idx = numpy.random.randint(self.size)
+                self.episodic_memory[idx] = state.copy()
+
+        self.count+= 1
+
+    def entropy(self):
+        mean = self.episodic_memory.mean(axis=0)
+        diff = (self.episodic_memory - mean)**2
+        max_ = diff.max(axis=0)
+
+        result = max_.mean()
+
+        if self.count < self.initial_count:
+            return 0.0
+        else:
+            return result
   
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
@@ -19,7 +57,7 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.beta               = 0.9
+        self.beta               = 0.5
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -44,21 +82,18 @@ class AgentPPOEntropy():
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         self.states = []
+        self.episodic_memory = []
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
-
-
+            self.episodic_memory.append(EpisodicMemory(self.episodic_memory_size))
+            
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
         self.states_running_stats                   = RunningStats(self.state_shape, numpy.array(self.states))
         self.int_curiosity_reward_running_stats     = RunningStats()
         self.int_entropy_reward_running_stats       = RunningStats()
-
-        self.episodic_memory_size   = config.episodic_memory_size 
-        self._init_episodic_memory(numpy.array(self.states))
-
-        
+  
 
         self.enable_training()
         self.iterations = 0
@@ -90,6 +125,8 @@ class AgentPPOEntropy():
         actions = []
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
+
+        
         
         action_one_hot_t    = self._action_one_hot(numpy.array(actions))
 
@@ -97,7 +134,9 @@ class AgentPPOEntropy():
         self.int_curiosity_reward_running_stats.update(curiosity_np)
         curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
 
-        entropy_np          = self._entropy(states_t)
+        self._add_episodic_memory.add(states_np[e])
+        
+        entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
         entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
 
@@ -114,7 +153,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self._reset_episodic_memory(e, self.states[e])
+                self.episodic_memory[e].reset(self.states[e])
             else:
                 self.states[e] = states[e].copy()
 
@@ -266,35 +305,17 @@ class AgentPPOEntropy():
 
         return curiosity_t
 
-    def _init_episodic_memory(self, states):
-        states_t        = torch.from_numpy(states).to(self.model_autoencoder.device).float()
-        features_t      = self.model_autoencoder.eval_features(states_t)
-        features_np     = features_t.detach().to("cpu").numpy()
-
-        self.episodic_memory_features   = numpy.zeros((self.actors, self.episodic_memory_size, features_np.shape[1]))
-
-        for e in range(self.actors):
-            for i in range(self.episodic_memory_size):
-                self.episodic_memory_features[e][i] = features_np[e].copy()
-
-    def _reset_episodic_memory(self, env_idx, state):
-        states_t        = torch.from_numpy(state).unsqueeze(0).to(self.model_autoencoder.device).float()
-        features_t      = self.model_autoencoder.eval_features(states_t)
-        features_np     = features_t.squeeze(0).detach().to("cpu").numpy()
-
-        for i in range(self.episodic_memory_size):
-            self.episodic_memory_features[env_idx][i] = features_np[env_idx].copy()
-              
-    def _entropy(self, states_t):
+   
+    def _add_episodic_memory(self, state_t):
         features_t    = self.model_autoencoder.eval_features(states_t)
         features_np   = features_t.detach().to("cpu").numpy()
 
-        for e in range(self.actors):
-            idx = numpy.random.randint(self.episodic_memory_size)
-            self.episodic_memory_features[e][idx] = features_np[e]
-
+        for e in range(len(self.episodic_memory)):
+            self.episodic_memory[e].add(features_np[e])
+              
+    def _entropy(self):
         entropy       = numpy.zeros(self.actors)
-        for e in range(self.actors):
-            entropy[e] = numpy.std(self.episodic_memory_features[e], axis=0).mean()
+        for e in range(len(self.episodic_memory)):
+            entropy[e] = self.episodic_memory[e].entropy()
         
         return entropy
