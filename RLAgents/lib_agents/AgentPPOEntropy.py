@@ -254,7 +254,7 @@ class AgentPPOEntropy():
         return action_one_hot_t
 
     def _curiosity(self, state_t, action_one_hot_t):
-        state_norm_t = state_t - self.states_running_stats.mean
+        state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
 
         features_predicted_t    = self.model_forward(state_norm_t, action_one_hot_t)
         features_target_t       = self.model_forward_target(state_norm_t, action_one_hot_t)
