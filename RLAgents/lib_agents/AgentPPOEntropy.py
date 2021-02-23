@@ -134,7 +134,7 @@ class AgentPPOEntropy():
         self.int_curiosity_reward_running_stats.update(curiosity_np)
         curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
 
-        self._add_episodic_memory.add(states_np[e])
+        self._add_episodic_memory(states_np)
 
         entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
@@ -311,7 +311,7 @@ class AgentPPOEntropy():
         features_np   = features_t.detach().to("cpu").numpy()
 
         for e in range(len(self.episodic_memory)):
-            self.episodic_memory[e].add(features_np[e])
+            self.episodic_memory[e].add(features_np[e]) 
               
     def _entropy(self):
         entropy       = numpy.zeros(self.actors)
