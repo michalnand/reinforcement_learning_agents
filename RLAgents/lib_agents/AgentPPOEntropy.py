@@ -153,7 +153,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self.episodic_memory[e].reset(self.states[e])
+                self._reset_episodic_memory(e, self.states[e])
             else:
                 self.states[e] = states[e].copy()
 
@@ -312,6 +312,13 @@ class AgentPPOEntropy():
  
         for e in range(len(self.episodic_memory)):
             self.episodic_memory[e].add(features_np[e]) 
+
+    def _reset_episodic_memory(self, env_idx, state_np):
+        state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device)
+        features_t    = self.model_autoencoder.eval_features(state_t)
+        features_np   = features_t.squeeze(0).detach().to("cpu").numpy()
+ 
+        self.episodic_memory[env_idx].reset(features_np) 
               
     def _entropy(self): 
         entropy       = numpy.zeros(self.actors)
