@@ -19,6 +19,7 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+        self.beta               = 0.9
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -100,12 +101,13 @@ class AgentPPOEntropy():
         self.int_entropy_reward_running_stats.update(entropy_np)
         entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
 
+        internal_motivation_np = self.beta*curiosity_np + (1.0 - self.beta)*entropy_np
 
         states, rewards, dones, _ = self.envs.step(actions)
 
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e] + entropy_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], internal_motivation_np[e], dones[e])
 
                 if self.policy_buffer.is_full():
                     self.train()
@@ -293,6 +295,6 @@ class AgentPPOEntropy():
 
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):
-            entropy[e] = numpy.var(self.episodic_memory_features[e], axis=0).mean()
-         
+            entropy[e] = numpy.std(self.episodic_memory_features[e], axis=0).mean()
+        
         return entropy
