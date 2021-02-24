@@ -142,17 +142,18 @@ class AgentPPOCuriosity():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
                 
-                #train forward model, MSE loss
-                action_one_hot_t    = self._action_one_hot(actions)
-                curiosity_t         = self._curiosity(states, action_one_hot_t)
+                if e == 0:
+                    #train forward model, MSE loss
+                    action_one_hot_t    = self._action_one_hot(actions)
+                    curiosity_t         = self._curiosity(states, action_one_hot_t)
 
-                loss_forward = curiosity_t.mean()
-                self.optimizer_forward.zero_grad()
-                loss_forward.backward()
-                self.optimizer_forward.step()
+                    loss_forward = curiosity_t.mean()
+                    self.optimizer_forward.zero_grad()
+                    loss_forward.backward()
+                    self.optimizer_forward.step()
 
-                k = 0.02
-                self.loss_forward  = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                    k = 0.02
+                    self.loss_forward  = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
