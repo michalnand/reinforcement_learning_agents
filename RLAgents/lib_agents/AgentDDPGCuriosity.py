@@ -7,7 +7,7 @@ from .RunningStats      import *
 class AgentDDPGCuriosity():
     def __init__(self, env, ModelCritic, ModelActor, ModelForward, ModelForwardTarget, Config):
         self.env = env
-
+ 
         config = Config.Config()
 
         self.batch_size     = config.batch_size
