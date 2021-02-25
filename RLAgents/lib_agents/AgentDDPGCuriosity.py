@@ -49,7 +49,7 @@ class AgentDDPGCuriosity():
         self.iterations         = 0
 
         self.loss_forward             = 0.0
-        self.internal_motivation      = 0.0
+        self.curiosity_motivation     = 0.0
 
         self.enable_training()
 
@@ -77,9 +77,12 @@ class AgentDDPGCuriosity():
             curiosity_np = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
 
             self.curiosity_running_stats.update(curiosity_np, 0.001)
-            curiosity_norm = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
+            curiosity_norm = self.beta*(curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
 
-            self.experience_replay.add(self.state, action, reward, done, self.beta*curiosity_norm)
+            self.experience_replay.add(self.state, action, reward, done, curiosity_norm)
+
+            k = 0.02
+            self.curiosity_motivation     = (1.0 - k)*self.curiosity_motivation + k*curiosity_norm
 
         if self.enabled_training and self.iterations > 0.1*self.experience_replay.size:
             if self.iterations%self.update_frequency == 0:
@@ -143,7 +146,6 @@ class AgentDDPGCuriosity():
 
         k = 0.02
         self.loss_forward           = (1.0 - k)*self.loss_forward        + k*loss_forward.detach().to("cpu").numpy()
-        self.internal_motivation    = (1.0 - k)*self.internal_motivation + k*curiosity_t.mean().detach().to("cpu").numpy()
 
         #print(">>> ", self.loss_forward, self.internal_motivation)
 
@@ -163,7 +165,7 @@ class AgentDDPGCuriosity():
     def get_log(self):
         result = "" 
         result+= str(round(self.loss_forward, 7)) + " "
-        result+= str(round(self.internal_motivation, 7)) + " "
+        result+= str(round(self.curiosity_motivation, 7)) + " "
         return result
     
 

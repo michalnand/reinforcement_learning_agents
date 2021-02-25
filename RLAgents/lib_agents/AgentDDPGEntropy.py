@@ -126,14 +126,18 @@ class AgentDDPGEntropy():
         if self.enabled_training: 
             curiosity_np    = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
             self.curiosity_running_stats.update(curiosity_np, 0.001)
-            curiosity_norm  = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
+            curiosity_norm  = self.beta1*(curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
 
             self._add_episodic_memory(state_t) 
             entropy_np      = self.episodic_memory.entropy()
             self.entropy_running_stats.update(entropy_np, 0.001)
-            entropy_norm    = (entropy_np - self.entropy_running_stats.mean)/self.entropy_running_stats.std
+            entropy_norm    = self.beta2*(entropy_np - self.entropy_running_stats.mean)/self.entropy_running_stats.std
 
-            self.experience_replay.add(self.state, action, reward, done, self.beta1*curiosity_norm + self.beta2*entropy_norm)
+            self.experience_replay.add(self.state, action, reward, done, curiosity_norm + entropy_norm)
+
+            k = 0.02
+            self.curiosity_motivation   = (1.0 - k)*self.curiosity_motivation   + k*curiosity_norm
+            self.entropy_motivation     = (1.0 - k)*self.entropy_motivation     + k*entropy_norm
 
         if self.enabled_training and self.iterations > 0.1*self.experience_replay.size:
             if self.iterations%self.update_frequency == 0:
@@ -207,10 +211,7 @@ class AgentDDPGEntropy():
 
         k = 0.02
         self.loss_forward           = (1.0 - k)*self.loss_forward           + k*loss_forward.detach().to("cpu").numpy()
-        self.curiosity_motivation   = (1.0 - k)*self.curiosity_motivation   + k*curiosity_t.mean().detach().to("cpu").numpy()
-
         self.loss_autoencoder       = (1.0 - k)*self.loss_autoencoder       + k*loss_autoencoder.detach().to("cpu").numpy()
-        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation     + k*entropy_t.mean().detach().to("cpu").numpy()
 
         #print(self.loss_forward, self.curiosity_motivation, self.loss_autoencoder, self.entropy_motivation)
     
