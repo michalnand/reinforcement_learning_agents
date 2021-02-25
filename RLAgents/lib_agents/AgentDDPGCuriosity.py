@@ -74,7 +74,7 @@ class AgentDDPGCuriosity():
         state_next, reward, done, self.info = self.env.step(action)
 
         if self.enabled_training: 
-            curiosity_np = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
+            curiosity_np = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()[0]
             self.curiosity_running_stats.update(curiosity_np, 0.001)
             curiosity_norm = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
 
