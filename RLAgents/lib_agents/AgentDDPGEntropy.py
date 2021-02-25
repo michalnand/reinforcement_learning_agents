@@ -34,12 +34,12 @@ class EpisodicMemory:
     def entropy(self):
         mean = self.episodic_memory.mean(axis=0)
         diff = (self.episodic_memory - mean)**2
-        max_ = diff.max(axis=0)
+        max_ = diff.max(axis=0) 
 
         result = max_.mean()
 
         if self.count < self.initial_count:
-            return 0.0
+            return numpy.array(0.0)
         else:
             return result
 
@@ -124,13 +124,13 @@ class AgentDDPGEntropy():
         state_next, reward, done, self.info = self.env.step(action)
 
         if self.enabled_training: 
-            curiosity_np    = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()[0]
+            curiosity_np    = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
             self.curiosity_running_stats.update(curiosity_np, 0.001)
             curiosity_norm  = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
 
             self._add_episodic_memory(state_t) 
             entropy_np      = self.episodic_memory.entropy()
-            self.entropy_running_stats(entropy_np, 0.001)
+            self.entropy_running_stats.update(entropy_np, 0.001)
             entropy_norm    = (entropy_np - self.entropy_running_stats.mean)/self.entropy_running_stats.std
 
             self.experience_replay.add(self.state, action, reward, done, self.beta1*curiosity_norm + self.beta2*entropy_norm)
