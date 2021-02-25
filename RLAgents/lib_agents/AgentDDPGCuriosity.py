@@ -2,6 +2,7 @@ import numpy
 import torch
 from .ExperienceBufferContinuous import *
 
+from .RunningStats      import *
 
 class AgentDDPGCuriosity():
     def __init__(self, env, ModelCritic, ModelActor, ModelForward, ModelForwardTarget, Config):
@@ -42,6 +43,8 @@ class AgentDDPGCuriosity():
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape, self.actions_count)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.forward_learning_rate)
 
+        self.curiosity_running_stats   = RunningStats()
+
         self.state              = env.reset()
         self.iterations         = 0
 
@@ -71,7 +74,11 @@ class AgentDDPGCuriosity():
         state_next, reward, done, self.info = self.env.step(action)
 
         if self.enabled_training: 
-            self.experience_replay.add(self.state, action, reward, done)
+            curiosity_np = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
+            self.curiosity_running_stats.update(curiosity_np, 0.001)
+            curiosity_norm = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
+
+            self.experience_replay.add(self.state, action, reward, done, self.beta*curiosity_norm)
 
         if self.enabled_training and self.iterations > 0.1*self.experience_replay.size:
             if self.iterations%self.update_frequency == 0:
@@ -88,14 +95,13 @@ class AgentDDPGCuriosity():
         
         
     def train_model(self):
-        state_t, state_next_t, action_t, reward_t, done_t, _ = self.experience_replay.sample(self.batch_size, self.model_critic.device)
+        state_t, state_next_t, action_t, reward_t, done_t, internal_motivation_t = self.experience_replay.sample(self.batch_size, self.model_critic.device)
 
         action_next_t   = self.model_actor_target.forward(state_next_t).detach()
         value_next_t    = self.model_critic_target.forward(state_next_t, action_next_t).detach()
 
         #curiosity internal motivation
         curiosity_prediction_t      = self._curiosity(state_t, action_t)
-        curiosity_t                 = self.beta*torch.tanh(curiosity_prediction_t.detach())
 
         #train forward model, MSE loss
         loss_forward = curiosity_prediction_t.mean()
@@ -107,7 +113,7 @@ class AgentDDPGCuriosity():
         done_t   = (1.0 - done_t).unsqueeze(-1)
 
         #critic loss
-        value_target    = reward_t + curiosity_t + self.gamma*done_t*value_next_t
+        value_target    = reward_t + internal_motivation_t + self.gamma*done_t*value_next_t
         value_predicted = self.model_critic.forward(state_t, action_t)
 
         loss_critic     = ((value_target - value_predicted)**2)

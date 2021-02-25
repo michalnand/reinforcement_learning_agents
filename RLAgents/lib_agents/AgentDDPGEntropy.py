@@ -2,6 +2,7 @@ import numpy
 import torch
 from .ExperienceBufferContinuous import *
 
+from .RunningStats      import *
 
 class EpisodicMemory:
     def __init__(self, size, initial_count = 16):
@@ -91,6 +92,9 @@ class AgentDDPGEntropy():
         self.episodic_memory        = EpisodicMemory(config.episodic_memory_size)
         self._reset_episodic_memory(self.state)
 
+        self.curiosity_running_stats   = RunningStats()
+        self.entropy_running_stats     = RunningStats()
+
         self.loss_forward           = 0.0
         self.curiosity_motivation   = 0.0
 
@@ -120,9 +124,16 @@ class AgentDDPGEntropy():
         state_next, reward, done, self.info = self.env.step(action)
 
         if self.enabled_training: 
+            curiosity_np    = self._curiosity(state_t, action_t).squeeze(0).detach().to("cpu").numpy()
+            self.curiosity_running_stats.update(curiosity_np, 0.001)
+            curiosity_norm  = (curiosity_np - self.curiosity_running_stats.mean)/self.curiosity_running_stats.std
+
             self._add_episodic_memory(state_t) 
-            entropy = self.beta2*self.episodic_memory.entropy()
-            self.experience_replay.add(self.state, action, reward, done, entropy)
+            entropy_np      = self.episodic_memory.entropy()
+            self.entropy_running_stats(entropy_np, 0.001)
+            entropy_norm    = (entropy_np - self.entropy_running_stats.mean)/self.entropy_running_stats.std
+
+            self.experience_replay.add(self.state, action, reward, done, self.beta1*curiosity_norm + self.beta2*entropy_norm)
 
         if self.enabled_training and self.iterations > 0.1*self.experience_replay.size:
             if self.iterations%self.update_frequency == 0:
@@ -140,21 +151,19 @@ class AgentDDPGEntropy():
         
         
     def train_model(self):
-        state_t, state_next_t, action_t, reward_t, done_t, entropy_t = self.experience_replay.sample(self.batch_size, self.model_critic.device)
+        state_t, state_next_t, action_t, reward_t, done_t, internal_motivation_t = self.experience_replay.sample(self.batch_size, self.model_critic.device)
 
         action_next_t   = self.model_actor_target.forward(state_next_t).detach()
         value_next_t    = self.model_critic_target.forward(state_next_t, action_next_t).detach()
 
         #curiosity internal motivation
         curiosity_prediction_t      = self._curiosity(state_t, action_t)
-        curiosity_t                 = self.beta1*torch.tanh(curiosity_prediction_t.detach())
 
         #train forward model, MSE loss
         loss_forward = curiosity_prediction_t.mean()
         self.optimizer_forward.zero_grad()
         loss_forward.backward()
         self.optimizer_forward.step()
-
 
         #train autoencoder model, MSE loss
         state_predicted_t, _    = self.model_autoencoder(state_t)
@@ -169,7 +178,7 @@ class AgentDDPGEntropy():
         done_t   = (1.0 - done_t).unsqueeze(-1)
 
         #critic loss
-        value_target    = reward_t + curiosity_t + entropy_t + self.gamma*done_t*value_next_t
+        value_target    = reward_t + internal_motivation_t + self.gamma*done_t*value_next_t
         value_predicted = self.model_critic.forward(state_t, action_t)
 
         loss_critic     = ((value_target - value_predicted)**2)
