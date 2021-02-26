@@ -13,26 +13,29 @@ class EpisodicMemory:
         self.initial_count      = initial_count
         self.episodic_memory    = None
 
-    def reset(self, state):
-        self.episodic_memory = torch.zeros((self.size , ) + state.shape).to(state.device)
+    def reset(self, state_t): 
+        self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
         for i in range(self.size):
-            self.episodic_memory[i] = state.copy()
+            self.episodic_memory[i] = state_t.copy()
         self.count = 0
 
-    def add(self, state):
+    def add(self, state_t):
+        print(">>> add", state_t.shape)
         if self.episodic_memory is None:
-            self.reset(state)
+            self.reset(state_t)
         else:
             if self.count < self.initial_count: 
                 n = self.size//self.initial_count
                 for i in range(n):
                     idx = numpy.random.randint(self.size)
-                    self.episodic_memory[idx] = state.copy()
+                    self.episodic_memory[idx] = state_t.copy()
+
+                self.count+= 1
             else:
                 idx = numpy.random.randint(self.size)
-                self.episodic_memory[idx] = state.copy()
+                self.episodic_memory[idx] = state_t.copy()
 
-        self.count+= 1
+        
 
     def entropy(self):
         mean = self.episodic_memory.mean(axis=0)
@@ -155,7 +158,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self._reset_episodic_memory(e, self.states[e])
+                self._reset_episodic_memory(e, torch.from_numpy(self.states[e]).to(self.model_ppo.device))
             else:
                 self.states[e] = states[e].copy()
 
@@ -315,7 +318,7 @@ class AgentPPOEntropy():
         state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
 
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
-        features_t    = features_t.detach()
+        features_t    = features_t.squeeze(0).detach()
  
         for e in range(len(self.episodic_memory)):
             self.episodic_memory[e].add(features_t[e]) 
