@@ -57,7 +57,7 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.beta               = 0.5
+        self.beta               = config.beta
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -221,8 +221,10 @@ class AgentPPOEntropy():
                     self.optimizer_forward.step()
 
                     #train autoencoder model, MSE loss
-                    state_predicted_t, _  = self.model_autoencoder(states)
-                    loss_autoencoder    = (states.detach() - state_predicted_t)**2
+                    state_norm_t  = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+
+                    state_predicted_t, _  = self.model_autoencoder(state_norm_t.detach())
+                    loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
                     loss_autoencoder    = loss_autoencoder.mean()
                     self.optimizer_autoencoder.zero_grad()
                     loss_autoencoder.backward()
@@ -308,7 +310,9 @@ class AgentPPOEntropy():
 
    
     def _add_episodic_memory(self, states_t):
-        features_t    = self.model_autoencoder.eval_features(states_t)
+        state_norm_t  = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+
+        features_t    = self.model_autoencoder.eval_features(state_norm_t)
         features_np   = features_t.detach().to("cpu").numpy()
  
         for e in range(len(self.episodic_memory)):
@@ -316,7 +320,10 @@ class AgentPPOEntropy():
 
     def _reset_episodic_memory(self, env_idx, state_np):
         state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device)
-        features_t    = self.model_autoencoder.eval_features(state_t)
+
+        state_norm_t  = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+
+        features_t    = self.model_autoencoder.eval_features(state_norm_t)
         features_np   = features_t.squeeze(0).detach().to("cpu").numpy()
  
         self.episodic_memory[env_idx].reset(features_np) 
