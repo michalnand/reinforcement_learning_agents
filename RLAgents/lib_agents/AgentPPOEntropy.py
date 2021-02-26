@@ -20,7 +20,6 @@ class EpisodicMemory:
         self.count = 0
 
     def add(self, state_t):
-        print(">>> add", state_t.shape)
         if self.episodic_memory is None:
             self.reset(state_t)
         else:
@@ -43,8 +42,6 @@ class EpisodicMemory:
         max_ = diff.max(axis=0)[0] 
  
         result = max_.mean().detach().to("cpu").numpy()
-
-        print(">>> entropy ", result)
 
         if self.count < self.initial_count:
             return 0.0
@@ -158,7 +155,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self._reset_episodic_memory(e, torch.from_numpy(self.states[e]).to(self.model_ppo.device))
+                self._reset_episodic_memory(e, self.states[e])
             else:
                 self.states[e] = states[e].copy()
 
@@ -316,7 +313,7 @@ class AgentPPOEntropy():
    
     def _add_episodic_memory(self, states_t):
         state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
-
+ 
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
         features_t    = features_t.squeeze(0).detach()
  
