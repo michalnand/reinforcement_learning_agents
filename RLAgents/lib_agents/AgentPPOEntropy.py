@@ -40,7 +40,7 @@ class EpisodicMemory:
     def entropy(self):
         mean = self.episodic_memory.mean(axis=0)
         diff = (self.episodic_memory - mean)**2
-        max_ = diff.max(axis=0)
+        max_ = diff.max(axis=0)[0] 
  
         result = max_.mean().detach().to("cpu").numpy()
 
