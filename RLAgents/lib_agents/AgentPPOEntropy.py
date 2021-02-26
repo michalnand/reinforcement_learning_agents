@@ -16,7 +16,7 @@ class EpisodicMemory:
     def reset(self, state_t): 
         self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
         for i in range(self.size):
-            self.episodic_memory[i] = state_t.copy()
+            self.episodic_memory[i] = state_t
         self.count = 0
 
     def add(self, state_t):
@@ -25,15 +25,15 @@ class EpisodicMemory:
             self.reset(state_t)
         else:
             if self.count < self.initial_count: 
-                n = self.size//self.initial_count
+                n = self.size//self.initial_count 
                 for i in range(n):
                     idx = numpy.random.randint(self.size)
-                    self.episodic_memory[idx] = state_t.copy()
+                    self.episodic_memory[idx] = state_t
 
                 self.count+= 1
             else:
                 idx = numpy.random.randint(self.size)
-                self.episodic_memory[idx] = state_t.copy()
+                self.episodic_memory[idx] = state_t
 
         
 
