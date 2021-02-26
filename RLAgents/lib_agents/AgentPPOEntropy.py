@@ -41,6 +41,8 @@ class EpisodicMemory:
  
         result = max_.mean().detach().to("cpu").numpy()
 
+        print(">>> entropy ", result)
+
         if self.count < self.initial_count:
             return 0.0
         else:
