@@ -161,4 +161,4 @@ def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=
  
 
 def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    return WrapperAtari(env, height, width, frame_stacking, reward_scale=0.1, keep_only_negative_reward=True)
+    return WrapperAtari(env, height, width, frame_stacking, reward_scale=1.0, keep_only_negative_reward=True)
