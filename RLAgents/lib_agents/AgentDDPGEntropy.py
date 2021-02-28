@@ -3,45 +3,7 @@ import torch
 from .ExperienceBufferContinuous import *
 
 from .RunningStats      import *
-
-class EpisodicMemory:
-    def __init__(self, size, initial_count = 16):
-        self.size               = size
-        self.initial_count      = initial_count
-        self.episodic_memory    = None
-
-    def reset(self, state):
-        self.episodic_memory = numpy.zeros((self.size , ) + state.shape)
-        for i in range(self.size):
-            self.episodic_memory[i] = state.copy()
-        self.count = 0
-
-    def add(self, state):
-        if self.episodic_memory is None:
-            self.reset(state)
-        else:
-            if self.count < self.initial_count: 
-                n = self.size//self.initial_count
-                for i in range(n):
-                    idx = numpy.random.randint(self.size)
-                    self.episodic_memory[idx] = state.copy()
-            else:
-                idx = numpy.random.randint(self.size)
-                self.episodic_memory[idx] = state.copy()
-
-        self.count+= 1
-
-    def entropy(self):
-        mean = self.episodic_memory.mean(axis=0)
-        diff = (self.episodic_memory - mean)**2
-        max_ = diff.max(axis=0) 
-
-        result = max_.mean()
-
-        if self.count < self.initial_count:
-            return numpy.array(0.0)
-        else:
-            return result
+from .EpisodicMemory    import *
 
 class AgentDDPGEntropy():
     def __init__(self, env, ModelCritic, ModelActor, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
