@@ -197,9 +197,14 @@ class AgentPPOEntropy():
                     #orthogonality loss
                     #normalise length to 1
                     #compute dot product
-                    z_norm          = z_t/((torch.sum(z_t**2, dim=1))**0.5).unsqueeze(1)
+                    '''
+                    z_norm          = z_t/(((torch.sum(z_t**2, dim=1))**0.5) + 0.0000001).unsqueeze(1)
                     z_dot           = torch.mm(z_norm, z_norm.permute(1, 0))
                     loss_ae_ortho   = self.alpha*(z_dot**2).mean()
+                    '''
+                    #L1 regularisation, dirty but fast
+                    z_t             = torch.abs(z_t)
+                    loss_ae_ortho   = self.alpha*z_t.mean()
 
                     loss_autoencoder = loss_ae_mse + loss_ae_ortho
 
