@@ -49,18 +49,18 @@ class AgentPPOContinuous():
  
         mu_t, var_t, values_t  = self.model.forward(states_t)
 
-
         states_np = states_t.detach().to("cpu").numpy()
         values_np = values_t.detach().to("cpu").numpy()
-
-        actions = []
-        for e in range(self.actors):
-            action = self._sample_action(mu_t[e], var_t[e])
-            actions.append(action)
 
         mu_np   = mu_t.detach().to("cpu").numpy()
         var_np  = var_t.detach().to("cpu").numpy()
 
+        actions = []
+        for e in range(self.actors):
+            action = self._sample_action(mu_np[e], var_np[e])
+            actions.append(action)
+
+        
         states, rewards, dones, _ = self.envs.step(actions)
         
         for e in range(self.actors):
@@ -85,12 +85,11 @@ class AgentPPOContinuous():
         self.model.load(save_path + "trained/")
 
     def _sample_action(self, mu, var):
-        sigma    = torch.sqrt(var)
-        dist     = torch.distributions.Normal(mu, sigma)
-        
-        action_t = dist.sample().clamp(-1.0, 1.0)
+        sigma    = numpy.sqrt(var)
 
-        return action_t.detach().to("cpu").numpy()
+        action   = numpy.random.normal(mu, sigma)
+        action   = numpy.clip(action, -1, 1)
+        return action
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma)
@@ -110,12 +109,18 @@ class AgentPPOContinuous():
         self.policy_buffer.clear()   
     
     def _compute_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
-        log_probs_old = self._log_prob(actions, actions_mu, actions_var)
-        
-        mu_new, var_new, values_new   = self.model.forward(states)
-        log_probs_new = self._log_prob(actions, mu_new, var_new)
+        #log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
 
-        advantages_ = advantages.unsqueeze(1).detach()
+        dist_old        = torch.distributions.Normal(actions_mu, actions_var)
+        log_probs_old   = dist_old.log_prob(actions).detach()
+        
+        mu_new, var_new, values_new = self.model.forward(states)
+        
+        #log_probs_new = self._log_prob(actions, mu_new, var_new)
+        dist_new        = torch.distributions.Normal(mu_new, var_new)
+        log_probs_new   = dist_new.log_prob(actions)
+
+        advantages_     = advantages.unsqueeze(1).detach()
 
         '''
         compute critic loss, as MSE
@@ -127,25 +132,26 @@ class AgentPPOContinuous():
         
         ''' 
         compute actor loss, surrogate loss
-        '''                
+        '''
         ratio       = torch.exp(log_probs_new - log_probs_old)
         p1          = ratio*advantages_
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
-    
+        
         '''
         compute entropy loss, to avoid greedy strategy
+        H = ln(sqrt(2*pi*var))
         ''' 
-        loss_entropy = -0.5*torch.log(2.0*numpy.pi*var_new)
+        loss_entropy = -(torch.log(2.0*numpy.pi*var_new) + 1.0)/2.0
         loss_entropy = self.entropy_beta*loss_entropy.mean()
-
+ 
         loss = loss_value + loss_policy + loss_entropy
-    
+
         return loss
 
     def _log_prob(self, action, mu, var):
-        result = -((action - mu)**2) / (2.0*var.clamp(min = 0.001))
-        result+= -torch.log(torch.sqrt(2.0*numpy.pi*var))
+        p1 = -((action - mu)**2)/(2.0*var + 0.001)
+        p2 = -torch.log(torch.sqrt(2.0*numpy.pi*var)) 
 
-        return result
+        return p1 + p2

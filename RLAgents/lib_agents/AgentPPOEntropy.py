@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *
 from .RunningStats      import *
 from .EpisodicMemory    import *
-
+ 
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
         self.envs = envs
@@ -19,6 +19,7 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+        self.alpha              = 0.1
         self.beta               = config.beta
 
         self.entropy_beta       = config.entropy_beta
@@ -64,7 +65,8 @@ class AgentPPOEntropy():
         self.loss_forward           = 0.0
         self.curiosity_motivation   = 0.0
 
-        self.loss_autoencoder       = 0.0
+        self.loss_autoencoder_mse   = 0.0
+        self.loss_autoencoder_ortho = 0.0
         self.entropy_motivation     = 0.0
 
 
@@ -143,7 +145,8 @@ class AgentPPOEntropy():
         result = "" 
         result+= str(round(self.loss_forward, 7)) + " "
         result+= str(round(self.curiosity_motivation, 7)) + " "
-        result+= str(round(self.loss_autoencoder, 7)) + " "
+        result+= str(round(self.loss_autoencoder_mse, 7)) + " "
+        result+= str(round(self.loss_autoencoder_ortho, 7)) + " "
         result+= str(round(self.entropy_motivation, 7)) + " "
     
         return result
@@ -185,16 +188,29 @@ class AgentPPOEntropy():
                     #train autoencoder model, MSE loss
                     state_norm_t  = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
 
-                    state_predicted_t, _  = self.model_autoencoder(state_norm_t.detach())
-                    loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
-                    loss_autoencoder    = loss_autoencoder.mean()
+                    state_predicted_t, z_t  = self.model_autoencoder(state_norm_t.detach())
+
+                    #reconstruction loss
+                    loss_ae_mse    = (state_norm_t.detach() - state_predicted_t)**2
+                    loss_ae_mse    = loss_ae_mse.mean()
+
+                    #orthogonality loss
+                    #normalise length to 1
+                    #compute dot product
+                    z_norm          = z_t/((torch.sum(z_t**2, dim=1))**0.5).unsqueeze(1)
+                    z_dot           = torch.mm(z_norm, z_norm.permute(1, 0))
+                    loss_ae_ortho   = self.alpha*(z_dot**2).mean()
+
+                    loss_autoencoder = loss_ae_mse + loss_ae_ortho
+
                     self.optimizer_autoencoder.zero_grad()
                     loss_autoencoder.backward()
                     self.optimizer_autoencoder.step()
 
                     k = 0.02
-                    self.loss_forward       = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
-                    self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+                    self.loss_forward               = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                    self.loss_autoencoder_mse       = (1.0 - k)*self.loss_autoencoder_mse + k*loss_ae_mse.detach().to("cpu").numpy()
+                    self.loss_autoencoder_ortho     = (1.0 - k)*self.loss_autoencoder_ortho + k*loss_ae_ortho.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 

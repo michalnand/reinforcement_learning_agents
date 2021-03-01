@@ -6,7 +6,7 @@ class EpisodicMemory:
         self.size               = size
         self.initial_count      = initial_count
         self.episodic_memory    = None
-
+ 
     def reset(self, state_t): 
         self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
         for i in range(self.size):
