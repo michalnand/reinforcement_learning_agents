@@ -19,7 +19,7 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.alpha              = 0.01
+        self.alpha              = 0.001
         self.beta               = config.beta
 
         self.entropy_beta       = config.entropy_beta
