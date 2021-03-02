@@ -130,11 +130,13 @@ class EpisodicLifeEnv(gym.Wrapper):
         if self.no_rewards and reward > 0.0:
             reward = 0.0
         
+        '''
         if reward != 0:
             print("\n\n\n")
             print("reward = ", reward)
             print("\n\n\n")
-
+        '''
+        
         reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
 
         return obs, reward, done, info
