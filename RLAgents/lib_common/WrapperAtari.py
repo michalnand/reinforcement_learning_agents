@@ -26,7 +26,6 @@ class NopOpsEnv(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
         return obs, reward, done, info
 
-
 class MaxAndSkipEnv(gym.Wrapper):
     def __init__(self, env, skip=4):
         gym.Wrapper.__init__(self, env)
@@ -47,7 +46,6 @@ class MaxAndSkipEnv(gym.Wrapper):
 
         max_frame = self._obs_buffer.max(axis=0)
         return max_frame, total_reward, done, info
-
 
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
@@ -90,20 +88,19 @@ class FireResetEnv(gym.Wrapper):
 
         return obs
 
-
 class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env, reward_scale = 1.0, keep_only_negative_reward = False):
+    def __init__(self, env, reward_scale = 1.0, no_rewards = False):
         gym.Wrapper.__init__(self, env)
         self.lives = 0
-        self.was_real_done  = True
+        self.was_real_done          = True
 
-        self.raw_episodes            = 0
-        self.raw_score               = 0.0
-        self.raw_score_per_episode   = 0.0
-        self.raw_score_total         = 0.0  
+        self.raw_episodes           = 0
+        self.raw_score              = 0.0
+        self.raw_score_per_episode  = 0.0
+        self.raw_score_total        = 0.0  
 
-        self.reward_scale = reward_scale
-        self.keep_only_negative_reward = keep_only_negative_reward
+        self.reward_scale   = reward_scale
+        self.no_rewards     = no_rewards
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -128,9 +125,15 @@ class EpisodicLifeEnv(gym.Wrapper):
             reward = -1.0 
 
         self.lives = lives
+        
 
-        if self.keep_only_negative_reward and reward > 0.0:
+        if self.no_rewards and reward > 0.0:
             reward = 0.0
+        
+        if reward != 0:
+            print("\n\n\n")
+            print("reward = ", reward)
+            print("\n\n\n")
 
         reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
 
@@ -148,17 +151,15 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.inital_lives = self.env.unwrapped.ale.lives()
         return obs
 
-
-
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale = 1.0, keep_only_negative_reward = False):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale = 1.0, no_rewards = False):
     env = NopOpsEnv(env)
     env = FireResetEnv(env) 
     env = MaxAndSkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env, reward_scale, keep_only_negative_reward)
+    env = EpisodicLifeEnv(env, reward_scale, no_rewards)
 
     return env
  
 
 def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    return WrapperAtari(env, height, width, frame_stacking, reward_scale=1.0, keep_only_negative_reward=True)
+    return WrapperAtari(env, height, width, frame_stacking, no_rewards=True)

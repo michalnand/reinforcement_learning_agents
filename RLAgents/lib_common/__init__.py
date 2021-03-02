@@ -8,8 +8,7 @@ from .Training              import TrainingIterations
 from .TrainingLog           import TrainingLog
 
 
-from .WrapperAtari          import WrapperAtari
-from .WrapperAtari          import WrapperAtariNoRewards
+from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
 
 from .WrapperDoom           import WrapperDoom, WrapperDoomRender
 from .WrapperMontezuma      import WrapperMontezuma
