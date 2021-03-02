@@ -109,17 +109,11 @@ class AgentPPOContinuous():
         self.policy_buffer.clear()   
     
     def _compute_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
-        #log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
+        mu_new, var_new, values_new = self.model.forward(states)        
 
-        dist_old        = torch.distributions.Normal(actions_mu, actions_var)
-        log_probs_old   = dist_old.log_prob(actions).detach()
+        log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
+        log_probs_new = self._log_prob(actions, mu_new, var_new)
         
-        mu_new, var_new, values_new = self.model.forward(states)
-        
-        #log_probs_new = self._log_prob(actions, mu_new, var_new)
-        dist_new        = torch.distributions.Normal(mu_new, var_new)
-        log_probs_new   = dist_new.log_prob(actions)
-
         advantages_     = advantages.unsqueeze(1).detach()
 
         '''
@@ -138,6 +132,7 @@ class AgentPPOContinuous():
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
+
         
         '''
         compute entropy loss, to avoid greedy strategy
@@ -147,7 +142,7 @@ class AgentPPOContinuous():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
         loss = loss_value + loss_policy + loss_entropy
-
+        
         return loss
 
     def _log_prob(self, action, mu, var):

@@ -77,7 +77,7 @@ class PolicyBufferContinuous:
         
         self.advantages_b = (self.advantages_b - numpy.mean(self.advantages_b))/(numpy.std(self.advantages_b) + 1e-10)
         
-
+ 
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
@@ -114,8 +114,8 @@ class PolicyBufferContinuous:
         states      = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
         values      = values.reshape((self.envs_count*batch_size, ))
         actions     = actions.reshape((self.envs_count*batch_size, self.actions_size))
-        actions_mu  = actions.reshape((self.envs_count*batch_size, self.actions_size))
-        actions_var = actions.reshape((self.envs_count*batch_size, self.actions_size))
+        actions_mu  = actions_mu.reshape((self.envs_count*batch_size, self.actions_size))
+        actions_var = actions_var.reshape((self.envs_count*batch_size, self.actions_size))
         rewards     = rewards.reshape((self.envs_count*batch_size, ))
         dones       = dones.reshape((self.envs_count*batch_size, ))
         returns     = returns.reshape((self.envs_count*batch_size, ))
