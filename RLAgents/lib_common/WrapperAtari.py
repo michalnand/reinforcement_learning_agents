@@ -116,6 +116,9 @@ class EpisodicLifeEnv(gym.Wrapper):
 
             self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
+
+        if numpy.random.rand() > self.sparse_rewards:
+            reward = 0.0
         
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
@@ -125,10 +128,6 @@ class EpisodicLifeEnv(gym.Wrapper):
             reward = -1.0 
 
         self.lives = lives
-        
-        if numpy.random.rand() > self.sparse_rewards:
-            reward = 0.0
-        
         
         reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
 
