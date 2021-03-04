@@ -110,16 +110,12 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.raw_score_total+= reward
 
         if self.was_real_done:
-            self.raw_episodes+= 1
-
             k = 0.1
 
+            self.raw_episodes+= 1
             self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
 
-        if numpy.random.rand() > self.sparse_rewards:
-            reward = 0.0
-        
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
             done    = True 
@@ -127,10 +123,12 @@ class EpisodicLifeEnv(gym.Wrapper):
         if lives == 0 and self.inital_lives > 0:
             reward = -1.0 
 
-        self.lives = lives
-        
-        reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
+        if numpy.random.rand() > self.sparse_rewards:
+            reward = 0.0
 
+        self.lives = lives
+
+        reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
         return obs, reward, done, info
 
     def reset(self, **kwargs):
