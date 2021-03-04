@@ -89,7 +89,7 @@ class FireResetEnv(gym.Wrapper):
         return obs
 
 class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env, reward_scale = 1.0, no_rewards = False):
+    def __init__(self, env, reward_scale = 1.0, sparse_rewards = 1.0):
         gym.Wrapper.__init__(self, env)
         self.lives = 0
         self.was_real_done          = True
@@ -100,7 +100,7 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.raw_score_total        = 0.0  
 
         self.reward_scale   = reward_scale
-        self.no_rewards     = no_rewards
+        self.sparse_rewards = sparse_rewards
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -126,16 +126,9 @@ class EpisodicLifeEnv(gym.Wrapper):
 
         self.lives = lives
         
-
-        if self.no_rewards and reward > 0.0:
+        if numpy.random.rand() > self.sparse_rewards:
             reward = 0.0
         
-        '''
-        if reward != 0:
-            print("\n\n\n")
-            print("reward = ", reward)
-            print("\n\n\n")
-        '''
         
         reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
 
@@ -153,15 +146,15 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.inital_lives = self.env.unwrapped.ale.lives()
         return obs
 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale = 1.0, no_rewards = False):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale=1.0, sparse_rewards=1.0):
     env = NopOpsEnv(env)
     env = FireResetEnv(env) 
     env = MaxAndSkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env, reward_scale, no_rewards)
+    env = EpisodicLifeEnv(env, reward_scale, sparse_rewards)
 
     return env
  
 
-def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    return WrapperAtari(env, height, width, frame_stacking, no_rewards=True)
+def WrapperAtariSparseRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+    return WrapperAtari(env, height, width, frame_stacking, sparse_rewards=0.01)
