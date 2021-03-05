@@ -34,10 +34,10 @@ class AgentPPOCuriosity():
         self.model_ppo          = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo      = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_forward          = ModelForward.Model(self.state_shape, self.actions_count)
+        self.model_forward          = ModelForward.Model(self.state_shape)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
 
-        self.model_forward_target   = ModelForwardTarget.Model(self.state_shape, self.actions_count)
+        self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
@@ -74,11 +74,10 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
         
-        action_one_hot_t    = self._action_one_hot(numpy.array(actions))
 
         self.states_running_stats.update(states_np)
 
-        curiosity_np         = self._curiosity(states_t, action_one_hot_t).detach().to("cpu").numpy()
+        curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
         self.int_reward_running_stats.update(curiosity_np)
 
         curiosity_np        = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
@@ -144,8 +143,7 @@ class AgentPPOCuriosity():
                 
                 if e == 0:
                     #train forward model, MSE loss
-                    action_one_hot_t    = self._action_one_hot(actions)
-                    curiosity_t         = self._curiosity(states, action_one_hot_t)
+                    curiosity_t         = self._curiosity(states)
 
                     loss_forward = curiosity_t.mean()
                     self.optimizer_forward.zero_grad()
@@ -218,11 +216,11 @@ class AgentPPOCuriosity():
 
         return action_one_hot_t
 
-    def _curiosity(self, state_t, action_one_hot_t):
+    def _curiosity(self, state_t):
         state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
 
-        features_predicted_t    = self.model_forward(state_norm_t, action_one_hot_t)
-        features_target_t       = self.model_forward_target(state_norm_t, action_one_hot_t)
+        features_predicted_t    = self.model_forward(state_norm_t)
+        features_target_t       = self.model_forward_target(state_norm_t)
 
         curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
         curiosity_t    = curiosity_t.mean(dim=1)

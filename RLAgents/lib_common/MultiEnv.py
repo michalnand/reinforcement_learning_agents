@@ -9,7 +9,8 @@ class MultiEnvSeq:
 
 		try:
 			dummy_env 	= gym.make(env_name)
-			dummy_env 	= wrapper(dummy_env)
+			if wrapper is not None:
+				dummy_env 	= wrapper(dummy_env)
 		except:
 			dummy_env 	= wrapper(env_name)
 
@@ -22,7 +23,8 @@ class MultiEnvSeq:
 
 			try:
 				env 	= gym.make(env_name)
-				env 	= wrapper(env)
+				if wrapper is not None:
+					env 	= wrapper(env)
 			except:
 				env 	= wrapper(env_name)
 
@@ -51,8 +53,7 @@ class MultiEnvSeq:
 		return obs, reward, done, info
 
 	def render(self, env_id):
-		for i in range(len(self.envs)):
-			self.envs[i].render()
+		self.envs[env_id].render()
 	
 	def get(self, env_id):
 		return self.envs[env_id]
@@ -68,7 +69,8 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 		
 		try:
 			env 	= gym.make(env_name)
-			env 	= wrapper(env)
+			if wrapper is not None:
+				env 	= wrapper(env)
 		except:
 			env 	= wrapper(env_name)
 
@@ -118,7 +120,8 @@ class MultiEnvParallel:
 	def __init__(self, env_name, wrapper, envs_count, envs_per_thread = 8):
 		try:
 			dummy_env 	= gym.make(env_name)
-			dummy_env 	= wrapper(dummy_env)
+			if wrapper is not None:
+				dummy_env 	= wrapper(dummy_env)
 		except:
 			dummy_env 	= wrapper(env_name)
 
