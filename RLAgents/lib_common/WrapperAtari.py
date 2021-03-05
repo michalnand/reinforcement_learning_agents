@@ -116,15 +116,15 @@ class EpisodicLifeEnv(gym.Wrapper):
             self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
 
+        if self.dense_rewards < numpy.random.rand():
+            reward = 0.0
+
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives and lives > 0:
             done    = True 
             reward  = -1.0
         if lives == 0 and self.inital_lives > 0:
             reward = -1.0 
-
-        if self.dense_rewards < numpy.random.rand():
-            reward = 0.0 
 
         self.lives = lives
 
@@ -154,4 +154,4 @@ def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=
  
 
 def WrapperAtariSparseRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    return WrapperAtari(env, height, width, frame_stacking, dense_rewards=0.01)
+    return WrapperAtari(env, height, width, frame_stacking, dense_rewards=0.08)
