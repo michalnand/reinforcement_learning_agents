@@ -85,7 +85,7 @@ class AgentPPO():
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
 
-        return action_t.item() 
+        return action_t.item()  
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma)
