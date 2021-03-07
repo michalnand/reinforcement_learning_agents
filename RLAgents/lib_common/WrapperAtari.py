@@ -194,7 +194,7 @@ def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=
  
 
 def WrapperAtariSparseRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    env = WrapperAtari(env, height, width, frame_stacking)
+    env = WrapperAtari(env, height, width, frame_stacking, frame_skipping)
     env = SparseEnv(env, sparsity_steps=50)
 
     return env
