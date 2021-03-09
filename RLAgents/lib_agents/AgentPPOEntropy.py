@@ -102,9 +102,9 @@ class AgentPPOEntropy():
 
         entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
-        if normalize_internal_motivation:
+        if self.normalize_internal_motivation:
             entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
-
+ 
         internal_motivation_np = self.beta*curiosity_np + (1.0 - self.beta)*entropy_np
 
         states, rewards, dones, _ = self.envs.step(actions)
