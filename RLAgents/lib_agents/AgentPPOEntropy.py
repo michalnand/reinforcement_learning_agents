@@ -19,7 +19,6 @@ class AgentPPOEntropy():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.alpha              = 0.0001
         self.beta               = config.beta
 
         self.normalize_internal_motivation = config.normalize_internal_motivation
@@ -191,21 +190,8 @@ class AgentPPOEntropy():
                     state_predicted_t, z_t  = self.model_autoencoder(state_norm_t.detach())
 
                     #reconstruction loss
-                    loss_ae_mse    = (state_norm_t.detach() - state_predicted_t)**2
-                    loss_ae_mse    = loss_ae_mse.mean()
-
-                    #orthogonality loss
-                    #normalise length to 1
-                    #compute dot product
-                    z_norm          = z_t/(((torch.sum(z_t**2, dim=1))**0.5) + 0.0000001).unsqueeze(1)
-                    z_dot           = torch.mm(z_norm, z_norm.permute(1, 0))
-                    loss_ae_ortho   = self.alpha*(z_dot**2).mean()
- 
-                    #L1 regularisation, dirty but fast
-                    #z_t             = torch.abs(z_t)
-                    #loss_ae_ortho   = self.alpha*z_t.mean()
-
-                    loss_autoencoder = loss_ae_mse + loss_ae_ortho
+                    loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
+                    loss_autoencoder    = loss_autoencoder.mean()
 
                     self.optimizer_autoencoder.zero_grad()
                     loss_autoencoder.backward()
