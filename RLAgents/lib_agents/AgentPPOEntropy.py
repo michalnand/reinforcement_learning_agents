@@ -66,8 +66,7 @@ class AgentPPOEntropy():
         self.loss_forward           = 0.0
         self.curiosity_motivation   = 0.0
 
-        self.loss_autoencoder_mse   = 0.0
-        self.loss_autoencoder_ortho = 0.0
+        self.loss_autoencoder       = 0.0
         self.entropy_motivation     = 0.0
 
 
@@ -145,8 +144,7 @@ class AgentPPOEntropy():
         result = "" 
         result+= str(round(self.loss_forward, 7)) + " "
         result+= str(round(self.curiosity_motivation, 7)) + " "
-        result+= str(round(self.loss_autoencoder_mse, 7)) + " "
-        result+= str(round(self.loss_autoencoder_ortho, 7)) + " "
+        result+= str(round(self.loss_autoencoder, 7)) + " "
         result+= str(round(self.entropy_motivation, 7)) + " "
     
         return result
@@ -198,9 +196,8 @@ class AgentPPOEntropy():
                     self.optimizer_autoencoder.step()
 
                     k = 0.02
-                    self.loss_forward               = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
-                    self.loss_autoencoder_mse       = (1.0 - k)*self.loss_autoencoder_mse + k*loss_ae_mse.detach().to("cpu").numpy()
-                    self.loss_autoencoder_ortho     = (1.0 - k)*self.loss_autoencoder_ortho + k*loss_ae_ortho.detach().to("cpu").numpy()
+                    self.loss_forward       = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                    self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
