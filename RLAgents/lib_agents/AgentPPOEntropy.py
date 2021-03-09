@@ -95,9 +95,9 @@ class AgentPPOEntropy():
         
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
         self.int_curiosity_reward_running_stats.update(curiosity_np)
-        if normalize_internal_motivation:
+        if self.normalize_internal_motivation:
             curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
-
+ 
         self._add_episodic_memory(states_t)
 
         entropy_np          = self._entropy()
