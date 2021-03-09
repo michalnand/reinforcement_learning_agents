@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *
 from .RunningStats      import *
 from .EpisodicMemory    import *
- 
+  
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
         self.envs = envs
@@ -21,6 +21,8 @@ class AgentPPOEntropy():
         self.int_adv_coeff      = config.int_adv_coeff
         self.alpha              = 0.0001
         self.beta               = config.beta
+
+        self.normalize_internal_motivation = config.normalize_internal_motivation
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -93,13 +95,15 @@ class AgentPPOEntropy():
         
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
         self.int_curiosity_reward_running_stats.update(curiosity_np)
-        curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
+        if normalize_internal_motivation:
+            curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
 
         self._add_episodic_memory(states_t)
 
         entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
-        entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
+        if normalize_internal_motivation:
+            entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
 
         internal_motivation_np = self.beta*curiosity_np + (1.0 - self.beta)*entropy_np
 

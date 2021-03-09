@@ -19,6 +19,8 @@ class AgentPPOCuriosity():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
 
+        self.normalize_internal_motivation = config.normalize_internal_motivation
+
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -40,7 +42,7 @@ class AgentPPOCuriosity():
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
-
+ 
         self.states = []
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
@@ -80,7 +82,8 @@ class AgentPPOCuriosity():
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
         self.int_reward_running_stats.update(curiosity_np)
 
-        curiosity_np        = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
+        if self.normalize_internal_motivation:
+            curiosity_np        = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
 
         states, rewards, dones, _ = self.envs.step(actions)
 
