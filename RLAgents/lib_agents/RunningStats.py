@@ -3,7 +3,8 @@ import numpy
 class RunningStats:
     def __init__(self, shape = (), initial_value = None):
 
-        self.mean = numpy.zeros(shape)
+        self.mean  = numpy.zeros(shape)
+        self._std  = numpy.ones(shape)
         self.std  = numpy.ones(shape)
 
         if initial_value is not None:
@@ -19,5 +20,7 @@ class RunningStats:
             std = numpy.std(x, axis=0, ddof=1) + 10e-7
             self.std = (1.0 - alpha)*self.std + alpha*std
         else:
-            self.mean = (1.0 - alpha)*self.mean + alpha*x
-            self.std  = (1.0 - alpha)*self.std  + alpha*numpy.abs(x - self.mean) 
+            self.mean   = (1.0 - alpha)*self.mean + alpha*x
+            self._std   = (1.0 - alpha)*self._std  + alpha*((x - self.mean)**2)
+
+            self.std    = self._std**0.5
