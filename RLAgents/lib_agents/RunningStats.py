@@ -14,11 +14,11 @@ class RunningStats:
     def update(self, x, alpha = 0.0001):
         if len(x.shape) > 0:
             
-            mean = x.mean(axis=0)
-            self.mean = (1.0 - alpha)*self.mean + alpha*mean
+            mean        = x.mean(axis=0)
+            self.mean   = (1.0 - alpha)*self.mean + alpha*mean
 
-            std = numpy.std(x, axis=0, ddof=1) + 10e-7
-            self.std = (1.0 - alpha)*self.std + alpha*std
+            std         = numpy.std(x, axis=0, ddof=1) + 10e-7
+            self.std    = (1.0 - alpha)*self.std + alpha*std
         else:
             self.mean   = (1.0 - alpha)*self.mean + alpha*x
             self._std   = (1.0 - alpha)*self._std  + alpha*((x - self.mean)**2)

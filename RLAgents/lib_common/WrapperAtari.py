@@ -161,17 +161,19 @@ class SparseEnv(gym.Wrapper):
         self.raw_score_per_episode  = self.env.raw_score_per_episode
         self.raw_score_total        = self.env.raw_score_total
 
+        reward_sparse = 0.0
+
         self.steps+= 1
         self.reward_sum+= reward
 
-        if self.steps%self.sparsity_steps:
-            reward_sparse   = self.reward_sum/self.sparsity_steps
-            self.reward_sum = 0
-        elif reward < 0.0:
+        if reward < 0.0:
             reward_sparse = reward
-        else:
-            reward_sparse = 0.0
-        
+        elif self.steps%self.sparsity_steps == 0:
+            reward_sparse   = self.reward_sum/self.sparsity_steps
+            self.steps      = 0
+            self.reward_sum = 0
+
+
         return obs, reward_sparse, done, info
 
     def reset(self, **kwargs):
