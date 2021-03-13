@@ -56,10 +56,10 @@ class AgentDQN():
 
         action      = self._sample_action(q_values_np, epsilon)
 
-        state_new, self.reward, done, self.info = self.env.step(action)
+        state_new, reward, done, self.info = self.env.step(action)
  
         if self.enabled_training:
-            self.experience_replay.add(self.state, action, self.reward, done)
+            self.experience_replay.add(self.state, action, reward, done)
 
         if self.enabled_training and (self.iterations > self.experience_replay.size):
             if self.iterations%self.update_frequency == 0:
@@ -78,7 +78,7 @@ class AgentDQN():
 
         self.iterations+= 1
 
-        return self.reward, done
+        return reward, done
         
     def train_model(self):
         state_t, state_next_t, action_t, reward_t, done_t, _ = self.experience_replay.sample(self.batch_size, self.model.device)
