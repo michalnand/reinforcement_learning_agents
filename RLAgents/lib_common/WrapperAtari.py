@@ -164,11 +164,9 @@ class SparseEnv(gym.Wrapper):
         reward_sparse = 0.0
 
         self.steps+= 1
-        self.reward_sum+= reward
+        self.reward_sum+= reward 
 
-        if reward < 0.0:
-            reward_sparse = reward
-        elif self.steps%self.sparsity_steps == 0:
+        if self.steps%self.sparsity_steps == 0 or reward < 0.0:
             reward_sparse   = self.reward_sum
             self.steps      = 0
             self.reward_sum = 0
