@@ -167,8 +167,8 @@ class SparseEnv(gym.Wrapper):
         self.reward_sum+= reward 
 
         if self.steps%self.sparsity_steps == 0 or reward < 0.0:
-            reward_sparse   = self.reward_sum
-            self.steps      = 0
+            reward_sparse   = self.reward_sum/self.steps
+            self.steps      = 0 
             self.reward_sum = 0
 
 
@@ -195,6 +195,6 @@ def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=
 
 def WrapperAtariSparseRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
     env = WrapperAtari(env, height, width, frame_stacking, frame_skipping)
-    env = SparseEnv(env, sparsity_steps=40) 
+    env = SparseEnv(env, sparsity_steps=50) 
 
     return env
