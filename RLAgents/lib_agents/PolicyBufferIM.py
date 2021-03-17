@@ -11,7 +11,7 @@ class PolicyBufferIM:
         self.envs_count     = envs_count
         self.device         = device
 
-        self.clear()  
+        self.clear() 
 
     def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done):
 
@@ -58,19 +58,17 @@ class PolicyBufferIM:
 
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
-        self.returns_ext_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         self.returns_int_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.returns_ext_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         
-        self.advantages_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.advantages_int_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.advantages_ext_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
         self.ptr = 0 
 
 
-    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95, ext_adv_coeff = 1.0, int_adv_coeff = 1.0):
+    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
         
-        advantages_ext_b = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        advantages_int_b = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
- 
         for e in range(self.envs_count):
             
             count = len(self.rewards_b[e])
@@ -86,7 +84,9 @@ class PolicyBufferIM:
                     last_gae    = delta + gamma_ext*lam*last_gae
 
                 self.returns_ext_b[e][n]    = last_gae + self.values_ext_b[e][n]
-                advantages_ext_b[e][n] = last_gae
+                self.advantages_ext_b[e][n] = last_gae
+        
+        self.advantages_ext_b = (self.advantages_ext_b - numpy.mean(self.advantages_ext_b))/(numpy.std(self.advantages_ext_b) + 1e-10)
 
         for e in range(self.envs_count):
             
@@ -103,12 +103,10 @@ class PolicyBufferIM:
                     last_gae    = delta + gamma_int*lam*last_gae
 
                 self.returns_int_b[e][n]    = last_gae + self.values_int_b[e][n]
-                advantages_int_b[e][n]      = last_gae
+                self.advantages_int_b[e][n] = last_gae
         
-        advantages_b = ext_adv_coeff*advantages_ext_b + int_adv_coeff*advantages_int_b
-        self.advantages_b = (advantages_b - numpy.mean(advantages_b))/(numpy.std(advantages_b) + 1e-10)
+        self.advantages_int_b = (self.advantages_int_b - numpy.mean(self.advantages_int_b))/(numpy.std(self.advantages_int_b) + 1e-10)
 
-       
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
@@ -124,8 +122,8 @@ class PolicyBufferIM:
         returns_ext      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
         returns_int      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
 
-        advantages       = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        
+        advantages_ext   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        advantages_int   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
 
         for e in range(self.envs_count):
             indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
@@ -143,7 +141,8 @@ class PolicyBufferIM:
             returns_ext[e]      = torch.from_numpy(numpy.take(self.returns_ext_b[e], indices, axis=0)).to(device)
             returns_int[e]      = torch.from_numpy(numpy.take(self.returns_int_b[e], indices, axis=0)).to(device)
 
-            advantages[e]   = torch.from_numpy(numpy.take(self.advantages_b[e], indices, axis=0)).to(device)
+            advantages_ext[e]   = torch.from_numpy(numpy.take(self.advantages_ext_b[e], indices, axis=0)).to(device)
+            advantages_int[e]   = torch.from_numpy(numpy.take(self.advantages_int_b[e], indices, axis=0)).to(device)
 
         states      = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
         logits      = logits.reshape((self.envs_count*batch_size, self.actions_size))
@@ -154,8 +153,9 @@ class PolicyBufferIM:
         dones       = dones.reshape((self.envs_count*batch_size, ))
         returns_ext = returns_ext.reshape((self.envs_count*batch_size, ))
         returns_int = returns_int.reshape((self.envs_count*batch_size, ))
-        advantages  = advantages.reshape((self.envs_count*batch_size, ))
+        advantages_ext  = advantages_ext.reshape((self.envs_count*batch_size, ))
+        advantages_int  = advantages_int.reshape((self.envs_count*batch_size, ))
 
-        return states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages 
+        return states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int 
 
     
