@@ -104,8 +104,6 @@ class PolicyBufferIM:
 
                 self.returns_int_b[e][n]    = last_gae + self.values_int_b[e][n]
                 advantages_int_b[e][n]      = last_gae
-
-        print(advantages_ext_b.mean(), advantages_int_b.mean())
         
         advantages_b = ext_adv_coeff*advantages_ext_b + int_adv_coeff*advantages_int_b
         self.advantages_b = (advantages_b - numpy.mean(advantages_b))/(numpy.std(advantages_b) + 1e-10)
