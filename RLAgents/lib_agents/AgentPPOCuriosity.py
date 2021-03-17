@@ -176,8 +176,6 @@ class AgentPPOCuriosity():
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
-        print(values_int_new.mean(), returns_int.mean(), advantages_int.mean())
-
 
         '''
         compute internal critic loss, as MSE
