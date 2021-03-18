@@ -18,7 +18,7 @@ class AgentPPOCuriosity():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
- 
+  
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 

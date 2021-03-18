@@ -4,24 +4,23 @@ import time
 
 from torch.distributions import Categorical
 
-from .PolicyBufferIM    import *
+from .PolicyBufferIME   import *
 from .RunningStats      import * 
-from .EpisodicMemory    import *
+from .EpisodicMemory    import * 
   
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
         self.envs = envs
 
         config = Config.Config()
-
+ 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
         
         self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_adv_coeff      = config.int_adv_coeff
-        self.beta               = config.beta
-
-        self.normalize_internal_motivation = config.normalize_internal_motivation
+        self.int_curiosity_adv_coeff = config.int_curiosity_adv_coeff
+        self.int_entropy_adv_coeff   = config.int_entropy_adv_coeff
+        
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -43,7 +42,7 @@ class AgentPPOEntropy():
 
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
 
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         self.states = []
         self.episodic_memory = [] 
@@ -79,37 +78,40 @@ class AgentPPOEntropy():
     def main(self):
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
  
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_curiosity_t, values_entropy_t  = self.model_ppo.forward(states_t)
 
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-        values_int_np   = values_int_t.detach().to("cpu").numpy()
+        values_curiosity_np     = values_curiosity_t.detach().to("cpu").numpy()
+        values_entropy_np       = values_entropy_t.detach().to("cpu").numpy()
 
-        actions = []
-        for e in range(self.actors):
-            actions.append(self._sample_action(logits_t[e]))
-
-        
+       
+        #curiosity motivation
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
         self.int_curiosity_reward_running_stats.update(curiosity_np)
-        if self.normalize_internal_motivation:
-            curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
- 
+        
+        curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
+        curiosity_np         = numpy.clip(curiosity_np, 0.0, 1.0)
+
+        #entropy motivation
         self._add_episodic_memory(states_t)
 
         entropy_np          = self._entropy()
         self.int_entropy_reward_running_stats.update(entropy_np)
-        if self.normalize_internal_motivation:
-            entropy_np          = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
- 
-        internal_motivation_np = self.beta*curiosity_np + (1.0 - self.beta)*entropy_np
+        entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
+        entropy_np         = numpy.clip(entropy_np, 0.0, 1.0)
+
+        #step action
+        actions = []
+        for e in range(self.actors):
+            actions.append(self._sample_action(logits_t[e]))
 
         states, rewards, dones, _ = self.envs.step(actions)
 
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], internal_motivation_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_curiosity_np[e], values_entropy_np[e], actions[e], rewards[e], curiosity_np[e], entropy_np[e], dones[e])
 
                 if self.policy_buffer.is_full():
                     self.train()
@@ -122,7 +124,7 @@ class AgentPPOEntropy():
 
         k = 0.02
         self.curiosity_motivation   = (1.0 - k)*self.curiosity_motivation + k*curiosity_np.mean()
-        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation + k*entropy_np.mean()
+        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation   + k*entropy_np.mean()
       
         self.iterations+= 1
         return rewards[0], dones[0]
@@ -164,9 +166,9 @@ class AgentPPOEntropy():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, values_ext, values_cur, values_ent, actions, rewards, dones, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss = self._compute_loss(states, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent)
 
                 self.optimizer_ppo.zero_grad()        
                 loss.backward()
@@ -184,8 +186,7 @@ class AgentPPOEntropy():
 
                     #train autoencoder model, MSE loss
                     state_norm_t  = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
-
-                    state_predicted_t, z_t  = self.model_autoencoder(state_norm_t.detach())
+                    state_predicted_t, _  = self.model_autoencoder(state_norm_t.detach())
 
                     #reconstruction loss
                     loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
@@ -202,11 +203,11 @@ class AgentPPOEntropy():
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
+    def _compute_loss(self, states, logits, actions,  returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent):
         probs_old     = torch.nn.functional.softmax(logits, dim = 1).detach()
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+        logits_new, values_ext_new, values_int_cur_new, values_int_ent_new  = self.model_ppo.forward(states)
 
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
@@ -221,17 +222,27 @@ class AgentPPOEntropy():
 
 
         '''
-        compute internal critic loss, as MSE
+        compute internal curiosity critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
-        loss_int_value  = (returns_int.detach() - values_int_new)**2
-        loss_int_value  = loss_int_value.mean()
+        values_int_cur_new  = values_int_cur_new.squeeze(1)
+        loss_int_cur_value  = (returns_cur.detach() - values_int_cur_new)**2
+        loss_int_cur_value  = loss_int_cur_value.mean()
+
+
+        '''
+        compute internal entropy critic loss, as MSE
+        L = (T - V(s))^2
+        '''
+        values_int_ent_new  = values_int_ent_new.squeeze(1)
+        loss_int_ent_value  = (returns_ent.detach() - values_int_ent_new)**2
+        loss_int_ent_value  = loss_int_ent_value.mean()
+
 
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages      = self.ext_adv_coeff*advantages_ext + self.int_curiosity_adv_coeff*advantages_cur + self.int_entropy_adv_coeff*advantages_ent
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
@@ -249,7 +260,7 @@ class AgentPPOEntropy():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = loss_ext_value + loss_int_value + loss_policy + loss_entropy
+        loss = loss_ext_value + loss_int_cur_value + loss_int_ent_value + loss_policy + loss_entropy
 
         return loss
 
@@ -269,7 +280,7 @@ class AgentPPOEntropy():
         features_target_t       = self.model_forward_target(state_norm_t)
 
         curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
-        curiosity_t    = curiosity_t.mean(dim=1)
+        curiosity_t    = curiosity_t.sum(dim=1)
 
         return curiosity_t
 

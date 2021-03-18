@@ -28,25 +28,11 @@ class EpisodicMemory:
                 idx = numpy.random.randint(self.size)
                 self.episodic_memory[idx] = state_t
 
-    '''
     def entropy(self):
         mean = self.episodic_memory.mean(axis=0)
-        diff = (self.episodic_memory - mean)**2
-        max_ = diff.max(axis=0)[0] 
+        diff = ((self.episodic_memory - mean)**2).sum()
  
-        result = max_.mean().detach().to("cpu").numpy()
-
-        if self.count < self.initial_count:
-            return 0.0
-        else:
-            return result
-    '''
-
-    def entropy(self):
-        mean = self.episodic_memory.mean(axis=0)
-        diff = (self.episodic_memory - mean)**2
- 
-        result = diff.mean().detach().to("cpu").numpy()
+        result = diff.detach().to("cpu").numpy()
 
         if self.count < self.initial_count:
             return 0.0
