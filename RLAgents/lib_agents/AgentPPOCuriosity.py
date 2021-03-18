@@ -77,12 +77,12 @@ class AgentPPOCuriosity():
 
         self.states_running_stats.update(states_np)
 
-        curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
-        curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
-        
+        curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()        
         self.int_reward_running_stats.update(curiosity_np)
+        curiosity_np         = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
 
-        curiosity_np        = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
+        curiosity_np         = numpy.clip(curiosity_np, 0.0, 1.0)
+
 
         states, rewards, dones, _ = self.envs.step(actions)
 
