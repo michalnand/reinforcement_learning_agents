@@ -54,8 +54,10 @@ class AgentPPOCuriosity():
         self.enable_training()
         self.iterations = 0 
 
-        self.loss_forward           = 0.0
-        self.internal_motivation    = 0.0
+        self.log_loss_forward               = 0.0
+        self.log_curiosity                  = 0.0
+        self.log_advantages                 = 0.0
+        self.log_curiosity_advatages        = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -103,7 +105,7 @@ class AgentPPOCuriosity():
                 self.states[e] = states[e].copy()
 
         k = 0.02
-        self.internal_motivation    = (1.0 - k)*self.internal_motivation + k*curiosity_np.mean()
+        self.log_curiosity    = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
 
         self.iterations+= 1
         return rewards[0], dones[0]
@@ -120,8 +122,10 @@ class AgentPPOCuriosity():
 
     def get_log(self):
         result = "" 
-        result+= str(round(self.loss_forward, 7)) + " "
-        result+= str(round(self.internal_motivation, 7)) + " "
+        result+= str(round(self.log_loss_forward, 7)) + " "
+        result+= str(round(self.log_curiosity, 7)) + " "
+        result+= str(round(self.log_advatages, 7)) + " "
+        result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result
     
     def _sample_action(self, logits):
@@ -157,7 +161,7 @@ class AgentPPOCuriosity():
                     self.optimizer_forward.step()
 
                     k = 0.02
-                    self.loss_forward  = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                    self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
@@ -212,6 +216,10 @@ class AgentPPOCuriosity():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
         loss = loss_ext_value + loss_int_value + loss_policy + loss_entropy
+
+        k = 0.02
+        self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
 
         return loss
 
