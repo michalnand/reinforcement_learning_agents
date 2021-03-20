@@ -35,7 +35,9 @@ class AgentPPO():
             self.states.append(self.envs.reset(e))
 
         self.enable_training()
-        self.iterations = 0
+        self.iterations = 0 
+
+        self.log_advantages                 = 0.0
 
 
     def enable_training(self):
@@ -79,6 +81,11 @@ class AgentPPO():
 
     def load(self, save_path):
         self.model.load(save_path + "trained/")
+
+    def get_log(self):
+        result = "" 
+        result+= str(round(self.log_advantages, 7)) + " "
+        return result
     
     def _sample_action(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits.squeeze(0), dim = 0)
@@ -145,5 +152,8 @@ class AgentPPO():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
         loss = loss_value + loss_policy + loss_entropy
-    
+
+        k = 0.02
+        self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages.mean().detach().to("cpu").numpy()
+        
         return loss
