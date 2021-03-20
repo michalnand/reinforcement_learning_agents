@@ -92,9 +92,6 @@ class PolicyBufferIME:
                 self.returns_ext_b[e][n]    = last_gae + self.values_ext_b[e][n]
                 self.advantages_ext_b[e][n] = last_gae
         
-        self.advantages_ext_b = (self.advantages_ext_b - numpy.mean(self.advantages_ext_b))/(numpy.std(self.advantages_ext_b) + 1e-10)
-
-        
         for e in range(self.envs_count):
             
             count = len(self.curiosity_b[e])
@@ -111,9 +108,6 @@ class PolicyBufferIME:
 
                 self.returns_curiosity_b[e][n]    = last_gae + self.values_curiosity_b[e][n]
                 self.advantages_curiosity_b[e][n] = last_gae
-        
-        self.advantages_curiosity_b = (self.advantages_curiosity_b - numpy.mean(self.advantages_curiosity_b))/(numpy.std(self.advantages_curiosity_b) + 1e-10)
-
 
         for e in range(self.envs_count):
             
@@ -132,8 +126,6 @@ class PolicyBufferIME:
                 self.returns_entropy_b[e][n]    = last_gae + self.values_entropy_b[e][n]
                 self.advantages_entropy_b[e][n] = last_gae
         
-        self.advantages_entropy_b = (self.advantages_entropy_b - numpy.mean(self.advantages_entropy_b))/(numpy.std(self.advantages_entropy_b) + 1e-10)
-
 
     def sample_batch(self, batch_size, device):
 

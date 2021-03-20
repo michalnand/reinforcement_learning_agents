@@ -18,6 +18,8 @@ class AgentPPOCuriosity():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+
+        self.normalize_motivation     = config.normalize_motivation
   
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -28,7 +30,6 @@ class AgentPPOCuriosity():
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
 
-        self.normalize_motivation     = config.normalize_motivation
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -186,7 +187,7 @@ class AgentPPOCuriosity():
         values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
-
+ 
         ''' 
         compute actor loss, surrogate loss
         '''

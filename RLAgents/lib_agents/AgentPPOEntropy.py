@@ -20,8 +20,9 @@ class AgentPPOEntropy():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_curiosity_adv_coeff = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff   = config.int_entropy_adv_coeff
-        
 
+        self.normalize_motivation     = config.normalize_motivation
+ 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -44,7 +45,7 @@ class AgentPPOEntropy():
 
         self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
-        self.states = []
+        self.states = [] 
         self.episodic_memory = [] 
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
@@ -89,18 +90,20 @@ class AgentPPOEntropy():
        
         #curiosity motivation
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
-        self.int_curiosity_reward_running_stats.update(curiosity_np)
-        
-        curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
-        curiosity_np         = numpy.clip(curiosity_np, 0.0, 1.0)
+
+        if self.normalize_motivation:
+            self.int_curiosity_reward_running_stats.update(curiosity_np)
+            curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
+            curiosity_np         = numpy.clip(curiosity_np, 0.0, 1.0)
 
         #entropy motivation
         self._add_episodic_memory(states_t)
-
         entropy_np          = self._entropy()
-        self.int_entropy_reward_running_stats.update(entropy_np)
-        entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
-        entropy_np         = numpy.clip(entropy_np, 0.0, 1.0)
+
+        if self.normalize_motivation:
+            self.int_entropy_reward_running_stats.update(entropy_np)
+            entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
+            entropy_np         = numpy.clip(entropy_np, 0.0, 1.0)
 
         #step action
         actions = []
@@ -243,13 +246,15 @@ class AgentPPOEntropy():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_curiosity_adv_coeff*advantages_cur + self.int_entropy_adv_coeff*advantages_ent
+        advantages      = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        advantages      = advantages.detach()
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
         ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages.detach()
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages.detach()
+        p1          = ratio*advantages
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
     
