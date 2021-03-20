@@ -124,7 +124,7 @@ class AgentPPOCuriosity():
         result = "" 
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
-        result+= str(round(self.log_advatages, 7)) + " "
+        result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result
     
@@ -221,7 +221,7 @@ class AgentPPOCuriosity():
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
         self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
 
-        return loss
+        return loss 
 
     def _action_one_hot(self, action_idx_t):
         batch_size = action_idx_t.shape[0]
