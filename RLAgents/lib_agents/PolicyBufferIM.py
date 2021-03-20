@@ -101,6 +101,7 @@ class PolicyBufferIM:
                     last_gae    = delta + gamma_int*lam*last_gae
 
                 self.returns_int_b[e][n]    = last_gae + self.values_int_b[e][n]
+                self.advantages_int_b[e][n] = last_gae
     
     def sample_batch(self, batch_size, device):
 
