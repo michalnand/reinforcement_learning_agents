@@ -101,7 +101,7 @@ class TrainingIterations:
 
 
             #check if agent is done
-            if iteration > 0 and done:
+            if raw_episodes >= 10 and done:
                 #log score per episode
                 score_per_episode_buffer[raw_episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
