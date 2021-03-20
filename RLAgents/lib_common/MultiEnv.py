@@ -214,3 +214,26 @@ class MultiEnvParallel:
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
 
 
+
+from WrapperAtari import *
+
+if __name__ == "__main__":
+	envs_count = 128
+	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
+	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
+
+	for i in range(envs_count):
+		envs.reset(i)
+
+	while True:
+		actions = numpy.random.randint(9, size=envs_count)
+		ts = time.time()
+		states, rewards, dones, _ = envs.step(actions)
+		te = time.time()
+
+		for i in range(envs_count):
+			if dones[i] == 0:
+				envs.reset(i)
+
+		fps = envs_count*1.0/(te - ts)
+		print("fps = ", fps)
