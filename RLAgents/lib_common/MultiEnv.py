@@ -215,9 +215,10 @@ class MultiEnvParallel:
 
 
 
-from WrapperAtari import *
+
 
 if __name__ == "__main__":
+	from WrapperAtari import *
 	envs_count = 128
 	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
