@@ -30,7 +30,7 @@ class AgentPPO():
  
         self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.actors, self.model.device)
 
-        self.states = []
+        self.states = [] 
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
 
@@ -126,7 +126,7 @@ class AgentPPO():
         compute actor loss, surrogate loss
         '''
         advantages  = advantages.detach()
-        advantages  = (advantages - numpy.mean(advantages))/(numpy.std(advantages) + 1e-10)
+        advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
