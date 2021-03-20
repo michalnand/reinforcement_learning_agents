@@ -20,7 +20,7 @@ class TrainingIterations:
         log_f.close()
 
 
-        averaging_episodes = 100
+        averaging_episodes = 50
 
         new_best = False
 
@@ -101,27 +101,20 @@ class TrainingIterations:
 
 
             #check if agent is done
-            if raw_episodes >= 10 and done:
+            if done:
                 #log score per episode
                 score_per_episode_buffer[raw_episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
-                raw_score_per_hundred_episode = score_per_episode_buffer.mean()
+                if raw_episodes%len(score_per_episode_buffer) == 0:
+                    raw_score_per_hundred_episode = score_per_episode_buffer.mean()
 
-                if raw_score_per_hundred_episode > raw_score_per_episode_best:
-                    raw_score_per_episode_best = raw_score_per_hundred_episode
-                    new_best = True
-           
+                    if raw_score_per_hundred_episode > raw_score_per_episode_best:
+                        raw_score_per_episode_best = raw_score_per_hundred_episode
+                        new_best = True
+            
                 if new_best == True:
                     new_best = False 
                     print("\n\n")
                     print("saving new best with score = ", raw_score_per_episode_best)
                     self.agent.save(self.saving_path)
                     print("\n\n")
-
-        if new_best == True: 
-            new_best = False 
-            print("\n\n")
-            print("saving new best with score = ", raw_score_per_episode_best)
-            self.agent.save(self.saving_path)
-            print("\n\n")
-
