@@ -54,7 +54,7 @@ class PolicyBuffer:
         self.ptr = 0 
 
 
-    def compute_returns(self, gamma = 0.99, lam = 0.95, normalize = False):
+    def compute_returns(self, gamma = 0.99, lam = 0.95):
         
         for e in range(self.envs_count):
             
@@ -72,10 +72,7 @@ class PolicyBuffer:
 
                 self.returns_b[e][n]    = last_gae + self.values_b[e][n]
                 self.advantages_b[e][n] = last_gae
-        
-        if normalize:
-            self.advantages_b = (self.advantages_b - numpy.mean(self.advantages_b))/(numpy.std(self.advantages_b) + 1e-10)
-        
+           
 
     def sample_batch(self, batch_size, device):
 

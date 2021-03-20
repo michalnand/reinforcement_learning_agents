@@ -86,8 +86,6 @@ class PolicyBufferIM:
                 self.returns_ext_b[e][n]    = last_gae + self.values_ext_b[e][n]
                 self.advantages_ext_b[e][n] = last_gae
         
-        self.advantages_ext_b = (self.advantages_ext_b - numpy.mean(self.advantages_ext_b))/(numpy.std(self.advantages_ext_b) + 1e-10)
-
         for e in range(self.envs_count):
             
             count = len(self.internal_b[e])
@@ -103,10 +101,7 @@ class PolicyBufferIM:
                     last_gae    = delta + gamma_int*lam*last_gae
 
                 self.returns_int_b[e][n]    = last_gae + self.values_int_b[e][n]
-                self.advantages_int_b[e][n] = last_gae
-        
-        self.advantages_int_b = (self.advantages_int_b - numpy.mean(self.advantages_int_b))/(numpy.std(self.advantages_int_b) + 1e-10)
-
+    
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
