@@ -62,7 +62,8 @@ class TrainingIterations:
             score_per_episode_+= reward
             if done:
                 episodes+= 1
-                score_per_episode = score_per_episode_
+                k = 0.1
+                score_per_episode = (1.0 - k)*score_per_episode + k*score_per_episode_
                 score_per_episode_= 0.0
                 
             #get raw episodes count if availible

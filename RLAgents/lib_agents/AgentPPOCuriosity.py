@@ -120,7 +120,7 @@ class AgentPPOCuriosity():
         self.model_forward.load(load_path + "trained/")
         self.model_forward_target.load(load_path + "trained/")
 
-    def get_log(self):
+    def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
