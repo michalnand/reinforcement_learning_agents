@@ -22,7 +22,7 @@ class AgentPPOEntropy():
         self.int_entropy_adv_coeff   = config.int_entropy_adv_coeff
 
         self.normalize_motivation     = config.normalize_motivation
- 
+  
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -63,11 +63,13 @@ class AgentPPOEntropy():
         self.iterations = 0
 
         
-        self.loss_forward           = 0.0
-        self.curiosity_motivation   = 0.0
-
-        self.loss_autoencoder       = 0.0
-        self.entropy_motivation     = 0.0
+        self.log_loss_forward           = 0.0
+        self.log_loss_autoencoder       = 0.0
+        self.log_curiosity              = 0.0
+        self.log_entropy                = 0.0
+        self.log_advantages             = 0.0
+        self.log_curiosity_advatages    = 0.0
+        self.log_entropy_advatages      = 0.0
 
 
     def enable_training(self):
@@ -94,7 +96,7 @@ class AgentPPOEntropy():
         if self.normalize_motivation:
             self.int_curiosity_reward_running_stats.update(curiosity_np)
             curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
-            curiosity_np         = numpy.clip(curiosity_np, 0.0, 1.0)
+            curiosity_np         = numpy.tanh(curiosity_np)
 
         #entropy motivation
         self._add_episodic_memory(states_t)
@@ -103,7 +105,7 @@ class AgentPPOEntropy():
         if self.normalize_motivation:
             self.int_entropy_reward_running_stats.update(entropy_np)
             entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
-            entropy_np         = numpy.clip(entropy_np, 0.0, 1.0)
+            entropy_np         = numpy.tanh(entropy_np)
 
         #step action
         actions = []
@@ -126,12 +128,13 @@ class AgentPPOEntropy():
                 self.states[e] = states[e].copy()
 
         k = 0.02
-        self.curiosity_motivation   = (1.0 - k)*self.curiosity_motivation + k*curiosity_np.mean()
-        self.entropy_motivation     = (1.0 - k)*self.entropy_motivation   + k*entropy_np.mean()
+        self.log_curiosity   = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
+        self.log_entropy     = (1.0 - k)*self.log_entropy   + k*entropy_np.mean()
       
         self.iterations+= 1
         return rewards[0], dones[0]
-    
+
+
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
@@ -147,11 +150,15 @@ class AgentPPOEntropy():
  
     def get_log(self):
         result = "" 
-        result+= str(round(self.loss_forward, 7)) + " "
-        result+= str(round(self.curiosity_motivation, 7)) + " "
-        result+= str(round(self.loss_autoencoder, 7)) + " "
-        result+= str(round(self.entropy_motivation, 7)) + " "
-    
+        
+        result+= str(round(self.log_loss_forward, 7)) + " "
+        result+= str(round(self.log_loss_autoencoder, 7)) + " "      
+        result+= str(round(self.log_curiosity, 7)) + " "        
+        result+= str(round(self.log_entropy, 7)) + " "           
+        result+= str(round(self.log_advantages, 7)) + " "         
+        result+= str(round(self.log_curiosity_advatages, 7)) + " "
+        result+= str(round(self.log_entropy_advatages, 7)) + " "  
+
         return result
     
     
@@ -200,8 +207,9 @@ class AgentPPOEntropy():
                     self.optimizer_autoencoder.step()
 
                     k = 0.02
-                    self.loss_forward       = (1.0 - k)*self.loss_forward + k*loss_forward.detach().to("cpu").numpy()
-                    self.loss_autoencoder   = (1.0 - k)*self.loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+                    self.log_loss_forward       = (1.0 - k)*self.log_loss_forward     + k*loss_forward.detach().to("cpu").numpy()
+                    self.log_loss_autoencoder   = (1.0 - k)*self.log_loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+
 
         self.policy_buffer.clear() 
 
@@ -246,15 +254,16 @@ class AgentPPOEntropy():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_curiosity_adv_coeff*advantages_cur + self.int_entropy_adv_coeff*advantages_ent
-        advantages      = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
         advantages      = advantages.detach()
+        advantages_norm = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
         ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
+        p1          = ratio*advantages_norm
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
     
@@ -267,6 +276,11 @@ class AgentPPOEntropy():
 
         loss = loss_ext_value + loss_int_cur_value + loss_int_ent_value + loss_policy + loss_entropy
 
+        k = 0.02
+        self.log_advantages             = (1.0 - k)*self.log_advantages             + k*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages    + k*advantages_cur.mean().detach().to("cpu").numpy()
+        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages      + k*advantages_ent.mean().detach().to("cpu").numpy()
+    
         return loss
 
     def _action_one_hot(self, action_idx_t):
