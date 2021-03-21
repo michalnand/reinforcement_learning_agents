@@ -96,7 +96,8 @@ class AgentPPOEntropy():
         if self.normalize_motivation:
             self.int_curiosity_reward_running_stats.update(curiosity_np)
             curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
-            curiosity_np         = numpy.tanh(curiosity_np)
+        
+        curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #entropy motivation
         self._add_episodic_memory(states_t)
@@ -105,7 +106,8 @@ class AgentPPOEntropy():
         if self.normalize_motivation:
             self.int_entropy_reward_running_stats.update(entropy_np)
             entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
-            entropy_np         = numpy.tanh(entropy_np)
+        
+        entropy_np         = numpy.clip(entropy_np, -1.0, 1.0)
 
         #step action
         actions = []
