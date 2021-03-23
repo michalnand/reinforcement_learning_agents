@@ -114,8 +114,6 @@ class AgentPPOContinuous():
         log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
         log_probs_new = self._log_prob(actions, mu_new, var_new)
         
-        advantages_     = advantages.unsqueeze(1).detach()
-
         '''
         compute critic loss, as MSE
         L = (T - V(s))^2
@@ -126,10 +124,15 @@ class AgentPPOContinuous():
         
         ''' 
         compute actor loss, surrogate loss
-        '''
+        ''' 
+         
+        advantages      = advantages.detach()
+        advantages_norm = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        advantages_norm = advantages_norm.unsqueeze(1)
+        
         ratio       = torch.exp(log_probs_new - log_probs_old)
-        p1          = ratio*advantages_
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_
+        p1          = ratio*advantages_norm
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
 

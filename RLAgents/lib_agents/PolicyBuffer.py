@@ -18,7 +18,7 @@ class PolicyBuffer:
         if done != 0: 
             done_ = 1.0
         else:
-            done_ = 0.0
+            done_ = 0.0 
         
         self.states_b[env][self.ptr]    = state
         self.logits_b[env][self.ptr]    = logits

@@ -183,6 +183,6 @@ class AgentDDPGCuriosity():
         state_next_predicted_t_t     = self.model_forward_target(state_t, action_t)
 
         curiosity_t    = (state_next_predicted_t_t.detach() - state_next_predicted_t)**2
-        curiosity_t    = curiosity_t.mean(dim=1)
+        curiosity_t    = curiosity_t.sum(dim=1)
 
         return curiosity_t

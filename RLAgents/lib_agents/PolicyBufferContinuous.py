@@ -18,7 +18,7 @@ class PolicyBufferContinuous:
         if done != 0: 
             done_ = 1.0
         else:
-            done_ = 0.0
+            done_ = 0.0 
         
         self.states_b[env][self.ptr]        = state
         self.values_b[env][self.ptr]        = value
@@ -74,9 +74,7 @@ class PolicyBufferContinuous:
 
                 self.returns_b[e][n]    = last_gae + self.values_b[e][n]
                 self.advantages_b[e][n] = last_gae
-        
-        self.advantages_b = (self.advantages_b - numpy.mean(self.advantages_b))/(numpy.std(self.advantages_b) + 1e-10)
-        
+                
  
     def sample_batch(self, batch_size, device):
 
