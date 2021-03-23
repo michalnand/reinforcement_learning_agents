@@ -12,7 +12,7 @@ class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
         self.envs = envs
 
-        config = Config.Config()
+        config = Config.Config() 
  
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
@@ -100,8 +100,7 @@ class AgentPPOEntropy():
         curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #entropy motivation
-        self._add_episodic_memory(states_t)
-        entropy_np          = self._entropy()
+        entropy_np          = self._entropy(states_t)
 
         if self.normalize_motivation:
             self.int_entropy_reward_running_stats.update(entropy_np)
@@ -305,16 +304,6 @@ class AgentPPOEntropy():
 
         return curiosity_t
 
-   
-    def _add_episodic_memory(self, states_t):
-        state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
- 
-        features_t    = self.model_autoencoder.eval_features(state_norm_t)
-        features_t    = features_t.squeeze(0).detach()
- 
-        for e in range(len(self.episodic_memory)):
-            self.episodic_memory[e].add(features_t[e]) 
-
     def _reset_episodic_memory(self, env_idx, state_np):
         state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device).float()
 
@@ -325,9 +314,14 @@ class AgentPPOEntropy():
  
         self.episodic_memory[env_idx].reset(features_t) 
               
-    def _entropy(self): 
+    def _entropy(self, states_t): 
+        state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+        
+        features_t    = self.model_autoencoder.eval_features(state_norm_t)
+        features_t    = features_t.squeeze(0).detach()
+ 
         entropy       = numpy.zeros(self.actors)
         for e in range(len(self.episodic_memory)):
-            entropy[e] = self.episodic_memory[e].entropy()
+            entropy[e] = self.episodic_memory[e].entropy(features_t[e])
         
         return entropy
