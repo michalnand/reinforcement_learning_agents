@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *
 from .RunningStats      import *
  
-class AgentPPOCuriosity(): 
+class AgentPPOCuriosity():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs
 
@@ -239,6 +239,6 @@ class AgentPPOCuriosity():
         features_target_t       = self.model_forward_target(state_norm_t)
 
         curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
-        curiosity_t    = curiosity_t.sum(dim=1)
+        curiosity_t    = curiosity_t.mean(dim=1)
 
         return curiosity_t

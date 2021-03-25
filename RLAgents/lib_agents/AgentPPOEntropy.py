@@ -150,7 +150,7 @@ class AgentPPOEntropy():
         self.model_autoencoder.load(load_path + "trained/")
  
     def get_log(self):
-        result = "" 
+        result = ""  
         
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_loss_autoencoder, 7)) + " "      
@@ -300,7 +300,7 @@ class AgentPPOEntropy():
         features_target_t       = self.model_forward_target(state_norm_t)
 
         curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
-        curiosity_t    = curiosity_t.sum(dim=1)
+        curiosity_t    = curiosity_t.mean(dim=1)
 
         return curiosity_t
 
@@ -325,3 +325,8 @@ class AgentPPOEntropy():
             entropy[e] = self.episodic_memory[e].entropy(features_t[e])
         
         return entropy
+
+    '''
+    def visualise(self, states_t):
+        state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+    ''' 
