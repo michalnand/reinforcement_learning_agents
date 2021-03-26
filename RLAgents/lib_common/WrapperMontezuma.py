@@ -106,9 +106,9 @@ class RawScoreEnv(gym.Wrapper):
         self.steps = 0
         return self.env.reset()
  
+ 
 
-
-def WrapperMontezuma(env, height = 84, width = 84, frame_stacking=4, max_steps = 4500):
+def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, max_steps = 4500):
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
