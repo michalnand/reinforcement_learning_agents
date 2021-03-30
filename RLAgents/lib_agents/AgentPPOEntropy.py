@@ -53,9 +53,7 @@ class AgentPPOEntropy():
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
         self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
-        self.ext_reward_running_stats   = RunningStats()
         
-
         self.enable_training()
         self.iterations = 0
 
@@ -76,8 +74,10 @@ class AgentPPOEntropy():
         self.enabled_training = False
 
     def main(self):
+        #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
- 
+
+        #compute model output
         logits_t, values_ext_t, values_curiosity_t, values_entropy_t  = self.model_ppo.forward(states_t)
 
         states_np       = states_t.detach().to("cpu").numpy()
@@ -87,11 +87,12 @@ class AgentPPOEntropy():
         values_entropy_np       = values_entropy_t.detach().to("cpu").numpy()
         
 
-        #step action 
+        #collect actions
         actions = []
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
 
+        #update long term state mean and variance
         self.states_running_stats.update(states_np)
 
         #curiosity motivation
@@ -100,13 +101,12 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_t)
-        entropy_np          = entropy_np/(1.0 + self.ext_reward_running_stats.mean)
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
- 
-        states, rewards, dones, _ = self.envs.step(actions)
- 
-        self.ext_reward_running_stats.update(numpy.abs(rewards))
 
+        #execute action
+        states, rewards, dones, _ = self.envs.step(actions)
+
+        #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
                 self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_curiosity_np[e], values_entropy_np[e], actions[e], rewards[e], curiosity_np[e], entropy_np[e], dones[e])
@@ -120,6 +120,7 @@ class AgentPPOEntropy():
             else:
                 self.states[e] = states[e].copy()
 
+        #collect stats
         k = 0.02
         self.log_curiosity   = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
         self.log_entropy     = (1.0 - k)*self.log_entropy   + k*entropy_np.mean()

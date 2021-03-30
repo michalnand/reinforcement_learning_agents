@@ -47,7 +47,6 @@ class AgentPPOCuriosity():
             self.states.append(self.envs.reset(e))
 
         self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
-        self.int_reward_running_stats   = RunningStats()
 
         self.enable_training()
         self.iterations = 0 
@@ -64,8 +63,10 @@ class AgentPPOCuriosity():
         self.enabled_training = False
 
     def main(self):
+        #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
- 
+
+        #compute model output
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
 
         states_np       = states_t.detach().to("cpu").numpy()
@@ -73,18 +74,22 @@ class AgentPPOCuriosity():
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         values_int_np   = values_int_t.detach().to("cpu").numpy()
 
+        #collect actions
         actions = []
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
         
+        #update long term state mean and variance
         self.states_running_stats.update(states_np)
         
         #curiosity motivation
         curiosity_np = self._curiosity(states_t).detach().to("cpu").numpy()          
         curiosity_np = numpy.clip(curiosity_np, -1.0, 1.0)
 
+        #execute action
         states, rewards, dones, _ = self.envs.step(actions)
 
+        #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
                 self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
@@ -97,6 +102,7 @@ class AgentPPOCuriosity():
             else:
                 self.states[e] = states[e].copy()
 
+        #collect stats
         k = 0.02
         self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
 
