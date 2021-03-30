@@ -85,31 +85,29 @@ class AgentPPOEntropy():
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         values_curiosity_np     = values_curiosity_t.detach().to("cpu").numpy()
         values_entropy_np       = values_entropy_t.detach().to("cpu").numpy()
+        
 
+        #step action 
+        actions = []
+        for e in range(self.actors):
+            actions.append(self._sample_action(logits_t[e]))
 
+        self.states_running_stats.update(states_np)
 
         #curiosity motivation
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()        
         curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #entropy motivation 
-        scale               = 1.0 #+ 10.0*self.ext_reward_running_stats.mean
+        scale               = 1.0 + 10.0*self.ext_reward_running_stats.mean
         entropy_np          = self._entropy(states_t)
         entropy_np          = entropy_np/scale
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
-
-       
-        #step action 
-        actions = []
-        for e in range(self.actors):
-            actions.append(self._sample_action(logits_t[e]))
 
         states, rewards, dones, _ = self.envs.step(actions)
 
         self.ext_reward_running_stats.update(numpy.clip(rewards, 0.0, 1.0))
 
-
-       
         for e in range(self.actors):            
             if self.enabled_training:
                 self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_curiosity_np[e], values_entropy_np[e], actions[e], rewards[e], curiosity_np[e], entropy_np[e], dones[e])

@@ -21,7 +21,7 @@ class EpisodicMemory:
         std  = self.episodic_memory.std(axis=0) 
         
         arg  = (state_t - mean)/(std + 10**-7)
-        res  = 1.0 - torch.exp(-0.5*(arg**2))
+        res  = 1.0 - torch.exp(-0.5*(arg**2)) 
         res  = res.mean() 
  
         result = res.detach().to("cpu").numpy()

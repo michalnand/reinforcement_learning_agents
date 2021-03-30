@@ -15,7 +15,7 @@ class AgentPPOCuriosity():
 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
-        
+         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
   
@@ -77,7 +77,6 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
         
-
         self.states_running_stats.update(states_np)
         
         #curiosity motivation
