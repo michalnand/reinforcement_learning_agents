@@ -94,17 +94,17 @@ class AgentPPOEntropy():
 
         states, rewards, dones, _ = self.envs.step(actions)
 
-        self.ext_reward_running_stats.update(numpy.abs(rewards))
+        self.ext_reward_running_stats.update(numpy.max(rewards, 0.0))
 
 
         #curiosity motivation
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()        
         curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #entropy motivation
+        #entropy motivation 
         entropy_np          = self._entropy(states_t)
-        #scale               = 1.0 + self.ext_reward_running_stats.mean
-        #entropy_np          = entropy_np/scale
+        scale               = 1.0 + 10.0*self.ext_reward_running_stats.mean
+        entropy_np          = entropy_np/scale
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
 
         for e in range(self.actors):            
