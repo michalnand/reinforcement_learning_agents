@@ -53,6 +53,8 @@ class AgentPPOEntropy():
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
         self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
+
+        self.rewards_running_stats      = RunningStats()
         
         self.enable_training()
         self.iterations = 0
@@ -101,10 +103,14 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_t)
+        scale               = 0.1 + self.rewards_running_stats.std
+        entropy_np          = entropy_np/scale
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
 
         #execute action
         states, rewards, dones, _ = self.envs.step(actions)
+
+        self.rewards_running_stats.update(rewards)
 
         #put into policy buffer
         for e in range(self.actors):            
