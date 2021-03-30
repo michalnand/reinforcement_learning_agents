@@ -103,7 +103,7 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_t)
-        scale               = 0.1 + self.rewards_running_stats.std
+        scale               = 1.0 + 10.0*self.rewards_running_stats.std
         entropy_np          = entropy_np/scale
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
 
