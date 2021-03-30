@@ -94,7 +94,7 @@ class AgentPPOEntropy():
 
         states, rewards, dones, _ = self.envs.step(actions)
 
-        self.ext_reward_running_stats.update(numpy.max(rewards, numpy.zeros_like(rewards)))
+        self.ext_reward_running_stats.update(numpy.clip(rewards, 0.0, 1.0))
 
 
         #curiosity motivation
