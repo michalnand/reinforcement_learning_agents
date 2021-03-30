@@ -18,8 +18,6 @@ class AgentPPOCuriosity():
         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-
-        self.normalize_motivation     = config.normalize_motivation
   
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -81,13 +79,9 @@ class AgentPPOCuriosity():
         
 
         self.states_running_stats.update(states_np)
-
-        curiosity_np = self._curiosity(states_t).detach().to("cpu").numpy()        
-
-        if self.normalize_motivation:
-            self.int_reward_running_stats.update(curiosity_np)
-            curiosity_np = (curiosity_np - self.int_reward_running_stats.mean)/self.int_reward_running_stats.std
         
+        #curiosity motivation
+        curiosity_np = self._curiosity(states_t).detach().to("cpu").numpy()          
         curiosity_np = numpy.clip(curiosity_np, -1.0, 1.0)
 
         states, rewards, dones, _ = self.envs.step(actions)

@@ -16,13 +16,11 @@ class AgentPPOEntropy():
  
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
-        
+         
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_curiosity_adv_coeff = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff   = config.int_entropy_adv_coeff
-
-        self.normalize_motivation     = config.normalize_motivation
-  
+   
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -54,10 +52,9 @@ class AgentPPOEntropy():
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
-        self.states_running_stats                   = RunningStats(self.state_shape, numpy.array(self.states))
-        self.int_curiosity_reward_running_stats     = RunningStats()
-        self.int_entropy_reward_running_stats       = RunningStats()
-  
+        self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
+        self.ext_reward_running_stats   = RunningStats()
+        
 
         self.enable_training()
         self.iterations = 0
@@ -90,30 +87,25 @@ class AgentPPOEntropy():
         values_entropy_np       = values_entropy_t.detach().to("cpu").numpy()
 
        
-        #curiosity motivation
-        curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()
-
-        if self.normalize_motivation:
-            self.int_curiosity_reward_running_stats.update(curiosity_np)
-            curiosity_np        = (curiosity_np - self.int_curiosity_reward_running_stats.mean)/self.int_curiosity_reward_running_stats.std
-        
-        curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
-
-        #entropy motivation
-        entropy_np          = self._entropy(states_t)
-
-        if self.normalize_motivation:
-            self.int_entropy_reward_running_stats.update(entropy_np)
-            entropy_np         = (entropy_np - self.int_entropy_reward_running_stats.mean)/self.int_entropy_reward_running_stats.std
-        
-        entropy_np         = numpy.clip(entropy_np, -1.0, 1.0)
-
         #step action
         actions = []
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
 
         states, rewards, dones, _ = self.envs.step(actions)
+
+        self.ext_reward_running_stats.update(numpy.max(rewards, 0))
+
+
+        #curiosity motivation
+        curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()        
+        curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
+
+        #entropy motivation
+        entropy_np          = self._entropy(states_t)
+        scale               = 1.0 + 50.0*self.ext_reward_running_stats.mean
+        entropy_np          = entropy_np/scale
+        entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
 
         for e in range(self.actors):            
             if self.enabled_training:
@@ -160,7 +152,7 @@ class AgentPPOEntropy():
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         result+= str(round(self.log_entropy_advatages, 7)) + " "  
 
-        return result
+        return result 
     
     
     def _sample_action(self, logits):

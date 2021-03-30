@@ -14,7 +14,7 @@ class EpisodicMemory:
         self.count = 0
 
     
-    def entropy(self, state_t):
+    def entropy(self, state_t):  
         self._add(state_t)
 
         mean = self.episodic_memory.mean(axis=0)
@@ -22,7 +22,7 @@ class EpisodicMemory:
         
         arg  = (state_t - mean)/(std + 10**-7)
         res  = 1.0 - torch.exp(-0.5*(arg**2))
-        res  = res.mean()
+        res  = res.mean() 
  
         result = res.detach().to("cpu").numpy()
 
