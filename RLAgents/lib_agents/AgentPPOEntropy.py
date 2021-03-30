@@ -100,7 +100,7 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_t)
-        entropy_np          = entropy_np/(1.0 + self.ext_reward_running_stats.std)
+        entropy_np          = entropy_np/(1.0 + 0.1*self.ext_reward_running_stats.std)
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
 
         states, rewards, dones, _ = self.envs.step(actions)
