@@ -18,7 +18,7 @@ class AgentPPOCuriosity():
          
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-  
+   
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -46,10 +46,10 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
 
-        self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
-
+        self.states_running_stats = RunningStats(self.state_shape, numpy.array(self.states))
+ 
         self.enable_training()
-        self.iterations = 0 
+        self.iterations                     = 0 
 
         self.log_loss_forward               = 0.0
         self.log_curiosity                  = 0.0
