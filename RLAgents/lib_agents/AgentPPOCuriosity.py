@@ -86,11 +86,9 @@ class AgentPPOCuriosity():
         self.states_running_stats.update(states_np)
         
         #curiosity motivation
-        states_t        = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()          
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
