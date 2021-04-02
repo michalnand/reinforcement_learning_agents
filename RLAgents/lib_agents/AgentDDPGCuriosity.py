@@ -118,7 +118,9 @@ class AgentDDPGCuriosity():
         loss_forward.backward()
         self.optimizer_forward.step()
 
-        reward_t = reward_t.unsqueeze(-1)
+        reward_t        = reward_t.unsqueeze(-1)
+        curiosity_t     = curiosity_t.unsqueeze(-1)
+        
         done_t   = (1.0 - done_t).unsqueeze(-1)
 
         #critic loss, two heads Q-learning
