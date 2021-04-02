@@ -78,17 +78,19 @@ class AgentPPOCuriosity():
         actions = []
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
+
+        #execute action
+        states, rewards, dones, _ = self.envs.step(actions)
         
         #update long term state mean and variance
         self.states_running_stats.update(states_np)
         
         #curiosity motivation
-        curiosity_np = self._curiosity(states_t).detach().to("cpu").numpy()          
-        curiosity_np = numpy.clip(curiosity_np, -1.0, 1.0)
+        states_t        = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
+        curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()          
+        curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #execute action
-        states, rewards, dones, _ = self.envs.step(actions)
-
+        
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
