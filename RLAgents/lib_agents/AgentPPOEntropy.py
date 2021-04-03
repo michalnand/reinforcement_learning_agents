@@ -189,11 +189,12 @@ class AgentPPOEntropy():
                     self.optimizer_forward.step()
 
                     #train autoencoder model, MSE loss
-                    state_norm_t  = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
-                    state_predicted_t, _  = self.model_autoencoder(state_norm_t.detach())
+                    state_norm_t            = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+                    state_norm_t            = state_norm_t.detach()
+                    state_predicted_t, _    = self.model_autoencoder(state_norm_t)
 
                     #reconstruction loss
-                    loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
+                    loss_autoencoder    = (state_norm_t - state_predicted_t)**2
                     loss_autoencoder    = loss_autoencoder.mean()
 
                     self.optimizer_autoencoder.zero_grad()

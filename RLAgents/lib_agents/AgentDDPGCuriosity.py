@@ -101,7 +101,7 @@ class AgentDDPGCuriosity():
         
         
     def train_model(self):
-        state_t, state_next_t, action_t, reward_t, curiosity_t, _, done_t= self.experience_replay.sample(self.batch_size, self.model_critic.device)
+        state_t, state_next_t, action_t, reward_t, curiosity_t, _, done_t = self.experience_replay.sample(self.batch_size, self.model_critic.device)
 
         action_next_t                       = self.model_actor_target.forward(state_next_t).detach()
         value_ext_next_t, value_int_next_t  = self.model_critic_target.forward(state_next_t, action_next_t)
@@ -121,7 +121,7 @@ class AgentDDPGCuriosity():
         reward_t        = reward_t.unsqueeze(-1)
         curiosity_t     = curiosity_t.unsqueeze(-1)
         
-        done_t   = (1.0 - done_t).unsqueeze(-1)
+        done_t          = (1.0 - done_t).unsqueeze(-1)
 
         #critic loss, two heads Q-learning
         value_ext_target    = reward_t      + self.gamma_ext*done_t*value_ext_next_t
