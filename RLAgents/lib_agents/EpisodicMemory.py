@@ -1,6 +1,7 @@
 import torch
 import numpy
 
+'''
 class EpisodicMemory:
     def __init__(self, size, initial_count = 8):
         self.size               = size
@@ -11,9 +12,10 @@ class EpisodicMemory:
         self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
         for i in range(self.size):
             self.episodic_memory[i] = state_t
+        
         self.count = 0
 
-    
+        
     def entropy(self, state_t):  
         self._add(state_t)
 
@@ -46,3 +48,42 @@ class EpisodicMemory:
             else:
                 idx = numpy.random.randint(self.size)
                 self.episodic_memory[idx] = state_t
+'''
+
+
+
+class EpisodicMemory:
+    def __init__(self, size):
+        self.size               = size
+        self.episodic_memory    = None 
+
+        self.mean = 0.0
+        self.std  = 0.0
+    
+        
+    def entropy(self, state_t):          
+        arg  = (state_t - self.mean)/(self.std + 10**-7)
+        res  = 1.0 - torch.exp(-0.5*(arg**2)) 
+        res  = res.mean() 
+ 
+        result = res.detach().to("cpu").numpy()
+
+        return result
+
+
+    def add(self, state_t):
+        if self.episodic_memory is None:
+            self.reset(state_t)
+        else:
+            idx = numpy.random.randint(self.size)
+            self.episodic_memory[idx] = state_t
+
+        self.mean = self.episodic_memory.mean(axis=0)
+        self.std  = self.episodic_memory.std(axis=0) 
+       
+
+    def reset(self, state_t):  
+        self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
+        for i in range(self.size):
+            self.episodic_memory[i] = state_t
+    

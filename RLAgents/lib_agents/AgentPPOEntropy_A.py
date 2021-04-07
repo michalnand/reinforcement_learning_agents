@@ -95,16 +95,16 @@ class AgentPPOEntropy():
         #update long term state mean and variance
         self.states_running_stats.update(states_np)
 
-        #execute action
-        states, rewards, dones, _ = self.envs.step(actions)
-
         #curiosity motivation
         curiosity_np         = self._curiosity(states_t).detach().to("cpu").numpy()        
         curiosity_np         = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #entropy motivation 
-        entropy_np          = self._entropy(states_t, dones, self.iterations)
+        entropy_np          = self._entropy(states_t)
         entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
+
+        #execute action
+        states, rewards, dones, _ = self.envs.step(actions)
 
         #put into policy buffer
         for e in range(self.actors):            
@@ -308,7 +308,7 @@ class AgentPPOEntropy():
  
         self.episodic_memory[env_idx].reset(features_t) 
               
-    def _entropy(self, states_t, dones, iterations): 
+    def _entropy(self, states_t): 
         state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
         
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
@@ -317,9 +317,6 @@ class AgentPPOEntropy():
         entropy       = numpy.zeros(self.actors)
         for e in range(len(self.episodic_memory)):
             entropy[e] = self.episodic_memory[e].entropy(features_t[e])
-
-        for e in range(len(self.episodic_memory)):
-            self.episodic_memory[e].add(features_t[e])
         
         return entropy
 

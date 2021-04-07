@@ -1,6 +1,33 @@
 import gym
 import numpy
 from PIL import Image
+import cv2
+
+class VideoRecorder(gym.Wrapper):
+    def __init__(self, env, file_name = "video.avi"):
+        super(VideoRecorder, self).__init__(env)
+
+        height  = env.observation_space.shape[0]
+        width   = env.observation_space.shape[1]
+
+        fourcc = cv2.VideoWriter_fourcc(*'XVID') 
+        self.writer = cv2.VideoWriter(file_name, fourcc, 25.0, (width, height)) 
+        self.frame_counter = 0
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+        
+        if self.frame_counter%4 == 0:
+            im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
+            self.writer.write(im_bgr)
+
+        self.frame_counter+= 1
+
+        return state, reward, done, info
+
+    def reset(self):
+        return self.env.reset()
+
 
 class StickyActionEnv(gym.Wrapper):
     def __init__(self, env, p=0.25):
@@ -109,6 +136,8 @@ class RawScoreEnv(gym.Wrapper):
  
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, max_steps = 4500):
+    #env = VideoRecorder(env)    
+
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
