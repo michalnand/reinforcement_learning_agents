@@ -124,7 +124,7 @@ class EpisodicMemory:
 
     def add(self, state_t):
         if self.episodic_memory is None:
-            self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(states_t.device)
+            self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
 
         idx = numpy.random.randint(self.size)
         self.episodic_memory[idx] = state_t
