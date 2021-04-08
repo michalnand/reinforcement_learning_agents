@@ -114,7 +114,7 @@ class EpisodicMemory:
         self.std  = 0.0
  
     def reset(self, states_t):  
-        self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
+        self.episodic_memory = torch.zeros((self.size , ) + states_t.shape[1:]).to(states_t.device)
         for i in range(self.size):
             self.episodic_memory[i] = states_t[i%len(states_t)]
         
