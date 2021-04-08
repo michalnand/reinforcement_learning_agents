@@ -44,10 +44,12 @@ class AgentPPOEntropy():
         self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         self.states = [] 
-        self.episodic_memory = [] 
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
-            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size))
+        
+        self.episodic_memory    = EpisodicMemory(config.episodic_memory_size)
+        states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        self.episodic_memory.reset(states_t)
             
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
@@ -116,7 +118,6 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self._reset_episodic_memory(e, self.states[e])
             else:
                 self.states[e] = states[e].copy()
 
@@ -315,11 +316,12 @@ class AgentPPOEntropy():
         features_t    = features_t.squeeze(0).detach()
  
         entropy       = numpy.zeros(self.actors)
-        for e in range(len(self.episodic_memory)):
-            entropy[e] = self.episodic_memory[e].entropy(features_t[e])
+        for e in range(len(self.actors)):
+            entropy[e] = self.episodic_memory.entropy(features_t[e])
 
-        for e in range(len(self.episodic_memory)):
-            self.episodic_memory[e].add(features_t[e])
+        for e in range(len(self.actors)):
+            if dones[e] or self.iterations%self.actors == 0:
+                self.episodic_memory[e].add(features_t[e])
         
         return entropy
 
