@@ -58,6 +58,8 @@ class EpisodicMemory:
 
         self.mean = 0.0
         self.std  = 0.0
+
+        self.count = 0
  
     def reset(self, state_t):  
         self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
