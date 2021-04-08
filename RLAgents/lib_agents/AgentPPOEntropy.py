@@ -316,10 +316,10 @@ class AgentPPOEntropy():
         features_t    = features_t.squeeze(0).detach()
  
         entropy       = numpy.zeros(self.actors)
-        for e in range(len(self.actors)):
+        for e in range(self.actors):
             entropy[e] = self.episodic_memory.entropy(features_t[e])
 
-        for e in range(len(self.actors)):
+        for e in range(self.actors): 
             if dones[e] or self.iterations%self.actors == 0:
                 self.episodic_memory[e].add(features_t[e])
         
