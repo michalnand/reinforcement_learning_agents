@@ -112,12 +112,7 @@ class EpisodicMemory:
 
         self.mean = 0.0
         self.std  = 0.0
- 
-    def reset(self, states_t):  
-        self.episodic_memory = torch.zeros((self.size , ) + states_t.shape[1:]).to(states_t.device)
-        for i in range(self.size):
-            self.episodic_memory[i] = states_t[i%len(states_t)]
-        
+     
     def entropy(self, state_t):  
         arg     = (state_t - self.mean)/(self.std + 10**-7)
         res     = 1.0 - torch.exp(-0.5*(arg**2)) 
@@ -128,6 +123,9 @@ class EpisodicMemory:
         return result
 
     def add(self, state_t):
+        if self.episodic_memory is None:
+            self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(states_t.device)
+
         idx = numpy.random.randint(self.size)
         self.episodic_memory[idx] = state_t
 

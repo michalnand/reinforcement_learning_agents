@@ -48,9 +48,7 @@ class AgentPPOEntropy():
             self.states.append(self.envs.reset(e))
         
         self.episodic_memory    = EpisodicMemory(config.episodic_memory_size)
-        states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-        self.episodic_memory.reset(states_t)
-            
+
         self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
         self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
@@ -319,7 +317,7 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             entropy[e] = self.episodic_memory.entropy(features_t[e])
 
-        for e in range(self.actors):  
+        for e in range(self.actors):
             if dones[e] or self.iterations%self.actors == 0:
                 self.episodic_memory.add(features_t[e])
         
