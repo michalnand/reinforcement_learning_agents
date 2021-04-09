@@ -308,7 +308,7 @@ class AgentPPOEntropy():
  
         self.episodic_memory[env_idx].reset(features_t) 
               
-    def _entropy(self, states_t, dones, iterations): 
+    def _entropy(self, states_t): 
         state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
         
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
