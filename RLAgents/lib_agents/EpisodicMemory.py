@@ -110,13 +110,18 @@ class EpisodicMemory:
         self.size               = size
         self.episodic_memory    = None 
 
-        self.mean = 0.0
-        self.std  = 0.0
+        self.count  = 0
+        self.mean   = 0.0
+        self.std    = 0.0 
 
     def reset(self, state_t):
         self.episodic_memory = torch.zeros((self.size , ) + state_t.shape).to(state_t.device)
         for i in range(self.size):
             self.episodic_memory[i] = state_t
+
+        self.count = 0
+        self.mean   = 0.0
+        self.std    = 0.0 
      
     def entropy(self, state_t):  
         arg     = (state_t - self.mean)/(self.std + 10**-7)
@@ -136,3 +141,13 @@ class EpisodicMemory:
 
         self.mean = self.episodic_memory.mean(axis=0)
         self.std  = self.episodic_memory.std(axis=0) 
+
+        if self.count < self.size//10:
+            self.mean = 0
+            self.std  = 0
+        
+        if self.count < self.size:
+            self.count+= 1
+
+        
+
