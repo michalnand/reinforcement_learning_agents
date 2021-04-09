@@ -271,16 +271,16 @@ class AgentPPOEntropy:
 
 
     def _global_novelty(self, features_t, dones): 
-        entropy = numpy.zeros(self.actors)
+        result = numpy.zeros(self.actors)
 
         for e in range(self.actors):
-            entropy[e] = self.global_novelty_memory.entropy(features_t[e])
+            result[e] = self.global_novelty_memory.motivation(features_t[e])
 
         for e in range(self.actors):
             if numpy.random.rand() < 1.0/self.actors:
                 self.global_novelty_memory.add(features_t[e])
         
-        return entropy
+        return result
 
     def _reset_episodic_memory(self, env_idx, state_np):
         state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device).float()
@@ -293,15 +293,15 @@ class AgentPPOEntropy:
         self.episodic_novelty_memory[env_idx].reset(features_t) 
               
     def _episodic_novelty(self, features_t): 
-        entropy = numpy.zeros(self.actors)
+        result = numpy.zeros(self.actors)
 
         for e in range(self.actors):
-            entropy[e] = self.episodic_novelty_memory[e].entropy(features_t[e])
+            result[e] = self.episodic_novelty_memory[e].motivation(features_t[e])
 
         for e in range(self.actors):
             self.episodic_novelty_memory[e].add(features_t[e])
         
-        return entropy
+        return result
 
     '''
     def visualise(self, states_t):

@@ -123,12 +123,31 @@ class EpisodicMemory:
         self.mean   = 0.0
         self.std    = 0.0 
      
-    def entropy(self, state_t):  
+    '''
+    def motivation(self, state_t):  
         arg     = (state_t - self.mean)/(self.std + 10**-7)
         res     = 1.0 - torch.exp(-0.5*(arg**2)) 
         res     = res.mean() 
  
         result  = res.detach().to("cpu").numpy()
+
+        return result
+    '''
+
+    def motivation(self, state_t):  
+        if self.episodic_memory is None:
+            return 0
+        
+ 
+        distance         = ((state_t - self.episodic_memory)**2).mean(dim=1)
+        min_distance     = torch.min(distance)
+        std_distance     = torch.std(distance)
+        mean_distance    = torch.mean(distance)
+
+        #result = min_distance
+        result = min_distance/(std_distance + 10**-7)
+        
+        result  = result.detach().to("cpu").numpy()
 
         return result
 
@@ -143,9 +162,9 @@ class EpisodicMemory:
         self.std  = self.episodic_memory.std(axis=0) 
 
         if self.count < self.size//10:
-            self.mean = 0
-            self.std  = 0
-        
+            self.mean = torch.zeros(state_t.shape).to(state_t.device)
+            self.std  = torch.zeros(state_t.shape).to(state_t.device)
+         
         if self.count < self.size:
             self.count+= 1
 
