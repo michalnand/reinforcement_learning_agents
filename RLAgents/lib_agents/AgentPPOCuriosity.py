@@ -46,7 +46,8 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
 
-        self.states_running_stats = RunningStats(self.state_shape, numpy.array(self.states))
+        self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
+        self.rewards_running_stats  = RunningStats()
  
         self.enable_training()
         self.iterations                     = 0 
@@ -82,11 +83,14 @@ class AgentPPOCuriosity():
         #execute action
         states, rewards, dones, _ = self.envs.step(actions)
         
-        #update long term state mean and variance
+        #update long term states mean and variance
         self.states_running_stats.update(states_np)
-        
+
+        #update long term rewards mean and variance
+        self.rewards_running_stats.update(rewards)
+
         #curiosity motivation
-        curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()          
+        curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()/self.rewards_running_stats.std
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #put into policy buffer
