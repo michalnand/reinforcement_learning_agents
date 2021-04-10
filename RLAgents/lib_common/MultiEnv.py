@@ -50,7 +50,7 @@ class MultiEnvSeq:
 			done.append(_done)
 			info.append(_info)
 			
-		return obs, reward, done, info
+		return obs, numpy.array(reward), done, info
 
 	def render(self, env_id):
 		self.envs[env_id].render()
@@ -201,7 +201,7 @@ class MultiEnvParallel:
 				done.append(_done[i])
 				info.append(_info[i])
 
-		return obs, reward, done, info
+		return obs, numpy.array(reward), done, info
 
 	def get(self, env_id):
 		thread, id = self._position(env_id)
