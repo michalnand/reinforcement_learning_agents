@@ -26,7 +26,7 @@ class AgentPPOEntropy:
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
-        
+         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
 
@@ -125,7 +125,7 @@ class AgentPPOEntropy:
 
         #collect stats
         k = 0.02
-        self.log_global_novelty   = (1.0 - k)*self.log_global_novelty           + k*global_novelty_np.mean()
+        self.log_global_novelty   = (1.0 - k)*self.log_global_novelty       + k*global_novelty_np.mean()
         self.log_episodic_novelty = (1.0 - k)*self.log_episodic_novelty     + k*episodic_novelty_np.mean()
       
         self.iterations+= 1
@@ -292,9 +292,9 @@ class AgentPPOEntropy:
         loss = loss_ext_value + loss_int_cur_value + loss_int_ent_value + loss_policy + loss_entropy
 
         k = 0.02
-        self.log_advantages             = (1.0 - k)*self.log_advantages             + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_global_novelty_advatages    = (1.0 - k)*self.log_global_novelty_advatages    + k*advantages_cur.mean().detach().to("cpu").numpy()
-        self.log_episodic_novelty_advatages      = (1.0 - k)*self.log_episodic_novelty_advatages      + k*advantages_ent.mean().detach().to("cpu").numpy()
+        self.log_advantages                     = (1.0 - k)*self.log_advantages                 + k*self.ext_adv_coeff*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_global_novelty_advatages       = (1.0 - k)*self.log_global_novelty_advatages   + k*self.int_global_novelty_adv_coeff*advantages_cur.mean().detach().to("cpu").numpy()
+        self.log_episodic_novelty_advatages     = (1.0 - k)*self.log_episodic_novelty_advatages + k*self.int_episodic_novelty_adv_coeff*advantages_ent.mean().detach().to("cpu").numpy()
     
         return loss
 
@@ -314,7 +314,8 @@ class AgentPPOEntropy:
         features_target_t       = self.model_forward_target(state_norm_t)
         features_predicted_t    = self.model_forward(state_norm_t)
 
-        result = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+        result = (features_target_t.detach() - features_predicted_t)**2
+        result = result.mean(dim=1)
         result = result.detach().to("cpu").numpy()
 
         return result
