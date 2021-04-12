@@ -102,11 +102,11 @@ class AgentPPOEntropy:
         self.rewards_running_stats.update(rewards)
 
         #global novelty motivation
-        global_novelty_np   = self._global_novelty(states_t)/self.rewards_running_stats.std
+        global_novelty_np   = self._global_novelty(states_t)
         global_novelty_np   = numpy.clip(global_novelty_np, -1.0, 1.0)
 
         #episodic novelty motivation 
-        episodic_novelty_np = self._episodic_novelty(states_t)/self.rewards_running_stats.std
+        episodic_novelty_np = self._episodic_novelty(states_t)
         episodic_novelty_np = numpy.clip(episodic_novelty_np, -1.0, 1.0)
 
         #put into policy buffer

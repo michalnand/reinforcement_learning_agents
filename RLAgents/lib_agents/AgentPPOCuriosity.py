@@ -20,7 +20,7 @@ class AgentPPOCuriosity():
         self.int_adv_coeff      = config.int_adv_coeff
    
         self.entropy_beta       = config.entropy_beta
-        self.eps_clip           = config.eps_clip
+        self.eps_clip           = config.eps_clip 
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -90,7 +90,7 @@ class AgentPPOCuriosity():
         self.rewards_running_stats.update(rewards)
 
         #curiosity motivation
-        curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()/self.rewards_running_stats.std
+        curiosity_np    = self._curiosity(states_t).detach().to("cpu").numpy()
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #put into policy buffer
