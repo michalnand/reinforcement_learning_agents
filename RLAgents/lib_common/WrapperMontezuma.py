@@ -95,6 +95,31 @@ class ResizeEnv(gym.ObservationWrapper):
 
         return self.state
 
+class VisitedRoomsEnv(gym.Wrapper):
+    def __init__(self, env, max_steps):
+        gym.Wrapper.__init__(self, env)
+
+        self.rooms = []
+
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        
+        if len(self.rooms == 0):
+            self.rooms.append(obs[0])
+        elif self._distance(obs[0]) > 0.1 and len(self.rooms) < 100:
+            self.rooms.append(obs[0])
+        
+
+        return obs, reward, done, info
+
+    def reset(self):
+        return self.env.reset()
+
+    def _distance(self, obs):
+        return 0
+
+
 class RawScoreEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
@@ -134,17 +159,6 @@ class RawScoreEnv(gym.Wrapper):
         return self.env.reset()
  
  
-def WrapperMontezumaSmall(env, height = 84, width = 84, frame_stacking=4, max_steps = 4500):
-    #env = VideoRecorder(env)    
- 
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env)
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = RawScoreEnv(env, max_steps)
-
-    return env
-
-
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, max_steps = 4500):
     #env = VideoRecorder(env)    
 
