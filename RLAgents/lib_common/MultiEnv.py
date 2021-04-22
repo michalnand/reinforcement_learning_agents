@@ -37,20 +37,20 @@ class MultiEnvSeq:
 		return self.envs[env_id].reset()
 
 	def step(self, actions):
-		obs 	= []
-		reward 	= []
-		done 	= []
+		obs 	= numpy.zeros((len(self.envs), ) + self.observation_space.shape, dtype=numpy.float32)
+		reward 	= numpy.zeros((len(self.envs), ), dtype=numpy.float32)
+		done 	= numpy.zeros((len(self.envs), ), dtype=bool)
 		info 	= []
 
 		for e in range(len(self.envs)):
 			_obs, _reward, _done, _info = self.envs[e].step(actions[e])
 
-			obs.append(_obs)
-			reward.append(_reward)
-			done.append(_done)
+			obs[e] 		= _obs
+			reward[e] 	= _reward
+			done[e] 	= _done
 			info.append(_info)
 			
-		return obs, numpy.array(reward), done, info
+		return obs, reward, done, info
 
 	def render(self, env_id):
 		self.envs[env_id].render()
@@ -75,6 +75,9 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 			env 	= wrapper(env_name)
 
 		envs.append(env)
+
+		observation_space 	= env.observation_space
+
 	
 	while True:
 		val = inq.get()
@@ -92,17 +95,17 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 		elif val[0] == "step":
 			actions = val[1]
 
-			obs 	= []
-			rewards = []
-			dones 	= []
-			infos 	= []
+			obs 		= numpy.zeros((count, ) + observation_space.shape, dtype=numpy.float32)
+			rewards 	= numpy.zeros((count, ), dtype=numpy.float32)
+			dones 		= numpy.zeros((count, ), dtype=bool)
+			infos 		= []
 
 			for i in range(count):
 				_obs, _reward, _done, _info = envs[i].step(actions[i])
 
-				obs.append(_obs)
-				rewards.append(_reward)
-				dones.append(_done)
+				obs[i] 		= _obs
+				rewards[i] 	= _reward
+				dones[i]	= _done 
 				infos.append(_info)
 
 			outq.put((obs, rewards, dones, infos))
@@ -187,21 +190,25 @@ class MultiEnvParallel:
 
 			self.inq[j].put(["step", _actions])
 
-		obs 	= []
-		reward 	= []
-		done   	= []
-		info   	= []
+
+		obs 	= numpy.zeros((self.threads_count, self.envs_per_thread) + self.observation_space.shape, dtype=numpy.float32)
+		rewards = numpy.zeros((self.threads_count, self.envs_per_thread), dtype=numpy.float32)
+		dones 	= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=bool)
+		infos 	= None
 
 		for j in range(self.threads_count):
 			_obs, _reward, _done, _info = self.outq[j].get()
 
-			for i in range(self.envs_per_thread):
-				obs.append(_obs[i])
-				reward.append(_reward[i])
-				done.append(_done[i])
-				info.append(_info[i])
+			obs[j] 		= _obs
+			rewards[j] 	= _reward
+			dones[j] 	= _done
 
-		return obs, numpy.array(reward), done, info
+
+		obs 		= numpy.reshape(obs, (self.threads_count*self.envs_per_thread, ) + self.observation_space.shape)
+		rewards 	= numpy.reshape(rewards, (self.threads_count*self.envs_per_thread, ))
+		dones 		= numpy.reshape(dones, (self.threads_count*self.envs_per_thread, ))
+
+		return obs, rewards, dones, infos
 
 	def get(self, env_id):
 		thread, id = self._position(env_id)
@@ -219,7 +226,7 @@ class MultiEnvParallel:
 
 if __name__ == "__main__":
 	from WrapperAtari import *
-	envs_count = 128
+	envs_count = 32
 	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 

@@ -40,20 +40,23 @@ class EpisodicMemory:
         self.size   = size
         self.mean   = 0.0
         self.std    = 0.0 
+
+        self.episodic_memory = None
         
-    def reset(self, states_t):
-        self.episodic_memory = torch.zeros((self.size, ) + states_t.shape[1:]).to(states_t.device)
-        for i in range(self.size):
-            self.episodic_memory[i] = states_t[i%len(states_t)]
+    def reset(self, state_t):
+        self.episodic_memory = torch.zeros((self.size, ) + state_t.shape).to(state_t.device)
+        for i in range(self.size): 
+            self.episodic_memory[i] = state_t.clone()
 
     def add(self, state_t):
+        if self.episodic_memory is None:
+            self.reset(state_t)
+
         idx = numpy.random.randint(self.size)
-        self.episodic_memory[idx] = state_t
+        self.episodic_memory[idx] = state_t.clone()
 
         self.mean = self.episodic_memory.mean(axis=0)
         self.std  = self.episodic_memory.std(axis=0) 
-       
-
        
     def motivation(self, state_t):  
         arg  = (state_t - self.mean)/(self.std + 10**-7)

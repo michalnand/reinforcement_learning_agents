@@ -48,24 +48,18 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
         
-            
-        self.model_autoencoder       = ModelAutoencoder.Model(self.state_shape)
-        self.optimizer_autoencoder   = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
+        self.model_autoencoder      = ModelAutoencoder.Model(self.state_shape)
+        self.optimizer_autoencoder  = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
 
-        self.states_running_stats       = RunningStats(self.state_shape, numpy.array(self.states))
+        self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
         
-        self.episodic_memory    = EpisodicMemory(config.episodic_memory_size)
-        states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-        state_norm_t            = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
-        
-        features_t      = self.model_autoencoder.eval_features(state_norm_t)
-        features_t      = features_t.squeeze(0).detach()
-        self.episodic_memory.reset(features_t)
-        
+        self.episodic_memory    = []
+        for e in range(self.actors):
+            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size))
+    
         self.enable_training()
         self.iterations = 0
 
-        
         self.log_loss_forward           = 0.0
         self.log_loss_autoencoder       = 0.0
         self.log_curiosity              = 0.0
@@ -124,6 +118,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
+                self._reset_episodic_memory(e, self.states[e])
             else:
                 self.states[e] = states[e].copy()
 
@@ -323,10 +318,10 @@ class AgentPPOEntropy():
  
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):
-            entropy[e] = self.episodic_memory.motivation(features_t[e])
-         
+            entropy[e] = self.episodic_memory[e].motivation(features_t[e])
+          
         for e in range(self.actors):
-            self.episodic_memory.add(features_t[e])
+            self.episodic_memory[e].add(features_t[e])
         
         return entropy
 
