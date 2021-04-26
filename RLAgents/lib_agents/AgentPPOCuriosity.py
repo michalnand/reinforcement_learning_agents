@@ -10,12 +10,12 @@ from .RunningStats      import *
 class AgentPPOCuriosity():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs
-
+ 
         config = Config.Config()
 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
-          
+           
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
    
@@ -91,7 +91,7 @@ class AgentPPOCuriosity():
 
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t).detach().to("cpu").numpy()
+        curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #put into policy buffer
@@ -130,7 +130,7 @@ class AgentPPOCuriosity():
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
-        return result
+        return result 
     
     def _sample_action(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
@@ -157,9 +157,12 @@ class AgentPPOCuriosity():
                 
                 if e == 0:
                     #train forward model, MSE loss
-                    curiosity_t         = self._curiosity(states)
+                    state_norm_t            = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
 
-                    loss_forward = curiosity_t.mean()
+                    features_predicted_t    = self.model_forward(state_norm_t)
+                    features_target_t       = self.model_forward_target(state_norm_t).detach()
+
+                    loss_forward = ((features_target_t - features_predicted_t)**2).mean()
                     self.optimizer_forward.zero_grad()
                     loss_forward.backward()
                     self.optimizer_forward.step()
@@ -242,7 +245,9 @@ class AgentPPOCuriosity():
         features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
 
-        curiosity_t    = ((features_target_t.detach() - features_predicted_t)**2)/2.0
-        curiosity_t    = curiosity_t.sum(dim=1)
+        #curiosity_t    = ((features_target_t.detach() - features_predicted_t)**2)/2.0
+        #curiosity_t    = curiosity_t.sum(dim=1)
 
-        return curiosity_t
+        curiosity_t    = curiosity_t.mean(dim=1)
+
+        return curiosity_t.detach().to("cpu").numpy()

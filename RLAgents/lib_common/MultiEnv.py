@@ -226,7 +226,7 @@ class MultiEnvParallel:
 
 if __name__ == "__main__":
 	from WrapperAtari import *
-	envs_count = 128
+	envs_count = 16
 	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 
@@ -238,6 +238,8 @@ if __name__ == "__main__":
 		ts = time.time()
 		states, rewards, dones, _ = envs.step(actions)
 		te = time.time()
+
+		print(states[0][0])
 
 		for i in range(envs_count):
 			if dones[i] == 0:
