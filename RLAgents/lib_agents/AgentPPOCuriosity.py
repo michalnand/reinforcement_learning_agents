@@ -245,9 +245,9 @@ class AgentPPOCuriosity():
         features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
 
-        #curiosity_t    = ((features_target_t.detach() - features_predicted_t)**2)/2.0
-        #curiosity_t    = curiosity_t.sum(dim=1)
-
+        curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
+        
+        #curiosity_t    = curiosity_t.sum(dim=1)/2.0
         curiosity_t    = curiosity_t.mean(dim=1)
 
         return curiosity_t.detach().to("cpu").numpy()
