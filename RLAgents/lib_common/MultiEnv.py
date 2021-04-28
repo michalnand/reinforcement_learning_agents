@@ -58,7 +58,7 @@ class MultiEnvSeq:
 	def get(self, env_id):
 		return self.envs[env_id]
 
-
+'''
 def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 	print("env_process_main = ", id, count, env_name)
@@ -218,12 +218,12 @@ class MultiEnvParallel:
 
 	def _position(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
-
-
-
-
-
 '''
+
+
+
+
+
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -302,8 +302,6 @@ class MultiEnvParallel:
 		for i in range(self.envs_count):
 			self.workers[i].start()
 
-	
-
 	def close(self):
 		for i in range(len(self.workers)):
 			self.parent_conn[i].send(["end"])
@@ -336,7 +334,7 @@ class MultiEnvParallel:
 			dones[i] 	= _done
 
 		return obs, rewards, dones, infos
-'''
+
 	
 
 
