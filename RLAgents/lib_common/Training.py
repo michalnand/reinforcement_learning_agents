@@ -37,16 +37,20 @@ class TrainingIterations:
         fps                      = 0.0
         score_per_episode_buffer = numpy.zeros(averaging_episodes)
 
+        time_now = time.time()
+
         for iteration in range(self.iterations_count):
             
-            time_start      = time.time()
             reward, done    = self.agent.main()
-            time_stop       = time.time()
 
-            #compute fps, and remaining time in hours
-            k               = 0.02
-            fps             = (1.0-k)*fps + k*1.0/(time_stop - time_start)
-            time_remaining  = ((self.iterations_count - iteration)/fps)/3600.0
+            if iteration%1000 == 0:
+                time_prev  = time_now
+                time_now   = time.time()
+
+                #compute fps, and remaining time in hours
+                dt              = (time_now - time_prev)/1000.0
+                fps             = 1.0/(time_now - time_prev)
+                time_remaining  = ((self.iterations_count - iteration)/fps)/3600.0
 
  
             if isinstance(self.env, list):
