@@ -335,6 +335,9 @@ class MultiEnvParallel:
 
 		return obs, rewards, dones, infos
 
+	def get(self, env_id):
+		self.parent_conn[env_id].send(["get"])
+		return self.parent_conn[env_id].recv()
 	
 
 
