@@ -43,12 +43,12 @@ class TrainingIterations:
             
             reward, done    = self.agent.main()
 
-            if iteration%1000 == 0:
+            if iteration%self.log_period_iterations == 0:
                 time_prev  = time_now
                 time_now   = time.time()
 
                 #compute fps, and remaining time in hours
-                dt              = (time_now - time_prev)/1000.0
+                dt              = (time_now - time_prev)/self.log_period_iterations
                 fps             = 1.0/(time_now - time_prev)
                 time_remaining  = ((self.iterations_count - iteration)/fps)/3600.0
 
