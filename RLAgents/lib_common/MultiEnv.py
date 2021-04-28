@@ -59,7 +59,6 @@ class MultiEnvSeq:
 		return self.envs[env_id]
 
 
-'''
 def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 	print("env_process_main = ", id, count, env_name)
@@ -219,13 +218,12 @@ class MultiEnvParallel:
 
 	def _position(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
+
+
+
+
+
 '''
-
-
-
-
-
-
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -255,7 +253,6 @@ def env_process_main(id, child_conn, env_name, wrapper):
 			break
 
 		elif val[0] == "reset":
-			print("\n\n\n\nRESET ", id, "\n\n\n")
 			_obs 	= env.reset()
 			child_conn.send(_obs)
 
@@ -339,7 +336,7 @@ class MultiEnvParallel:
 			dones[i] 	= _done
 
 		return obs, rewards, dones, infos
-
+'''
 	
 
 
