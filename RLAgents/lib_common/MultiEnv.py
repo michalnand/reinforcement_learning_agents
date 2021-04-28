@@ -58,6 +58,7 @@ class MultiEnvSeq:
 	def get(self, env_id):
 		return self.envs[env_id]
 
+'''
 def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 	print("env_process_main = ", id, count, env_name)
@@ -219,11 +220,10 @@ class MultiEnvParallel:
 
 	def _position(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
-
-
-
-
 '''
+
+
+
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -338,7 +338,7 @@ class MultiEnvParallel:
 	def get(self, env_id):
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
-'''
+
 
 
 if __name__ == "__main__":
@@ -346,7 +346,7 @@ if __name__ == "__main__":
 	envs_count = 128
 	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
-
+ 
 	for i in range(envs_count):
 		envs.reset(i)
 
