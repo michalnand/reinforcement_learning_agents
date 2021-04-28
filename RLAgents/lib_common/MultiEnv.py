@@ -59,7 +59,7 @@ class MultiEnvSeq:
 		return self.envs[env_id]
 
 
-
+'''
 def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 	print("env_process_main = ", id, count, env_name)
@@ -120,7 +120,7 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 	
 
 class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, envs_per_thread = 8):
+	def __init__(self, env_name, wrapper, envs_count, envs_per_thread = 1):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -219,14 +219,133 @@ class MultiEnvParallel:
 
 	def _position(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
+'''
 
 
 
+
+
+
+def env_process_main(id, child_conn, env_name, wrapper):
+
+	print("env_process_main = ", id, env_name)
+
+	try:
+		env 	= gym.make(env_name)
+		if wrapper is not None:
+			env 	= wrapper(env)
+	except:
+		env 	= wrapper(env_name)
+
+
+	observation_space 	= env.observation_space
+
+	
+	while True:
+		val = child_conn.recv()
+
+		if val[0] == "step":
+			action = val[1]
+
+			_obs, _reward, _done, _info = env.step(action)
+
+			child_conn.send((_obs, _reward, _done, _info))
+		
+		elif val[0] == "end":
+			break
+
+		elif val[0] == "reset":
+			print("\n\n\n\nRESET ", id, "\n\n\n")
+			_obs 	= env.reset()
+			child_conn.send(_obs)
+
+		elif val[0] == "render":
+			env.render() 
+
+		elif val[0] == "get":
+			child_conn.send(env)
+	
+
+class MultiEnvParallel:
+	def __init__(self, env_name, wrapper, envs_count):
+		try:
+			dummy_env 	= gym.make(env_name)
+			if wrapper is not None:
+				dummy_env 	= wrapper(dummy_env)
+		except:
+			dummy_env 	= wrapper(env_name)
+
+		self.observation_space 	= dummy_env.observation_space
+		self.action_space 		= dummy_env.action_space
+
+		dummy_env.close()
+
+		self.envs_count = envs_count
+
+		self.parent_conn		= []
+		self.child_conn 		= []
+		self.workers 	= []
+
+		print("MultiEnvParallel")
+		print("envs_count      = ", self.envs_count)
+		print("\n\n")
+
+		for i in range(self.envs_count):
+			inq	 =	multiprocessing.Queue()
+			outq =	multiprocessing.Queue()
+
+			parent_conn, child_conn = multiprocessing.Pipe()
+
+			worker = multiprocessing.Process(target=env_process_main, args=(i, child_conn, env_name, wrapper))
+			
+			self.parent_conn.append(parent_conn)
+			self.child_conn.append(child_conn)
+			self.workers.append(worker) 
+
+		for i in range(self.envs_count):
+			self.workers[i].start()
+
+	
+
+	def close(self):
+		for i in range(len(self.workers)):
+			self.parent_conn[i].send(["end"])
+		
+		for i in range(len(self.workers)):
+			self.workers[i].join()
+
+	def reset(self, env_id):
+		self.parent_conn[env_id].send(["reset"])
+		return self.parent_conn[env_id].recv() 
+
+	def render(self, env_id):
+		self.parent_conn[env_id].send(["render"])
+
+
+	def step(self, actions):
+		for i in range(self.envs_count):
+			self.parent_conn[i].send(["step", actions[i]])
+
+		obs 	= numpy.zeros((self.envs_count, ) + self.observation_space.shape, dtype=numpy.float32)
+		rewards = numpy.zeros((self.envs_count, ), dtype=numpy.float32)
+		dones 	= numpy.zeros((self.envs_count, ), dtype=bool)
+		infos 	= None
+ 
+		for i in range(self.envs_count):
+			_obs, _reward, _done, _info = self.parent_conn[i].recv()
+
+			obs[i] 		= _obs
+			rewards[i] 	= _reward
+			dones[i] 	= _done
+
+		return obs, rewards, dones, infos
+
+	
 
 
 if __name__ == "__main__":
 	from WrapperAtari import *
-	envs_count = 16
+	envs_count = 128
 	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
 
@@ -239,10 +358,8 @@ if __name__ == "__main__":
 		states, rewards, dones, _ = envs.step(actions)
 		te = time.time()
 
-		print(states[0][0])
-
 		for i in range(envs_count):
-			if dones[i] == 0:
+			if dones[i] == True:
 				envs.reset(i)
 
 		fps = envs_count*1.0/(te - ts)
