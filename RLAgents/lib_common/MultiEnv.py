@@ -58,7 +58,6 @@ class MultiEnvSeq:
 	def get(self, env_id):
 		return self.envs[env_id]
 
-'''
 def env_process_main(id, inq, outq, env_name, wrapper, count):
 
 	print("env_process_main = ", id, count, env_name)
@@ -119,7 +118,7 @@ def env_process_main(id, inq, outq, env_name, wrapper, count):
 	
 
 class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, envs_per_thread = 1):
+	def __init__(self, env_name, wrapper, envs_count):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -134,6 +133,8 @@ class MultiEnvParallel:
 		self.inq		= []
 		self.outq 		= []
 		self.workers 	= []
+
+		envs_per_thread			= 8
 
 		self.envs_count			= envs_count
 		self.threads_count 		= envs_count//envs_per_thread
@@ -218,12 +219,11 @@ class MultiEnvParallel:
 
 	def _position(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
+
+
+
+
 '''
-
-
-
-
-
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -338,7 +338,7 @@ class MultiEnvParallel:
 	def get(self, env_id):
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
-	
+'''
 
 
 if __name__ == "__main__":

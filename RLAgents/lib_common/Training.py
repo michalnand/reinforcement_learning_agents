@@ -34,10 +34,10 @@ class TrainingIterations:
         raw_score_per_episode_best      = -100000.0
 
 
-        fps                      = 0.0
         score_per_episode_buffer = numpy.zeros(averaging_episodes)
 
         time_now = time.time()
+        dt       = 0.0
 
         for iteration in range(self.iterations_count):
             
@@ -49,8 +49,7 @@ class TrainingIterations:
 
                 #compute fps, and remaining time in hours
                 dt              = (time_now - time_prev)/self.log_period_iterations
-                fps             = 1.0/(time_now - time_prev)
-                time_remaining  = ((self.iterations_count - iteration)/fps)/3600.0
+                time_remaining  = ((self.iterations_count - iteration)*dt)/3600.0
 
  
             if isinstance(self.env, list):
