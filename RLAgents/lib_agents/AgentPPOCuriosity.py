@@ -157,10 +157,7 @@ class AgentPPOCuriosity():
                 
                 if e == 0:
                     #train forward model, MSE loss
-                    #state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
-                    
-                    state_norm_t            = (states - torch.from_numpy(self.states_running_stats.mean)/self.states_running_stats.std).to(self.model_forward.device)
-                    state_norm_t            = torch.clamp(state_norm_t, -4.0, 4.0)
+                    state_norm_t            = self._norm_state(states)
 
                     features_predicted_t    = self.model_forward(state_norm_t)
                     features_target_t       = self.model_forward_target(state_norm_t).detach()
@@ -243,10 +240,7 @@ class AgentPPOCuriosity():
         return action_one_hot_t
 
     def _curiosity(self, state_t):
-        #state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
-
-        state_norm_t            = (states - torch.from_numpy(self.states_running_stats.mean)/self.states_running_stats.std).to(self.model_forward.device)
-        state_norm_t            = torch.clamp(state_norm_t, -4.0, 4.0)
+        state_norm_t            = self._norm_state(state_t)
 
         features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
@@ -258,3 +252,14 @@ class AgentPPOCuriosity():
         
 
         return curiosity_t.detach().to("cpu").numpy()
+
+    def _norm_state(self, state_t):
+        mean = torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+        std  = torch.from_numpy(self.states_running_stats.std).to(self.model_forward.device)
+        
+        #state_norm_t = state_t - mean
+        state_norm_t = (state_t - mean)/std
+
+        state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+
+        return state_norm_t
