@@ -254,9 +254,9 @@ class AgentPPOCuriosity():
         return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):
-        mean = torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
-        std  = torch.from_numpy(self.states_running_stats.std).to(self.model_forward.device)
-        
+        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+         
         #state_norm_t = state_t - mean
         state_norm_t = (state_t - mean)/std
 
