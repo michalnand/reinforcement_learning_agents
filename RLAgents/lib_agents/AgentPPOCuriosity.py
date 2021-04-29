@@ -3,7 +3,7 @@ import torch
 import time
 
 from torch.distributions import Categorical
-
+ 
 from .PolicyBufferIM    import * 
 from .RunningStats      import *
  
@@ -157,7 +157,10 @@ class AgentPPOCuriosity():
                 
                 if e == 0:
                     #train forward model, MSE loss
-                    state_norm_t            = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+                    #state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+                    
+                    state_norm_t            = (states - torch.from_numpy(self.states_running_stats.mean)/self.states_running_stats.std).to(self.model_forward.device)
+                    state_norm_t            = torch.clamp(state_norm_t, -4.0, 4.0)
 
                     features_predicted_t    = self.model_forward(state_norm_t)
                     features_target_t       = self.model_forward_target(state_norm_t).detach()
@@ -240,12 +243,15 @@ class AgentPPOCuriosity():
         return action_one_hot_t
 
     def _curiosity(self, state_t):
-        state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+        #state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+
+        state_norm_t            = (states - torch.from_numpy(self.states_running_stats.mean)/self.states_running_stats.std).to(self.model_forward.device)
+        state_norm_t            = torch.clamp(state_norm_t, -4.0, 4.0)
 
         features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
 
-        curiosity_t    = (features_target_t.detach() - features_predicted_t)**2
+        curiosity_t    = (features_target_t - features_predicted_t)**2
         
         #curiosity_t    = curiosity_t.mean(dim=1)
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
