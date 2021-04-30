@@ -29,10 +29,10 @@ class AgentPPO():
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.actors, self.model.device)
-
-        self.states = [] 
+ 
+        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
-            self.states.append(self.envs.reset(e))
+            self.states[e] = self.envs.reset(e)
 
         self.enable_training()
         self.iterations = 0 
@@ -51,7 +51,7 @@ class AgentPPO():
  
         logits_t, values_t  = self.model.forward(states_t)
 
-        states_np = states_t.detach().to("cpu").numpy()
+        states_np = states_t.detach().to("cpu").numpy() 
         logits_np = logits_t.detach().to("cpu").numpy()
         values_np = values_t.detach().to("cpu").numpy()
 

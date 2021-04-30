@@ -9,7 +9,7 @@ from .RunningStats      import *
  
 class AgentPPOCuriosity():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
-        self.envs = envs
+        self.envs = envs 
  
         config = Config.Config()
 
