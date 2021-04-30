@@ -64,6 +64,8 @@ class AgentPPOCuriosity():
         self.enabled_training = False
 
     def main(self):
+
+        time_model_ppo_start = time.time()
         #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
@@ -75,6 +77,9 @@ class AgentPPOCuriosity():
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         values_int_np   = values_int_t.detach().to("cpu").numpy()
 
+        time_model_ppo_stop = time.time()
+
+        time_env_start = time.time()
         #collect actions
         actions = []
         for e in range(self.actors):
@@ -82,7 +87,11 @@ class AgentPPOCuriosity():
 
         #execute action
         states, rewards, dones, _ = self.envs.step(actions)
+
+        time_env_stop  = time.time()
         
+        time_model_curiosity_start = time.time()
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
@@ -93,6 +102,11 @@ class AgentPPOCuriosity():
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+
+
+        time_model_curiosity_stop = time.time()
+
+        time_model_buffer_start = time.time()
 
         #put into policy buffer
         for e in range(self.actors):            
@@ -106,6 +120,21 @@ class AgentPPOCuriosity():
                 self.states[e] = self.envs.reset(e)
             else:
                 self.states[e] = states[e].copy()
+
+        time_model_buffer_stop = time.time()
+
+        time_model_ppo          = time_model_ppo_stop - time_model_ppo_start
+        time_model_env          = time_model_env_stop - time_model_env_start
+        time_model_curiosity    = time_model_curiosity_stop - time_model_curiosity_start
+        time_model_buffer       = time_model_buffer_stop - time_model_buffer_start
+
+        time_total              = time_model_ppo + time_model_env + time_model_curiosity + time_model_buffer
+
+        print("computing time ")
+        print("time_model_ppo = ", time_model_ppo, round(time_model_ppo*100.0/time_total, 3), "[%]")
+        print("time_model_curiosity = ", time_model_curiosity, round(time_model_curiosity*100.0/time_total, 3), "[%]")
+        print("time_model_buffer = ", time_model_buffer, round(time_model_buffer*100.0/time_total, 3), "[%]")
+        print("\n")
 
         #collect stats
         k = 0.02
