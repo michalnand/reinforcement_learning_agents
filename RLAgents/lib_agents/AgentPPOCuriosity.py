@@ -21,7 +21,7 @@ class AgentPPOCuriosity():
    
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-
+ 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
@@ -44,7 +44,7 @@ class AgentPPOCuriosity():
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
-            self.states[e] = self.envs.reset(e)
+            self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
         self.rewards_running_stats  = RunningStats()
@@ -83,6 +83,8 @@ class AgentPPOCuriosity():
         #execute action
         states, rewards, dones, _ = self.envs.step(actions)
 
+        self.states = states.copy()
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
@@ -103,9 +105,7 @@ class AgentPPOCuriosity():
                     self.train()
 
             if dones[e]:
-                self.states[e] = self.envs.reset(e)
-            else:
-                self.states[e] = states[e].copy()
+                self.states[e] = self.envs.reset(e).copy()
 
         #collect stats
         k = 0.02
@@ -157,12 +157,13 @@ class AgentPPOCuriosity():
                 
                 if e == 0:
                     #train forward model, MSE loss
-                    state_norm_t            = self._norm_state(states)
+                    state_norm_t            = self._norm_state(states).detach()
 
-                    features_predicted_t    = self.model_forward(state_norm_t)
                     features_target_t       = self.model_forward_target(state_norm_t).detach()
+                    features_predicted_t    = self.model_forward(state_norm_t)
 
-                    loss_forward = ((features_target_t - features_predicted_t)**2).mean()
+                    loss_forward = (features_target_t - features_predicted_t)**2
+                    loss_forward = loss_forward.mean()
                     self.optimizer_forward.zero_grad()
                     loss_forward.backward()
                     self.optimizer_forward.step()
@@ -242,8 +243,8 @@ class AgentPPOCuriosity():
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 
-        features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
+        features_predicted_t    = self.model_forward(state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
@@ -254,11 +255,6 @@ class AgentPPOCuriosity():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        #std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
          
         state_norm_t = state_t - mean
-        #state_norm_t = (state_t - mean)/std
-
-        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
-
         return state_norm_t
