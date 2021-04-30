@@ -132,6 +132,7 @@ class AgentPPOCuriosity():
 
         print("computing time ")
         print("time_model_ppo = ", time_model_ppo, round(time_model_ppo*100.0/time_total, 3), "[%]")
+        print("time_env = ", time_env, round(time_env*100.0/time_total, 3), "[%]")
         print("time_model_curiosity = ", time_model_curiosity, round(time_model_curiosity*100.0/time_total, 3), "[%]")
         print("time_buffer = ", time_buffer, round(time_buffer*100.0/time_total, 3), "[%]")
         print("\n")
