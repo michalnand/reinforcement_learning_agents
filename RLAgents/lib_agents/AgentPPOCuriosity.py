@@ -106,7 +106,7 @@ class AgentPPOCuriosity():
 
         time_model_curiosity_stop = time.time()
 
-        time_model_buffer_start = time.time()
+        time_buffer_start = time.time()
 
         #put into policy buffer
         for e in range(self.actors):            
@@ -121,7 +121,7 @@ class AgentPPOCuriosity():
             else:
                 self.states[e] = states[e].copy()
 
-        time_model_buffer_stop = time.time()
+        time_buffer_stop = time.time()
 
         time_model_ppo          = time_model_ppo_stop - time_model_ppo_start
         time_env                = time_env_stop - time_env_start
