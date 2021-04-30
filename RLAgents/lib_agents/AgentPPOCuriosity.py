@@ -42,9 +42,9 @@ class AgentPPOCuriosity():
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
-        self.states = []
+        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
-            self.states.append(self.envs.reset(e))
+            self.states[e] = self.envs.reset(e)
 
         self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
         self.rewards_running_stats  = RunningStats()
