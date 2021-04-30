@@ -71,14 +71,14 @@ class AgentPPOCuriosity():
 
         #compute model output
         #logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
-        logits_t = torch.randn((self.actors, self.actions_count)).to(self.model_ppo.device)
+        logits_t = torch.randn((self.actors, self.actions_count)) 
 
         states_np       = states_t.detach().to("cpu").numpy()
-        logits_np       = logits_t.detach().to("cpu").numpy()
+        #logits_np       = logits_t.detach().to("cpu").numpy()
         #values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         #values_int_np   = values_int_t.detach().to("cpu").numpy()
 
-        time_model_ppo_stop = time.time()
+        time_model_ppo_stop = time.time() 
 
         time_env_start = time.time()
         #collect actions
