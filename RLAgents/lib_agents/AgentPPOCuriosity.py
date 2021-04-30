@@ -70,12 +70,13 @@ class AgentPPOCuriosity():
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        #logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits_t = torch.randn((self.actors, self.actions_count)).to(self.model_ppo.device)
 
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
-        values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-        values_int_np   = values_int_t.detach().to("cpu").numpy()
+        #values_ext_np   = values_ext_t.detach().to("cpu").numpy()
+        #values_int_np   = values_int_t.detach().to("cpu").numpy()
 
         time_model_ppo_stop = time.time()
 
