@@ -182,13 +182,14 @@ class AgentPPOEntropy():
                 self.optimizer_ppo.step()
                 
                 if e == 0: 
-                    state_norm_t            = states - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+                    state_norm_t            = self._norm_state(state_t).detach()
 
                     #train forward model, MSE loss
                     features_predicted_t    = self.model_forward(state_norm_t)
                     features_target_t       = self.model_forward_target(state_norm_t).detach()
 
-                    loss_forward = ((features_target_t - features_predicted_t)**2).mean()
+                    loss_forward = (features_target_t - features_predicted_t)**2
+                    loss_forward = loss_forward.mean()
                     self.optimizer_forward.zero_grad()
                     loss_forward.backward()
                     self.optimizer_forward.step() 
@@ -197,7 +198,7 @@ class AgentPPOEntropy():
                     state_predicted_t, _    = self.model_autoencoder(state_norm_t)
 
                     #reconstruction loss
-                    loss_autoencoder    = (state_norm_t.detach() - state_predicted_t)**2
+                    loss_autoencoder    = (state_norm_t - state_predicted_t)**2
                     loss_autoencoder    = loss_autoencoder.mean()
 
                     self.optimizer_autoencoder.zero_grad()
@@ -291,7 +292,7 @@ class AgentPPOEntropy():
         return action_one_hot_t
 
     def _curiosity(self, state_t):
-        state_norm_t            = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_forward.device)
+        state_norm_t            = self._norm_state(state_t)
 
         features_predicted_t    = self.model_forward(state_norm_t)
         features_target_t       = self.model_forward_target(state_norm_t)
@@ -307,7 +308,7 @@ class AgentPPOEntropy():
     def _reset_episodic_memory(self, env_idx, state_np):
         state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device).float()
 
-        state_norm_t  = state_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+        state_norm_t  = self._norm_state(state_t)
 
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
         features_t    = features_t.squeeze(0).detach()
@@ -315,7 +316,7 @@ class AgentPPOEntropy():
         self.episodic_memory[env_idx].reset(features_t) 
               
     def _entropy(self, states_t): 
-        state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
+        state_norm_t  = self._norm_state(states_t)
         
         features_t    = self.model_autoencoder.eval_features(state_norm_t)
         features_t    = features_t.squeeze(0).detach()
@@ -329,7 +330,13 @@ class AgentPPOEntropy():
         
         return entropy
 
-    '''
-    def visualise(self, states_t):
-        state_norm_t  = states_t - torch.from_numpy(self.states_running_stats.mean).to(self.model_autoencoder.device)
-    ''' 
+    def _norm_state(self, state_t):
+        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        #std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+         
+        state_norm_t = state_t - mean
+        #state_norm_t = (state_t - mean)/std
+
+        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+
+        return state_norm_t
