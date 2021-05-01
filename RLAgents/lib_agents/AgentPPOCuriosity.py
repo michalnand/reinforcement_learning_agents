@@ -94,6 +94,7 @@ class AgentPPOCuriosity():
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
+        curiosity_np    = curiosity_np/self.rewards_running_stats.std
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #put into policy buffer
@@ -255,6 +256,7 @@ class AgentPPOCuriosity():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
          
-        state_norm_t = state_t - mean
+        state_norm_t = (state_t - mean) #/ std
         return state_norm_t
