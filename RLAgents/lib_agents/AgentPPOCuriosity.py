@@ -94,7 +94,6 @@ class AgentPPOCuriosity():
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
-        curiosity_np    = curiosity_np/self.rewards_running_stats.std
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #put into policy buffer
