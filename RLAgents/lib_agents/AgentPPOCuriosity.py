@@ -11,7 +11,7 @@ class AgentPPOCuriosity():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs 
  
-        config = Config.Config()
+        config = Config.Config() 
 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
