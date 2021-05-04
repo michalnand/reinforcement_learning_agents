@@ -11,6 +11,6 @@ from .TrainingLog           import TrainingLog
 from .WrapperAtari          import WrapperAtari, WrapperAtariSparseRewards
 
 #from .WrapperDoom           import WrapperDoom, WrapperDoomRender
-from .WrapperMontezuma      import WrapperMontezuma
+from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaSmall
 #from .WrapperRetro          import WrapperRetro
 #from .WrapperSuperMario     import WrapperSuperMario
