@@ -256,8 +256,8 @@ class AgentPPOCuriosity():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
-        state_norm_t = state_t 
-        #state_norm_t = state_t - mean 
+        #state_norm_t = state_t 
+        state_norm_t = state_t - mean 
         #state_norm_t = torch.clamp((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t
