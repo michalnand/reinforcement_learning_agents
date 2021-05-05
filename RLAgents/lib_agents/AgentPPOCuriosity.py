@@ -205,8 +205,9 @@ class AgentPPOCuriosity():
         '''
         advantages          = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages          = advantages.detach() 
-        advantages_norm     = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
+        #advantages_norm     = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+ 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
@@ -257,7 +258,7 @@ class AgentPPOCuriosity():
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
         #state_norm_t = state_t 
-        state_norm_t = state_t - mean 
+        state_norm_t = state_t - mean  
         #state_norm_t = torch.clamp((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t
