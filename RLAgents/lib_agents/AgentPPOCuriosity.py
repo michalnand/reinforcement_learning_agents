@@ -248,7 +248,6 @@ class AgentPPOCuriosity():
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
-        #curiosity_t    = curiosity_t.mean(dim=1)
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
@@ -259,8 +258,6 @@ class AgentPPOCuriosity():
 
         state_norm_t = state_t 
         #state_norm_t = state_t - mean 
-        #state_norm_t = (state_t - mean)  / std
-        
-        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+        #state_norm_t = torch.clamp((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t
