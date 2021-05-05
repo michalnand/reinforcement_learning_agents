@@ -147,7 +147,7 @@ class AgentPPOCuriosity():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
-
+ 
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
@@ -256,8 +256,10 @@ class AgentPPOCuriosity():
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-         
-        state_norm_t = (state_t - mean) # / std
+
+        state_norm_t = state_t 
+        #state_norm_t = state_t - mean 
+        #state_norm_t = (state_t - mean)  / std
         
         #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
 
