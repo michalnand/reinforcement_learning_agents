@@ -167,7 +167,7 @@ class AgentPPOCuriosity():
                 
                 random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
                 random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
-                loss_forward    = (loss_forward*random_mask).sum() / torch.max(random_mask.sum(), 1.0)
+                loss_forward    = (loss_forward*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
                 self.optimizer_forward.zero_grad() 
                 loss_forward.backward()
