@@ -173,8 +173,6 @@ class AgentPPOCuriosity():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
-                print(">>>> ", random_mask.shape, loss_forward.shape)
-
                 k = 0.02
                 self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
 
