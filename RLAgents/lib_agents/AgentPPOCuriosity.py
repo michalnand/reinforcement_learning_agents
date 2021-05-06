@@ -154,22 +154,27 @@ class AgentPPOCuriosity():
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
+
                 
-                if e == 0:
-                    #train forward model, MSE loss
-                    state_norm_t            = self._norm_state(states).detach()
+                #if e == 0:
+                #train forward model, MSE loss
+                state_norm_t            = self._norm_state(states).detach()
 
-                    features_target_t       = self.model_forward_target(state_norm_t).detach()
-                    features_predicted_t    = self.model_forward(state_norm_t)
+                features_target_t       = self.model_forward_target(state_norm_t).detach()
+                features_predicted_t    = self.model_forward(state_norm_t)
 
-                    loss_forward = (features_target_t - features_predicted_t)**2
-                    loss_forward = loss_forward.mean()
-                    self.optimizer_forward.zero_grad()
-                    loss_forward.backward()
-                    self.optimizer_forward.step()
+                loss_forward = (features_target_t - features_predicted_t)**2
+                
+                random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
+                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
+                loss_forward    = (loss_forward*random_mask).sum() / torch.max(random_mask.sum(), torch.Tensor([1]).to(loss_forward.device))
 
-                    k = 0.02
-                    self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                self.optimizer_forward.zero_grad()
+                loss_forward.backward()
+                self.optimizer_forward.step()
+
+                k = 0.02
+                self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
