@@ -9,9 +9,9 @@ from .RunningStats      import *
 from .EpisodicMemory    import * 
    
 class AgentPPOEntropy():
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelAutoencoder, Config):
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, Config):
         self.envs = envs
-
+ 
         config = Config.Config() 
    
         self.gamma_ext          = config.gamma_ext
@@ -48,8 +48,8 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             self.states.append(self.envs.reset(e))
         
-        self.model_autoencoder      = ModelAutoencoder.Model(self.state_shape)
-        self.optimizer_autoencoder  = torch.optim.Adam(self.model_autoencoder.parameters(), lr=config.learning_rate_autoencoder)
+        self.model_embeddings      = ModelEmbeddings.Model(self.state_shape)
+        self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
 
         self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
         
@@ -61,7 +61,7 @@ class AgentPPOEntropy():
         self.iterations = 0
 
         self.log_loss_forward           = 0.0
-        self.log_loss_autoencoder       = 0.0
+        self.log_loss_embeddings        = 0.0
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
@@ -136,19 +136,19 @@ class AgentPPOEntropy():
         self.model_ppo.save(save_path + "trained/")
         self.model_forward.save(save_path + "trained/")
         self.model_forward_target.save(save_path + "trained/")
-        self.model_autoencoder.save(save_path + "trained/")
+        self.model_embeddings.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_forward.load(load_path + "trained/")
         self.model_forward_target.load(load_path + "trained/")
-        self.model_autoencoder.load(load_path + "trained/")
+        self.model_embeddings.load(load_path + "trained/")
  
     def get_log(self):
         result = ""  
         
         result+= str(round(self.log_loss_forward, 7)) + " "
-        result+= str(round(self.log_loss_autoencoder, 7)) + " "      
+        result+= str(round(self.log_loss_embeddings, 7)) + " "      
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
@@ -181,33 +181,38 @@ class AgentPPOEntropy():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
                 
-                if e == 0: 
-                    state_norm_t            = self._norm_state(state_t).detach()
+                state_norm_t            = self._norm_state(states).detach()
+                state_b_norm_t          = self._norm_state(states_b).detach()
 
-                    #train forward model, MSE loss
-                    features_predicted_t    = self.model_forward(state_norm_t)
-                    features_target_t       = self.model_forward_target(state_norm_t).detach()
+                features_target_t       = self.model_forward_target(state_norm_t).detach()
+                features_predicted_t    = self.model_forward(state_norm_t)
 
-                    loss_forward = (features_target_t - features_predicted_t)**2
-                    loss_forward = loss_forward.mean()
-                    self.optimizer_forward.zero_grad()
-                    loss_forward.backward()
-                    self.optimizer_forward.step() 
+                loss_forward    = (features_target_t - features_predicted_t)**2
+                
+                random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
+                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
+                loss_forward    = (loss_forward*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                    #train autoencoder model, MSE loss
-                    state_predicted_t, _    = self.model_autoencoder(state_norm_t)
+                self.optimizer_forward.zero_grad() 
+                loss_forward.backward()
+                self.optimizer_forward.step()
 
-                    #reconstruction loss
-                    loss_autoencoder    = (state_norm_t - state_predicted_t)**2
-                    loss_autoencoder    = loss_autoencoder.mean()
+                #train embeddings model, MSE loss
+                similarity_predicted_t = self.model_embeddings(state_a_norm_t, state_b_norm_t)
 
-                    self.optimizer_autoencoder.zero_grad()
-                    loss_autoencoder.backward()
-                    self.optimizer_autoencoder.step()
+                #contrastive loss
+                l1 = similarity_labels*similarity_predicted_t
+                l2 = (1.0 - similarity_labels)*(1.0 - similarity_predicted_t)
+                loss_embeddings     = l1 + l2
+                loss_embeddings     = loss_embeddings.mean()
 
-                    k = 0.02
-                    self.log_loss_forward       = (1.0 - k)*self.log_loss_forward     + k*loss_forward.detach().to("cpu").numpy()
-                    self.log_loss_autoencoder   = (1.0 - k)*self.log_loss_autoencoder + k*loss_autoencoder.detach().to("cpu").numpy()
+                self.optimizer_embeddings.zero_grad()
+                loss_embeddings.backward()
+                self.optimizer_embeddings.step()
+
+                k = 0.02
+                self.log_loss_forward       = (1.0 - k)*self.log_loss_forward     + k*loss_forward.detach().to("cpu").numpy()
+                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
 
 
         self.policy_buffer.clear() 
@@ -306,11 +311,11 @@ class AgentPPOEntropy():
 
 
     def _reset_episodic_memory(self, env_idx, state_np):
-        state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_autoencoder.device).float()
+        state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_embeddings.device).float()
 
         state_norm_t  = self._norm_state(state_t)
 
-        features_t    = self.model_autoencoder.eval_features(state_norm_t)
+        features_t    = self.model_embeddings.eval_features(state_norm_t)
         features_t    = features_t.squeeze(0).detach()
  
         self.episodic_memory[env_idx].reset(features_t) 
@@ -318,8 +323,7 @@ class AgentPPOEntropy():
     def _entropy(self, states_t): 
         state_norm_t  = self._norm_state(states_t)
         
-        features_t    = self.model_autoencoder.eval_features(state_norm_t)
-        features_t    = features_t.squeeze(0).detach()
+        features_t    = self.model_embeddings.eval_features(state_norm_t).detach()
  
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):

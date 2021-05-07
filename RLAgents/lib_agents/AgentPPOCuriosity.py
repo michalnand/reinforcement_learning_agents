@@ -11,7 +11,7 @@ class AgentPPOCuriosity():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs 
  
-        config = Config.Config() 
+        config = Config.Config()  
 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
@@ -163,7 +163,7 @@ class AgentPPOCuriosity():
                 features_target_t       = self.model_forward_target(state_norm_t).detach()
                 features_predicted_t    = self.model_forward(state_norm_t)
 
-                loss_forward = (features_target_t - features_predicted_t)**2
+                loss_forward    = (features_target_t - features_predicted_t)**2
                 
                 random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
                 random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
@@ -204,6 +204,9 @@ class AgentPPOCuriosity():
         values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
+        
+        
+        loss_critic     = loss_int_value + loss_ext_value
  
         ''' 
         compute actor loss, surrogate loss
@@ -230,7 +233,7 @@ class AgentPPOCuriosity():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = loss_ext_value + loss_int_value + loss_policy + loss_entropy
+        loss = 0.5*loss_critic + loss_policy + loss_entropy
 
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
