@@ -93,8 +93,8 @@ class TrainingIterations:
             log_str+= str(raw_score_per_episode)    + " "
             log_str+= str(score_per_episode)        + " "
             log_str+= str(round(time_remaining, 2)) + " "
-            log_str+= log_agent
-            log_str+= str(info)
+            log_str+= log_agent + " "
+            log_str+= str(info) + " "
             
             if iteration > 0 and iteration%self.log_period_iterations == 0:
                 print(log_str)
