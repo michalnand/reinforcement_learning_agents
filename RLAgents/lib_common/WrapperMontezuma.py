@@ -101,21 +101,30 @@ class VisitedRoomsEnv(gym.Wrapper):
         
         self.steps          = 0
         self.rooms          = []
+        self.room_id        = 0
         self.visited_rooms  = 0
+        
 
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, _ = self.env.step(action)
         
         if self.steps%32 == 0:
             if len(self.rooms) == 0:
                 self.rooms.append(obs[0].copy())
-            elif self._distance(obs[0]) > 200 and len(self.rooms) < 100:
-                self.rooms.append(obs[0].copy())
+            else:
+                distance, room_id = self._distance(obs[0])
+                if distance > 200 and len(self.rooms) < 100:
+                    self.rooms.append(obs[0].copy())
 
-            self.visited_rooms = len(self.rooms)
+                self.room_id       = room_id
+                self.visited_rooms = len(self.rooms)
 
         self.steps+= 1
+
+        info = {}
+        info["room_id"]       = self.room_id
+        info["visited_rooms"] = self.visited_rooms
         
         return obs, reward, done, info
 
@@ -130,7 +139,7 @@ class VisitedRoomsEnv(gym.Wrapper):
         distances   = distances.reshape(shape)
         distances   = distances.sum(axis=1)
 
-        return numpy.min(distances)
+        return numpy.min(distances), numpy.argmin(distances)
 
 
 class RawScoreEnv(gym.Wrapper):
@@ -143,7 +152,7 @@ class RawScoreEnv(gym.Wrapper):
         self.raw_episodes            = 0
         self.raw_score               = 0.0
         self.raw_score_per_episode   = 0.0
-        self.raw_score_total         = 0.0  
+        self.raw_score_total         = 0.0
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -182,15 +191,3 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking=4, max_steps =
     env = RawScoreEnv(env, max_steps)
 
     return env
-
-def WrapperMontezumaSmall(env, height = 84, width = 84, frame_stacking=4, max_steps = 4500):
-    #env = VideoRecorder(env)    
-
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env)
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = VisitedRoomsEnv(env)
-    env = RawScoreEnv(env, max_steps)
-
-    return env
-

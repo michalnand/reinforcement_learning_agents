@@ -19,7 +19,7 @@ class TrainingIterations:
         log_f           = open(log_file_name, "w+")
         log_f.close()
 
-
+ 
         averaging_episodes = 50
 
         new_best = False
@@ -41,7 +41,7 @@ class TrainingIterations:
 
         for iteration in range(self.iterations_count):
             
-            reward, done    = self.agent.main()
+            reward, done, info    = self.agent.main()
 
             if iteration%self.log_period_iterations == 0:
                 time_prev  = time_now
@@ -94,6 +94,7 @@ class TrainingIterations:
             log_str+= str(score_per_episode)        + " "
             log_str+= str(round(time_remaining, 2)) + " "
             log_str+= log_agent
+            log_str+= str(info)
             
             if iteration > 0 and iteration%self.log_period_iterations == 0:
                 print(log_str)
