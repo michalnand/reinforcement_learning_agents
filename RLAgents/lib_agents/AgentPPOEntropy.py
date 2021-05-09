@@ -15,7 +15,7 @@ class AgentPPOEntropy():
         config = Config.Config() 
    
         self.gamma_ext          = config.gamma_ext
-        self.gamma_int          = config.gamma_int
+        self.gamma_int          = config.gamma_int 
          
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_curiosity_adv_coeff = config.int_curiosity_adv_coeff

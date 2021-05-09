@@ -191,4 +191,25 @@ class PolicyBufferIME:
 
         return states, logits, values_ext, values_cur, values_ent, actions, rewards, dones, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent 
 
-    
+    def sample_batch_embeddings(self, batch_size, threshold_distance, device):
+        states  = torch.zeros((2, self.envs_count, batch_size) + self.state_shape, dtype=torch.float).to(self.device)
+        labels  = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+
+        for e in range(self.envs_count):
+            labels_         = numpy.random.randint(0, 2, size=batch_size)
+            
+            indices_a       = numpy.random.randint(0, self.buffer_size - threshold_distance, size=batch_size)
+            
+            indices_b_close = indices_a + numpy.random.randint(0, threshold_distance, size=batch_size)
+            indices_b_far   = (indices_a + numpy.random.randint(threshold_distance, self.buffer_size, size=batch_size))%self.buffer_size
+
+            indices_b       = (1 - labels_)*indices_b_close + labels_*indices_b_far
+
+            states[0][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_a, axis=0)).to(device)
+            states[1][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_b, axis=0)).to(device)
+            labels[e]    = torch.from_numpy(1.0*labels_).to(device)
+
+        states  = states.reshape((2, self.envs_count*batch_size) + self.state_shape)
+        labels  = labels.reshape((self.envs_count*batch_size, ))
+
+        return states, labels
