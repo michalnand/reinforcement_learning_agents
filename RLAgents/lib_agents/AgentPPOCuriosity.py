@@ -46,8 +46,7 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats   = RunningStats(self.state_shape, numpy.array(self.states))
-        self.rewards_running_stats  = RunningStats()
+        self.states_running_stats   = RunningStats(self.state_shape, self.states)
  
         self.enable_training()
         self.iterations                     = 0 
@@ -87,9 +86,6 @@ class AgentPPOCuriosity():
 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
-
-        #update long term rewards mean and variance
-        self.rewards_running_stats.update(rewards)
 
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
@@ -206,7 +202,7 @@ class AgentPPOCuriosity():
         loss_int_value  = loss_int_value.mean()
         
         
-        loss_critic     = loss_int_value + loss_ext_value
+        loss_critic     = loss_ext_value + loss_int_value
  
         ''' 
         compute actor loss, surrogate loss

@@ -11,7 +11,7 @@ class RunningStats:
             mean = initial_value.mean(axis=0)
             self.mean = numpy.float32(mean)
  
-    def update(self, x, alpha = 0.001):
+    def update(self, x, alpha = 0.0001):
         if len(x.shape) > 0:  
             
             mean        = x.mean(axis=0)
