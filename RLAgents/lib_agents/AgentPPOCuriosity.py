@@ -80,7 +80,7 @@ class AgentPPOCuriosity():
             actions.append(self._sample_action(logits_t[e]))
 
         #execute action
-        states, rewards, dones, info = self.envs.step(actions)
+        states, rewards, dones, infos = self.envs.step(actions)
 
         self.states = states.copy()
 
@@ -108,7 +108,7 @@ class AgentPPOCuriosity():
         self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
 
         self.iterations+= 1
-        return rewards[0], dones[0], info
+        return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")

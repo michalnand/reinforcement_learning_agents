@@ -325,7 +325,7 @@ class MultiEnvParallel:
 		obs 	= numpy.zeros((self.envs_count, ) + self.observation_space.shape, dtype=numpy.float32)
 		rewards = numpy.zeros((self.envs_count, ), dtype=numpy.float32)
 		dones 	= numpy.zeros((self.envs_count, ), dtype=bool)
-		infos 	= None
+		infos 	= []
  
 		for i in range(self.envs_count):
 			_obs, _reward, _done, _info = self.parent_conn[i].recv()
@@ -333,7 +333,8 @@ class MultiEnvParallel:
 			obs[i] 		= _obs
 			rewards[i] 	= _reward
 			dones[i] 	= _done
-
+			infos.append(_info)
+			
 		return obs, rewards, dones, infos
 
 	def get(self, env_id):
