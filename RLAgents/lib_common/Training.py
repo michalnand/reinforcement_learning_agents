@@ -102,7 +102,7 @@ class TrainingIterations:
                 log_f = open(log_file_name, "a+")
                 log_f.write(log_str + "\n")
                 log_f.flush()
-                log_f.close()
+                log_f.close() 
 
 
             #check if agent is done
