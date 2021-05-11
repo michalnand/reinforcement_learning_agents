@@ -159,6 +159,7 @@ class AgentPPOCuriosity():
                     features_predicted_t    = self.model_forward(state_norm_t)
 
                     loss_forward    = (features_target_t - features_predicted_t)**2
+                    loss_forward    = loss_forward.mean()
                     
                     self.optimizer_forward.zero_grad() 
                     loss_forward.backward()
