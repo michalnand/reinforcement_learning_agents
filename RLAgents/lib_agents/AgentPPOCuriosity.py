@@ -152,24 +152,6 @@ class AgentPPOCuriosity():
                 self.optimizer_ppo.step()
 
                 #train forward model, MSE loss
-                if e == 0:
-                    state_norm_t            = self._norm_state(states).detach()
-
-                    features_target_t       = self.model_forward_target(state_norm_t).detach()
-                    features_predicted_t    = self.model_forward(state_norm_t)
-
-                    loss_forward    = (features_target_t - features_predicted_t)**2
-                    loss_forward    = loss_forward.mean()
-                    
-                    self.optimizer_forward.zero_grad() 
-                    loss_forward.backward()
-                    self.optimizer_forward.step()
-
-                    k = 0.02
-                    self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
-
-
-                '''
                 state_norm_t            = self._norm_state(states).detach()
 
                 features_target_t       = self.model_forward_target(state_norm_t).detach()
@@ -187,7 +169,6 @@ class AgentPPOCuriosity():
 
                 k = 0.02
                 self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
-                '''
 
         self.policy_buffer.clear() 
 
