@@ -8,10 +8,10 @@ class RLStatsCompute:
 
     def load_files(self, files_list):
         data      = []
-      
+       
         for f in files_list:
             print("loading ", f)
-            data_ = numpy.loadtxt(f, unpack = True)
+            data_ = numpy.loadtxt(f, unpack = True, comments='{')
             data.append(data_)
 
         data      = numpy.array(data)

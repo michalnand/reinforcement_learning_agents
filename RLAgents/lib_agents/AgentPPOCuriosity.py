@@ -6,7 +6,7 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIM    import * 
 from .RunningStats      import *
- 
+  
 class AgentPPOCuriosity():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
         self.envs = envs 
@@ -143,7 +143,8 @@ class AgentPPOCuriosity():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
- 
+
+                #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
@@ -151,7 +152,7 @@ class AgentPPOCuriosity():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train forward model, MSE loss
+                #train forward RND model, MSE loss
                 state_norm_t            = self._norm_state(states).detach()
 
                 features_target_t       = self.model_forward_target(state_norm_t).detach()
@@ -205,22 +206,19 @@ class AgentPPOCuriosity():
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages          = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
-        advantages          = advantages.detach() 
+        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages      = advantages.detach() 
         
-        advantages_norm     = advantages
-        #advantages_norm    = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
- 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
         ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages_norm
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
+        p1          = ratio*advantages
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
     
-        '''
+        ''' 
         compute entropy loss, to avoid greedy strategy
         L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
         '''
@@ -258,10 +256,7 @@ class AgentPPOCuriosity():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
-        #state_norm_t = state_t 
         state_norm_t = state_t - mean  
-        #state_norm_t = torch.clamp((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t

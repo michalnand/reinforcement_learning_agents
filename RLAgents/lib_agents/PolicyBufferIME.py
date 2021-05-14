@@ -127,7 +127,7 @@ class PolicyBufferIME:
                 self.advantages_entropy_b[e][n] = last_gae
         
 
-    def sample_batch(self, batch_size, device):
+    def sample_batch(self, batch_size, device): 
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
         logits           = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
@@ -196,14 +196,25 @@ class PolicyBufferIME:
         labels  = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
 
         for e in range(self.envs_count):
+            #random labels, 1:1 close:distant
             labels_         = numpy.random.randint(0, 2, size=batch_size)
             
+            #first input for model
             indices_a       = numpy.random.randint(0, self.buffer_size - threshold_distance, size=batch_size)
             
+            #second input for model
+
+            #close indices
             indices_b_close = indices_a + numpy.random.randint(0, threshold_distance, size=batch_size)
+
+            #distant indices
             indices_b_far   = (indices_a + numpy.random.randint(threshold_distance, self.buffer_size, size=batch_size))%self.buffer_size
 
-            indices_b       = (1 - labels_)*indices_b_close + labels_*indices_b_far
+
+            #mix indices
+            #close      labels  = 0
+            #distant    labels  = 1
+            indices_b       = ((1 - labels_)*indices_b_close + labels_*indices_b_far).astype(int)
 
             states[0][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_a, axis=0)).to(device)
             states[1][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_b, axis=0)).to(device)
