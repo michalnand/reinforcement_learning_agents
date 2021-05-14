@@ -99,10 +99,10 @@ class VisitedRoomsEnv(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         
-        self.steps          = 0
-        self.rooms          = []
-        self.room_id        = 0
-        self.visited_rooms  = 0
+        self.steps              = 0
+        self.rooms              = []
+        self.room_id            = 0
+        self.explored_rooms     = 0
         
 
 
@@ -117,14 +117,14 @@ class VisitedRoomsEnv(gym.Wrapper):
                 if distance > 200 and len(self.rooms) < 100:
                     self.rooms.append(obs[0].copy())
 
-                self.room_id       = room_id
-                self.visited_rooms = len(self.rooms)
+                self.room_id        = room_id
+                self.explored_rooms = len(self.rooms)
 
         self.steps+= 1
 
         info = {}
-        info["room_id"]       = self.room_id
-        info["visited_rooms"] = self.visited_rooms
+        info["room_id"]         = self.room_id
+        info["explored_rooms"]  = self.explored_rooms
         
         return obs, reward, done, info
 
