@@ -194,7 +194,7 @@ class PolicyBufferIME:
     def sample_batch_embeddings(self, batch_size, threshold_distance, device):
         states  = torch.zeros((2, self.envs_count, batch_size) + self.state_shape, dtype=torch.float).to(self.device)
         labels  = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-
+ 
         for e in range(self.envs_count):
             #random labels, 1:1 close:distant
             labels_         = numpy.random.randint(0, 2, size=batch_size)
@@ -216,11 +216,13 @@ class PolicyBufferIME:
             #distant    labels  = 1
             indices_b       = ((1 - labels_)*indices_b_close + labels_*indices_b_far).astype(int)
 
+            
+
             states[0][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_a, axis=0)).to(device)
             states[1][e] = torch.from_numpy(numpy.take(self.states_b[e], indices_b, axis=0)).to(device)
-            labels[e]    = torch.from_numpy(1.0*labels_).to(device)
+            labels[e]    = torch.from_numpy(labels_).to(device)
 
         states  = states.reshape((2, self.envs_count*batch_size) + self.state_shape)
         labels  = labels.reshape((self.envs_count*batch_size, ))
-
+        
         return states, labels

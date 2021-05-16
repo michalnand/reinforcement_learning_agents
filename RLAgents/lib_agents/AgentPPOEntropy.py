@@ -21,7 +21,7 @@ class AgentPPOEntropy():
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff      = config.int_entropy_adv_coeff
-        self.threshold_distance         = 4
+        self.threshold_distance         = config.threshold_distance
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
@@ -31,7 +31,7 @@ class AgentPPOEntropy():
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
-
+ 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
@@ -349,13 +349,22 @@ class AgentPPOEntropy():
         state_norm_t  = self._norm_state(states_t)
         
         features_t    = self.model_embeddings.eval_features(state_norm_t).detach()
- 
+
         entropy       = numpy.zeros(self.actors)
         for e in range(self.actors):
             entropy[e] = self.episodic_memory[e].motivation(features_t[e])
           
         for e in range(self.actors):
             self.episodic_memory[e].add(features_t[e])
+        
+        '''
+        for e in range(self.actors):
+            self.episodic_memory[e].add(features_t[e])
+
+        entropy       = numpy.zeros(self.actors)
+        for e in range(self.actors):
+            entropy[e] = self.episodic_memory[e].motivation()
+        '''
 
         return entropy
 
