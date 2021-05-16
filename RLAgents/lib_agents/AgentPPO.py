@@ -59,7 +59,7 @@ class AgentPPO():
         for e in range(self.actors):
             actions.append(self._sample_action(logits_t[e]))
 
-        states, rewards, dones, _ = self.envs.step(actions)
+        states, rewards, dones, infos = self.envs.step(actions)
         
         for e in range(self.actors):
             if self.enabled_training:
@@ -74,7 +74,7 @@ class AgentPPO():
                 self.states[e] = states[e].copy()
 
         self.iterations+= 1
-        return rewards[0], dones[0]
+        return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model.save(save_path + "trained/")
