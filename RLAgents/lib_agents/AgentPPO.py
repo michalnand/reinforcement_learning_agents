@@ -61,6 +61,8 @@ class AgentPPO():
 
         states, rewards, dones, infos = self.envs.step(actions)
         
+        self.states = states.copy()
+
         for e in range(self.actors):
             if self.enabled_training:
                 self.policy_buffer.add(e, states_np[e], logits_np[e], values_np[e], actions[e], rewards[e], dones[e])
@@ -70,9 +72,7 @@ class AgentPPO():
                     
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-            else:
-                self.states[e] = states[e].copy()
-
+           
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
     

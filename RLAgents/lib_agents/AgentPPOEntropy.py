@@ -11,7 +11,7 @@ from .EpisodicMemory    import *
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, Config):
         self.envs = envs
- 
+  
         config = Config.Config() 
    
         self.gamma_ext          = config.gamma_ext

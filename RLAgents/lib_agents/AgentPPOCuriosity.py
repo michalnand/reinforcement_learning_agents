@@ -225,7 +225,7 @@ class AgentPPOCuriosity():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = 0.5*loss_critic + loss_policy + loss_entropy
+        loss = loss_critic + loss_policy + loss_entropy
 
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
