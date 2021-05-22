@@ -30,9 +30,9 @@ class AgentPPOContinuous():
  
         self.policy_buffer  = PolicyBufferContinuous(self.steps, self.state_shape, self.actions_count, self.actors, self.model.device)
 
-        self.states = []
+        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
-            self.states.append(self.envs.reset(e))
+            self.states[e] = self.envs.reset(e).copy()
 
         self.enable_training()
         self.iterations = 0
@@ -60,9 +60,10 @@ class AgentPPOContinuous():
             action = self._sample_action(mu_np[e], var_np[e])
             actions.append(action)
 
+        states, rewards, dones, infos = self.envs.step(actions)
         
-        states, rewards, dones, _ = self.envs.step(actions)
-        
+        self.states = states.copy()
+
         for e in range(self.actors):
             if self.enabled_training:
                 self.policy_buffer.add(e, states_np[e], values_np[e], actions[e], mu_np[e], var_np[e], rewards[e], dones[e])
@@ -72,11 +73,9 @@ class AgentPPOContinuous():
                     
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-            else:
-                self.states[e] = states[e].copy()
-
+         
         self.iterations+= 1
-        return rewards[0], dones[0]
+        return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model.save(save_path + "trained/")
