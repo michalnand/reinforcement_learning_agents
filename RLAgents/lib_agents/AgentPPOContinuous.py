@@ -110,14 +110,16 @@ class AgentPPOContinuous():
     def _compute_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
         mu_new, var_new, values_new = self.model.forward(states)        
 
-        #log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
-        #log_probs_new = self._log_prob(actions, mu_new, var_new)
+        log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
+        log_probs_new = self._log_prob(actions, mu_new, var_new)
 
+        '''
         dist_old        = torch.distributions.Normal(actions_mu, actions_var)
         log_probs_old   = dist_old.log_prob(actions).detach()
 
         dist_new        = torch.distributions.Normal(mu_new, var_new)
         log_probs_new   = dist_new.log_prob(actions)
+        '''
 
         '''
         compute critic loss, as MSE
