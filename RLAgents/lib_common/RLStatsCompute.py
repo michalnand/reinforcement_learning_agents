@@ -1,23 +1,41 @@
+import re
 import numpy
 from scipy import stats
+import json
 
 class RLStatsCompute:
     def __init__(self, files_list, confidence = 0.95):
-        self.data = self.load_files(files_list)
+        self.data, self.extended = self.load_files(files_list)
         self.mean, self.std, self.lower, self.upper, self.hist = self.compute_stats(self.data, confidence)
 
     def load_files(self, files_list):
         data      = []
+        extended  = []
        
         for f in files_list:
             print("loading ", f)
             data_ = numpy.loadtxt(f, unpack = True, comments='{')
             data.append(data_)
 
+            extended_f = []
+
+            with open(f) as file:
+                lines = file.readlines()
+
+                for line in lines:
+                    tmp = "{" + line.split('{')[1]
+                    if len(tmp) > 0:
+                        tmp = tmp.replace("'", "\"")
+                        tmp = json.loads(tmp)
+                        extended_f.append(tmp)
+            
+            extended.append(extended_f)
+
         data      = numpy.array(data)
-      
-        return data
         
+        return data, extended
+        
+
 
     def compute_stats(self, data, confidence = 0.95):
         n       = data.shape[2]

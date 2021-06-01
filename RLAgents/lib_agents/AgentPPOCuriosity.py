@@ -8,11 +8,9 @@ from .PolicyBufferIM    import *
 from .RunningStats      import *
   
 class AgentPPOCuriosity():  
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, Config):
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs 
  
-        config = Config.Config()  
-
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            

@@ -9,11 +9,9 @@ from .RunningStats      import *
 from .EpisodicMemory    import * 
     
 class AgentPPOEntropy():
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, Config):
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, config):
         self.envs = envs
-  
-        config = Config.Config() 
-   
+      
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int 
         
@@ -218,9 +216,9 @@ class AgentPPOEntropy():
                 predicted_emb_t = self.model_embeddings(states_emb_t)
 
                 #contrastive loss
+                #similar (close) inputs have label = 0, different inputs have label = 1
                 zeros = torch.zeros(target_emb_t.shape).to(target_emb_t.device)
             
-                #similar (close) inputs have label = 0, differemb inputs have label = 1
                 l1 = (1.0 - target_emb_t)*predicted_emb_t
                 l2 = target_emb_t*torch.max(1.0 - predicted_emb_t, zeros)
 
@@ -356,15 +354,6 @@ class AgentPPOEntropy():
           
         for e in range(self.actors):
             self.episodic_memory[e].add(features_t[e])
-        
-        '''
-        for e in range(self.actors):
-            self.episodic_memory[e].add(features_t[e])
-
-        entropy       = numpy.zeros(self.actors)
-        for e in range(self.actors):
-            entropy[e] = self.episodic_memory[e].motivation()
-        '''
 
         return entropy
 
