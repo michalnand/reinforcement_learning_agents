@@ -39,7 +39,7 @@ class EpisodicMemory:
     def __init__(self, size):
         self.size   = size
         self.mean   = 0.0
-        self.std    = 0.0 
+        self.std    = 0.0  
 
         self.episodic_memory = None
         
@@ -58,7 +58,7 @@ class EpisodicMemory:
         self.mean = self.episodic_memory.mean(axis=0)
         self.std  = self.episodic_memory.std(axis=0) 
      
-    
+    '''
     def motivation(self, state_t):  
         arg  = (state_t - self.mean)/(self.std + 10**-7)
         res  = 1.0 - torch.exp(-0.5*(arg**2)) 
@@ -67,10 +67,8 @@ class EpisodicMemory:
         result = res.detach().to("cpu").numpy()
 
         return result
-    
-
     '''
+
     def motivation(self):   
         result = self.std.mean().detach().to("cpu").numpy()
         return result
-    '''

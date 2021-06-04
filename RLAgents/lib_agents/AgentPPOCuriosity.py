@@ -4,7 +4,7 @@ import time
 
 from torch.distributions import Categorical
  
-from .PolicyBufferIM    import * 
+from .PolicyBufferIM    import *  
 from .RunningStats      import *
   
 class AgentPPOCuriosity():  
@@ -173,7 +173,6 @@ class AgentPPOCuriosity():
 
     
     def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
-        probs_old     = torch.nn.functional.softmax(logits, dim = 1).detach()
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)

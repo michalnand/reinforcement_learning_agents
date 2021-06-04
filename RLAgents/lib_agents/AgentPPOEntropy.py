@@ -14,13 +14,13 @@ class AgentPPOEntropy():
       
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int 
-        
+         
         #internal and external motivation advantages weights
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff      = config.int_entropy_adv_coeff
         self.threshold_distance         = config.threshold_distance
-
+ 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -160,7 +160,7 @@ class AgentPPOEntropy():
         
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_loss_embeddings, 7)) + " "  
-        result+= str(round(self.log_acc_embeddings, 7)) + " "      
+        result+= str(round(self.log_acc_embeddings, 7)) + "* "      
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
@@ -244,7 +244,6 @@ class AgentPPOEntropy():
 
     
     def _compute_loss(self, states, logits, actions,  returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent):
-        probs_old     = torch.nn.functional.softmax(logits, dim = 1).detach()
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_ext_new, values_int_cur_new, values_int_ent_new  = self.model_ppo.forward(states)
@@ -255,7 +254,7 @@ class AgentPPOEntropy():
         '''
         compute external critic loss, as MSE
         L = (T - V(s))^2
-        '''
+        ''' 
         values_ext_new  = values_ext_new.squeeze(1)
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
@@ -348,13 +347,14 @@ class AgentPPOEntropy():
         
         features_t    = self.model_embeddings.eval_features(state_norm_t).detach()
 
-        entropy       = numpy.zeros(self.actors)
-        for e in range(self.actors):
-            entropy[e] = self.episodic_memory[e].motivation(features_t[e])
-          
         for e in range(self.actors):
             self.episodic_memory[e].add(features_t[e])
 
+        entropy       = numpy.zeros(self.actors) 
+        for e in range(self.actors):
+            entropy[e] = self.episodic_memory[e].motivation()
+          
+        
         return entropy
 
     def _norm_state(self, state_t):
