@@ -2,15 +2,11 @@ import numpy
 import torch
 import time
 
-from torch.distributions import Categorical
-
 from .PolicyBuffer import *
 
 class AgentPPO():
-    def __init__(self, envs, Model, Config):
+    def __init__(self, envs, Model, config):
         self.envs = envs
-
-        config = Config.Config()
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
