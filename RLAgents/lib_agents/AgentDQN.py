@@ -6,11 +6,9 @@ import cv2
 
 
 class AgentDQN():
-    def __init__(self, env, Model, Config):
+    def __init__(self, env, Model, config):
         self.env = env
  
-        config = Config.Config()
-
         self.batch_size         = config.batch_size
         self.exploration        = config.exploration
         self.gamma              = config.gamma

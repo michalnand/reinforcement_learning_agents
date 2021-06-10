@@ -10,7 +10,7 @@ class PolicyBufferIME:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
         self.device         = device
-
+ 
         self.clear() 
 
     def add(self, env, state, logits, value_ext, value_curiosity, value_entropy, action, reward, curiosity, entropy, done):
@@ -111,8 +111,8 @@ class PolicyBufferIME:
 
         for e in range(self.envs_count):
             
-            count = len(self.entropy_b[e])
-            last_gae  = 0.0
+            count       = len(self.entropy_b[e])
+            last_gae    = 0.0
 
             for n in reversed(range(count-1)): 
             

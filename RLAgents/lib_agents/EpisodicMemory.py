@@ -47,7 +47,7 @@ class EpisodicMemory:
         self.episodic_memory = torch.zeros((self.size, ) + state_t.shape).to(state_t.device)
         for i in range(self.size): 
             self.episodic_memory[i] = state_t.clone()
-
+ 
     def add(self, state_t):
         if self.episodic_memory is None:
             self.reset(state_t)

@@ -14,7 +14,7 @@ class AgentPPOEntropy():
       
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int 
-         
+           
         #internal and external motivation advantages weights
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
@@ -118,7 +118,7 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_new_t)
-        entropy_np          = numpy.clip(entropy_np, -1.0, 1.0)
+        entropy_np          = numpy.clip(entropy_np, 0.0, 4.0)
 
         #put into policy buffer
         for e in range(self.actors):            
@@ -160,14 +160,14 @@ class AgentPPOEntropy():
         
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_loss_embeddings, 7)) + " "  
-        result+= str(round(self.log_acc_embeddings, 7)) + "* "      
+        result+= str(round(self.log_acc_embeddings, 7)) + " "      
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         result+= str(round(self.log_entropy_advatages, 7)) + " "  
 
-        return result 
+        return result  
     
     def _sample_action(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
