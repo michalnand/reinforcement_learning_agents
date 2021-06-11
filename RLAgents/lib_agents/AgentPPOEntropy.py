@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIME   import *
 from .RunningStats      import * 
 from .EpisodicMemory    import * 
-    
+     
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, config):
         self.envs = envs
@@ -68,6 +68,7 @@ class AgentPPOEntropy():
 
         self.log_loss_forward           = 0.0
         self.log_loss_embeddings        = 0.0
+        self.log_action_acc             = 0.0
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
@@ -158,6 +159,7 @@ class AgentPPOEntropy():
         
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_loss_embeddings, 7)) + " "  
+        result+= str(round(self.log_action_acc, 2)) + " "  
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
@@ -180,7 +182,7 @@ class AgentPPOEntropy():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values_ext, values_cur, values_ent, actions, rewards, dones, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, states_next, logits, values_ext, values_cur, values_ent, actions, rewards, dones, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent)
@@ -206,19 +208,29 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
-                #train embeddings model, autoencoder - MSE loss
-                state_norm_predicted_t = self.model_embeddings(state_norm_t)
+                #train embeddings model : predict action from two states
+                action_target_t    = self._action_one_hot(actions)
+                action_predicted_t = self.model_embeddings(states, states_next)
 
-                loss_embeddings    = (state_norm_t - state_norm_predicted_t)**2
+                loss_embeddings    = (action_target_t - action_predicted_t)**2
                 loss_embeddings    = loss_embeddings.mean()
               
                 self.optimizer_embeddings.zero_grad()
                 loss_embeddings.backward()
                 self.optimizer_embeddings.step()
 
+                action_target_indices_t     = torch.argmax(action_target_t, dim=1)
+                action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
+
+                hits = (action_target_indices_t == action_predicted_indices_t).sum()
+                miss = (action_target_indices_t != action_predicted_indices_t).sum()
+
+                action_acc = hits*100.0/(hits + miss)
+
                 k = 0.02
                 self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
                 self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
+                self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
 
 
         self.policy_buffer.clear() 
