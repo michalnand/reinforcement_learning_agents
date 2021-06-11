@@ -89,7 +89,7 @@ class FireResetEnv(gym.Wrapper):
         return obs
 
 class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env, reward_scale = 1.0):
+    def __init__(self, env):
         gym.Wrapper.__init__(self, env)
         self.lives = 0
         self.was_real_done          = True
@@ -98,8 +98,6 @@ class EpisodicLifeEnv(gym.Wrapper):
         self.raw_score              = 0.0
         self.raw_score_per_episode  = 0.0
         self.raw_score_total        = 0.0  
-
-        self.reward_scale   = reward_scale
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
@@ -125,7 +123,7 @@ class EpisodicLifeEnv(gym.Wrapper):
 
         self.lives = lives
 
-        reward = numpy.clip(self.reward_scale*reward, -1.0, 1.0)
+        reward = numpy.clip(reward, -1.0, 1.0)
         return obs, reward, done, info
 
     def reset(self, **kwargs):
@@ -142,8 +140,8 @@ class EpisodicLifeEnv(gym.Wrapper):
 
 
 
-class SparseEnv(gym.Wrapper):
-    def __init__(self, env, sparsity_steps = 100):
+class NoRewardsEnv(gym.Wrapper):
+    def __init__(self, env):
         gym.Wrapper.__init__(self, env)
 
         self.sparsity_steps = sparsity_steps
@@ -161,40 +159,23 @@ class SparseEnv(gym.Wrapper):
         self.raw_score_per_episode  = self.env.raw_score_per_episode
         self.raw_score_total        = self.env.raw_score_total
 
-        reward_sparse = 0.0
-
-        self.steps+= 1
-        self.reward_sum+= reward 
-
-        if self.steps%self.sparsity_steps == 0 or reward < 0.0:
-            reward_sparse   = self.reward_sum/self.steps
-            self.steps      = 0 
-            self.reward_sum = 0
-
-
-        return obs, reward_sparse, done, info
+        return obs, 0.0*reward, done, info
 
     def reset(self, **kwargs):
-        self.steps          = 0
-        self.reward_sum     = 0
-
         return self.env.reset()
 
 
-
- 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, reward_scale=1.0):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
     env = NopOpsEnv(env)
     env = FireResetEnv(env) 
     env = MaxAndSkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env, reward_scale)
+    env = EpisodicLifeEnv(env)
 
     return env
  
-
-def WrapperAtariSparseRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
     env = WrapperAtari(env, height, width, frame_stacking, frame_skipping)
-    env = SparseEnv(env, sparsity_steps=50) 
+    env = NoRewardsEnv(env, sparsity_steps=50) 
 
     return env

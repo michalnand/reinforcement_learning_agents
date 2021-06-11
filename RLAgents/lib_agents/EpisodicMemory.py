@@ -48,7 +48,7 @@ class EpisodicMemory:
         for i in range(self.size): 
             self.episodic_memory[i] = state_t.clone()
  
-    def add(self, state_t):
+    def add(self, state_t): 
         if self.episodic_memory is None:
             self.reset(state_t)
 

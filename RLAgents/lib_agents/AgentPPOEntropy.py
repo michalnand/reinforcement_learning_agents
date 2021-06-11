@@ -14,7 +14,7 @@ class AgentPPOEntropy():
       
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int 
-           
+            
         #internal and external motivation advantages weights
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
@@ -48,7 +48,7 @@ class AgentPPOEntropy():
 
         #embeddings model for entropy motivation
         self.model_embeddings      = ModelEmbeddings.Model(self.state_shape)
-        self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
+        #self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
 
         #episodic memory for entropy motivation
         self.episodic_memory    = []
@@ -209,7 +209,7 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
-
+                '''
                 #train embeddings model, MSE loss
                 states_emb_t, target_emb_t = self.policy_buffer.sample_batch_embeddings(self.batch_size, self.threshold_distance, self.model_ppo.device)
 
@@ -233,11 +233,12 @@ class AgentPPOEntropy():
                 predicted_y = (predicted_emb_t > 0.5).detach().to("cpu").numpy()
                 hits        = (target_y == predicted_y).sum()
                 acc         = 100.0*hits/len(target_y)
-
+                '''
+                
                 k = 0.02
                 self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
-                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
-                self.log_acc_embeddings    = (1.0 - k)*self.log_acc_embeddings  + k*acc
+                #self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
+                #self.log_acc_embeddings    = (1.0 - k)*self.log_acc_embeddings  + k*acc
 
 
         self.policy_buffer.clear() 
