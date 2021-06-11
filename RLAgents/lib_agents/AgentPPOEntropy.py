@@ -46,7 +46,7 @@ class AgentPPOEntropy():
         self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
         #embeddings model for entropy motivation
-        self.model_embeddings      = ModelEmbeddings.Model(self.state_shape)
+        self.model_embeddings      = ModelEmbeddings.Model(self.state_shape, self.actions_count)
         self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
 
         #episodic memory for entropy motivation
@@ -179,10 +179,10 @@ class AgentPPOEntropy():
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
         batch_count = self.steps//self.batch_size
-
+ 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, states_next, logits, values_ext, values_cur, values_ent, actions, rewards, dones, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, states_next, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent)
