@@ -19,7 +19,6 @@ class AgentPPOEntropy():
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff      = config.int_entropy_adv_coeff
-        self.threshold_distance         = config.threshold_distance
  
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
