@@ -12,7 +12,7 @@ from .EpisodicMemory    import *
 class AgentPPOCuriosityEntropy():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs 
- 
+  
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            

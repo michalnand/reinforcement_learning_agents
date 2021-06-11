@@ -48,7 +48,7 @@ class AgentPPOEntropy():
 
         #embeddings model for entropy motivation
         self.model_embeddings      = ModelEmbeddings.Model(self.state_shape)
-        #self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
+        self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
 
         #episodic memory for entropy motivation
         self.episodic_memory    = []
@@ -69,7 +69,6 @@ class AgentPPOEntropy():
 
         self.log_loss_forward           = 0.0
         self.log_loss_embeddings        = 0.0
-        self.log_acc_embeddings         = 0.0
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
@@ -118,7 +117,7 @@ class AgentPPOEntropy():
 
         #entropy motivation 
         entropy_np          = self._entropy(states_new_t)
-        entropy_np          = numpy.clip(entropy_np, 0.0, 4.0)
+        entropy_np          = numpy.clip(entropy_np, 0.0, 1.0)
 
         #put into policy buffer
         for e in range(self.actors):            
@@ -160,7 +159,6 @@ class AgentPPOEntropy():
         
         result+= str(round(self.log_loss_forward, 7)) + " "
         result+= str(round(self.log_loss_embeddings, 7)) + " "  
-        result+= str(round(self.log_acc_embeddings, 7)) + " "      
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
@@ -209,36 +207,19 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
-                '''
-                #train embeddings model, MSE loss
-                states_emb_t, target_emb_t = self.policy_buffer.sample_batch_embeddings(self.batch_size, self.threshold_distance, self.model_ppo.device)
+                #train embeddings model, autoencoder - MSE loss
+                state_norm_predicted_t = self.model_embeddings(state_norm_t)
 
-                predicted_emb_t = self.model_embeddings(states_emb_t)
-
-                #contrastive loss
-                #similar (close) inputs have label = 0, different inputs have label = 1
-                zeros = torch.zeros(target_emb_t.shape).to(target_emb_t.device)
-            
-                l1 = (1.0 - target_emb_t)*predicted_emb_t
-                l2 = target_emb_t*torch.max(1.0 - predicted_emb_t, zeros)
-
-                loss_embeddings  = (l1 + l2).mean()
-
+                loss_embeddings    = (state_norm_t - state_norm_predicted_t)**2
+                loss_embeddings    = loss_embeddings.mean()
+              
                 self.optimizer_embeddings.zero_grad()
                 loss_embeddings.backward()
                 self.optimizer_embeddings.step()
 
-                #compute prediction accuracy
-                target_y    = (target_emb_t > 0.5).detach().to("cpu").numpy()
-                predicted_y = (predicted_emb_t > 0.5).detach().to("cpu").numpy()
-                hits        = (target_y == predicted_y).sum()
-                acc         = 100.0*hits/len(target_y)
-                '''
-                
                 k = 0.02
                 self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
-                #self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
-                #self.log_acc_embeddings    = (1.0 - k)*self.log_acc_embeddings  + k*acc
+                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
 
 
         self.policy_buffer.clear() 
