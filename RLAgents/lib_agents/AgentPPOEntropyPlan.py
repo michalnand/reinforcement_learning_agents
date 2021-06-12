@@ -306,8 +306,8 @@ class AgentPPOEntropyPlan():
 
         for _ in range(10):
             features     = torch.zeros((self.trajectory_length, batch_size, features_count)).to(self.model_embeddings.device)
-            features[0]  = features_initial.copy()
-
+            features[0]  = features_initial
+ 
             #rollout trajectory
             for n in range(self.trajectory_length-1):
                 #take current action
