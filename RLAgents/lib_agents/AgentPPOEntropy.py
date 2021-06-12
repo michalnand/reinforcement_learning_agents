@@ -208,32 +208,31 @@ class AgentPPOEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
                 
-                k = 0.02
-                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
-
-                if e == 0:
-                    #train embeddings model : predict action from two states
-                    action_target_t    = self._action_one_hot(actions)
-                    action_predicted_t = self.model_embeddings(states, states_next)
-
-                    loss_embeddings    = (action_target_t - action_predicted_t)**2
-                    loss_embeddings    = loss_embeddings.mean()
                 
-                    self.optimizer_embeddings.zero_grad()
-                    loss_embeddings.backward()
-                    self.optimizer_embeddings.step()
+                #train embeddings model : predict action from two states
+                action_target_t    = self._action_one_hot(actions)
+                action_predicted_t = self.model_embeddings(states, states_next)
 
-                    #model accuracy
-                    action_target_indices_t     = torch.argmax(action_target_t, dim=1)
-                    action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
+                loss_embeddings    = (action_target_t - action_predicted_t)**2
+                loss_embeddings    = loss_embeddings.mean()
+            
+                self.optimizer_embeddings.zero_grad()
+                loss_embeddings.backward()
+                self.optimizer_embeddings.step()
 
-                    hits = (action_target_indices_t == action_predicted_indices_t).sum()
-                    miss = (action_target_indices_t != action_predicted_indices_t).sum()
+                #model accuracy
+                action_target_indices_t     = torch.argmax(action_target_t, dim=1)
+                action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
 
-                    action_acc = hits*100.0/(hits + miss)
+                hits = (action_target_indices_t == action_predicted_indices_t).sum()
+                miss = (action_target_indices_t != action_predicted_indices_t).sum()
 
-                    self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
-                    self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
+                action_acc = hits*100.0/(hits + miss)
+
+                k = 0.02
+                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
+                self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
+                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
 
 
         self.policy_buffer.clear() 
