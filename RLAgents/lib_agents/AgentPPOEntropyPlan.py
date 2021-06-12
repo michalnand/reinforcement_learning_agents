@@ -52,6 +52,8 @@ class AgentPPOEntropyPlan():
         self.iterations                     = 0 
 
         self.log_loss_forward               = 0.0
+        self.log_loss_embeddings            = 0.0
+        self.log_action_acc                 = 0.0
         self.log_curiosity                  = 0.0
         self.log_advantages                 = 0.0
         self.log_curiosity_advatages        = 0.0
@@ -125,6 +127,8 @@ class AgentPPOEntropyPlan():
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_forward, 7)) + " "
+        result+= str(round(self.log_loss_embeddings, 7)) + " "
+        result+= str(round(self.log_action_acc, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
