@@ -207,30 +207,33 @@ class AgentPPOEntropy():
                 self.optimizer_forward.zero_grad() 
                 loss_forward.backward()
                 self.optimizer_forward.step()
-
-                #train embeddings model : predict action from two states
-                action_target_t    = self._action_one_hot(actions)
-                action_predicted_t = self.model_embeddings(states, states_next)
-
-                loss_embeddings    = (action_target_t - action_predicted_t)**2
-                loss_embeddings    = loss_embeddings.mean()
-              
-                self.optimizer_embeddings.zero_grad()
-                loss_embeddings.backward()
-                self.optimizer_embeddings.step()
-
-                action_target_indices_t     = torch.argmax(action_target_t, dim=1)
-                action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
-
-                hits = (action_target_indices_t == action_predicted_indices_t).sum()
-                miss = (action_target_indices_t != action_predicted_indices_t).sum()
-
-                action_acc = hits*100.0/(hits + miss)
-
+                
                 k = 0.02
                 self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
-                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
-                self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
+
+                if e == 0:
+                    #train embeddings model : predict action from two states
+                    action_target_t    = self._action_one_hot(actions)
+                    action_predicted_t = self.model_embeddings(states, states_next)
+
+                    loss_embeddings    = (action_target_t - action_predicted_t)**2
+                    loss_embeddings    = loss_embeddings.mean()
+                
+                    self.optimizer_embeddings.zero_grad()
+                    loss_embeddings.backward()
+                    self.optimizer_embeddings.step()
+
+                    #model accuracy
+                    action_target_indices_t     = torch.argmax(action_target_t, dim=1)
+                    action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
+
+                    hits = (action_target_indices_t == action_predicted_indices_t).sum()
+                    miss = (action_target_indices_t != action_predicted_indices_t).sum()
+
+                    action_acc = hits*100.0/(hits + miss)
+
+                    self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
+                    self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
 
 
         self.policy_buffer.clear() 
@@ -328,17 +331,13 @@ class AgentPPOEntropy():
     def _reset_episodic_memory(self, env_idx, state_np):
         state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_embeddings.device).float()
 
-        state_norm_t  = self._norm_state(state_t)
-
-        features_t    = self.model_embeddings.eval_features(state_norm_t)
+        features_t    = self.model_embeddings.eval_features(state_t)
         features_t    = features_t.squeeze(0).detach()
  
         self.episodic_memory[env_idx].reset(features_t) 
               
-    def _entropy(self, states_t): 
-        state_norm_t  = self._norm_state(states_t)
-        
-        features_t    = self.model_embeddings.eval_features(state_norm_t).detach()
+    def _entropy(self, states_t):         
+        features_t    = self.model_embeddings.eval_features(states_t).detach()
 
         for e in range(self.actors):
             self.episodic_memory[e].add(features_t[e])
@@ -347,7 +346,6 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             entropy[e] = self.episodic_memory[e].motivation()
           
-        
         return entropy
 
     def _norm_state(self, state_t):
