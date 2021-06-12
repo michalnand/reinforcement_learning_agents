@@ -106,6 +106,7 @@ class PolicyBufferIM:
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
+        states_next      = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
         logits           = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
         
         actions          = torch.zeros((self.envs_count, batch_size, ), dtype=int).to(self.device)
@@ -120,7 +121,9 @@ class PolicyBufferIM:
             indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
             indices_next= numpy.clip(indices, 0, self.buffer_size-1)
 
-            states[e]   = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
+            states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
+            states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
+
             logits[e]   = torch.from_numpy(numpy.take(self.logits_b[e], indices, axis=0)).to(device)
             
             actions[e]  = torch.from_numpy(numpy.take(self.actions_b[e], indices, axis=0)).to(device)
@@ -132,6 +135,7 @@ class PolicyBufferIM:
             advantages_int[e]   = torch.from_numpy(numpy.take(self.advantages_int_b[e], indices, axis=0)).to(device)
 
         states          = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
+        states_next     = states_next.reshape((self.envs_count*batch_size, ) + self.state_shape)
         logits          = logits.reshape((self.envs_count*batch_size, self.actions_size))
         actions         = actions.reshape((self.envs_count*batch_size, ))
         returns_ext     = returns_ext.reshape((self.envs_count*batch_size, ))
@@ -139,6 +143,6 @@ class PolicyBufferIM:
         advantages_ext  = advantages_ext.reshape((self.envs_count*batch_size, ))
         advantages_int  = advantages_int.reshape((self.envs_count*batch_size, ))
 
-        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
  
     
