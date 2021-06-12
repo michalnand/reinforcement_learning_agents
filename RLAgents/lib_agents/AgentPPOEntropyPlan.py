@@ -36,7 +36,7 @@ class AgentPPOEntropyPlan():
 
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
 
-        self.model_embeddings       = ModelEmbeddings(self.state_shape, self.actions_count)
+        self.model_embeddings       = ModelEmbeddings.Model(self.state_shape, self.actions_count)
         self.optimizer_embeddings   = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
 
 
