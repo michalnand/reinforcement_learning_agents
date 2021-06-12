@@ -4,7 +4,7 @@ import torch
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
   
-class AgentPPOEntropyPlan():  
+class AgentPPOEntropyPlan():   
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, config):
         self.envs = envs 
  
@@ -23,9 +23,7 @@ class AgentPPOEntropyPlan():
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
 
-        self.trajectory_length  = config.trajectory_length
-        self.policy_coeff       = config.policy_coeff
- 
+        self.trajectory_length  = config.trajectory_length 
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -69,7 +67,9 @@ class AgentPPOEntropyPlan():
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        _logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+
+        logits_t = self._plan_actions(states_t, _logits_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -287,3 +287,41 @@ class AgentPPOEntropyPlan():
         state_norm_t = state_t - mean  
 
         return state_norm_t
+
+
+    def _plan_actions(self, states_t, actions_logits_t):
+        features_initial = self.model_embeddings.eval_features(states_t).detach()
+
+        batch_size       = features_initial.shape[0]
+        features_count   = features_initial.shape[1]
+
+        #take initial actions logits from parameter
+        tmp              = torch.repeat_interleave(actions_logits_t.unsqueeze(0), self.trajectory_length, dim=0).detach()
+        actions          = torch.nn.Parameter(tmp).to(self.model_embeddings.device)
+
+        #softmax for converting to probs
+        sm               = torch.nn.Softmax(dim=1).to(self.model_embeddings.device)
+
+        optimizer        = torch.optim.Adam([actions], lr=0.01)
+
+        for _ in range(10):
+            features     = torch.zeros((self.trajectory_length, batch_size, features_count)).to(self.model_embeddings.device)
+            features[0]  = features_initial.copy()
+
+            #rollout trajectory
+            for n in range(self.trajectory_length-1):
+                #take current action
+                actions_probs   = sm(actions[n])
+
+                #predict next state
+                features[n+1]   = self.model_embeddings.eval_forward(features[n], actions_probs)
+
+            #predicted states entropy
+            entropy = -torch.std(features, dim=1)
+
+            optimizer.zero_grad()
+            loss    = entropy.mean()
+            loss.backward()
+            optimizer.step()
+
+        return actions[0].detach().to("cpu").numpy()
