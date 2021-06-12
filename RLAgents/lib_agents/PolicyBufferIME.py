@@ -9,7 +9,7 @@ class PolicyBufferIME:
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
-        self.device         = device
+        self.device         = device 
  
         self.clear() 
 
@@ -163,7 +163,7 @@ class PolicyBufferIME:
             advantages_ent[e]   = torch.from_numpy(numpy.take(self.advantages_entropy_b[e], indices, axis=0)).to(device)
 
         states      = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        states_next = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
+        states_next = states_next.reshape((self.envs_count*batch_size, ) + self.state_shape)
         logits      = logits.reshape((self.envs_count*batch_size, self.actions_size))
         
         actions     = actions.reshape((self.envs_count*batch_size, ))

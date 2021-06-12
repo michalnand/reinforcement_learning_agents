@@ -19,7 +19,7 @@ class AgentPPOEntropy():
         self.ext_adv_coeff              = config.ext_adv_coeff
         self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
         self.int_entropy_adv_coeff      = config.int_entropy_adv_coeff
- 
+  
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
 
@@ -230,9 +230,10 @@ class AgentPPOEntropy():
                 action_acc = hits*100.0/(hits + miss)
 
                 k = 0.02
+                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
                 self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
                 self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
-                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
+                
 
 
         self.policy_buffer.clear() 

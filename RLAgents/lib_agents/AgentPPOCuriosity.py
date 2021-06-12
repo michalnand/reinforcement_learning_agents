@@ -140,7 +140,7 @@ class AgentPPOCuriosity():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)

@@ -1,18 +1,13 @@
 import numpy
 import torch
-import time
-
-from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
-from .EpisodicMemory    import * 
-
-
-class AgentPPOCuriosityEntropy():  
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
-        self.envs = envs 
   
+class AgentPPOEntropyPlan():  
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, config):
+        self.envs = envs 
+ 
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            
@@ -27,6 +22,9 @@ class AgentPPOCuriosityEntropy():
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
+
+        self.trajectory_length  = config.trajectory_length
+        self.policy_coeff       = config.policy_coeff
  
 
         self.state_shape    = self.envs.observation_space.shape
@@ -39,6 +37,10 @@ class AgentPPOCuriosityEntropy():
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
 
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
+
+        self.model_embeddings       = ModelEmbeddings(self.state_shape, self.actions_count)
+        self.optimizer_embeddings   = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
+
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
@@ -55,16 +57,6 @@ class AgentPPOCuriosityEntropy():
         self.log_curiosity                  = 0.0
         self.log_advantages                 = 0.0
         self.log_curiosity_advatages        = 0.0
-
-        self.episodic_memory_size = 1024
-
-        #episodic memory for entropy motivation
-        self.episodic_memory    = []
-        for e in range(self.actors):
-            self.episodic_memory.append(EpisodicMemory(self.episodic_memory_size))
-
-        self.down_sampling = torch.nn.AvgPool2d((4, 4), stride=(4, 4))
-
 
     def enable_training(self):
         self.enabled_training = True
@@ -102,9 +94,6 @@ class AgentPPOCuriosityEntropy():
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        states_new_downsampled_t = self.down_sampling(states_new_t)
-
-        entropy = []
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
@@ -116,20 +105,12 @@ class AgentPPOCuriosityEntropy():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-            features_count = states_new_downsampled_t.shape[1]*states_new_downsampled_t.shape[2]*states_new_downsampled_t.shape[3]
-            features_t = states_new_downsampled_t[e].reshape((features_count, ))
-            self.episodic_memory[e].add(features_t)
-
-            entropy.append(self.episodic_memory[e].motivation())
-
-        print(self.iterations, entropy[0])
-
         #collect stats
         k = 0.02
         self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
 
         self.iterations+= 1
-        return rewards[0], dones[0], infos[0], self.states[0], entropy[0]
+        return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
@@ -163,7 +144,7 @@ class AgentPPOCuriosityEntropy():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values_ext, values_int, actions, rewards, dones, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, states_next, logits,  actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -189,8 +170,34 @@ class AgentPPOCuriosityEntropy():
                 loss_forward.backward()
                 self.optimizer_forward.step()
 
+
+                #train embeddings model, MSE loss
+                action_target_t                          = self._action_one_hot(actions)
+                features_target_t                        = self.model_embeddings.eval_features(states_next).detach()
+                action_predicted_t, features_predicted_t = self.model_embeddings(states, states_next, action_target_t)
+
+                loss_embeddings_0 = ((features_target_t - features_predicted_t)**2).mean()
+                loss_embeddings_1 = ((action_target_t - action_predicted_t)**2).mean()
+                loss_embeddings   = loss_embeddings_0 + loss_embeddings_1
+
+                self.optimizer_embeddings.zero_grad()
+                loss_embeddings.backward()
+                self.optimizer_embeddings.step()
+
+                #model accuracy
+                action_target_indices_t     = torch.argmax(action_target_t, dim=1)
+                action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
+
+                hits = (action_target_indices_t == action_predicted_indices_t).sum()
+                miss = (action_target_indices_t != action_predicted_indices_t).sum()
+
+                action_acc = hits*100.0/(hits + miss)
+
                 k = 0.02
-                self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
+                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
+                self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
+                
 
         self.policy_buffer.clear() 
 

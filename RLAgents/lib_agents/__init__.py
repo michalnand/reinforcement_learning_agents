@@ -24,8 +24,8 @@ from .AgentDDPGEntropy              import AgentDDPGEntropy
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
-from .AgentPPOCuriosityEntropy      import AgentPPOCuriosityEntropy
 from .AgentPPOEntropy               import AgentPPOEntropy
+from .AgentPPOEntropyPlan           import AgentPPOEntropyPlan
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
