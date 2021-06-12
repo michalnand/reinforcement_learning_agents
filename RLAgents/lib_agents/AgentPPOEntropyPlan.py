@@ -323,5 +323,6 @@ class AgentPPOEntropyPlan():
             loss    = entropy.mean()
             loss.backward()
             optimizer.step()
+            print("actions_loss = ", loss)
 
-        return actions[0].detach().to("cpu").numpy()
+        return actions[0]
