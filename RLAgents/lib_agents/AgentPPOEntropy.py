@@ -150,9 +150,8 @@ class AgentPPOEntropy():
  
     def get_log(self):
         result = ""  
-        
+         
         result+= str(round(self.log_loss_forward, 7)) + " "
-        result+= str(round(self.log_action_acc, 2)) + " "  
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
         result+= str(round(self.log_advantages, 7)) + " "         
