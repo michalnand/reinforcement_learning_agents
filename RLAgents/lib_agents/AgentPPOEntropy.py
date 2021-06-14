@@ -6,10 +6,10 @@ from torch.distributions import Categorical
 
 from .PolicyBufferIME   import *
 from .RunningStats      import * 
-from .EpisodicMemory    import * 
+from .EpisodicMemory    import *  
      
 class AgentPPOEntropy():
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelEmbeddings, config):
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs
       
         self.gamma_ext          = config.gamma_ext
@@ -45,20 +45,16 @@ class AgentPPOEntropy():
         #buffer for policy storing and two external motivations
         self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
 
-        #embeddings model for entropy motivation
-        self.model_embeddings      = ModelEmbeddings.Model(self.state_shape, self.actions_count)
-        self.optimizer_embeddings  = torch.optim.Adam(self.model_embeddings.parameters(), lr=config.learning_rate_embeddings)
-
         #episodic memory for entropy motivation
         self.episodic_memory    = []
         for e in range(self.actors):
-            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size))
-
+            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, config.episodic_memory_downsample))
 
         #init envs and states
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
+            
 
         #smoothing stats for state mean
         self.states_running_stats   = RunningStats(self.state_shape, self.states)
@@ -67,8 +63,6 @@ class AgentPPOEntropy():
         self.iterations = 0
 
         self.log_loss_forward           = 0.0
-        self.log_loss_embeddings        = 0.0
-        self.log_action_acc             = 0.0
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
@@ -116,9 +110,11 @@ class AgentPPOEntropy():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #entropy motivation 
-        entropy_np          = self._entropy(states_new_t)
-        entropy_np          = numpy.clip(entropy_np, 0.0, 1.0)
-
+        entropy_np = numpy.zeros(self.actors)
+        for e in range(self.actors):
+            h, _ = self.episodic_memory[e].add(states_new_t[e])
+            entropy_np[e] = h
+        
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
@@ -129,7 +125,7 @@ class AgentPPOEntropy():
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
-                self._reset_episodic_memory(e, self.states[e])
+                self.episodic_memory[e].reset(torch.from_numpy(self.states[e]).to(self.model_ppo.device))
 
         #collect stats
         k = 0.02
@@ -146,19 +142,16 @@ class AgentPPOEntropy():
         self.model_ppo.save(save_path + "trained/")
         self.model_forward.save(save_path + "trained/")
         self.model_forward_target.save(save_path + "trained/")
-        self.model_embeddings.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_forward.load(load_path + "trained/")
         self.model_forward_target.load(load_path + "trained/")
-        self.model_embeddings.load(load_path + "trained/")
  
     def get_log(self):
         result = ""  
         
         result+= str(round(self.log_loss_forward, 7)) + " "
-        result+= str(round(self.log_loss_embeddings, 7)) + " "  
         result+= str(round(self.log_action_acc, 2)) + " "  
         result+= str(round(self.log_curiosity, 7)) + " "        
         result+= str(round(self.log_entropy, 7)) + " "           
@@ -207,34 +200,7 @@ class AgentPPOEntropy():
                 self.optimizer_forward.zero_grad() 
                 loss_forward.backward()
                 self.optimizer_forward.step()
-                
-                
-                #train embeddings model : predict action from two states
-                action_target_t    = self._action_one_hot(actions)
-                action_predicted_t = self.model_embeddings(states, states_next)
-
-                loss_embeddings    = (action_target_t - action_predicted_t)**2
-                loss_embeddings    = loss_embeddings.mean()
-            
-                self.optimizer_embeddings.zero_grad()
-                loss_embeddings.backward()
-                self.optimizer_embeddings.step()
-
-                #model accuracy
-                action_target_indices_t     = torch.argmax(action_target_t, dim=1)
-                action_predicted_indices_t  = torch.argmax(action_predicted_t, dim=1)
-
-                hits = (action_target_indices_t == action_predicted_indices_t).sum()
-                miss = (action_target_indices_t != action_predicted_indices_t).sum()
-
-                action_acc = hits*100.0/(hits + miss)
-
-                k = 0.02
-                self.log_loss_forward      = (1.0 - k)*self.log_loss_forward    + k*loss_forward.detach().to("cpu").numpy()
-                self.log_loss_embeddings   = (1.0 - k)*self.log_loss_embeddings + k*loss_embeddings.detach().to("cpu").numpy()
-                self.log_action_acc        = (1.0 - k)*self.log_action_acc      + k*action_acc.detach().to("cpu").numpy()
-                
-
+               
 
         self.policy_buffer.clear() 
 
@@ -326,27 +292,6 @@ class AgentPPOEntropy():
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
-
-
-    def _reset_episodic_memory(self, env_idx, state_np):
-        state_t       = torch.from_numpy(state_np).unsqueeze(0).to(self.model_embeddings.device).float()
-
-        features_t    = self.model_embeddings.eval_features(state_t)
-        features_t    = features_t.squeeze(0).detach()
- 
-        self.episodic_memory[env_idx].reset(features_t) 
-              
-    def _entropy(self, states_t):         
-        features_t    = self.model_embeddings.eval_features(states_t).detach()
-
-        for e in range(self.actors):
-            self.episodic_memory[e].add(features_t[e])
-
-        entropy       = numpy.zeros(self.actors) 
-        for e in range(self.actors):
-            entropy[e] = self.episodic_memory[e].motivation()
-          
-        return entropy
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()

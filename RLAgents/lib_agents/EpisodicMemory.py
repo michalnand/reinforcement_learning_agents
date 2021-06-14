@@ -1,74 +1,57 @@
 import torch
-import numpy
-
-'''
-class EpisodicMemory:
-    def __init__(self, size):
-        self.size               = size
-        self.episodic_memory    = None 
-
-        self.mean   = 0.0
-        self.std    = 0.0 
-
-    def reset(self, state_t):
-        self.episodic_memory = torch.zeros((self.size, ) + state_t.shape).to(state_t.device)
-        for i in range(self.size):
-            self.episodic_memory[i] = state_t
-
-    def add(self, state_t):
-        if self.episodic_memory is None:
-            self.reset(state_t)
-
-        idx = numpy.random.randint(self.size)
-        self.episodic_memory[idx] = state_t
-
-        self.mean = self.episodic_memory.mean(axis=0)
-        self.std  = self.episodic_memory.std(axis=0) 
-       
-    def entropy(self, state_t):  
-        arg  = (state_t - self.mean)/(self.std + 10**-7)
-        res  = 1.0 - torch.exp(-0.5*(arg**2)) 
-        res  = res.mean() 
- 
-        result = res.detach().to("cpu").numpy()
-
-        return result
-'''
 
 class EpisodicMemory:
-    def __init__(self, size):
-        self.size   = size
-        self.mean   = 0.0
-        self.std    = 0.0  
+    def __init__(self, size, downsample = -1):
+        self.size       = size
+        self.downsample = downsample
 
-        self.episodic_memory = None
+        self.idx        = 0
+        self.buffer     = None
         
-    def reset(self, state_t):
-        self.episodic_memory = torch.zeros((self.size, ) + state_t.shape).to(state_t.device)
+        
+    def reset(self, state_t): 
+        if self.downsample != -1:
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+            self.layer_downsample.to(state_t.device)
+        else:
+            self.layer_downsample = None
+
+        tmp_t = self._preprocess(state_t)
+
+        self.buffer = torch.zeros((self.size, ) + tmp_t.shape).to(tmp_t.device)
         for i in range(self.size): 
-            self.episodic_memory[i] = state_t.clone()
- 
+            self.buffer[i] = tmp_t.clone()
+
+        self.idx = 0
+
+        
     def add(self, state_t): 
-        if self.episodic_memory is None:
+        if self.buffer is None:
             self.reset(state_t)
 
-        idx = numpy.random.randint(self.size)
-        self.episodic_memory[idx] = state_t.clone()
+        tmp_t = self._preprocess(state_t)
 
-        self.mean = self.episodic_memory.mean(axis=0)
-        self.std  = self.episodic_memory.std(axis=0) 
-     
-    '''
-    def motivation(self, state_t):  
-        arg  = (state_t - self.mean)/(self.std + 10**-7)
-        res  = 1.0 - torch.exp(-0.5*(arg**2)) 
-        res  = res.mean() 
- 
-        result = res.detach().to("cpu").numpy()
+        #compute current variance
+        h0  = self.buffer.var(axis=0) 
+        h0  = h0.mean().detach().to("cpu").numpy()
 
-        return result
-    '''
+        #add to buffer
+        self.buffer[self.idx] = tmp_t.clone()
+        self.idx = (self.idx+1)%self.size
 
-    def motivation(self):   
-        result = self.std.mean().detach().to("cpu").numpy()
-        return result
+        #compute new variance
+        h1  = self.buffer.var(axis=0) 
+        h1  = h1.mean().detach().to("cpu").numpy()
+
+        #return
+        return h1, h1 - h0
+
+    #downsample and flatten
+    def _preprocess(self, x):
+        y = x.unsqueeze(0)
+
+        if self.layer_downsample is not None:
+            y = self.layer_downsample(y)
+        
+        y = torch.flatten(y).squeeze(0)
+        return y 
