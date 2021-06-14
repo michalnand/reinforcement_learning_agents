@@ -112,8 +112,7 @@ class AgentPPOEntropy():
         #entropy motivation 
         entropy_np = numpy.zeros(self.actors)
         for e in range(self.actors):
-            h, _ = self.episodic_memory[e].add(states_new_t[e])
-            entropy_np[e] = h
+            entropy_np[e] = self.episodic_memory[e].add(states_new_t[e][0])
         
         #put into policy buffer
         for e in range(self.actors):            
@@ -124,8 +123,8 @@ class AgentPPOEntropy():
                     self.train()
 
             if dones[e]:
-                self.states[e] = self.envs.reset(e)
-                self.episodic_memory[e].reset(torch.from_numpy(self.states[e]).to(self.model_ppo.device))
+                self.states[e] = self.envs.reset(e) 
+                self.episodic_memory[e].reset(torch.from_numpy(self.states[e][0]).to(self.model_ppo.device))
 
         #collect stats
         k = 0.02

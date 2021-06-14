@@ -18,9 +18,9 @@ class EpisodicMemory:
 
         tmp_t = self._preprocess(state_t)
 
-        self.buffer = torch.zeros((self.size, ) + tmp_t.shape).to(tmp_t.device)
+        self.buffer = torch.zeros((self.size, ) + tmp_t.shape).float().to(tmp_t.device)
         for i in range(self.size): 
-            self.buffer[i] = tmp_t.clone()
+            self.buffer[i] = tmp_t.float()
 
         self.idx = 0
 
@@ -31,20 +31,16 @@ class EpisodicMemory:
 
         tmp_t = self._preprocess(state_t)
 
-        #compute current variance
-        h0  = self.buffer.var(axis=0) 
-        h0  = h0.mean().detach().to("cpu").numpy()
-
         #add to buffer
-        self.buffer[self.idx] = tmp_t.clone()
+        self.buffer[self.idx] = tmp_t.float()
         self.idx = (self.idx+1)%self.size
 
-        #compute new variance
-        h1  = self.buffer.var(axis=0) 
-        h1  = h1.mean().detach().to("cpu").numpy()
+        #compute variance
+        h  = self.buffer.var(axis=0) 
+        h  = h.mean().detach().to("cpu").numpy()
 
         #return
-        return h1, h1 - h0
+        return h
 
     #downsample and flatten
     def _preprocess(self, x):
