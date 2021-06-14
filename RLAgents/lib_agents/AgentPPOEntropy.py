@@ -11,7 +11,7 @@ from .EpisodicMemory    import *
 class AgentPPOEntropy():
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs
-      
+       
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int 
             
@@ -79,7 +79,6 @@ class AgentPPOEntropy():
     def main(self):
         #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-
 
         #compute model output
         logits_t, values_ext_t, values_curiosity_t, values_entropy_t  = self.model_ppo.forward(states_t)
