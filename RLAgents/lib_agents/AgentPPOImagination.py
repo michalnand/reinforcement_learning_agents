@@ -2,6 +2,7 @@ import numpy
 import torch
 
 from torch.distributions import Categorical
+from torch.nn import parameter
  
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
@@ -35,7 +36,6 @@ class AgentPPOImagination():
 
  
         self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size)
-        self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
   
         self.model_forward          = ModelForward.Model(self.state_shape)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
@@ -45,8 +45,10 @@ class AgentPPOImagination():
         state_t = torch.randn((1, ) + self.state_shape).to(self.model_ppo.device)
         features_count              = self.model_ppo.forward_features(state_t).shape[1]
         
-        self.model_imagination      = ModelImagination.Model(features_count, self.actions_count, self.rollout_encoder_size)
-        self.optimizer_imagination  = torch.optim.Adam(self.model_imagination.parameters(), lr=config.learning_rate_imagination)
+        self.model_imagination              = ModelImagination.Model(features_count, self.actions_count, self.rollout_encoder_size)
+        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_imagination.model_environment.parameters(), lr=config.learning_rate_imagination)
+
+        self.optimizer_ppo          = torch.optim.Adam([self.model_ppo.parameters(), self.model_imagination.parameters()], lr=config.learning_rate_ppo)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
@@ -198,9 +200,9 @@ class AgentPPOImagination():
                 loss_forward_im         = (features_next_t - features_predicted_t)**2
                 loss_forward_im         = loss_forward_im.mean()
 
-                self.optimizer_imagination.zero_grad() 
+                self.optimizer_forward_imagination.zero_grad() 
                 loss_forward_im.backward()
-                self.optimizer_imagination.step()
+                self.optimizer_forward_imagination.step()
 
                 k = 0.02
                 self.log_loss_forward       = (1.0 - k)*self.log_loss_forward       + k*loss_forward.detach().to("cpu").numpy()
