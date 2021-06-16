@@ -33,6 +33,7 @@ class AgentPPOImagination():
  
         self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, config.rollout_steps)
         self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_ppo.model_environment.parameters(), lr=config.learning_rate_forward)
 
         self.model_forward          = ModelForward.Model(self.state_shape)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
@@ -176,13 +177,13 @@ class AgentPPOImagination():
 
                 actions_one_hot_t       = self._action_one_hot(actions)
 
-                features_predicted_t    = self.model_imagination.forward_environment(features_t, actions_one_hot_t)
+                features_predicted_t    = self.model_ppo.forward_environment(features_t, actions_one_hot_t)
 
                 loss_forward_im         = (features_next_t - features_predicted_t)**2
                 loss_forward_im         = loss_forward_im.mean()
 
                 self.optimizer_forward_imagination.zero_grad() 
-                loss_forward_im.backward()
+                loss_forward_im.backward() 
                 self.optimizer_forward_imagination.step()
 
                 k = 0.02
