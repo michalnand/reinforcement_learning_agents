@@ -214,8 +214,6 @@ class AgentPPOImagination():
     def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
-
         #compute model output
         features_t = self.model_ppo.forward_features(states)
 
