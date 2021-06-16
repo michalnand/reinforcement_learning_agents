@@ -28,14 +28,13 @@ class AgentPPOImagination():
         self.rollout_encoder_size   = config.rollout_encoder_size
 
         self.rollout_steps          = config.rollout_steps
-        self.rollouts_count         = config.rollouts_count
  
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
  
-        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size*self.rollouts_count)
+        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size)
         self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
   
         self.model_forward          = ModelForward.Model(self.state_shape)
@@ -80,12 +79,12 @@ class AgentPPOImagination():
         features_t = self.model_ppo.forward_features(states_t)
 
         #imagine trajectories
-        rollout_encoder_t = self.model_imagination(features_t, self.model_ppo.model_policy, self.rollout_steps, self.rollouts_count)
+        rollout_encoder_t = self.model_imagination(features_t, self.model_ppo.model_policy, self.rollout_steps)
 
         #compute policy
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward_from_features(features_t, rollout_encoder_t)
         
-        states_np       = states_t.detach().to("cpu").numpy()
+        states_np       = states_t.detach().to("cpu").numpy() 
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         values_int_np   = values_int_t.detach().to("cpu").numpy()
