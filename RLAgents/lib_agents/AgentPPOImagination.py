@@ -31,7 +31,7 @@ class AgentPPOImagination():
         self.actions_count  = self.envs.action_space.n
 
  
-        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, config.rollouts_steps)
+        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, config.rollout_steps)
         self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_forward          = ModelForward.Model(self.state_shape)
