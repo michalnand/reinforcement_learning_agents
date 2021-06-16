@@ -25,15 +25,13 @@ class AgentPPOImagination():
         
         self.training_epochs        = config.training_epochs
         self.actors                 = config.actors
-        
-        self.rollout_encoder_size   = config.rollout_encoder_size
- 
+         
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
  
-        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size, config.rollouts_steps)
+        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, config.rollouts_steps)
         self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_forward          = ModelForward.Model(self.state_shape)
