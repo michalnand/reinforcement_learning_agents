@@ -216,9 +216,9 @@ class AgentPPOImagination():
 
         #compute model output
         features_t = self.model_ppo.forward_features(states)
-
+ 
         #imagine trajectories
-        rollout_encoder_t = self.model_imagination.forward(features_t, self.model_ppo.model_policy, self.rollout_steps, self.rollouts_count)
+        rollout_encoder_t = self.model_imagination.forward(features_t, self.model_ppo.model_policy, self.rollout_steps)
  
         #compute policy
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward_from_features(features_t, rollout_encoder_t)
