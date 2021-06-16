@@ -44,9 +44,9 @@ class AgentPPOImagination():
 
         state_t = torch.randn((1, ) + self.state_shape).to(self.model_ppo.device)
         features_count              = self.model_ppo.forward_features(state_t).shape[1]
-        
+         
         self.model_imagination              = ModelImagination.Model(features_count, self.actions_count, self.rollout_encoder_size)
-        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_imagination.model_environment.parameters(), lr=config.learning_rate_imagination)
+        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_imagination.model_environment.parameters(), lr=config.learning_rate_forward)
 
         self.optimizer_ppo          = torch.optim.Adam([self.model_ppo.parameters(), self.model_imagination.parameters()], lr=config.learning_rate_ppo)
 
