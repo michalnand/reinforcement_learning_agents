@@ -13,8 +13,6 @@ from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
 
 from .AgentDQN                      import AgentDQN
-from .AgentDQNCuriosity             import AgentDQNCuriosity
-from .AgentDQNEntropy               import AgentDQNEntropy
 from .AgentDQNDuel                  import AgentDQNDuel
 
 from .AgentDDPG                     import AgentDDPG
@@ -24,8 +22,8 @@ from .AgentDDPGEntropy              import AgentDDPGEntropy
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
+from .AgentPPOImagination           import AgentPPOImagination
 from .AgentPPOEntropy               import AgentPPOEntropy
-from .AgentPPOEntropyPlan           import AgentPPOEntropyPlan
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
