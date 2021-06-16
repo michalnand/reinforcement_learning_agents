@@ -8,7 +8,7 @@ from .PolicyBufferIM    import *
 from .RunningStats      import *
   
 class AgentPPOImagination():  
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, ModelImagination, config):
+    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs 
  
         self.gamma_ext          = config.gamma_ext
@@ -27,28 +27,19 @@ class AgentPPOImagination():
         self.actors                 = config.actors
         
         self.rollout_encoder_size   = config.rollout_encoder_size
-
-        self.rollout_steps          = config.rollout_steps
  
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
  
-        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size)
-  
+        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, self.rollout_encoder_size, config.rollouts_steps)
+        self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+
         self.model_forward          = ModelForward.Model(self.state_shape)
         self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
 
         self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
-
-        state_t = torch.randn((1, ) + self.state_shape).to(self.model_ppo.device)
-        features_count              = self.model_ppo.forward_features(state_t).shape[1]
-         
-        self.model_imagination              = ModelImagination.Model(features_count, self.actions_count, self.rollout_encoder_size)
-        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_imagination.model_environment.parameters(), lr=config.learning_rate_forward)
-
-        self.optimizer_ppo          = torch.optim.Adam([self.model_ppo.parameters(), self.model_imagination.parameters()], lr=config.learning_rate_ppo)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
@@ -77,15 +68,9 @@ class AgentPPOImagination():
         #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        #compute model output
-        features_t = self.model_ppo.forward_features(states_t)
+        #compute model output, features, imagination, policy and value
+        logits_t, values_ext_t, values_int_t = self.model_ppo(states_t)
 
-        #imagine trajectories
-        rollout_encoder_t = self.model_imagination(features_t, self.model_ppo.model_policy, self.rollout_steps)
-
-        #compute policy
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward_from_features(features_t, rollout_encoder_t)
-        
         states_np       = states_t.detach().to("cpu").numpy() 
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
@@ -131,13 +116,11 @@ class AgentPPOImagination():
         self.model_ppo.save(save_path + "trained/")
         self.model_forward.save(save_path + "trained/")
         self.model_forward_target.save(save_path + "trained/")
-        self.model_imagination.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_forward.load(load_path + "trained/")
         self.model_forward_target.load(load_path + "trained/")
-        self.model_imagination.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
@@ -216,15 +199,8 @@ class AgentPPOImagination():
     def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        #compute model output
-        features_t = self.model_ppo.forward_features(states)
- 
-        #imagine trajectories
-        rollout_encoder_t = self.model_imagination.forward(features_t, self.model_ppo.model_policy, self.rollout_steps)
- 
-        #compute policy
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward_from_features(features_t, rollout_encoder_t)
-       
+        #compute model output, features, imagination, policy and value
+        logits_new, values_ext_new, values_int_new = self.model_ppo(states)
 
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
