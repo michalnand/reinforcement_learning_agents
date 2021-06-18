@@ -10,7 +10,7 @@ from .RunningStats      import *
 class AgentPPOCuriosity():  
     def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
         self.envs = envs 
- 
+  
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            
@@ -25,6 +25,8 @@ class AgentPPOCuriosity():
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
+
+        self.normalise_motivation = config.normalise_motivation
  
 
         self.state_shape    = self.envs.observation_space.shape
@@ -44,7 +46,8 @@ class AgentPPOCuriosity():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats   = RunningStats(self.state_shape, self.states)
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+        self.int_reward_running_stats   = RunningStats(( ))
  
         self.enable_training()
         self.iterations                     = 0 
@@ -90,6 +93,10 @@ class AgentPPOCuriosity():
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
+        if self.normalise_motivation:
+            self.int_reward_running_stats.update(curiosity_np, 0.00001)
+            curiosity_np = curiosity_np - self.int_reward_running_stats.mean
+        
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:

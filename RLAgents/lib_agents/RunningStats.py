@@ -5,7 +5,7 @@ class RunningStats:
 
         self.mean  = numpy.zeros(shape)
         self._std  = numpy.ones(shape)
-        self.std   = numpy.ones(shape)
+        self.std   = numpy.ones(shape) 
 
         if initial_value is not None:
             mean = initial_value.mean(axis=0)
