@@ -8,7 +8,7 @@ from .PolicyBufferIM    import *
 from .RunningStats      import *
   
 class AgentPPOImagination():  
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
+    def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs 
   
         self.gamma_ext          = config.gamma_ext
@@ -26,36 +26,32 @@ class AgentPPOImagination():
         self.training_epochs        = config.training_epochs
         self.actors                 = config.actors
          
-
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
- 
-        self.model_ppo              = ModelPPO.Model(self.state_shape, self.actions_count, config.rollout_steps)
-        self.optimizer_ppo          = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
-        self.optimizer_forward_imagination  = torch.optim.Adam(self.model_ppo.model_environment.parameters(), lr=config.learning_rate_forward)
+        self.model_ppo          = ModelPPO.Model(self.state_shape, self.actions_count, config.rollout_steps)
+        self.optimizer_ppo      = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+        self.optimizer_forward  = torch.optim.Adam(self.model_ppo.model_environment.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_forward          = ModelForward.Model(self.state_shape)
-        self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
+        self.model_rnd          = ModelRND.Model(self.state_shape)
+        self.optimizer_rnd      = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
-        self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
-
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer      = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats   = RunningStats(self.state_shape, self.states)
- 
+  
         self.enable_training()
-        self.iterations                     = 0 
+        self.iterations                 = 0 
 
-        self.log_loss_forward               = 0.0
-        self.log_loss_forward_im            = 0.0
-        self.log_curiosity                  = 0.0
-        self.log_advantages                 = 0.0
-        self.log_curiosity_advatages        = 0.0
+        self.log_loss_rnd               = 0.0
+        self.log_loss_forward           = 0.0
+        self.log_curiosity              = 0.0
+        self.log_advantages             = 0.0
+        self.log_curiosity_advatages    = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -113,18 +109,16 @@ class AgentPPOImagination():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_forward.save(save_path + "trained/")
-        self.model_forward_target.save(save_path + "trained/")
+        self.model_rnd.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_forward.load(load_path + "trained/")
-        self.model_forward_target.load(load_path + "trained/")
+        self.model_rnd.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
+        result+= str(round(self.log_loss_rnd, 7)) + " "
         result+= str(round(self.log_loss_forward, 7)) + " "
-        result+= str(round(self.log_loss_forward_im, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
@@ -154,22 +148,6 @@ class AgentPPOImagination():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train forward RND model, MSE loss
-                state_norm_t            = self._norm_state(states).detach()
-
-                features_target_t       = self.model_forward_target(state_norm_t).detach()
-                features_predicted_t    = self.model_forward(state_norm_t)
-
-                loss_forward    = (features_target_t - features_predicted_t)**2
-                
-                random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
-                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
-                loss_forward    = (loss_forward*random_mask).sum() / (random_mask.sum() + 0.00000001)
-
-                self.optimizer_forward.zero_grad() 
-                loss_forward.backward()
-                self.optimizer_forward.step()
-
               
                 #train forward model for laten space
                 features_t      = self.model_ppo.forward_features(states).detach()
@@ -182,13 +160,30 @@ class AgentPPOImagination():
                 loss_forward_im         = (features_next_t - features_predicted_t)**2
                 loss_forward_im         = loss_forward_im.mean()
 
-                self.optimizer_forward_imagination.zero_grad() 
+                self.optimizer_forward.zero_grad() 
                 loss_forward_im.backward() 
-                self.optimizer_forward_imagination.step()
+                self.optimizer_forward.step()
+
+
+                #train RND model, MSE loss
+                state_norm_t    = self._norm_state(states).detach()
+
+                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+
+                log_loss_rnd    = (features_target_t - features_predicted_t)**2
+                
+                random_mask     = torch.rand(log_loss_rnd.shape).to(log_loss_rnd.device)
+                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
+                log_loss_rnd    = (log_loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+
+                self.optimizer_forward.zero_grad() 
+                log_loss_rnd.backward()
+                self.optimizer_forward.step()
+
 
                 k = 0.02
-                self.log_loss_forward       = (1.0 - k)*self.log_loss_forward       + k*loss_forward.detach().to("cpu").numpy()
-                self.log_loss_forward_im    = (1.0 - k)*self.log_loss_forward_im    + k*loss_forward_im.detach().to("cpu").numpy()
+                self.log_loss_rnd       = (1.0 - k)*self.log_loss_rnd       + k*log_loss_rnd.detach().to("cpu").numpy()
+                self.log_loss_forward   = (1.0 - k)*self.log_loss_forward   + k*log_loss_forward.detach().to("cpu").numpy()
 
 
 
@@ -266,8 +261,7 @@ class AgentPPOImagination():
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 
-        features_target_t       = self.model_forward_target(state_norm_t)
-        features_predicted_t    = self.model_forward(state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         

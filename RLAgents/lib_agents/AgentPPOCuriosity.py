@@ -6,11 +6,11 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
-  
-class AgentPPOCuriosity():  
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
+   
+class AgentPPOCuriosity():   
+    def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs 
-  
+   
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            
@@ -19,7 +19,7 @@ class AgentPPOCuriosity():
    
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
- 
+  
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
@@ -32,13 +32,11 @@ class AgentPPOCuriosity():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        self.model_ppo          = ModelPPO.Model(self.state_shape, self.actions_count)
-        self.optimizer_ppo      = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_forward          = ModelForward.Model(self.state_shape)
-        self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
-
-        self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
+        self.model_rnd      = ModelRND.Model(self.state_shape)
+        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
@@ -50,12 +48,12 @@ class AgentPPOCuriosity():
         self.int_reward_running_stats   = RunningStats(( ))
  
         self.enable_training()
-        self.iterations                     = 0 
+        self.iterations                 = 0 
 
-        self.log_loss_forward               = 0.0
-        self.log_curiosity                  = 0.0
-        self.log_advantages                 = 0.0
-        self.log_curiosity_advatages        = 0.0
+        self.log_loss_rnd               = 0.0
+        self.log_curiosity              = 0.0
+        self.log_advantages             = 0.0
+        self.log_curiosity_advatages    = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -84,7 +82,7 @@ class AgentPPOCuriosity():
         states, rewards, dones, infos = self.envs.step(actions)
 
         self.states = states.copy()
-
+ 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
@@ -94,7 +92,7 @@ class AgentPPOCuriosity():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         if self.normalise_motivation:
-            self.int_reward_running_stats.update(curiosity_np, 0.00001)
+            self.int_reward_running_stats.update(curiosity_np)
             curiosity_np = curiosity_np - self.int_reward_running_stats.mean
         
         #put into policy buffer
@@ -117,17 +115,15 @@ class AgentPPOCuriosity():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_forward.save(save_path + "trained/")
-        self.model_forward_target.save(save_path + "trained/")
+        self.model_rnd.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_forward.load(load_path + "trained/")
-        self.model_forward_target.load(load_path + "trained/")
+        self.model_rnd.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
-        result+= str(round(self.log_loss_forward, 7)) + " "
+        result+= str(round(self.log_loss_rnd, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
@@ -158,23 +154,22 @@ class AgentPPOCuriosity():
                 self.optimizer_ppo.step()
 
                 #train forward RND model, MSE loss
-                state_norm_t            = self._norm_state(states).detach()
+                state_norm_t    = self._norm_state(states).detach()
 
-                features_target_t       = self.model_forward_target(state_norm_t).detach()
-                features_predicted_t    = self.model_forward(state_norm_t)
+                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-                loss_forward    = (features_target_t - features_predicted_t)**2
+                loss_rnd        = (features_target_t - features_predicted_t)**2
                 
-                random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
+                random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
                 random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
-                loss_forward    = (loss_forward*random_mask).sum() / (random_mask.sum() + 0.00000001)
+                loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                self.optimizer_forward.zero_grad() 
-                loss_forward.backward()
-                self.optimizer_forward.step()
+                self.optimizer_rnd.zero_grad() 
+                loss_rnd.backward()
+                self.optimizer_rnd.step()
 
                 k = 0.02
-                self.log_loss_forward  = (1.0 - k)*self.log_loss_forward + k*loss_forward.detach().to("cpu").numpy()
+                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_forward.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
@@ -249,8 +244,7 @@ class AgentPPOCuriosity():
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 
-        features_target_t       = self.model_forward_target(state_norm_t)
-        features_predicted_t    = self.model_forward(state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
