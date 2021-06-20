@@ -8,6 +8,7 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
 from .EpisodicMemory                import EpisodicMemory
+from .StateBuffer                   import StateBuffer
 
 from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
@@ -27,3 +28,4 @@ from .AgentPPOEntropy               import AgentPPOEntropy
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
+ 

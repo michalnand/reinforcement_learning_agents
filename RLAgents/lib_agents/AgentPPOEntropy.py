@@ -3,72 +3,60 @@ import torch
 import time
 
 from torch.distributions import Categorical
-
-from .PolicyBufferIME   import *
-from .RunningStats      import * 
-from .EpisodicMemory    import *  
-     
-class AgentPPOEntropy():
-    def __init__(self, envs, ModelPPO, ModelForward, ModelForwardTarget, config):
-        self.envs = envs
-       
+ 
+from .PolicyBufferIM    import *  
+from .RunningStats      import *
+from .StateBuffer       import * 
+    
+class AgentPPOEntropy():   
+    def __init__(self, envs, ModelPPO, ModelRND, config):
+        self.envs = envs 
+   
         self.gamma_ext          = config.gamma_ext
-        self.gamma_int          = config.gamma_int 
-            
-        #internal and external motivation advantages weights
-        self.ext_adv_coeff              = config.ext_adv_coeff
-        self.int_curiosity_adv_coeff    = config.int_curiosity_adv_coeff
-        self.int_entropy_adv_coeff      = config.int_entropy_adv_coeff
-  
+        self.gamma_int          = config.gamma_int
+           
+        self.ext_adv_coeff      = config.ext_adv_coeff
+        self.int_adv_coeff      = config.int_adv_coeff
+   
         self.entropy_beta       = config.entropy_beta
-        self.eps_clip           = config.eps_clip
-
+        self.eps_clip           = config.eps_clip 
+  
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors
+
+        self.normalise_motivation = config.normalise_motivation
  
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        #PPO model
-        self.model_ppo          = ModelPPO.Model(self.state_shape, self.actions_count)
-        self.optimizer_ppo      = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+ 
+        self.model_rnd      = ModelRND.Model(self.state_shape)
+        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
-        #random network distillation models
-        self.model_forward          = ModelForward.Model(self.state_shape)
-        self.optimizer_forward      = torch.optim.Adam(self.model_forward.parameters(), lr=config.learning_rate_forward)
-
-        self.model_forward_target   = ModelForwardTarget.Model(self.state_shape)
-
-        #buffer for policy storing and two external motivations
-        self.policy_buffer = PolicyBufferIME(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
-
-        #episodic memory for entropy motivation
-        self.episodic_memory    = []
-        for e in range(self.actors):
-            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, config.episodic_memory_downsample))
-
-        #init envs and states
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+ 
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
-            
 
-        #smoothing stats for state mean
-        self.states_running_stats   = RunningStats(self.state_shape, self.states)
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+        self.int_reward_running_stats   = RunningStats(( ))
 
+        self.state_buffer               = StateBuffer((self.state_shape[1], self.state_shape[2]), 64)
+ 
         self.enable_training()
-        self.iterations = 0
+        self.iterations                 = 0 
 
-        self.log_loss_forward           = 0.0
+        self.log_loss_rnd               = 0.0
         self.log_curiosity              = 0.0
-        self.log_entropy                = 0.0
         self.log_advantages             = 0.0
         self.log_curiosity_advatages    = 0.0
-        self.log_entropy_advatages      = 0.0
-
 
     def enable_training(self):
         self.enabled_training = True
@@ -81,14 +69,13 @@ class AgentPPOEntropy():
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_curiosity_t, values_entropy_t  = self.model_ppo.forward(states_t)
-
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-        values_curiosity_np     = values_curiosity_t.detach().to("cpu").numpy()
-        values_entropy_np       = values_entropy_t.detach().to("cpu").numpy()
-        
+        values_int_np   = values_int_t.detach().to("cpu").numpy()
+
         #collect actions
         actions = []
         for e in range(self.actors):
@@ -97,85 +84,75 @@ class AgentPPOEntropy():
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
-        #new state
         self.states = states.copy()
-
+ 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
+
+        self.state_buffer.add(self.states[0][0])
+
 
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #entropy motivation 
-        entropy_np = numpy.zeros(self.actors)
-        for e in range(self.actors):
-            entropy_np[e] = self.episodic_memory[e].add(states_new_t[e][0])
+        if self.normalise_motivation:
+            self.int_reward_running_stats.update(curiosity_np)
+            curiosity_np = curiosity_np - self.int_reward_running_stats.mean
         
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_curiosity_np[e], values_entropy_np[e], actions[e], rewards[e], curiosity_np[e], entropy_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
 
                 if self.policy_buffer.is_full():
                     self.train()
 
             if dones[e]:
-                self.states[e] = self.envs.reset(e) 
-                self.episodic_memory[e].reset(torch.from_numpy(self.states[e][0]).to(self.model_ppo.device))
+                self.states[e] = self.envs.reset(e).copy()
 
         #collect stats
         k = 0.02
-        self.log_curiosity   = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
-        self.log_entropy     = (1.0 - k)*self.log_entropy   + k*entropy_np.mean()
-        
-      
+        self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
+
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
-
-
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_forward.save(save_path + "trained/")
-        self.model_forward_target.save(save_path + "trained/")
+        self.model_rnd.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_forward.load(load_path + "trained/")
-        self.model_forward_target.load(load_path + "trained/")
- 
-    def get_log(self):
-        result = ""  
-         
-        result+= str(round(self.log_loss_forward, 7)) + " "
-        result+= str(round(self.log_curiosity, 7)) + " "        
-        result+= str(round(self.log_entropy, 7)) + " "           
-        result+= str(round(self.log_advantages, 7)) + " "         
-        result+= str(round(self.log_curiosity_advatages, 7)) + " "
-        result+= str(round(self.log_entropy_advatages, 7)) + " "  
+        self.model_rnd.load(load_path + "trained/")
 
-        return result  
+    def get_log(self): 
+        result = "" 
+        result+= str(round(self.log_loss_rnd, 7)) + " "
+        result+= str(round(self.log_curiosity, 7)) + " "
+        result+= str(round(self.log_advantages, 7)) + " "
+        result+= str(round(self.log_curiosity_advatages, 7)) + " "
+        return result 
     
     def _sample_action(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
 
-        return action_t.item()  
+        return action_t.item() 
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
         batch_count = self.steps//self.batch_size
- 
+
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, states_next, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss = self._compute_loss(states, logits, actions, returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent)
+                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
                 loss.backward()
@@ -183,33 +160,30 @@ class AgentPPOEntropy():
                 self.optimizer_ppo.step()
 
                 #train forward RND model, MSE loss
-                state_norm_t            = self._norm_state(states).detach()
+                state_norm_t    = self._norm_state(states).detach()
 
-                features_target_t       = self.model_forward_target(state_norm_t).detach()
-                features_predicted_t    = self.model_forward(state_norm_t)
+                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-                loss_forward    = (features_target_t - features_predicted_t)**2
+                loss_rnd        = (features_target_t - features_predicted_t)**2
                 
-                random_mask     = torch.rand(loss_forward.shape).to(loss_forward.device)
+                random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
                 random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
-                loss_forward    = (loss_forward*random_mask).sum() / (random_mask.sum() + 0.00000001)
+                loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                self.optimizer_forward.zero_grad() 
-                loss_forward.backward()
-                self.optimizer_forward.step()
+                self.optimizer_rnd.zero_grad() 
+                loss_rnd.backward()
+                self.optimizer_rnd.step()
 
                 k = 0.02
-                self.log_loss_forward             = (1.0 - k)*self.log_loss_forward  + k*loss_forward.mean().detach().to("cpu").numpy()
-      
-               
+                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions,  returns_ext, returns_cur, returns_ent, advantages_ext, advantages_cur, advantages_ent):
+    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        logits_new, values_ext_new, values_int_cur_new, values_int_ent_new  = self.model_ppo.forward(states)
+        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
@@ -217,36 +191,28 @@ class AgentPPOEntropy():
         '''
         compute external critic loss, as MSE
         L = (T - V(s))^2
-        ''' 
+        '''
         values_ext_new  = values_ext_new.squeeze(1)
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
 
         '''
-        compute internal curiosity critic loss, as MSE
+        compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_cur_new  = values_int_cur_new.squeeze(1)
-        loss_int_cur_value  = (returns_cur.detach() - values_int_cur_new)**2
-        loss_int_cur_value  = loss_int_cur_value.mean()
-
-
-        '''
-        compute internal entropy critic loss, as MSE
-        L = (T - V(s))^2
-        '''
-        values_int_ent_new  = values_int_ent_new.squeeze(1)
-        loss_int_ent_value  = (returns_ent.detach() - values_int_ent_new)**2
-        loss_int_ent_value  = loss_int_ent_value.mean()
-
-        loss_critic = loss_ext_value + loss_int_cur_value + loss_int_ent_value
-
+        values_int_new  = values_int_new.squeeze(1)
+        loss_int_value  = (returns_int.detach() - values_int_new)**2
+        loss_int_value  = loss_int_value.mean()
+        
+        
+        loss_critic     = loss_ext_value + loss_int_value
+ 
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + self.int_curiosity_adv_coeff*advantages_cur + self.int_entropy_adv_coeff*advantages_ent
-        advantages      = advantages.detach()
+        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
@@ -257,7 +223,7 @@ class AgentPPOEntropy():
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
     
-        '''
+        ''' 
         compute entropy loss, to avoid greedy strategy
         L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
         '''
@@ -267,11 +233,10 @@ class AgentPPOEntropy():
         loss = 0.5*loss_critic + loss_policy + loss_entropy
 
         k = 0.02
-        self.log_advantages             = (1.0 - k)*self.log_advantages             + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages    + k*advantages_cur.mean().detach().to("cpu").numpy()
-        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages      + k*advantages_ent.mean().detach().to("cpu").numpy()
-    
-        return loss
+        self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
+
+        return loss 
 
     def _action_one_hot(self, action_idx_t):
         batch_size = action_idx_t.shape[0]
@@ -285,8 +250,7 @@ class AgentPPOEntropy():
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 
-        features_predicted_t    = self.model_forward(state_norm_t)
-        features_target_t       = self.model_forward_target(state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
@@ -296,7 +260,7 @@ class AgentPPOEntropy():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-         
-        state_norm_t = state_t - mean
+
+        state_norm_t = state_t - mean  
 
         return state_norm_t
