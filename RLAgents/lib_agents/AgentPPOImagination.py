@@ -148,7 +148,6 @@ class AgentPPOImagination():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-              
                 #train forward model for laten space
                 features_t      = self.model_ppo.forward_features(states).detach()
                 features_next_t = self.model_ppo.forward_features(states_next).detach()
@@ -157,11 +156,11 @@ class AgentPPOImagination():
 
                 features_predicted_t    = self.model_ppo.forward_environment(features_t, actions_one_hot_t)
 
-                loss_forward_im         = (features_next_t - features_predicted_t)**2
-                loss_forward_im         = loss_forward_im.mean()
+                loss_forward            = (features_next_t - features_predicted_t)**2
+                loss_forward            = loss_forward.mean()
 
                 self.optimizer_forward.zero_grad() 
-                loss_forward_im.backward() 
+                loss_forward.backward() 
                 self.optimizer_forward.step()
 
 
@@ -183,7 +182,7 @@ class AgentPPOImagination():
 
                 k = 0.02
                 self.log_loss_rnd       = (1.0 - k)*self.log_loss_rnd       + k*log_loss_rnd.detach().to("cpu").numpy()
-                self.log_loss_forward   = (1.0 - k)*self.log_loss_forward   + k*log_loss_forward.detach().to("cpu").numpy()
+                self.log_loss_forward   = (1.0 - k)*self.log_loss_forward   + k*loss_forward.detach().to("cpu").numpy()
 
 
 

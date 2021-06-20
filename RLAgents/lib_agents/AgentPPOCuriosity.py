@@ -169,7 +169,7 @@ class AgentPPOCuriosity():
                 self.optimizer_rnd.step()
 
                 k = 0.02
-                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_forward.detach().to("cpu").numpy()
+                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
