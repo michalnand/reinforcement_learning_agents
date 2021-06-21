@@ -48,10 +48,10 @@ class AgentPPOEntropy():
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
         self.int_reward_running_stats   = RunningStats(( ))
 
-        self.state_buffer               = StateBuffer((self.state_shape[1], self.state_shape[2]), 64)
+        self.state_buffer               = StateBuffer((self.state_shape[1], self.state_shape[2]), config.state_buffer_size)
  
         self.enable_training()
-        self.iterations                 = 0 
+        self.iterations                 = 0  
 
         self.log_loss_rnd               = 0.0
         self.log_curiosity              = 0.0
@@ -89,13 +89,20 @@ class AgentPPOEntropy():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
-        self.state_buffer.add(self.states[0][0])
+       
 
 
         #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
+        #states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
+        #curiosity_np    = self._curiosity(states_new_t)
+
+        #update states buffer
+        curiosity_np = numpy.zeros(self.actors)
+        for e in range(self.actors):
+            curiosity_np[e] = self.state_buffer.add(self.states[e][0])
+
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+
 
         if self.normalise_motivation:
             self.int_reward_running_stats.update(curiosity_np)

@@ -13,7 +13,7 @@ class StateBuffer:
         self.max_idx        = size
         self.current_idx    = 0
 
-        self.loops = 0
+        self.loops = 0 
 
 
     def add(self, x):
@@ -28,7 +28,7 @@ class StateBuffer:
         self.distance[idx] = (1.0 - self.alpha)*self.distance[idx] + self.alpha*distance
         result = distance - self.distance[idx]
 
-        self.render() 
+        #self.render() 
         #print(">>> ", idx, result)
         return result    
 
