@@ -7,6 +7,7 @@ class StateBuffer:
     def __init__(self, shape, size = 64, threshold = 0.01, alpha = 0.0001):
         self.mean       = numpy.zeros((size, ) + shape)
         self.distance   = numpy.zeros((size, ))
+        self.count      = numpy.zeros((size, ), dtype=int)
 
         self.threshold      = threshold
         self.alpha          = alpha
@@ -15,7 +16,7 @@ class StateBuffer:
 
         self.loops = 0 
 
-
+ 
     def add(self, x):
         distance, idx = self._distance(x)
 
@@ -23,14 +24,22 @@ class StateBuffer:
             self.mean[self.current_idx] = x.copy()
             self.current_idx+= 1
         else:
-            self.mean[idx] = (1.0 - self.alpha)*self.mean[idx] + self.alpha*x
+            self.mean[idx]  = (1.0 - self.alpha)*self.mean[idx] + self.alpha*x
+        
+        self.distance[idx]  = (1.0 - self.alpha)*self.distance[idx] + self.alpha*distance
+        result              = distance - self.distance[idx]
 
-        self.distance[idx] = (1.0 - self.alpha)*self.distance[idx] + self.alpha*distance
-        result = distance - self.distance[idx]
+        self.count[idx]+= 1
+
+        self.visiting_probs = self.count/(numpy.sum(self.count) + 0.0000001)
+
+        weight = 1.0 - self.visiting_probs[idx]
+
+        result = (distance - self.distance[idx])*weight
 
         #self.render() 
         #print(">>> ", idx, result)
-        return result    
+        return result   
 
     def _distance(self, x):
         distances   = ((self.mean - x)**2)
@@ -43,6 +52,10 @@ class StateBuffer:
 
 
     def render(self):
+
+        percent     = 100.0*self.count/(numpy.sum(self.count) + 0.0000001)
+        percent     = numpy.round(percent, 1)
+
         space       = 2
 
         count       = self.mean.shape[0]
@@ -71,6 +84,11 @@ class StateBuffer:
                 xe = xs + width
 
                 image[ys:ye, xs:xe] = self.mean[idx]
+
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                text = str(percent[idx]) + "%"
+                cv2.putText(image, text, (xs , ys + height//4), font, 0.5, (255, 255, 255), 1, cv2.LINE_AA)
+
                 idx+= 1
                          
         cv2.imshow("StateBuffer", image) 

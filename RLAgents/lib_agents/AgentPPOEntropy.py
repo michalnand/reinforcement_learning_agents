@@ -40,7 +40,7 @@ class AgentPPOEntropy():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
- 
+  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
@@ -89,29 +89,25 @@ class AgentPPOEntropy():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
-       
-
-
         #curiosity motivation
-        #states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        #curiosity_np    = self._curiosity(states_new_t)
-
-        #update states buffer
-        curiosity_np = numpy.zeros(self.actors)
-        for e in range(self.actors):
-            curiosity_np[e] = self.state_buffer.add(self.states[e][0])
-
+        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
+        curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
-
-
         if self.normalise_motivation:
             self.int_reward_running_stats.update(curiosity_np)
             curiosity_np = curiosity_np - self.int_reward_running_stats.mean
-        
+
+        #update states buffer
+        entropy_np = numpy.zeros(self.actors)
+        for e in range(self.actors):
+            entropy_np[e] = self.state_buffer.add(self.states[e][0])
+
+        entropy_np    = numpy.clip(entropy_np, -1.0, 1.0)
+       
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e] + entropy_np[e], dones[e])
 
                 if self.policy_buffer.is_full():
                     self.train()

@@ -12,7 +12,7 @@ class PolicyBufferIM:
         self.device         = device
 
         self.clear() 
-
+ 
     def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done):
 
         if done != 0:  
