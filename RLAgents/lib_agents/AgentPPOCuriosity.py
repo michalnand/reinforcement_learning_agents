@@ -24,10 +24,7 @@ class AgentPPOCuriosity():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.actors             = config.actors
-
-        self.normalise_motivation = config.normalise_motivation
- 
+        self.actors             = config.actors 
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -90,10 +87,6 @@ class AgentPPOCuriosity():
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
-
-        if self.normalise_motivation:
-            self.int_reward_running_stats.update(curiosity_np)
-            curiosity_np = curiosity_np - self.int_reward_running_stats.mean
         
         #put into policy buffer
         for e in range(self.actors):            

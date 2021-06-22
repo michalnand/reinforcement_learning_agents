@@ -4,7 +4,7 @@ import time
 
 class StateBuffer: 
 
-    def __init__(self, shape, size = 64, threshold = 0.01, alpha = 0.0001):
+    def __init__(self, shape, size = 64, threshold = 0.01, alpha = 0.01):
         self.mean       = numpy.zeros((size, ) + shape)
         self.distance   = numpy.zeros((size, ))
         self.count      = numpy.zeros((size, ), dtype=int)
@@ -37,7 +37,7 @@ class StateBuffer:
 
         result = (distance - self.distance[idx])*weight
 
-        #self.render() 
+        self.render() 
         #print(">>> ", idx, result)
         return result   
 
