@@ -23,6 +23,7 @@ from .AgentDDPGEntropy              import AgentDDPGEntropy
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
+from .AgentPPOCuriousOutcome        import AgentPPOCuriousOutcome
 from .AgentPPOImagination           import AgentPPOImagination
 from .AgentPPOEntropy               import AgentPPOEntropy
 
