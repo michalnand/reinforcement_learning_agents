@@ -4,11 +4,11 @@ import time
 
 from torch.distributions import Categorical
  
-from .PolicyBufferIM    import *  
-from .RunningStats      import *
+from .PolicyBufferIMMetaActor   import *  
+from .RunningStats              import *
    
-class AgentPPOCuriousOutcome():   
-    def __init__(self, envs, ModelPPO, ModelRND, ModelRNDFeatures, config):
+class AgentPPOCuriosityMetaActor():   
+    def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs 
    
         self.gamma_ext          = config.gamma_ext
@@ -25,29 +25,23 @@ class AgentPPOCuriousOutcome():
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
+        self.n_heads            = config.n_heads
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count, self.n_heads)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_rnd      = ModelRND.Model(self.state_shape)
+        self.model_rnd      = ModelRND.Model(self.state_shape, self.actions_count)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIMMetaActor(self.steps, self.state_shape, self.actions_count, self.actors, self.n_heads, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-
-        features = self.model_ppo.forward_features(torch.from_numpy(self.states).to(self.model_ppo.device))
-
-        self.model_rnd_features     = ModelRNDFeatures.Model(features.shape[1:], self.actions_count)
-        self.optimizer_rnd_features = torch.optim.Adam(self.model_rnd_features.parameters(), lr=config.learning_rate_rnd_features)
-
-    
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
         self.int_reward_running_stats   = RunningStats(( ))
  
@@ -55,7 +49,6 @@ class AgentPPOCuriousOutcome():
         self.iterations                 = 0 
 
         self.log_loss_rnd               = 0.0
-        self.log_loss_rnd_features      = 0.0
         self.log_curiosity              = 0.0
         self.log_advantages             = 0.0
         self.log_curiosity_advatages    = 0.0
@@ -71,37 +64,40 @@ class AgentPPOCuriousOutcome():
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        features_t = self.model_ppo.forward_features(states_t)
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward_heads(features_t)
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.detach().to("cpu").numpy()
         values_int_np   = values_int_t.detach().to("cpu").numpy()
 
+        _actions        = self._select_actions(logits_t)
+
+        #update long term states mean and variance
+        self.states_running_stats.update(states_np)
+
+        #curiosity motivation
+        _, _, curiosity_t = self._rnd_output(states_t, _actions)
+
+        curiosity_np    = curiosity_t.detach().to("cpu").numpy()
+        #curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+        head_idx        = numpy.argmax(curiosity_np, axis=1)
+        
         #collect actions
         actions = []
         for e in range(self.actors):
-            logits_mod_t = logits_t[e]*self._curiosity_features(features_t[e])
-            actions.append(self._sample_action(logits_mod_t))
+            action = _actions[e][head_idx[e]]
+            actions.append(action)
 
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
         self.states = states.copy()
  
-        #update long term states mean and variance
-        self.states_running_stats.update(states_np)
-
-        #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
-        curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
-        
         #put into policy buffer
         for e in range(self.actors):            
             if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
+                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], _actions[e], rewards[e], curiosity_np[e], dones[e], head_idx[e])
 
                 if self.policy_buffer.is_full():
                     self.train()
@@ -119,17 +115,14 @@ class AgentPPOCuriousOutcome():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
-        self.model_rnd_features.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
-        self.model_rnd_features.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_loss_rnd_features, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
@@ -149,10 +142,10 @@ class AgentPPOCuriousOutcome():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, head_id = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, head_id)
 
                 self.optimizer_ppo.zero_grad()        
                 loss.backward()
@@ -160,9 +153,7 @@ class AgentPPOCuriousOutcome():
                 self.optimizer_ppo.step()
 
                 #train forward RND model, MSE loss
-                state_norm_t    = self._norm_state(states).detach()
-
-                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+                features_predicted_t, features_target_t, _  = self._rnd_output(states, actions)
 
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
@@ -174,33 +165,26 @@ class AgentPPOCuriousOutcome():
                 loss_rnd.backward()
                 self.optimizer_rnd.step()
 
-
-                #train forward RND features model, MSE loss
-                features_t  = self.model_ppo.forward_features(states).detach()
-                actions_t   = self._action_one_hot(actions)
-
-                features_predicted_t, features_target_t  = self.model_rnd_features(features_t, actions_t)
-
-                loss_rnd_features    = (features_target_t - features_predicted_t)**2
-                loss_rnd_features    = loss_rnd_features.mean()
-                self.optimizer_rnd_features.zero_grad() 
-                loss_rnd_features.backward()
-                self.optimizer_rnd_features.step()
-
                 k = 0.02
-                self.log_loss_rnd           = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
-                self.log_loss_rnd_features  = (1.0 - k)*self.log_loss_rnd_features + k*loss_rnd_features.detach().to("cpu").numpy()
+                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
-    
-    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+    #states             shape : batch, state_shape
+    #logits             shape : batch, head, logits 
+    #actions            shape : batch, head, action
+    #returns_ext        shape : batch, 
+    #returns_int        shape : batch, head
+    #advantages_ext     shape : batch, 
+    #advantages_int     shape : batch, head,
+    #head_id            shape : batch,
+    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int, head_id):
+        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 2).detach()
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
-        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
+        probs_new     = torch.nn.functional.softmax(logits_new, dim = 2)
+        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 2)
 
         '''
         compute external critic loss, as MSE
@@ -215,7 +199,6 @@ class AgentPPOCuriousOutcome():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
         
@@ -225,15 +208,30 @@ class AgentPPOCuriousOutcome():
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+
+        #mask ext advantages, keep only used-head as non zero
+        advantages_ext_ = torch.repeat_interleave(advantages_ext.unsqueeze(1), self.n_heads, dim=1)
+        heads_one_hot_  = torch.zeros((head_id.shape[0], self.n_heads)).to(advantages_ext.device)
+        heads_one_hot_[range(head_id.shape[0]), head_id] = 1.0
+        advantages_ext_ = advantages_ext_*heads_one_hot_
+
+        #combine external and internal advantages
+        advantages      = self.ext_adv_coeff*advantages_ext_ + self.int_adv_coeff*advantages_int
         advantages      = advantages.detach() 
-        
-        log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
-        log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
-                        
+
+        #compute loss
+        log_probs_new_ = log_probs_new.reshape((log_probs_new.shape[0]*log_probs_new.shape[1], log_probs_new.shape[2]))
+        log_probs_old_ = log_probs_old.reshape((log_probs_old.shape[0]*log_probs_old.shape[1], log_probs_old.shape[2]))
+        actions_       = actions.reshape((actions.shape[0]*actions.shape[1]))
+        advantages_    = advantages.reshape((advantages.shape[0]*advantages.shape[1]))
+
+        log_probs_new_  = log_probs_new_[range(log_probs_new_.shape[0]), actions_]
+        log_probs_old_  = log_probs_old_[range(log_probs_old_.shape[0]), actions_]
+
+
         ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
+        p1          = ratio*advantages_
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
     
@@ -241,7 +239,7 @@ class AgentPPOCuriousOutcome():
         compute entropy loss, to avoid greedy strategy
         L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
         '''
-        loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
+        loss_entropy = (probs_new*log_probs_new).sum(dim = 2)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
         loss = 0.5*loss_critic + loss_policy + loss_entropy
@@ -261,16 +259,6 @@ class AgentPPOCuriousOutcome():
 
         return action_one_hot_t
 
-    def _curiosity(self, state_t):
-        state_norm_t            = self._norm_state(state_t)
-
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
-
-        curiosity_t    = (features_target_t - features_predicted_t)**2
-        
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        
-        return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
@@ -279,12 +267,36 @@ class AgentPPOCuriousOutcome():
 
         return state_norm_t
 
-    def _curiosity_features(self, features_t):
-        f = torch.repeat_interleave(features_t.unsqueeze(0), self.actions_count, dim=0)
-        a = torch.diag(torch.ones((self.actions_count))).to(features_t.device)
+    def _select_actions(self, logits_t):
+        batch_size  = logits_t.shape[0]
+        heads_count = logits_t.shape[1]
+        actions     = numpy.zeros((batch_size, heads_count), dtype=int)
 
-        features_predicted_t, features_target_t  = self.model_rnd_features(f, a)
+        for e in range(batch_size):
+            for h in range(heads_count):
+                actions[e][h] = self._sample_action(logits_t[e][h])
 
-        dif = ((features_predicted_t - features_target_t)**2).mean(dim=1)
+        return actions
 
-        return dif
+    def _rnd_output(self, states_t, actions):
+
+        batch_size  = actions.shape[0]
+        heads_count = actions.shape[1]
+
+        actions     = actions.reshape(batch_size*heads_count)
+        actions_t   = self._action_one_hot(actions)
+
+        state_norm_t = self._norm_state(states_t).detach()
+
+        state_norm_t    = torch.repeat_interleave(state_norm_t.unsqueeze(0), heads_count, dim=0)
+        state_norm_t    = state_norm_t.reshape((batch_size*heads_count, ) + self.state_shape)
+
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, actions_t)
+
+        features_count = features_predicted_t.shape[1]
+        
+        features_predicted_t    = features_predicted_t.reshape((batch_size, heads_count, features_count))
+        features_target_t       = features_target_t.reshape((batch_size, heads_count, features_count))
+        curiosity_t             = ((features_target_t - features_predicted_t)**2).sum(dim=2)/2.0
+        
+        return features_predicted_t, features_target_t, curiosity_t

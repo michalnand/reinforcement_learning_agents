@@ -1,20 +1,21 @@
+from math import log
 import torch
 import numpy
 
-class PolicyBufferIM:
+class PolicyBufferIMMetaActor:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, n_heads, device):
         
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
         self.device         = device
- 
+        self.n_heads        = n_heads
+
         self.clear() 
  
-    def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done):
-
+    def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done, head_id):
         if done != 0:  
             done_ = 1.0
         else:
@@ -32,37 +33,38 @@ class PolicyBufferIM:
         self.internal_b[env][self.ptr]  = internal
 
         self.dones_b[env][self.ptr]     = done_
+        self.head_id[env][self.ptr]     = head_id
         
         
         if env == self.envs_count - 1:
             self.ptr = self.ptr + 1 
-
 
     def is_full(self):
         if self.ptr >= self.buffer_size:
             return True
 
         return False 
- 
+
     def clear(self):
         self.states_b           = numpy.zeros((self.envs_count, self.buffer_size, ) + self.state_shape, dtype=numpy.float32)
-        self.logits_b           = numpy.zeros((self.envs_count, self.buffer_size, self.actions_size), dtype=numpy.float32)
+        self.logits_b           = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads, self.actions_size), dtype=numpy.float32)
 
         self.values_ext_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)        
-        self.values_int_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.values_int_b       = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads), dtype=numpy.float32)
 
-        self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=int)
-        
+        self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads), dtype=int)
+         
         self.rewards_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.internal_b         = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.internal_b         = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads), dtype=numpy.float32)
 
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.head_id            = numpy.zeros((self.envs_count, self.buffer_size), dtype=int)
 
-        self.returns_int_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         self.returns_ext_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.returns_int_b      = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads), dtype=numpy.float32)
         
-        self.advantages_int_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         self.advantages_ext_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.advantages_int_b   = numpy.zeros((self.envs_count, self.buffer_size, self.n_heads), dtype=numpy.float32)
 
         self.ptr = 0 
 
@@ -71,10 +73,9 @@ class PolicyBufferIM:
         
         for e in range(self.envs_count):
             
-            count = len(self.rewards_b[e])
             last_gae  = 0.0
 
-            for n in reversed(range(count-1)):
+            for n in reversed(range(self.buffer_size-1)):
             
                 if self.dones_b[e][n] > 0:
                     delta       = self.rewards_b[e][n] - self.values_ext_b[e][n]
@@ -87,35 +88,39 @@ class PolicyBufferIM:
                 self.advantages_ext_b[e][n] = last_gae
         
         for e in range(self.envs_count):
-            
-            count = len(self.internal_b[e])
-            last_gae  = 0.0
+            for h in range(self.n_heads):
+                last_gae    = 0.0
 
-            for n in reversed(range(count-1)):
-            
-                if self.dones_b[e][n] > 0:
-                    delta       = self.internal_b[e][n] - self.values_int_b[e][n]
-                    last_gae    = delta
-                else:
-                    delta       = self.internal_b[e][n] + gamma_int*self.values_int_b[e][n+1] - self.values_int_b[e][n]
-                    last_gae    = delta + gamma_int*lam*last_gae
+                for n in reversed(range(self.buffer_size-1)):
+                
+                    if self.dones_b[e][n] > 0:
+                        delta       = self.internal_b[e][n][h] - self.values_int_b[e][n][h]
+                        last_gae    = delta
+                    else:
+                        delta       = self.internal_b[e][n][h] + gamma_int*self.values_int_b[e][n+1][h] - self.values_int_b[e][n][h]
+                        last_gae    = delta + gamma_int*lam*last_gae
 
-                self.returns_int_b[e][n]    = last_gae + self.values_int_b[e][n]
-                self.advantages_int_b[e][n] = last_gae
-    
+                    self.returns_int_b[e][n][h]    = last_gae + self.values_int_b[e][n][h]
+                    self.advantages_int_b[e][n][h] = last_gae 
+         
     def sample_batch(self, batch_size, device):
 
         states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
         states_next      = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        logits           = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
+        logits           = torch.zeros((self.envs_count, batch_size, self.n_heads, self.actions_size), dtype=torch.float).to(self.device)
         
-        actions          = torch.zeros((self.envs_count, batch_size, ), dtype=int).to(self.device)
+        actions          = torch.zeros((self.envs_count, batch_size, self.n_heads), dtype=int).to(self.device)
        
         returns_ext      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        returns_int      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        returns_int      = torch.zeros((self.envs_count, batch_size, self.n_heads), dtype=torch.float).to(self.device)
 
         advantages_ext   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        advantages_int   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        advantages_int   = torch.zeros((self.envs_count, batch_size, self.n_heads), dtype=torch.float).to(self.device)
+
+        head_id          = torch.zeros((self.envs_count, batch_size), dtype=int).to(self.device)
+
+       
+
 
         for e in range(self.envs_count):
             indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
@@ -123,26 +128,29 @@ class PolicyBufferIM:
 
             states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
             states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
-
-            logits[e]   = torch.from_numpy(numpy.take(self.logits_b[e], indices, axis=0)).to(device)
-            
-            actions[e]  = torch.from_numpy(numpy.take(self.actions_b[e], indices, axis=0)).to(device)
             
             returns_ext[e]      = torch.from_numpy(numpy.take(self.returns_ext_b[e], indices, axis=0)).to(device)
-            returns_int[e]      = torch.from_numpy(numpy.take(self.returns_int_b[e], indices, axis=0)).to(device)
 
             advantages_ext[e]   = torch.from_numpy(numpy.take(self.advantages_ext_b[e], indices, axis=0)).to(device)
-            advantages_int[e]   = torch.from_numpy(numpy.take(self.advantages_int_b[e], indices, axis=0)).to(device)
+
+            logits[e]            = torch.from_numpy(numpy.take(self.logits_b[e],            indices, axis=0)).to(device)
+            actions[e]           = torch.from_numpy(numpy.take(self.actions_b[e],           indices, axis=0)).to(device)
+            returns_int[e]       = torch.from_numpy(numpy.take(self.returns_int_b[e],       indices, axis=0)).to(device)
+            advantages_int[e]    = torch.from_numpy(numpy.take(self.advantages_int_b[e],    indices, axis=0)).to(device)
+
+            head_id[e]          = torch.from_numpy(numpy.take(self.head_id[e],           indices, axis=0)).to(device)
+
 
         states          = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
         states_next     = states_next.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        logits          = logits.reshape((self.envs_count*batch_size, self.actions_size))
-        actions         = actions.reshape((self.envs_count*batch_size, ))
+        logits          = logits.reshape((self.envs_count*batch_size, self.n_heads, self.actions_size))
+        actions         = actions.reshape((self.envs_count*batch_size, self.n_heads))
         returns_ext     = returns_ext.reshape((self.envs_count*batch_size, ))
-        returns_int     = returns_int.reshape((self.envs_count*batch_size, ))
+        returns_int     = returns_int.reshape((self.envs_count*batch_size, self.n_heads))
         advantages_ext  = advantages_ext.reshape((self.envs_count*batch_size, ))
-        advantages_int  = advantages_int.reshape((self.envs_count*batch_size, ))
-
-        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        advantages_int  = advantages_int.reshape((self.envs_count*batch_size, self.n_heads))
+        head_id         = head_id.reshape(self.envs_count*batch_size)
+        
+        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, head_id
  
     
