@@ -3,7 +3,7 @@ import numpy
 from PIL import Image
 
 from nes_py.wrappers import JoypadSpace
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -64,26 +64,6 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 
-class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-        
-        self.was_real_done  = True
-
-        
-    def _step(self, action):
-        obs, reward, done, info = self.env.step(action)
-        self.was_real_done = done
-        return obs, reward, done, info
-
-    def _reset(self, **kwargs):
-        if self.was_real_done:
-            obs = self.env.reset(**kwargs)
-        else:
-            obs, _, _, _ = self.env.step(0)
-        
-        return obs
-
 
 class ClipRewardEnv(gym.Wrapper):
     def __init__(self, env):
@@ -107,9 +87,9 @@ class ClipRewardEnv(gym.Wrapper):
             self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
 
-        reward = numpy.clip(reward/15.0, -1.0, 1.0)
-
-        if numpy.abs(reward) < 0.8:
+        if reward >= 12.0:
+            reward = 1.0
+        else:
             reward = 0.0
 
         return obs, reward, done, info
@@ -117,11 +97,11 @@ class ClipRewardEnv(gym.Wrapper):
 
 
 def WrapperSuperMario(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
-    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
+    
     env = NopOpsEnv(env)
     env = SkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env)
     env = ClipRewardEnv(env)
 
     env.reset()

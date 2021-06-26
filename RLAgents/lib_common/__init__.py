@@ -10,3 +10,4 @@ from .TrainingLog           import TrainingLog
 
 from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
 from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaLong
+from .WrapperSuperMario     import WrapperSuperMario

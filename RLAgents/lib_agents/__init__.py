@@ -3,7 +3,8 @@ from .ExperienceBufferContinuous    import ExperienceBufferContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
-
+from .PolicyBufferIMDual            import PolicyBufferIMDual
+  
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
@@ -18,13 +19,12 @@ from .AgentDQNDuel                  import AgentDQNDuel
 
 from .AgentDDPG                     import AgentDDPG
 from .AgentDDPGCuriosity            import AgentDDPGCuriosity
-from .AgentDDPGEntropy              import AgentDDPGEntropy
 
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
 from .AgentPPOCuriosityActor        import AgentPPOCuriosityActor
-from .AgentPPOEntropy               import AgentPPOEntropy
+from .AgentPPOCuriosityImagination  import AgentPPOCuriosityImagination
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

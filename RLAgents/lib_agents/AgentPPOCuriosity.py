@@ -9,7 +9,7 @@ from .RunningStats      import *
    
 class AgentPPOCuriosity():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
-        self.envs = envs 
+        self.envs = envs  
    
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
@@ -71,10 +71,8 @@ class AgentPPOCuriosity():
         values_int_np   = values_int_t.detach().to("cpu").numpy()
 
         #collect actions
-        actions = []
-        for e in range(self.actors):
-            actions.append(self._sample_action(logits_t[e]))
-
+        actions = self._sample_actions(logits_t)
+        
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
@@ -122,12 +120,22 @@ class AgentPPOCuriosity():
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result 
     
+
+    '''
     def _sample_action(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
 
-        return action_t.item() 
+        return action_t.item()
+    '''
+
+    def _sample_actions(self, logits):
+        action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
+        action_distribution_t = torch.distributions.Categorical(action_probs_t)
+        action_t              = action_distribution_t.sample()
+        actions               = action_t.detach().to("cpu").numpy()
+        return actions
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
@@ -146,7 +154,7 @@ class AgentPPOCuriosity():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train forward RND model, MSE loss
+                #train RND model, MSE loss
                 state_norm_t    = self._norm_state(states).detach()
 
                 features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
