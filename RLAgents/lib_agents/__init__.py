@@ -23,7 +23,6 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
-from .AgentPPOCuriosityActor        import AgentPPOCuriosityActor
 from .AgentPPOCuriosityImagination  import AgentPPOCuriosityImagination
 
 from .AgentPPOContinuous            import AgentPPOContinuous

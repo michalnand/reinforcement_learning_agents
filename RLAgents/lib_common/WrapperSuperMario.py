@@ -66,13 +66,14 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 class ClipRewardEnv(gym.Wrapper):
-    def __init__(self, env):
+    def __init__(self, env, no_rewards = False):
         gym.Wrapper.__init__(self, env)
 
         self.raw_episodes            = 0
         self.raw_score               = 0.0
         self.raw_score_per_episode   = 0.0
         self.raw_score_total         = 0.0  
+        self.no_rewards              = no_rewards
 
 
     def step(self, action):
@@ -87,9 +88,9 @@ class ClipRewardEnv(gym.Wrapper):
             self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
             self.raw_score = 0.0
 
-        if reward >= 12.0:
-            reward = 1.0
-        else:
+        reward = reward/15.0
+
+        if self.no_rewards:
             reward = 0.0
 
         return obs, reward, done, info
@@ -102,7 +103,19 @@ def WrapperSuperMario(env, height = 96, width = 96, frame_stacking=4, frame_skip
     env = NopOpsEnv(env)
     env = SkipEnv(env, frame_skipping)
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = ClipRewardEnv(env)
+    env = ClipRewardEnv(env, False)
+
+    env.reset()
+
+    return env
+
+def WrapperSuperMarioNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
+    
+    env = NopOpsEnv(env)
+    env = SkipEnv(env, frame_skipping)
+    env = ResizeEnv(env, height, width, frame_stacking)
+    env = ClipRewardEnv(env, True)
 
     env.reset()
 
