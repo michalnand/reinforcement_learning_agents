@@ -51,10 +51,8 @@ class AgentPPO():
         logits_np = logits_t.detach().to("cpu").numpy()
         values_np = values_t.detach().to("cpu").numpy()
 
-        actions = []
-        for e in range(self.actors):
-            actions.append(self._sample_action(logits_t[e]))
-
+        actions = self._sample_actions(logits_t)
+        
         states, rewards, dones, infos = self.envs.step(actions)
         
         self.states = states.copy()
@@ -83,12 +81,12 @@ class AgentPPO():
         result+= str(round(self.log_advantages, 7)) + " "
         return result
     
-    def _sample_action(self, logits):
-        action_probs_t        = torch.nn.functional.softmax(logits.squeeze(0), dim = 0)
+    def _sample_actions(self, logits):
+        action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
-
-        return action_t.item()  
+        actions               = action_t.detach().to("cpu").numpy()
+        return actions
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma)

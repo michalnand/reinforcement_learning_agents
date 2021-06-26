@@ -25,9 +25,12 @@ class RLStatsCompute:
                 for line in lines:
                     tmp = "{" + line.split('{')[1]
                     if len(tmp) > 0:
-                        tmp = tmp.replace("'", "\"")
-                        tmp = json.loads(tmp)
-                        extended_f.append(tmp)
+                        try:
+                            tmp = tmp.replace("'", "\"")
+                            tmp = json.loads(tmp)
+                            extended_f.append(tmp)
+                        except Exception:
+                            pass
             
             extended.append(extended_f)
 

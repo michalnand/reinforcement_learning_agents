@@ -11,7 +11,7 @@ from .RunningStats          import *
 class AgentPPOCuriosityImagination():   
     def __init__(self, envs, ModelPPO, ModelRND, ModelForward, ModelFeaturesRND, config):
         self.envs = envs 
-   
+    
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
            
@@ -91,8 +91,11 @@ class AgentPPOCuriosityImagination():
         values_int_b_np     = values_int_b_t.detach().to("cpu").numpy()
 
         #collect actions
-        actions = self._sample_actions(logits_t)
-        
+        #actions = self._sample_actions(logits_t)
+
+        #use imagination, to find most curious actions
+        curiosity_b_np, actions = self._imagine_future(features_t)
+
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
@@ -106,9 +109,6 @@ class AgentPPOCuriosityImagination():
         curiosity_a_np    = self._curiosity(states_new_t)
         curiosity_a_np    = numpy.clip(curiosity_a_np, -1.0, 1.0)
 
-        #TODO, use imagination
-        self._imagine_future(features_t)
-        curiosity_b_np    = curiosity_a_np.copy()
         
         #put into policy buffer
         for e in range(self.actors):            
@@ -324,17 +324,18 @@ class AgentPPOCuriosityImagination():
         batch_size              = features_t.shape[0]
 
         features_imagined       = torch.zeros((self.rollouts_length + 1, batch_size*self.rollouts_count, features_t.shape[1])).to(features_t.device)
+        actions_imagined        = numpy.zeros((self.rollouts_length, batch_size*self.rollouts_count), dtype=int)
         curiosity_imagined      = torch.zeros((self.rollouts_length + 1, batch_size*self.rollouts_count)).to(features_t.device)
         features_imagined[0]    = torch.repeat_interleave(features_t, self.rollouts_count, dim=0)
 
-        time_start = time.time()
         for n in range(self.rollouts_length):
             #use policy to select action
-            #logits, _, _, _ = self.model_ppo.forward_heads(features_imagined[n])
+            logits, _, _, _ = self.model_ppo.forward_heads(features_imagined[n])
 
-            logits = torch.randn((batch_size*self.rollouts_count, self.actions_count)).to(features_t.device)
-
+            #sample actions
             actions = self._sample_actions(logits)
+
+            actions_imagined[n] = actions
 
             actions_one_hot_t = self._action_one_hot(actions)
 
@@ -344,6 +345,7 @@ class AgentPPOCuriosityImagination():
             #RND on features space
             features_predicted_t, features_target_t  = self.model_features_rnd(features_imagined[n+1])
 
+            #store curiosity
             curiosity_t    = (features_target_t - features_predicted_t)**2
             curiosity_t    = curiosity_t.sum(dim=1)/2.0
 
@@ -354,20 +356,31 @@ class AgentPPOCuriosityImagination():
         curiosity_imagined  = curiosity_imagined[1:]
 
         features_imagined   = features_imagined.reshape(self.rollouts_length,  batch_size, self.rollouts_count, features_t.shape[1])
+        actions_imagined    = actions_imagined.reshape(self.rollouts_length, batch_size, self.rollouts_count)
         curiosity_imagined  = curiosity_imagined.reshape(self.rollouts_length, batch_size, self.rollouts_count)
 
         features_imagined   = torch.transpose(features_imagined, 0, 1)
         curiosity_imagined  = torch.transpose(curiosity_imagined, 0, 1)
 
-        curiosity_total     = curiosity_imagined.sum(1).sum(1)/(self.rollouts_length*self.rollouts_count)
-        entropy_total       = torch.var(features_imagined[:, self.rollouts_length-1, :, :], dim=1).mean(dim=1)
+        actions_first        = actions_imagined[0]
+        curiosity_evaluation = curiosity_imagined.mean(dim=1)
+        curiosity_total      = curiosity_imagined.sum(1).sum(1)/(self.rollouts_length*self.rollouts_count)
+        curiosity_total      = curiosity_total.detach().to("cpu").numpy()
 
-        time_stop = time.time()
+        best_action_idx     = torch.argmax(curiosity_evaluation, dim=1).detach().to("cpu").numpy()
+        best_actions        = actions_first[range(batch_size), best_action_idx]
 
-        dt = time_stop - time_start
-        imaginations_per_second = batch_size*self.rollouts_length*self.rollouts_count/dt
-       
-        print(">>> TIME = ", dt, imaginations_per_second)
-        print(">>>> ", curiosity_total.shape, entropy_total.shape)
-        print(">>>> ", curiosity_total[0], entropy_total[0])
+        '''
+        print("features_imagined        = ", features_imagined.shape)
+        print("actions_imagined         = ", actions_imagined.shape)
+        print("actions_first            = ", actions_first.shape)
+        print("curiosity_imagined       = ", curiosity_imagined.shape)
+        print("curiosity_evaluation     = ", curiosity_evaluation.shape)
+        print("best_action_idx          = ", best_action_idx.shape)
+        print("best_actions             = ", best_actions.shape)
         print("\n\n\n")
+        '''
+
+        return curiosity_total, best_actions
+
+       
