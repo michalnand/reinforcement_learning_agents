@@ -144,7 +144,7 @@ class PolicyBufferIMDual:
 
         for e in range(self.envs_count):
             indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
-            indices_next= numpy.clip(indices, 0, self.buffer_size-1)
+            indices_next= numpy.clip(indices+1, 0, self.buffer_size-1)
 
             states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
             states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
