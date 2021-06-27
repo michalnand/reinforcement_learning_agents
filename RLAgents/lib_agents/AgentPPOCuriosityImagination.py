@@ -7,7 +7,7 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIMDual    import *  
 from .RunningStats          import *
-   
+    
 class AgentPPOCuriosityImagination():   
     def __init__(self, envs, ModelPPO, ModelRND, ModelForward, ModelFeaturesRND, config):
         self.envs = envs 
@@ -199,7 +199,7 @@ class AgentPPOCuriosityImagination():
                 #train features RND model, MSE loss
                 features_predicted_t, features_target_t  = self.model_features_rnd(features_t)
 
-                loss_features_rnd        = (features_target_t - features_predicted_t)**2
+                loss_features_rnd   = (features_target_t - features_predicted_t)**2
                 
                 random_mask         = torch.rand(loss_features_rnd.shape).to(loss_features_rnd.device)
                 random_mask         = 1.0*(random_mask < 1.0/self.training_epochs)
@@ -210,7 +210,7 @@ class AgentPPOCuriosityImagination():
                 self.optimizer_features_rnd.step()
 
                 #train forward model, MSE loss
-                action_one_hot_t= self._action_one_hot(actions)
+                action_one_hot_t = self._action_one_hot(actions)
 
                 features_next_predicted_t  = self.model_forward(features_t, action_one_hot_t)
 
