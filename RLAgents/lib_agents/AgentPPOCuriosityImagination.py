@@ -2,7 +2,7 @@ from math import log
 import numpy
 import torch
 import time
-
+ 
 from torch.distributions import Categorical
  
 from .PolicyBufferIMDual    import *  
@@ -95,6 +95,7 @@ class AgentPPOCuriosityImagination():
 
         #use imagination, to find most curious actions
         curiosity_b_np, actions = self._imagine_future(features_t)
+        curiosity_b_np          = numpy.clip(curiosity_b_np, -1.0, 1.0)
 
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
@@ -151,7 +152,7 @@ class AgentPPOCuriosityImagination():
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_int_advatages_a, 7)) + " "
         result+= str(round(self.log_int_advatages_b, 7)) + " "
-        return result 
+        return result  
     
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
