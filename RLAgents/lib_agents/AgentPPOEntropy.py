@@ -107,9 +107,11 @@ class AgentPPOEntropy():
                     self.train()
 
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
+                s = self.envs.reset(e)
+                self.states[e] = s.copy() 
+                self.episodic_memory[e].reset(torch.from_numpy(s[0]).to(self.model_ppo.device))
 
-        #collect stats
+        #collect stats 
         k = 0.02
         self.log_curiosity  = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
         self.log_entropy    = (1.0 - k)*self.log_entropy + k*entropy_np.mean()
