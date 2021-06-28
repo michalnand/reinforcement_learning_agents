@@ -148,7 +148,7 @@ class PolicyBufferIMDual:
 
             states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
             states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
-
+ 
             logits[e]   = torch.from_numpy(numpy.take(self.logits_b[e], indices, axis=0)).to(device)
             
             actions[e]  = torch.from_numpy(numpy.take(self.actions_b[e], indices, axis=0)).to(device)

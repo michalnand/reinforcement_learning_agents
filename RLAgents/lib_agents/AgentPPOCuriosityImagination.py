@@ -91,10 +91,10 @@ class AgentPPOCuriosityImagination():
         values_int_b_np     = values_int_b_t.detach().to("cpu").numpy()
 
         #collect actions
-        #actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits_t)
 
         #use imagination, to find most curious actions
-        curiosity_b_np, actions = self._imagine_future(features_t)
+        curiosity_b_np, _       = self._imagine_future(features_t)
         curiosity_b_np          = numpy.clip(curiosity_b_np, -1.0, 1.0)
 
         #execute action
