@@ -217,7 +217,7 @@ class AgentPPOEntropy():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
-        advantages      = advantages.detach() 
+        advantages      = advantages.detach()  
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
@@ -240,7 +240,7 @@ class AgentPPOEntropy():
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
         self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int_a.mean().detach().to("cpu").numpy()
-        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages + k*advantages_int_a.mean().detach().to("cpu").numpy()
+        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages + k*advantages_int_b.mean().detach().to("cpu").numpy()
 
         return loss 
 
