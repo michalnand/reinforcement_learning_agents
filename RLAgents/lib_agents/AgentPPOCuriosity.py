@@ -16,7 +16,7 @@ class AgentPPOCuriosity():
            
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-   
+    
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
   
@@ -255,7 +255,9 @@ class AgentPPOCuriosity():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+
+        print(">>> ", mean.shape, mean.mean(), std.shape, std.mean())
 
         #state_norm_t = state_t - mean
         state_norm_t = torch.clip((state_t - mean)/std, -4.0, 4.0)
