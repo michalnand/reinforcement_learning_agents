@@ -68,8 +68,8 @@ class PolicyBufferIM:
 
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
-        self.returns_ext_b, self.advantages_ext_b = self._gae_fast(self, self.rewards_b, self.values_ext_b, self.dones_b, gamma_ext, lam)
-        self.returns_int_b, self.advantages_int_b = self._gae_fast(self, self.internal_b, self.values_int_b, self.dones_b, gamma_int, lam)
+        self.returns_ext_b, self.advantages_ext_b = self._gae_fast(self.rewards_b, self.values_ext_b, self.dones_b, gamma_ext, lam)
+        self.returns_int_b, self.advantages_int_b = self._gae_fast(self.internal_b, self.values_int_b, self.dones_b, gamma_int, lam)
         
 
     def sample_batch(self, batch_size, device):

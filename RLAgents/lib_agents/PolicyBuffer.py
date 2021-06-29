@@ -55,7 +55,7 @@ class PolicyBuffer:
 
 
     def compute_returns(self, gamma = 0.99, lam = 0.95):
-        self.returns_b, self.advantages_b   = self._gae_fast(self, self.rewards_b, self.values_b, self.dones_b, gamma, lam)
+        self.returns_b, self.advantages_b   = self._gae_fast(self.rewards_b, self.values_b, self.dones_b, gamma, lam)
 
         '''
         for e in range(self.envs_count):
