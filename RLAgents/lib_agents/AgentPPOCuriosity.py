@@ -33,7 +33,7 @@ class AgentPPOCuriosity():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
         self.model_rnd      = ModelRND.Model(self.state_shape)
-        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.model_rnd.parameters(), lr=config.learning_rate_rnd)
+        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
