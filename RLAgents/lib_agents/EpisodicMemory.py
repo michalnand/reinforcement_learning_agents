@@ -7,7 +7,7 @@ class EpisodicMemory:
 
         self.idx        = 0
         self.buffer     = None
-        
+         
         
     def reset(self, state_t): 
         if self.downsample != -1:

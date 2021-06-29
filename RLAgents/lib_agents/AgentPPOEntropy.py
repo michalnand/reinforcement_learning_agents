@@ -57,8 +57,8 @@ class AgentPPOEntropy():
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
-        self.log_curiosity_advatages    = 0.0
-        self.log_entropy_advatages      = 0.0
+        self.log_curiosity_advantages    = 0.0
+        self.log_entropy_advantages      = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -133,8 +133,8 @@ class AgentPPOEntropy():
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_entropy, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
-        result+= str(round(self.log_curiosity_advatages, 7)) + " "
-        result+= str(round(self.log_entropy_advatages, 7)) + " "
+        result+= str(round(self.log_curiosity_advantages, 7)) + " "
+        result+= str(round(self.log_entropy_advantages, 7)) + " "
         return result 
     
 
@@ -241,8 +241,8 @@ class AgentPPOEntropy():
 
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int_a.mean().detach().to("cpu").numpy()
-        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages + k*advantages_int_b.mean().detach().to("cpu").numpy()
+        self.log_curiosity_advantages   = (1.0 - k)*self.log_curiosity_advantages + k*advantages_int_a.mean().detach().to("cpu").numpy()
+        self.log_entropy_advantages     = (1.0 - k)*self.log_entropy_advantages + k*advantages_int_b.mean().detach().to("cpu").numpy()
 
         return loss 
 
@@ -277,9 +277,8 @@ class AgentPPOEntropy():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+        #std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
-        #state_norm_t = state_t - mean
-        state_norm_t = torch.clip((state_t - mean)/std, -4.0, 4.0)
+        state_norm_t = state_t - mean
 
         return state_norm_t
