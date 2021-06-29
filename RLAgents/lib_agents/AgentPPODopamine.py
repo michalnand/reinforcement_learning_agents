@@ -16,6 +16,7 @@ class AgentPPODopamine():
            
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+        self.dop_adv_coeff      = config.dop_adv_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -226,7 +227,7 @@ class AgentPPODopamine():
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, probs_new)
 
         curiosity_t     = ((features_target_t - features_predicted_t)**2).sum(dim=1)/2.0
-        loss_dopamine   = -curiosity_t.mean()
+        loss_dopamine   = -self.dop_adv_coeff*curiosity_t.mean()
     
         ''' 
         compute entropy loss, to avoid greedy strategy
