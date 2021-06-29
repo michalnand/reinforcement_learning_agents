@@ -27,7 +27,7 @@ class PolicyBuffer:
         self.rewards_b[env][self.ptr]   = reward
         self.dones_b[env][self.ptr]     = done_
         
-        if env == self.envs_count - 1:
+        if env == self.envs_count - 1: 
             self.ptr = self.ptr + 1 
 
 
@@ -55,7 +55,9 @@ class PolicyBuffer:
 
 
     def compute_returns(self, gamma = 0.99, lam = 0.95):
-        
+        self.returns_b, self.advantages_b   = self._gae_fast(self, self.rewards_b, self.values_b, self.dones_b, gamma, lam)
+
+        '''
         for e in range(self.envs_count):
             
             count = len(self.rewards_b[e])
@@ -72,6 +74,7 @@ class PolicyBuffer:
 
                 self.returns_b[e][n]    = last_gae + self.values_b[e][n]
                 self.advantages_b[e][n] = last_gae
+        '''
            
 
     def sample_batch(self, batch_size, device):
@@ -113,3 +116,28 @@ class PolicyBuffer:
         advantages  = advantages.reshape((self.envs_count*batch_size, ))
 
         return states, logits, values, actions, rewards, dones, returns, advantages 
+
+    def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+        envs_count  = rewards.shape[0]
+        buffer_size = rewards.shape[1]
+
+        returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
+        advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
+
+        rewards_t   = numpy.transpose(rewards)
+        values_t    = numpy.transpose(values)
+        dones_t     = numpy.transpose(dones)
+
+        last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
+        
+        for n in reversed(range(buffer_size-1)):
+            delta           = rewards_t[n] + gamma*values_t[n+1]*(1.0 - dones_t[n]) - values_t[n]
+            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones_t[n])
+            
+            returns[n]      = last_gae + values_t[n]
+            advantages[n]   = last_gae
+
+        returns     = numpy.transpose(returns)
+        advantages  = numpy.transpose(advantages)
+
+        return returns, advantages

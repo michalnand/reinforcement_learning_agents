@@ -75,57 +75,11 @@ class PolicyBufferIMDual:
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
         
-        for e in range(self.envs_count):
-            
-            count = len(self.rewards_b[e])
-            last_gae  = 0.0
+        self.returns_ext_b,     self.advantages_ext_b   = self._gae_fast(self, self.rewards_b, self.values_ext_b, self.dones_b, gamma_ext, lam)
+        self.returns_int_a_b,   self.advantages_int_a_b = self._gae_fast(self, self.internal_a_b, self.values_int_a_b, self.dones_b, gamma_int, lam)
+        self.returns_int_b_b,   self.advantages_int_b_b = self._gae_fast(self, self.internal_b_b, self.values_int_b_b, self.dones_b, gamma_int, lam)
 
-            for n in reversed(range(count-1)):
-            
-                if self.dones_b[e][n] > 0:
-                    delta       = self.rewards_b[e][n] - self.values_ext_b[e][n]
-                    last_gae    = delta
-                else:
-                    delta       = self.rewards_b[e][n] + gamma_ext*self.values_ext_b[e][n+1] - self.values_ext_b[e][n]
-                    last_gae    = delta + gamma_ext*lam*last_gae
 
-                self.returns_ext_b[e][n]    = last_gae + self.values_ext_b[e][n]
-                self.advantages_ext_b[e][n] = last_gae
-        
-        for e in range(self.envs_count):
-            
-            count = len(self.internal_a_b[e])
-            last_gae  = 0.0
-
-            for n in reversed(range(count-1)):
-            
-                if self.dones_b[e][n] > 0:
-                    delta       = self.internal_a_b[e][n] - self.values_int_a_b[e][n]
-                    last_gae    = delta
-                else:
-                    delta       = self.internal_a_b[e][n] + gamma_int*self.values_int_a_b[e][n+1] - self.values_int_a_b[e][n]
-                    last_gae    = delta + gamma_int*lam*last_gae
-
-                self.returns_int_a_b[e][n]    = last_gae + self.values_int_a_b[e][n]
-                self.advantages_int_a_b[e][n] = last_gae
-
-        for e in range(self.envs_count):
-            
-            count = len(self.internal_b_b[e])
-            last_gae  = 0.0
-
-            for n in reversed(range(count-1)):
-            
-                if self.dones_b[e][n] > 0:
-                    delta       = self.internal_b_b[e][n] - self.values_int_b_b[e][n]
-                    last_gae    = delta
-                else:
-                    delta       = self.internal_b_b[e][n] + gamma_int*self.values_int_b_b[e][n+1] - self.values_int_b_b[e][n]
-                    last_gae    = delta + gamma_int*lam*last_gae
-
-                self.returns_int_b_b[e][n]    = last_gae + self.values_int_b_b[e][n]
-                self.advantages_int_b_b[e][n] = last_gae
-    
     def sample_batch(self, batch_size, device):
 
         states              = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
@@ -174,4 +128,27 @@ class PolicyBufferIMDual:
 
         return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
  
-    
+    def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+        envs_count  = rewards.shape[0]
+        buffer_size = rewards.shape[1]
+
+        returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
+        advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
+
+        rewards_t   = numpy.transpose(rewards)
+        values_t    = numpy.transpose(values)
+        dones_t     = numpy.transpose(dones)
+
+        last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
+        
+        for n in reversed(range(buffer_size-1)):
+            delta           = rewards_t[n] + gamma*values_t[n+1]*(1.0 - dones_t[n]) - values_t[n]
+            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones_t[n])
+            
+            returns[n]      = last_gae + values_t[n]
+            advantages[n]   = last_gae
+
+        returns     = numpy.transpose(returns)
+        advantages  = numpy.transpose(advantages)
+
+        return returns, advantages
