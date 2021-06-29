@@ -58,12 +58,6 @@ class PolicyBufferIM:
 
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
-        self.returns_int_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.returns_ext_b      = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        
-        self.advantages_int_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.advantages_ext_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-
         self.ptr = 0 
 
 

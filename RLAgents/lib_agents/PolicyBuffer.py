@@ -46,11 +46,7 @@ class PolicyBuffer:
         self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=int)
         self.rewards_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-       
-        self.returns_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        
-        self.advantages_b   = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-
+     
         self.ptr = 0 
 
 
