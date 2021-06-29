@@ -24,6 +24,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 from .AgentPPO                      import AgentPPO
 from .AgentPPOCuriosity             import AgentPPOCuriosity
 from .AgentPPOEntropy               import AgentPPOEntropy
+from .AgentPPODopamine              import AgentPPODopamine
 from .AgentPPOCuriosityImagination  import AgentPPOCuriosityImagination
 
 from .AgentPPOContinuous            import AgentPPOContinuous
