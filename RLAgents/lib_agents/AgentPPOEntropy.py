@@ -48,7 +48,6 @@ class AgentPPOEntropy():
             self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, 4))
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
-        self.int_reward_running_stats   = RunningStats(( ))
  
         self.enable_training()
         self.iterations                 = 0 

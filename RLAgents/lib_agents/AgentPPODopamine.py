@@ -43,7 +43,6 @@ class AgentPPODopamine():
             self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
-        self.int_reward_running_stats   = RunningStats(( ))
  
         self.enable_training()
         self.iterations                 = 0 

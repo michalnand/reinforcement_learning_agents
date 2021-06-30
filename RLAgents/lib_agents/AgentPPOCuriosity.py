@@ -42,7 +42,6 @@ class AgentPPOCuriosity():
             self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
-        self.int_reward_running_stats   = RunningStats(( ))
  
         self.enable_training()
         self.iterations                 = 0 
@@ -183,7 +182,7 @@ class AgentPPOCuriosity():
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
-        '''
+        ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
         '''
