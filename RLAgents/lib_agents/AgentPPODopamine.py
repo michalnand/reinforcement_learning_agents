@@ -67,8 +67,8 @@ class AgentPPODopamine():
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
-        values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-        values_int_np   = values_int_t.detach().to("cpu").numpy()
+        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
         actions = self._sample_actions(logits_t)
@@ -85,15 +85,15 @@ class AgentPPODopamine():
         actions_one_hot = self._action_one_hot(actions)
         curiosity_np    = self._curiosity(states_t, actions_one_hot)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
-         
+          
         #put into policy buffer
-        for e in range(self.actors):            
-            if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
+        if self.enabled_training:
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
 
-                if self.policy_buffer.is_full():
-                    self.train()
-
+            if self.policy_buffer.is_full():
+                self.train()
+        
+        for e in range(self.actors):  
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
@@ -144,7 +144,7 @@ class AgentPPODopamine():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -172,7 +172,7 @@ class AgentPPODopamine():
 
                 k = 0.02
                 self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
-
+ 
         self.policy_buffer.clear() 
 
     
