@@ -59,25 +59,25 @@ class PolicyBufferIM:
         self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
 
         self.ptr = 0 
-
+ 
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
         self.returns_ext_b, self.advantages_ext_b = self._gae_fast(self.rewards_b, self.values_ext_b, self.dones_b, gamma_ext, lam)
         self.returns_int_b, self.advantages_int_b = self._gae_fast(self.internal_b, self.values_int_b, self.dones_b, gamma_int, lam)
         
-        #reshape buffer for faster sampling
-        self.states_b           = states_b.reshape((self.envs_count*self.buffer_size, ) + self.state_shape)
-        self.logits_b           = logits_b.reshape((self.envs_count*self.buffer_size, self.actions_size))
+        #reshape buffer for faster batch sampling
+        self.states_b           = self.states_b.reshape((self.envs_count*self.buffer_size, ) + self.state_shape)
+        self.logits_b           = self.logits_b.reshape((self.envs_count*self.buffer_size, self.actions_size))
 
-        self.values_ext_b       = values_ext_b.reshape((self.envs_count*self.buffer_size, ))        
-        self.values_int_b       = values_int_b.reshape((self.envs_count*self.buffer_size, ))
+        self.values_ext_b       = self.values_ext_b.reshape((self.envs_count*self.buffer_size, ))        
+        self.values_int_b       = self.values_int_b.reshape((self.envs_count*self.buffer_size, ))
 
-        self.actions_b          = actions_b.reshape((self.envs_count*self.buffer_size, ))
+        self.actions_b          = self.actions_b.reshape((self.envs_count*self.buffer_size, ))
         
-        self.rewards_b          = rewards_b.reshape((self.envs_count*self.buffer_size, ))
-        self.internal_b         = internal_b.reshape((self.envs_count*self.buffer_size, ))
+        self.rewards_b          = self.rewards_b.reshape((self.envs_count*self.buffer_size, ))
+        self.internal_b         = self.internal_b.reshape((self.envs_count*self.buffer_size, ))
 
-        self.dones_b            = dones_b.reshape((self.envs_count*self.buffer_size, ))
+        self.dones_b            = self.dones_b.reshape((self.envs_count*self.buffer_size, ))
 
 
     def sample_batch(self, batch_size, device):
