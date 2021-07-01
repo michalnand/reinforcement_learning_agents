@@ -49,8 +49,8 @@ class AgentPPO():
 
         states_np = states_t.detach().to("cpu").numpy() 
         logits_np = logits_t.detach().to("cpu").numpy()
-        values_np = values_t.squeeze(0).detach().to("cpu").numpy()
-
+        values_np = values_t.squeeze(1).detach().to("cpu").numpy()
+ 
         actions = self._sample_actions(logits_t)
         
         states, rewards, dones, infos = self.envs.step(actions)
