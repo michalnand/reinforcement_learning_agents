@@ -38,22 +38,21 @@ class PolicyBufferIMDual:
 
         return False 
  
-
     def clear(self):
-        self.states_b           = numpy.zeros((self.buffer_size, self.env_count, ) + self.state_shape, dtype=numpy.float32)
-        self.logits_b           = numpy.zeros((self.buffer_size, self.env_count, self.actions_size), dtype=numpy.float32)
+        self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        self.logits_b           = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
 
-        self.values_ext_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)        
-        self.values_int_a_b     = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
-        self.values_int_b_b     = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.values_ext_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
+        self.values_int_a_b     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.values_int_b_b     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.actions_b          = numpy.zeros((self.buffer_size, self.env_count, ), dtype=int)
+        self.actions_b          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
-        self.rewards_b          = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
-        self.internal_a_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
-        self.internal_b_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.rewards_b          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.internal_a_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.internal_b_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.dones_b            = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.dones_b            = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
         self.ptr = 0 
 
