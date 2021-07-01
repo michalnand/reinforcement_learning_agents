@@ -19,7 +19,7 @@ class AgentPPOCuriosity():
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-  
+   
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         

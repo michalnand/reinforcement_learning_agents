@@ -11,7 +11,7 @@ class PolicyBufferIM:
         self.envs_count     = envs_count
         self.device         = device
  
-        self.clear()  
+        self.clear()   
  
     def add(self, state, logits, value_ext, value_int, action, reward, internal, done):
         
@@ -81,7 +81,7 @@ class PolicyBufferIM:
 
     def sample_batch(self, batch_size, device):
 
-        indices          = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size)
+        indices          = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
 
         states           = torch.zeros((self.envs_count*batch_size, ) + self.state_shape).to(self.device)
         logits           = torch.zeros((self.envs_count*batch_size, self.actions_size)).to(self.device)
