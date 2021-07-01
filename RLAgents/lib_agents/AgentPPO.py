@@ -49,7 +49,7 @@ class AgentPPO():
 
         states_np = states_t.detach().to("cpu").numpy() 
         logits_np = logits_t.detach().to("cpu").numpy()
-        values_np = values_t.detach().to("cpu").numpy()
+        values_np = values_t.squeeze(0).detach().to("cpu").numpy()
 
         actions = self._sample_actions(logits_t)
         
@@ -57,13 +57,13 @@ class AgentPPO():
         
         self.states = states.copy()
 
-        for e in range(self.actors):
-            if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_np[e], actions[e], rewards[e], dones[e])
+        if self.enabled_training:
+            self.policy_buffer.add(states_np, logits_np, values_np, actions, rewards, dones)
 
-                if self.policy_buffer.is_full():
-                    self.train()
-                    
+            if self.policy_buffer.is_full():
+                self.train()
+    
+        for e in range(self.actors):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
            

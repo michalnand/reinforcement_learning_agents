@@ -106,7 +106,6 @@ class PolicyBufferIM:
         advantages_ext  = torch.from_numpy(numpy.take(self.advantages_ext_b, indices, axis=0)).to(device)
         advantages_int  = torch.from_numpy(numpy.take(self.advantages_int_b, indices, axis=0)).to(device)
 
-       
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
  
@@ -115,7 +114,7 @@ class PolicyBufferIM:
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
-        
+
         returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
 
