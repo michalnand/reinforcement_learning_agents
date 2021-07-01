@@ -65,48 +65,51 @@ class PolicyBufferIM:
         self.returns_ext_b, self.advantages_ext_b = self._gae_fast(self.rewards_b, self.values_ext_b, self.dones_b, gamma_ext, lam)
         self.returns_int_b, self.advantages_int_b = self._gae_fast(self.internal_b, self.values_int_b, self.dones_b, gamma_int, lam)
         
+        #reshape buffer for faster sampling
+        self.states_b           = states_b.reshape((self.envs_count*self.buffer_size, ) + self.state_shape)
+        self.logits_b           = logits_b.reshape((self.envs_count*self.buffer_size, self.actions_size))
+
+        self.values_ext_b       = values_ext_b.reshape((self.envs_count*self.buffer_size, ))        
+        self.values_int_b       = values_int_b.reshape((self.envs_count*self.buffer_size, ))
+
+        self.actions_b          = actions_b.reshape((self.envs_count*self.buffer_size, ))
+        
+        self.rewards_b          = rewards_b.reshape((self.envs_count*self.buffer_size, ))
+        self.internal_b         = internal_b.reshape((self.envs_count*self.buffer_size, ))
+
+        self.dones_b            = dones_b.reshape((self.envs_count*self.buffer_size, ))
+
 
     def sample_batch(self, batch_size, device):
 
-        states           = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        states_next      = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        logits           = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
+        indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size)
+
+        states           = torch.zeros((self.envs_count*batch_size, ) + self.state_shape).to(self.device)
+        logits           = torch.zeros((self.envs_count*batch_size, self.actions_size)).to(self.device)
         
-        actions          = torch.zeros((self.envs_count, batch_size, ), dtype=int).to(self.device)
+        actions          = torch.zeros((self.envs_count*batch_size, )).to(self.device)
        
-        returns_ext      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        returns_int      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        returns_ext      = torch.zeros((self.envs_count*batch_size, )).to(self.device)
+        returns_int      = torch.zeros((self.envs_count*batch_size, )).to(self.device)
 
-        advantages_ext   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        advantages_int   = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        advantages_ext   = torch.zeros((self.envs_count*batch_size, )).to(self.device)
+        advantages_int   = torch.zeros((self.envs_count*batch_size, )).to(self.device)
 
-        for e in range(self.envs_count):
-            indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
-            indices_next= numpy.clip(indices + 1, 0, self.buffer_size-1)
 
-            states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
-            states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
+        states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
+        logits          = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
+        
+        actions         = torch.from_numpy(numpy.take(self.actions_b, indices, axis=0)).to(device)
+        
+        returns_ext     = torch.from_numpy(numpy.take(self.returns_ext_b, indices, axis=0)).to(device)
+        returns_int     = torch.from_numpy(numpy.take(self.returns_int_b, indices, axis=0)).to(device)
 
-            logits[e]   = torch.from_numpy(numpy.take(self.logits_b[e], indices, axis=0)).to(device)
-            
-            actions[e]  = torch.from_numpy(numpy.take(self.actions_b[e], indices, axis=0)).to(device)
-            
-            returns_ext[e]      = torch.from_numpy(numpy.take(self.returns_ext_b[e], indices, axis=0)).to(device)
-            returns_int[e]      = torch.from_numpy(numpy.take(self.returns_int_b[e], indices, axis=0)).to(device)
+        advantages_ext  = torch.from_numpy(numpy.take(self.advantages_ext_b, indices, axis=0)).to(device)
+        advantages_int  = torch.from_numpy(numpy.take(self.advantages_int_b, indices, axis=0)).to(device)
 
-            advantages_ext[e]   = torch.from_numpy(numpy.take(self.advantages_ext_b[e], indices, axis=0)).to(device)
-            advantages_int[e]   = torch.from_numpy(numpy.take(self.advantages_int_b[e], indices, axis=0)).to(device)
+       
 
-        states          = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        states_next     = states_next.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        logits          = logits.reshape((self.envs_count*batch_size, self.actions_size))
-        actions         = actions.reshape((self.envs_count*batch_size, ))
-        returns_ext     = returns_ext.reshape((self.envs_count*batch_size, ))
-        returns_int     = returns_int.reshape((self.envs_count*batch_size, ))
-        advantages_ext  = advantages_ext.reshape((self.envs_count*batch_size, ))
-        advantages_int  = advantages_int.reshape((self.envs_count*batch_size, ))
-
-        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
  
     
     def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
