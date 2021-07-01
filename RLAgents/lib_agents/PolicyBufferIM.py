@@ -13,30 +13,22 @@ class PolicyBufferIM:
  
         self.clear()  
  
-    def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done):
+    def add(self, state, logits, value_ext, value_int, action, reward, internal, done):
         
-        '''
-        if done != 0:  
-            done_ = 1.0
-        else: 
-            done_ = 0.0
+        self.states_b[self.ptr]    = state.copy()
+        self.logits_b[self.ptr]    = logits.copy()
         
-        self.states_b[env][self.ptr]    = state
-        self.logits_b[env][self.ptr]    = logits
-        
-        self.values_ext_b[env][self.ptr]= value_ext
-        self.values_int_b[env][self.ptr]= value_int
+        self.values_ext_b[self.ptr]= value_ext.copy()
+        self.values_int_b[self.ptr]= value_int.copy()
 
-        self.actions_b[env][self.ptr]   = action
+        self.actions_b[self.ptr]   = action.copy()
         
-        self.rewards_b[env][self.ptr]   = reward
-        self.internal_b[env][self.ptr]  = internal
+        self.rewards_b[self.ptr]   = reward.copy()
+        self.internal_b[self.ptr]  = internal.copy()
 
-        self.dones_b[env][self.ptr]     = done_
-        '''
+        self.dones_b[self.ptr]     = (1.0*done).copy()
         
-        if env == self.envs_count - 1:
-            self.ptr = self.ptr + 1 
+        self.ptr = self.ptr + 1 
 
 
     def is_full(self):
@@ -46,18 +38,18 @@ class PolicyBufferIM:
         return False 
  
     def clear(self):
-        self.states_b           = numpy.zeros((self.envs_count, self.buffer_size, ) + self.state_shape, dtype=numpy.float32)
-        self.logits_b           = numpy.zeros((self.envs_count, self.buffer_size, self.actions_size), dtype=numpy.float32)
+        self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        self.logits_b           = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
 
-        self.values_ext_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)        
-        self.values_int_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.values_ext_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
+        self.values_int_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=int)
+        self.actions_b          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
-        self.rewards_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.internal_b         = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.rewards_b          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.internal_b         = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.dones_b            = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
         self.ptr = 0 
  
@@ -67,29 +59,29 @@ class PolicyBufferIM:
         self.returns_int_b, self.advantages_int_b = self._gae_fast(self.internal_b, self.values_int_b, self.dones_b, gamma_int, lam)
         
         #reshape buffer for faster batch sampling
-        self.states_b           = self.states_b.reshape((self.envs_count*self.buffer_size, ) + self.state_shape)
-        self.logits_b           = self.logits_b.reshape((self.envs_count*self.buffer_size, self.actions_size))
+        self.states_b           = self.states_b.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+        self.logits_b           = self.logits_b.reshape((self.buffer_size*self.envs_count, self.actions_size))
 
-        self.values_ext_b       = self.values_ext_b.reshape((self.envs_count*self.buffer_size, ))        
-        self.values_int_b       = self.values_int_b.reshape((self.envs_count*self.buffer_size, ))
+        self.values_ext_b       = self.values_ext_b.reshape((self.buffer_size*self.envs_count, ))        
+        self.values_int_b       = self.values_int_b.reshape((self.buffer_size*self.envs_count, ))
 
-        self.actions_b          = self.actions_b.reshape((self.envs_count*self.buffer_size, ))
+        self.actions_b          = self.actions_b.reshape((self.buffer_size*self.envs_count, ))
         
-        self.rewards_b          = self.rewards_b.reshape((self.envs_count*self.buffer_size, ))
-        self.internal_b         = self.internal_b.reshape((self.envs_count*self.buffer_size, ))
+        self.rewards_b          = self.rewards_b.reshape((self.buffer_size*self.envs_count, ))
+        self.internal_b         = self.internal_b.reshape((self.buffer_size*self.envs_count, ))
 
-        self.dones_b            = self.dones_b.reshape((self.envs_count*self.buffer_size, ))
+        self.dones_b            = self.dones_b.reshape((self.buffer_size*self.envs_count, ))
 
-        self.returns_ext_b      = self.returns_ext_b.reshape((self.envs_count*self.buffer_size, ))
-        self.advantages_ext_b   = self.advantages_ext_b.reshape((self.envs_count*self.buffer_size, ))
+        self.returns_ext_b      = self.returns_ext_b.reshape((self.buffer_size*self.envs_count, ))
+        self.advantages_ext_b   = self.advantages_ext_b.reshape((self.buffer_size*self.envs_count, ))
 
-        self.returns_int_b      = self.returns_int_b.reshape((self.envs_count*self.buffer_size, ))
-        self.advantages_int_b   = self.advantages_int_b.reshape((self.envs_count*self.buffer_size, ))
+        self.returns_int_b      = self.returns_int_b.reshape((self.buffer_size*self.envs_count, ))
+        self.advantages_int_b   = self.advantages_int_b.reshape((self.buffer_size*self.envs_count, ))
 
 
     def sample_batch(self, batch_size, device):
 
-        indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size)
+        indices          = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size)
 
         states           = torch.zeros((self.envs_count*batch_size, ) + self.state_shape).to(self.device)
         logits           = torch.zeros((self.envs_count*batch_size, self.actions_size)).to(self.device)
@@ -120,26 +112,20 @@ class PolicyBufferIM:
  
     
     def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
-        envs_count  = rewards.shape[0]
-        buffer_size = rewards.shape[1]
-
+        buffer_size = rewards.shape[0]
+        envs_count  = rewards.shape[1]
+        
+        
         returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
-
-        rewards_t   = numpy.transpose(rewards)
-        values_t    = numpy.transpose(values)
-        dones_t     = numpy.transpose(dones)
 
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards_t[n] + gamma*values_t[n+1]*(1.0 - dones_t[n]) - values_t[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones_t[n])
+            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
+            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
             
-            returns[n]      = last_gae + values_t[n]
+            returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
-
-        returns     = numpy.transpose(returns)
-        advantages  = numpy.transpose(advantages)
 
         return returns, advantages

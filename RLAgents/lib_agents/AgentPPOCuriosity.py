@@ -86,14 +86,13 @@ class AgentPPOCuriosity():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
          
         #put into policy buffer
-        for e in range(self.actors):            
-            if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_np[e], actions[e], rewards[e], curiosity_np[e], dones[e])
+        if self.enabled_training:
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
 
-                if self.policy_buffer.is_full():
-                    self.train()
-                    print("training >> ", e)
-
+            if self.policy_buffer.is_full():
+                self.train()
+        
+        for e in range(self.actors): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
