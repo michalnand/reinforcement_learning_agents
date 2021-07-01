@@ -13,32 +13,24 @@ class PolicyBufferIMDual:
  
         self.clear()  
  
-    def add(self, env, state, logits, value_ext, value_int_a, value_int_b, action, reward, internal_a, internal_b, done):
+    def add(self, state, logits, value_ext, value_int_a, value_int_b, action, reward, internal_a, internal_b, done):
+        
+        self.states_b[self.ptr]         = state.copy()
+        self.logits_b[self.ptr]         = logits.copy()
+        
+        self.values_ext_b[self.ptr]     = value_ext.copy()
+        self.values_int_a_b[self.ptr]   = value_int_a.copy()
+        self.values_int_b_b[self.ptr]   = value_int_b.copy()
 
-        if done != 0:  
-            done_ = 1.0
-        else:
-            done_ = 0.0
+        self.actions_b[self.ptr]        = action.copy()
         
-        self.states_b[env][self.ptr]    = state
-        self.logits_b[env][self.ptr]    = logits
-        
-        self.values_ext_b[env][self.ptr]= value_ext
-        self.values_int_a_b[env][self.ptr]= value_int_a
-        self.values_int_b_b[env][self.ptr]= value_int_b
+        self.rewards_b[self.ptr]       = reward.copy()
+        self.internal_a_b[self.ptr]    = internal_a.copy()
+        self.internal_b_b[self.ptr]    = internal_b.copy()
 
-        self.actions_b[env][self.ptr]   = action
+        self.dones_b[self.ptr]     = (1.0*done).copy()
         
-        self.rewards_b[env][self.ptr]       = reward
-        self.internal_a_b[env][self.ptr]    = internal_a
-        self.internal_b_b[env][self.ptr]    = internal_b
-
-        self.dones_b[env][self.ptr]     = done_
-        
-        
-        if env == self.envs_count - 1:
-            self.ptr = self.ptr + 1 
-
+        self.ptr = self.ptr + 1 
 
     def is_full(self):
         if self.ptr >= self.buffer_size:
@@ -46,21 +38,22 @@ class PolicyBufferIMDual:
 
         return False 
  
+
     def clear(self):
-        self.states_b           = numpy.zeros((self.envs_count, self.buffer_size, ) + self.state_shape, dtype=numpy.float32)
-        self.logits_b           = numpy.zeros((self.envs_count, self.buffer_size, self.actions_size), dtype=numpy.float32)
+        self.states_b           = numpy.zeros((self.buffer_size, self.env_count, ) + self.state_shape, dtype=numpy.float32)
+        self.logits_b           = numpy.zeros((self.buffer_size, self.env_count, self.actions_size), dtype=numpy.float32)
 
-        self.values_ext_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)        
-        self.values_int_a_b     = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.values_int_b_b     = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.values_ext_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)        
+        self.values_int_a_b     = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.values_int_b_b     = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
 
-        self.actions_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=int)
+        self.actions_b          = numpy.zeros((self.buffer_size, self.env_count, ), dtype=int)
         
-        self.rewards_b          = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.internal_a_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
-        self.internal_b_b       = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.rewards_b          = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.internal_a_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
+        self.internal_b_b       = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
 
-        self.dones_b            = numpy.zeros((self.envs_count, self.buffer_size, ), dtype=numpy.float32)
+        self.dones_b            = numpy.zeros((self.buffer_size, self.env_count, ), dtype=numpy.float32)
 
         self.ptr = 0 
 
@@ -72,75 +65,81 @@ class PolicyBufferIMDual:
         self.returns_int_b_b,   self.advantages_int_b_b = self._gae_fast(self.internal_b_b, self.values_int_b_b, self.dones_b, gamma_int, lam)
 
 
+        #reshape buffer for faster batch sampling
+        self.states_b           = self.states_b.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+        self.logits_b           = self.logits_b.reshape((self.buffer_size*self.envs_count, self.actions_size))
+
+        self.values_ext_b       = self.values_ext_b.reshape((self.buffer_size*self.envs_count, ))        
+        self.values_int_a_b     = self.values_int_a_b.reshape((self.buffer_size*self.envs_count, ))
+        self.values_int_b_b     = self.values_int_b_b.reshape((self.buffer_size*self.envs_count, ))
+
+        self.actions_b          = self.actions_b.reshape((self.buffer_size*self.envs_count, ))
+        
+        self.rewards_b          = self.rewards_b.reshape((self.buffer_size*self.envs_count, ))
+        self.internal_a_b       = self.internal_a_b.reshape((self.buffer_size*self.envs_count, ))
+        self.internal_b_b       = self.internal_b_b.reshape((self.buffer_size*self.envs_count, ))
+
+        self.dones_b            = self.dones_b.reshape((self.buffer_size*self.envs_count, ))
+
+        self.returns_ext_b      = self.returns_ext_b.reshape((self.buffer_size*self.envs_count, ))
+        self.advantages_ext_b   = self.advantages_ext_b.reshape((self.buffer_size*self.envs_count, ))
+
+        self.returns_int_a_b    = self.returns_int_a_b.reshape((self.buffer_size*self.envs_count, ))
+        self.advantages_int_a_b = self.advantages_int_a_b.reshape((self.buffer_size*self.envs_count, ))
+
+        self.returns_int_b_b    = self.returns_int_b_b.reshape((self.buffer_size*self.envs_count, ))
+        self.advantages_int_b_b = self.advantages_int_b_b.reshape((self.buffer_size*self.envs_count, ))
+
+
+
     def sample_batch(self, batch_size, device):
 
-        states              = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        states_next         = torch.zeros((self.envs_count, batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
-        logits              = torch.zeros((self.envs_count, batch_size, self.actions_size), dtype=torch.float).to(self.device)
+        states              = torch.zeros((self.envs_count*batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
+        logits              = torch.zeros((self.envs_count*batch_size, self.actions_size), dtype=torch.float).to(self.device)
         
-        actions             = torch.zeros((self.envs_count, batch_size, ), dtype=int).to(self.device)
+        actions             = torch.zeros((self.envs_count*batch_size, ), dtype=int).to(self.device)
        
-        returns_ext         = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        returns_int_a       = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        returns_int_b       = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        returns_ext         = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
+        returns_int_a       = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
+        returns_int_b       = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
 
-        advantages_ext      = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        advantages_int_a    = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
-        advantages_int_b    = torch.zeros((self.envs_count, batch_size, ), dtype=torch.float).to(self.device)
+        advantages_ext      = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
+        advantages_int_a    = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
+        advantages_int_b    = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
 
-        for e in range(self.envs_count):
-            indices     = numpy.random.randint(0, self.buffer_size, size=batch_size)
-            indices_next= numpy.clip(indices+1, 0, self.buffer_size-1)
+        indices             = numpy.random.randint(0, self.buffer_size*self.envs_count, size=batch_size)
 
-            states[e]       = torch.from_numpy(numpy.take(self.states_b[e], indices, axis=0)).to(device)
-            states_next[e]  = torch.from_numpy(numpy.take(self.states_b[e], indices_next, axis=0)).to(device)
- 
-            logits[e]   = torch.from_numpy(numpy.take(self.logits_b[e], indices, axis=0)).to(device)
-            
-            actions[e]  = torch.from_numpy(numpy.take(self.actions_b[e], indices, axis=0)).to(device)
-            
-            returns_ext[e]      = torch.from_numpy(numpy.take(self.returns_ext_b[e], indices, axis=0)).to(device)
-            returns_int_a[e]    = torch.from_numpy(numpy.take(self.returns_int_a_b[e], indices, axis=0)).to(device)
-            returns_int_b[e]    = torch.from_numpy(numpy.take(self.returns_int_b_b[e], indices, axis=0)).to(device)
+        states              = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
 
-            advantages_ext[e]   = torch.from_numpy(numpy.take(self.advantages_ext_b[e], indices, axis=0)).to(device)
-            advantages_int_a[e] = torch.from_numpy(numpy.take(self.advantages_int_a_b[e], indices, axis=0)).to(device)
-            advantages_int_b[e] = torch.from_numpy(numpy.take(self.advantages_int_b_b[e], indices, axis=0)).to(device)
+        logits              = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
+        
+        actions             = torch.from_numpy(numpy.take(self.actions_b, indices, axis=0)).to(device)
+        
+        returns_ext         = torch.from_numpy(numpy.take(self.returns_ext_b, indices, axis=0)).to(device)
+        returns_int_a       = torch.from_numpy(numpy.take(self.returns_int_a_b, indices, axis=0)).to(device)
+        returns_int_b       = torch.from_numpy(numpy.take(self.returns_int_b_b, indices, axis=0)).to(device)
 
-        states              = states.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        states_next         = states_next.reshape((self.envs_count*batch_size, ) + self.state_shape)
-        logits              = logits.reshape((self.envs_count*batch_size, self.actions_size))
-        actions             = actions.reshape((self.envs_count*batch_size, ))
-        returns_ext         = returns_ext.reshape((self.envs_count*batch_size, ))
-        returns_int_a       = returns_int_a.reshape((self.envs_count*batch_size, ))
-        returns_int_b       = returns_int_b.reshape((self.envs_count*batch_size, ))
-        advantages_ext      = advantages_ext.reshape((self.envs_count*batch_size, ))
-        advantages_int_a    = advantages_int_a.reshape((self.envs_count*batch_size, ))
-        advantages_int_b    = advantages_int_b.reshape((self.envs_count*batch_size, ))
+        advantages_ext      = torch.from_numpy(numpy.take(self.advantages_ext_b, indices, axis=0)).to(device)
+        advantages_int_a    = torch.from_numpy(numpy.take(self.advantages_int_a_b, indices, axis=0)).to(device)
+        advantages_int_b    = torch.from_numpy(numpy.take(self.advantages_int_b_b, indices, axis=0)).to(device)
 
-        return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
+    
+        return states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
  
     def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
-        envs_count  = rewards.shape[0]
-        buffer_size = rewards.shape[1]
-
+        buffer_size = rewards.shape[0]
+        envs_count  = rewards.shape[1]
+        
         returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
-
-        rewards_t   = numpy.transpose(rewards)
-        values_t    = numpy.transpose(values)
-        dones_t     = numpy.transpose(dones)
 
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards_t[n] + gamma*values_t[n+1]*(1.0 - dones_t[n]) - values_t[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones_t[n])
+            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
+            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
             
-            returns[n]      = last_gae + values_t[n]
+            returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
-
-        returns     = numpy.transpose(returns)
-        advantages  = numpy.transpose(advantages)
 
         return returns, advantages

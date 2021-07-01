@@ -74,9 +74,9 @@ class AgentPPOEntropy():
         
         states_np           = states_t.detach().to("cpu").numpy()
         logits_np           = logits_t.detach().to("cpu").numpy()
-        values_ext_np       = values_ext_t.detach().to("cpu").numpy()
-        values_int_a_np     = values_int_a_t.detach().to("cpu").numpy()
-        values_int_b_np     = values_int_b_t.detach().to("cpu").numpy()
+        values_ext_np       = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_a_np     = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_b_np     = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
         actions = self._sample_actions(logits_t)
@@ -98,13 +98,12 @@ class AgentPPOEntropy():
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
 
         #put into policy buffer
-        for e in range(self.actors):            
-            if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], logits_np[e], values_ext_np[e], values_int_a_np[e], values_int_b_np[e], actions[e], rewards[e], curiosity_np[e], entropy_np[e], dones[e])
-
-                if self.policy_buffer.is_full():
-                    self.train()
-
+        if self.enabled_training:
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards, curiosity_np, entropy_np, dones)
+            if self.policy_buffer.is_full():
+                self.train()
+ 
+        for e in range(self.actors): 
             if dones[e]:
                 s = self.envs.reset(e)
                 self.states[e] = s.copy() 
