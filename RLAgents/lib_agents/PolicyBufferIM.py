@@ -14,7 +14,8 @@ class PolicyBufferIM:
         self.clear()  
  
     def add(self, env, state, logits, value_ext, value_int, action, reward, internal, done):
-
+        
+        '''
         if done != 0:  
             done_ = 1.0
         else: 
@@ -32,7 +33,7 @@ class PolicyBufferIM:
         self.internal_b[env][self.ptr]  = internal
 
         self.dones_b[env][self.ptr]     = done_
-        
+        '''
         
         if env == self.envs_count - 1:
             self.ptr = self.ptr + 1 

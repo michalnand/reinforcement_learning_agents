@@ -92,6 +92,7 @@ class AgentPPOCuriosity():
 
                 if self.policy_buffer.is_full():
                     self.train()
+                    print("training >> ", e)
 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
