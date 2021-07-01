@@ -79,6 +79,12 @@ class PolicyBufferIM:
 
         self.dones_b            = self.dones_b.reshape((self.envs_count*self.buffer_size, ))
 
+        self.returns_ext_b      = self.returns_ext_b.reshape((self.envs_count*self.buffer_size, ))
+        self.advantages_ext_b   = self.advantages_ext_b.reshape((self.envs_count*self.buffer_size, ))
+
+        self.returns_int_b      = self.returns_int_b.reshape((self.envs_count*self.buffer_size, ))
+        self.advantages_int_b   = self.advantages_int_b.reshape((self.envs_count*self.buffer_size, ))
+
 
     def sample_batch(self, batch_size, device):
 
