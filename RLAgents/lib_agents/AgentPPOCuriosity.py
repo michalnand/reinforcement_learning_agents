@@ -66,8 +66,8 @@ class AgentPPOCuriosity():
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
-        values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-        values_int_np   = values_int_t.detach().to("cpu").numpy()
+        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
         actions = self._sample_actions(logits_t)
