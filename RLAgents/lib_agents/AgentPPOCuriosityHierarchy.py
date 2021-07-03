@@ -104,6 +104,8 @@ class AgentPPOCuriosityHierarchy():
         for e in range(self.actors): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+                for i in range(self.stages_count):
+                    self.sampled_states[i][e] = states[e].copy()
 
         #collect stats
         k = 0.02
@@ -271,7 +273,7 @@ class AgentPPOCuriosityHierarchy():
         return state_norm_t
 
     def _sample_states(self, states):
-        for i in range(len(self.sampling_indices)):
+        for i in range(self.stages_count):
             if self.iterations%self.sampling_indices[i] == 0:
                 self.sampled_states[i] = states.copy()
 
