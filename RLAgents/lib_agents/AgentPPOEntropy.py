@@ -37,7 +37,7 @@ class AgentPPOEntropy():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
-        self.policy_buffer = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):

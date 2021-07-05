@@ -94,6 +94,7 @@ class PolicyBufferIMDual:
     def sample_batch(self, batch_size, device):
         indices             = numpy.random.randint(0, self.buffer_size*self.envs_count, size=batch_size*self.envs_count)
 
+        '''
         states              = torch.zeros((self.envs_count*batch_size, ) + self.state_shape, dtype=torch.float).to(self.device)
         logits              = torch.zeros((self.envs_count*batch_size, self.actions_size), dtype=torch.float).to(self.device)
         
@@ -106,7 +107,7 @@ class PolicyBufferIMDual:
         advantages_ext      = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
         advantages_int_a    = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
         advantages_int_b    = torch.zeros((self.envs_count*batch_size, ), dtype=torch.float).to(self.device)
-
+        '''
         
         states              = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
 
