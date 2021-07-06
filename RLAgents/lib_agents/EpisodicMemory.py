@@ -37,7 +37,9 @@ class EpisodicMemory:
 
         #compute variance
         h  = self.buffer.var(axis=0) 
-        h  = h.mean().detach().to("cpu").numpy()
+
+        #h  = h.mean().detach().to("cpu").numpy()
+        h  = h.max().detach().to("cpu").numpy()
 
         #return
         return h

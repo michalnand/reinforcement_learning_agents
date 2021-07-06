@@ -83,18 +83,6 @@ class PolicyBufferIM:
 
         indices          = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
 
-        states           = torch.zeros((self.envs_count*batch_size, ) + self.state_shape).to(self.device)
-        logits           = torch.zeros((self.envs_count*batch_size, self.actions_size)).to(self.device)
-        
-        actions          = torch.zeros((self.envs_count*batch_size, )).to(self.device)
-       
-        returns_ext      = torch.zeros((self.envs_count*batch_size, )).to(self.device)
-        returns_int      = torch.zeros((self.envs_count*batch_size, )).to(self.device)
-
-        advantages_ext   = torch.zeros((self.envs_count*batch_size, )).to(self.device)
-        advantages_int   = torch.zeros((self.envs_count*batch_size, )).to(self.device)
-
-
         states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
         logits          = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
         

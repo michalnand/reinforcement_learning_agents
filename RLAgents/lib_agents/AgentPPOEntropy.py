@@ -44,8 +44,8 @@ class AgentPPOEntropy():
             self.states[e] = self.envs.reset(e).copy()
 
         self.episodic_memory = []
-        for e in range(self.actors):
-            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, 4))
+        for e in range(self.actors): 
+            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, 8))
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
  
@@ -56,8 +56,8 @@ class AgentPPOEntropy():
         self.log_curiosity              = 0.0
         self.log_entropy                = 0.0
         self.log_advantages             = 0.0
-        self.log_curiosity_advantages    = 0.0
-        self.log_entropy_advantages      = 0.0
+        self.log_curiosity_advantages   = 0.0
+        self.log_entropy_advantages     = 0.0
 
     def enable_training(self):
         self.enabled_training = True
