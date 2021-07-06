@@ -97,9 +97,9 @@ class AgentPPOEntropy():
         
         #entropy motivation
         entropy_np      = self._entropy(states_new_t)
-        entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
+        entropy_np      = numpy.clip(self.entropy_coeff*entropy_np, -1.0, 1.0)
         
-        internal_motivation_np = curiosity_np*(1.0 + self.entropy_coeff*entropy_np)
+        internal_motivation_np = curiosity_np*(1.0 + entropy_np)
 
         #put into policy buffer
         if self.enabled_training:
