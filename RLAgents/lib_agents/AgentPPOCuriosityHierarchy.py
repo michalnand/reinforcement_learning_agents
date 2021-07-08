@@ -19,7 +19,7 @@ class AgentPPOCuriosityHierarchy():
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-   
+    
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
@@ -38,7 +38,7 @@ class AgentPPOCuriosityHierarchy():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, (self.stages_count, ) + self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer  = PolicyBufferIM(self.steps, (self.stages_count, ) + self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
@@ -130,16 +130,6 @@ class AgentPPOCuriosityHierarchy():
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result 
     
-
-    '''
-    def _sample_action(self, logits):
-        action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
-        action_distribution_t = torch.distributions.Categorical(action_probs_t)
-        action_t              = action_distribution_t.sample()
-
-        return action_t.item()
-    '''
-
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
@@ -192,7 +182,7 @@ class AgentPPOCuriosityHierarchy():
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
+        probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
         ''' 
@@ -255,13 +245,13 @@ class AgentPPOCuriosityHierarchy():
         return action_one_hot_t
 
     def _curiosity(self, state_t):
-        state_norm_t            = self._norm_state(state_t)
+        state_norm_t    = self._norm_state(state_t)
 
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+        features_predicted_t, features_target_t = self.model_rnd(state_norm_t)
 
-        curiosity_t    = (features_target_t - features_predicted_t)**2
+        curiosity_t     = (features_target_t - features_predicted_t)**2
         
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        curiosity_t     = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 

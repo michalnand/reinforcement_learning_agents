@@ -28,7 +28,7 @@ class EpisodicMemory:
         
     def add(self, state_t): 
         if self.buffer is None:
-            self.reset(state_t)
+            self.reset(state_t) 
 
         tmp_t = self._preprocess(state_t)
 

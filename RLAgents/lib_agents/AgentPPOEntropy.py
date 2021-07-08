@@ -43,7 +43,7 @@ class AgentPPOEntropy():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.episodic_memory = []
+        self.episodic_memory = [] 
         for e in range(self.actors): 
             self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, 8))
 
@@ -111,8 +111,8 @@ class AgentPPOEntropy():
 
         #collect stats 
         k = 0.02
-        self.log_curiosity  = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
-        self.log_entropy    = (1.0 - k)*self.log_entropy + k*entropy_np.mean()
+        self.log_curiosity  = (1.0 - k)*self.log_curiosity  + k*curiosity_np.mean()
+        self.log_entropy    = (1.0 - k)*self.log_entropy    + k*entropy_np.mean()
 
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]

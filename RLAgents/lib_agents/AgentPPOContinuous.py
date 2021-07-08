@@ -36,7 +36,7 @@ class AgentPPOContinuous():
 
         self.enable_training()
         self.iterations = 0
-
+ 
 
     def enable_training(self):
         self.enabled_training = True
@@ -45,12 +45,12 @@ class AgentPPOContinuous():
         self.enabled_training = False
 
     def main(self):        
-        states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+        states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
  
-        mu_t, var_t, values_t  = self.model.forward(states_t)
+        mu_t, var_t, values_t   = self.model.forward(states_t)
 
         states_np = states_t.detach().to("cpu").numpy()
-        values_np = values_t.detach().to("cpu").numpy()
+        values_np = values_t.squeeze(1).detach().to("cpu").numpy()
 
         mu_np   = mu_t.detach().to("cpu").numpy()
         var_np  = var_t.detach().to("cpu").numpy()
@@ -62,15 +62,13 @@ class AgentPPOContinuous():
 
         states, rewards, dones, infos = self.envs.step(actions)
         
+        if self.enabled_training:
+            self.policy_buffer.add(states_np, values_np, actions, mu_np, var_np, rewards, dones)
+            if self.policy_buffer.is_full():
+                self.train()
+
         self.states = states.copy()
-
         for e in range(self.actors):
-            if self.enabled_training:
-                self.policy_buffer.add(e, states_np[e], values_np[e], actions[e], mu_np[e], var_np[e], rewards[e], dones[e])
-
-                if self.policy_buffer.is_full():
-                    self.train()
-                    
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
          
