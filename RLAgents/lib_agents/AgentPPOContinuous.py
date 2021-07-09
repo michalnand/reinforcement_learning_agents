@@ -150,6 +150,8 @@ class AgentPPOContinuous():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
         loss = loss_value + loss_policy + loss_entropy
+
+        #print(actions_mu.mean(dim=0), actions_var.mean(dim=0), values_new.mean(dim=0))
         
         return loss
 

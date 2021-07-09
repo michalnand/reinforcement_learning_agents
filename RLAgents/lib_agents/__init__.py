@@ -9,7 +9,7 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
 from .EpisodicMemory                import EpisodicMemory
-from .StateBuffer                   import StateBuffer
+from .StatesBuffer                  import StatesBuffer
 
 from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
@@ -27,6 +27,7 @@ from .AgentPPOEntropy               import AgentPPOEntropy
 from .AgentPPODopamine              import AgentPPODopamine
 from .AgentPPOCuriosityHierarchy    import AgentPPOCuriosityHierarchy
 from .AgentPPOCuriosityImagination  import AgentPPOCuriosityImagination
+from .AgentPPOGoals                 import AgentPPOGoals
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
