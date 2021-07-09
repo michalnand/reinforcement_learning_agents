@@ -248,8 +248,8 @@ class AgentPPOGoals():
             states_r_t      = state_t[e].unsqueeze(0).repeat(self.goals_count, 1, 1, 1)
             reachability_t  = self.model_reachability(states_r_t, self.goals_buffer).detach()
 
-            #motivation_t[e] = 1.0 - torch.min(reachability_t)
-            motivation_t[e] = 1.0 - torch.mean(reachability_t)
+            motivation_t[e] = 1.0 - torch.min(reachability_t)
+            #motivation_t[e] = 1.0 - torch.mean(reachability_t)
 
         return motivation_t.detach().to("cpu").numpy()
 
