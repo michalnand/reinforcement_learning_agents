@@ -44,7 +44,7 @@ class AgentPPOGoals():
             self.states[e] = self.envs.reset(e).copy()
 
         
-        self.goals_buffer   = torch.zeros((self.goals_count) + self.state_shape).to(self.model_ppo.device)
+        self.goals_buffer   = torch.zeros((self.goals_count, ) + self.state_shape).to(self.model_ppo.device)
         self.states_buffer  = StatesBuffer(config.states_buffer_size, self.actors, self.state_shape)
 
  
