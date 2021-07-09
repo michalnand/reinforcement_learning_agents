@@ -238,13 +238,6 @@ class AgentPPOGoals():
 
         return action_one_hot_t
 
-    def _norm_state(self, state_t):
-        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-
-        state_norm_t = state_t - mean
-
-        return state_norm_t
-
     def _add_goal(self, state_t):
         idx = numpy.random.randint(0, self.goals_count)
         self.goals_buffer[idx] = state_t.clone()
@@ -256,8 +249,8 @@ class AgentPPOGoals():
             states_r_t      = state_t[e].unsqueeze(0).repeat(self.goals_count, 1, 1, 1)
             reachability_t  = self.model_reachability(states_r_t, self.goals_buffer).detach()
 
-            motivation_t[e] = 1.0 - torch.max(reachability_t)
-            #motivation_t[e] = 1.0 - torch.mean(reachability_t)
+            #motivation_t[e] = 1.0 - torch.max(reachability_t)
+            motivation_t[e] = 1.0 - torch.mean(reachability_t)
 
         return motivation_t.detach().to("cpu").numpy()
 
