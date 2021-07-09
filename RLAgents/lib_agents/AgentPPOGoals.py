@@ -150,9 +150,9 @@ class AgentPPOGoals():
 
 
                 #train reachability model, MSE loss
-                states_a_t, states_b_t, dist_t = self.states_buffer.sample_batch(8, self.model_ppo.device)
+                states_a_t, states_b_t, dist_t = self.states_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                p_reachability_target    = torch.exp(-0.1*dist_t)
+                p_reachability_target    = torch.exp(-0.02*dist_t) 
 
                 p_reachability_predicted = self.model_reachability(states_a_t, states_b_t)
 
