@@ -44,7 +44,7 @@ class AgentPPOGoals():
             self.states[e] = self.envs.reset(e).copy()
 
         
-        self.goals_buffer   = torch.zeros((self.actors, self.goals_count) + self.state_shape).to(self.model_ppo.device)
+        self.goals_buffer   = torch.zeros((self.goals_count) + self.state_shape).to(self.model_ppo.device)
         self.states_buffer  = StatesBuffer(config.states_buffer_size, self.actors, self.state_shape)
 
  
@@ -97,7 +97,7 @@ class AgentPPOGoals():
         
         for e in range(self.actors): 
             if dones[e]:
-                self._add_goal(e, states_t[e])
+                self._add_goal(states_t[e])
                 self.states[e] = self.envs.reset(e).copy()
 
         #collect stats
@@ -246,9 +246,9 @@ class AgentPPOGoals():
 
         return state_norm_t
 
-    def _add_goal(self, env_idx, state_t):
+    def _add_goal(self, state_t):
         idx = numpy.random.randint(0, self.goals_count)
-        self.goals_buffer[env_idx][idx] = state_t.clone()
+        self.goals_buffer[idx] = state_t.clone()
 
     def _goal_motivation(self, state_t):
 
