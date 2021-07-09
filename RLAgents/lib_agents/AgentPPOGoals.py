@@ -45,7 +45,7 @@ class AgentPPOGoals():
 
         
         self.goals_buffer   = torch.zeros((self.goals_count, ) + self.state_shape).to(self.model_ppo.device)
-        self.states_buffer  = StatesBuffer(config.steps, self.actors, self.state_shape)
+        self.states_buffer  = StatesBuffer(self.steps, self.actors, self.state_shape)
 
  
         self.enable_training()
@@ -163,7 +163,6 @@ class AgentPPOGoals():
                 loss_r.backward()
                 self.optimizer_reachability.step()
 
-
                 k = 0.02
                 self.log_loss_reachability  = (1.0 - k)*self.log_loss_reachability + k*loss_r.detach().to("cpu").numpy()
  
@@ -249,7 +248,7 @@ class AgentPPOGoals():
             states_r_t      = state_t[e].unsqueeze(0).repeat(self.goals_count, 1, 1, 1)
             reachability_t  = self.model_reachability(states_r_t, self.goals_buffer).detach()
 
-            #motivation_t[e] = 1.0 - torch.max(reachability_t)
+            #motivation_t[e] = 1.0 - torch.min(reachability_t)
             motivation_t[e] = 1.0 - torch.mean(reachability_t)
 
         return motivation_t.detach().to("cpu").numpy()
