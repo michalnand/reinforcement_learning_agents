@@ -8,7 +8,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIMDual    import *  
 from .RunningStats          import *
     
-class AgentPPOCuriosityImagination():   
+class AgentPPORNDImagination():   
     def __init__(self, envs, ModelPPO, ModelRND, ModelForward, ModelFeaturesRND, config):
         self.envs = envs 
     

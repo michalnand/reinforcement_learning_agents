@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
    
-class AgentPPOCuriosityHierarchy():   
+class AgentPPORND():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
    
@@ -19,15 +19,12 @@ class AgentPPOCuriosityHierarchy():
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-    
+   
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
-
-        self.sampling_indices   = config.sampling_indices
-        self.stages_count       = len(self.sampling_indices)
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -38,20 +35,16 @@ class AgentPPOCuriosityHierarchy():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer  = PolicyBufferIM(self.steps, (self.stages_count, ) + self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
-
-        self.sampled_states = numpy.zeros((self.stages_count, self.actors) + self.state_shape)
-
+ 
         self.enable_training()
         self.iterations                 = 0 
-
-        self._sample_states(self.states)
 
         self.log_loss_rnd               = 0.0
         self.log_curiosity              = 0.0
@@ -66,15 +59,15 @@ class AgentPPOCuriosityHierarchy():
 
     def main(self):
         #state to tensor
-        states_sampled      = self._sample_states(self.states)
-        states_sampled_t    = torch.tensor(states_sampled, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_sampled_t)
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
         
-        logits_np           = logits_t.detach().to("cpu").numpy()
-        values_ext_np       = values_ext_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_np       = values_int_t.squeeze(1).detach().to("cpu").numpy()
+        states_np       = states_t.detach().to("cpu").numpy()
+        logits_np       = logits_t.detach().to("cpu").numpy()
+        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
         actions = self._sample_actions(logits_t)
@@ -85,8 +78,8 @@ class AgentPPOCuriosityHierarchy():
         self.states = states.copy()
  
         #update long term states mean and variance
-        self.states_running_stats.update(states_sampled[0])
- 
+        self.states_running_stats.update(states_np)
+
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
@@ -94,9 +87,7 @@ class AgentPPOCuriosityHierarchy():
          
         #put into policy buffer
         if self.enabled_training:
-            states_sampled_tr = torch.transpose(states_sampled_t, 0, 1).detach().to("cpu").numpy()
-
-            self.policy_buffer.add(states_sampled_tr, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -104,8 +95,6 @@ class AgentPPOCuriosityHierarchy():
         for e in range(self.actors): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                for i in range(self.stages_count):
-                    self.sampled_states[i][e] = states[e].copy()
 
         #collect stats
         k = 0.02
@@ -130,6 +119,16 @@ class AgentPPOCuriosityHierarchy():
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result 
     
+
+    '''
+    def _sample_action(self, logits):
+        action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
+        action_distribution_t = torch.distributions.Categorical(action_probs_t)
+        action_t              = action_distribution_t.sample()
+
+        return action_t.item()
+    '''
+
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
@@ -146,8 +145,6 @@ class AgentPPOCuriosityHierarchy():
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                states = torch.transpose(states, 0, 1)
-
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
@@ -157,7 +154,7 @@ class AgentPPOCuriosityHierarchy():
                 self.optimizer_ppo.step()
 
                 #train RND model, MSE loss
-                state_norm_t    = self._norm_state(states[0]).detach()
+                state_norm_t    = self._norm_state(states).detach()
 
                 features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
@@ -182,7 +179,7 @@ class AgentPPOCuriosityHierarchy():
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
+        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
         ''' 
@@ -245,13 +242,13 @@ class AgentPPOCuriosityHierarchy():
         return action_one_hot_t
 
     def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
+        state_norm_t            = self._norm_state(state_t)
 
-        features_predicted_t, features_target_t = self.model_rnd(state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-        curiosity_t     = (features_target_t - features_predicted_t)**2
+        curiosity_t    = (features_target_t - features_predicted_t)**2
         
-        curiosity_t     = curiosity_t.sum(dim=1)/2.0
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -261,10 +258,3 @@ class AgentPPOCuriosityHierarchy():
         state_norm_t = state_t - mean
 
         return state_norm_t
-
-    def _sample_states(self, states):
-        for i in range(self.stages_count):
-            if self.iterations%self.sampling_indices[i] == 0:
-                self.sampled_states[i] = states.copy()
-
-        return self.sampled_states 

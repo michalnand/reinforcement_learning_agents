@@ -22,11 +22,11 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 
 from .AgentPPO                      import AgentPPO
-from .AgentPPOCuriosity             import AgentPPOCuriosity
+from .AgentPPORND                   import AgentPPORND
 from .AgentPPOEntropy               import AgentPPOEntropy
 from .AgentPPODopamine              import AgentPPODopamine
-from .AgentPPOCuriosityHierarchy    import AgentPPOCuriosityHierarchy
-from .AgentPPOCuriosityImagination  import AgentPPOCuriosityImagination
+from .AgentPPORNDHierarchy          import AgentPPORNDHierarchy
+#from .AgentPPORNDImagination        import AgentPPORNDImagination
 from .AgentPPOGoals                 import AgentPPOGoals
 
 from .AgentPPOContinuous            import AgentPPOContinuous
