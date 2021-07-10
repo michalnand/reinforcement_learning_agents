@@ -157,6 +157,7 @@ class AgentPPOGoals():
                 p_reachability_predicted = self.model_reachability(states_a_t, states_b_t)
 
                 loss_r = (p_reachability_target - p_reachability_predicted)**2
+                print(">>> ", loss_r.shape, p_reachability_target.shape, p_reachability_predicted.shape, "\n\n")
                 loss_r = loss_r.mean()
 
                 self.optimizer_reachability.zero_grad()
