@@ -81,8 +81,6 @@ class AgentPPOEntropy():
  
         #entropy motivation
         entropy_np      = self.entropy_coeff*self._entropy(states_t)
-
-        print(">>>> ", entropy_np.mean())
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
          
         #put into policy buffer
