@@ -27,8 +27,11 @@ class AgentPPOEntropy():
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
 
+        self.entropy_coeff      = config.entropy_coeff
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
+        
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
@@ -77,7 +80,7 @@ class AgentPPOEntropy():
         self.states = states.copy()
  
         #entropy motivation
-        entropy_np      = self._entropy(states_t)
+        entropy_np      = self.entropy_coeff*self._entropy(states_t)
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
          
         #put into policy buffer
