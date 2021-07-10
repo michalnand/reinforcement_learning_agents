@@ -150,14 +150,13 @@ class AgentPPOGoals():
 
 
                 #train reachability model, MSE loss
-                states_a_t, states_b_t, dist_t = self.states_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states_a_t, states_b_t, dist_t = self.states_buffer.sample_batch(self.batch_size*self.actors, self.model_ppo.device)
 
                 p_reachability_target    = torch.exp(-0.02*dist_t) 
 
                 p_reachability_predicted = self.model_reachability(states_a_t, states_b_t)
 
                 loss_r = (p_reachability_target - p_reachability_predicted)**2
-                print(">>> ", loss_r.shape, p_reachability_target.shape, p_reachability_predicted.shape, "\n\n")
                 loss_r = loss_r.mean()
 
                 self.optimizer_reachability.zero_grad()
@@ -250,6 +249,9 @@ class AgentPPOGoals():
             reachability_t  = self.model_reachability(states_r_t, self.goals_buffer).detach()
 
             motivation_t[e] = 1.0 - torch.min(reachability_t)
+
+            print(">>> ", reachability_t.shape, motivation_t.shape)
+
             #motivation_t[e] = 1.0 - torch.mean(reachability_t)
 
         return motivation_t.detach().to("cpu").numpy()
