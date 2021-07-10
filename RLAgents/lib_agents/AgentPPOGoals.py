@@ -250,8 +250,6 @@ class AgentPPOGoals():
 
             motivation_t[e] = 1.0 - torch.min(reachability_t)
 
-            print(">>> ", reachability_t.shape, motivation_t.shape)
-
             #motivation_t[e] = 1.0 - torch.mean(reachability_t)
 
         return motivation_t.detach().to("cpu").numpy()
