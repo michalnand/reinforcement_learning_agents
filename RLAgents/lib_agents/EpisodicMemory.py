@@ -23,7 +23,6 @@ class EpisodicMemory:
             self.buffer[i] = tmp_t.float()
 
         self.idx    = 0
-        self.h_new  = torch.zeros(tmp_t.shape).float().to(tmp_t.device)
 
         
     def add(self, state_t): 
@@ -37,13 +36,9 @@ class EpisodicMemory:
         self.idx = (self.idx+1)%self.size
 
         #compute variance
-        self.h_old  = self.h_new.clone()
-        self.h_new  = self.buffer.var(axis=0) 
-        
-        h   = self.h_new - self.h_old
+        h  = self.buffer.var(axis=0) 
         h   = h.mean().detach().to("cpu").numpy()
 
-        #return
         return h
 
     #downsample and flatten
