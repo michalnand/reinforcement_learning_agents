@@ -91,7 +91,7 @@ class AgentPPOHierarchyEntropy():
 
         
         #entropy motivation
-        entropy_np      = self.entropy_coeff*self._entropy(states)
+        entropy_np      = self.entropy_coeff*self._entropy(states_t)
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
         
         self.states = states.copy()
@@ -113,7 +113,7 @@ class AgentPPOHierarchyEntropy():
                 for i in range(self.stages_count):
                     self.state_sampling[i].reset(e, s_new)
 
-                self.episodic_memory[e].reset(self.states[e])
+                self.episodic_memory[e].reset(s_new)
 
 
         #collect stats

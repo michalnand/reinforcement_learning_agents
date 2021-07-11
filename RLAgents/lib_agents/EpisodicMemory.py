@@ -1,9 +1,10 @@
 import torch
 
 class EpisodicMemory:
-    def __init__(self, size, downsample = -1):
+    def __init__(self, size, downsample = -1, device = "cpu"):
         self.size       = size
         self.downsample = downsample
+        self.device     = device
 
         self.idx        = 0
         self.buffer     = None
@@ -26,7 +27,7 @@ class EpisodicMemory:
 
         
     def add(self, state): 
-        state_t = torch.from_numpy(state).to("cpu")
+        state_t = state.to(self.device)
 
         if self.buffer is None:
             self.reset(state_t) 

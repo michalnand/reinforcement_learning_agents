@@ -79,7 +79,7 @@ class AgentPPOEntropy():
 
  
         #entropy motivation
-        entropy_np      = self.entropy_coeff*self._entropy(self.states)
+        entropy_np      = self.entropy_coeff*self._entropy(states_t)
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
         
         self.states = states.copy()
@@ -95,7 +95,7 @@ class AgentPPOEntropy():
             if dones[e]:
                 s_new = self.envs.reset(e)
                 self.states[e] = s_new.copy() 
-                self.episodic_memory[e].reset(s_new)
+                self.episodic_memory[e].reset(torch.from_numpy(s_new))
 
         #collect stats
         k = 0.02
@@ -212,10 +212,10 @@ class AgentPPOEntropy():
 
         return action_one_hot_t
 
-    def _entropy(self, states):
-        result = numpy.zeros(states.shape[0])
+    def _entropy(self, state_t):
+        result = numpy.zeros(state_t.shape[0])
 
-        for e in range(states.shape[0]):
-            result[e] = self.episodic_memory[e].add(states[e][0])
+        for e in range(state_t.shape[0]):
+            result[e] = self.episodic_memory[e].add(state_t[e][0])
 
-        return result 
+        return result
