@@ -95,7 +95,7 @@ class AgentPPOEntropy():
             if dones[e]:
                 s_new = self.envs.reset(e)
                 self.states[e] = s_new.copy() 
-                self.episodic_memory[e].reset(torch.from_numpy(s_new))
+                self.episodic_memory[e].reset(torch.from_numpy(s_new[0]))
 
         #collect stats
         k = 0.02

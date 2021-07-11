@@ -113,7 +113,7 @@ class AgentPPOHierarchyEntropy():
                 for i in range(self.stages_count):
                     self.state_sampling[i].reset(e, s_new)
 
-                self.episodic_memory[e].reset(s_new)
+                self.episodic_memory[e].reset(s_new[0])
 
 
         #collect stats
