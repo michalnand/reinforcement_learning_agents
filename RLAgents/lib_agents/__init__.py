@@ -25,9 +25,8 @@ from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOEntropy               import AgentPPOEntropy
 from .AgentPPODopamine              import AgentPPODopamine
-from .AgentPPORNDHierarchy          import AgentPPORNDHierarchy
-#from .AgentPPORNDImagination        import AgentPPORNDImagination
-from .AgentPPOGoals                 import AgentPPOGoals
+from .AgentPPOHierarchyRND          import AgentPPOHierarchyRND
+from .AgentPPOHierarchyEntropy      import AgentPPOHierarchyEntropy
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

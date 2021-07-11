@@ -5,10 +5,12 @@ import time
 from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
-from .RunningStats      import *
-   
-class AgentPPORNDHierarchy():   
-    def __init__(self, envs, ModelPPO, ModelRND, config):
+from .StateSampling     import *
+
+from .EpisodicMemory    import *
+
+class AgentPPOHierarchyEntropy():   
+    def __init__(self, envs, ModelPPO, config):
         self.envs = envs  
    
         self.gamma_ext          = config.gamma_ext
@@ -25,9 +27,9 @@ class AgentPPORNDHierarchy():
         
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
+        self.entropy_coeff      = config.entropy_coeff
 
-        self.sampling_indices   = config.sampling_indices
-        self.stages_count       = len(self.sampling_indices)
+        self.stages_count       = len(config.sampling_indices)
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -35,28 +37,29 @@ class AgentPPORNDHierarchy():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_rnd      = ModelRND.Model(self.state_shape)
-        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
- 
+
         self.policy_buffer  = PolicyBufferIM(self.steps, (self.stages_count, ) + self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+        self.state_sampling = []
+        for e in range(self.stages_count):
+            self.state_sampling.append(StateSampling(torch.from_numpy(self.states).to(self.model_ppo.device), config.sampling_indices[e]))
 
-        self.sampled_states = numpy.zeros((self.stages_count, self.actors) + self.state_shape)
 
+        self.episodic_memory = [] 
+        for e in range(self.actors): 
+            self.episodic_memory.append(EpisodicMemory(config.episodic_memory_size, 8))
+ 
         self.enable_training()
         self.iterations                 = 0 
 
-        self._sample_states(self.states)
-
-        self.log_loss_rnd               = 0.0
-        self.log_curiosity              = 0.0
+        self.log_entropy                = 0.0
         self.log_advantages             = 0.0
-        self.log_curiosity_advatages    = 0.0
+        self.log_entropy_advatages      = 0.0
+
 
     def enable_training(self):
         self.enabled_training = True
@@ -66,8 +69,12 @@ class AgentPPORNDHierarchy():
 
     def main(self):
         #state to tensor
-        states_sampled      = self._sample_states(self.states)
-        states_sampled_t    = torch.tensor(states_sampled, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t            = torch.from_numpy(self.states).to(self.model_ppo.device)
+
+        #sample states byt filtering
+        states_sampled_t    = torch.zeros((self.stages_count, self.actors) + self.state_shape).to(self.model_ppo.device)
+        for i in range(self.stages_count):
+            states_sampled_t[i] = self.state_sampling[i].add(states_t)
 
         #compute model output
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_sampled_t)
@@ -84,19 +91,15 @@ class AgentPPORNDHierarchy():
 
         self.states = states.copy()
  
-        #update long term states mean and variance
-        self.states_running_stats.update(states_sampled[0])
- 
-        #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
-        curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+        #entropy motivation
+        entropy_np      = self.entropy_coeff*self._entropy(states_t)
+        entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
          
         #put into policy buffer
         if self.enabled_training:
             states_sampled_tr = torch.transpose(states_sampled_t, 0, 1).detach().to("cpu").numpy()
 
-            self.policy_buffer.add(states_sampled_tr, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
+            self.policy_buffer.add(states_sampled_tr, logits_np, values_ext_np, values_int_np, actions, rewards, entropy_np, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -104,30 +107,31 @@ class AgentPPORNDHierarchy():
         for e in range(self.actors): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+                s_new = torch.from_numpy(self.states[e]).to(self.model_ppo.device)
                 for i in range(self.stages_count):
-                    self.sampled_states[i][e] = states[e].copy()
+                    self.state_sampling[i].reset(e, s_new)
+
+                self.episodic_memory[e].reset(s_new)
+
 
         #collect stats
         k = 0.02
-        self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
+        self.log_entropy = (1.0 - k)*self.log_entropy + k*entropy_np.mean()
 
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_rnd.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_rnd.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
-        result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_curiosity, 7)) + " "
+        result+= str(round(self.log_entropy, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
-        result+= str(round(self.log_curiosity_advatages, 7)) + " "
+        result+= str(round(self.log_entropy_advatages, 7)) + " "
         return result 
     
     def _sample_actions(self, logits):
@@ -156,24 +160,6 @@ class AgentPPORNDHierarchy():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train RND model, MSE loss
-                state_norm_t    = self._norm_state(states[0]).detach()
-
-                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
-
-                loss_rnd        = (features_target_t - features_predicted_t)**2
-                
-                random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
-                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
-                loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-
-                self.optimizer_rnd.zero_grad() 
-                loss_rnd.backward()
-                self.optimizer_rnd.step()
-
-                k = 0.02
-                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
-
         self.policy_buffer.clear() 
 
     
@@ -193,7 +179,6 @@ class AgentPPORNDHierarchy():
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
-
         '''
         compute internal critic loss, as MSE
         L = (T - V(s))^2
@@ -201,8 +186,7 @@ class AgentPPORNDHierarchy():
         values_int_new  = values_int_new.squeeze(1)
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
-        
-        
+         
         loss_critic     = loss_ext_value + loss_int_value
  
         ''' 
@@ -231,7 +215,7 @@ class AgentPPORNDHierarchy():
 
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
+        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
 
         return loss 
 
@@ -262,9 +246,10 @@ class AgentPPORNDHierarchy():
 
         return state_norm_t
 
-    def _sample_states(self, states):
-        for i in range(self.stages_count):
-            if self.iterations%self.sampling_indices[i] == 0:
-                self.sampled_states[i] = states.copy()
+    def _entropy(self, state_t):
+        result = numpy.zeros(state_t.shape[0])
 
-        return self.sampled_states 
+        for e in range(state_t.shape[0]):
+            result[e] = self.episodic_memory[e].add(state_t[e][0])
+
+        return result
