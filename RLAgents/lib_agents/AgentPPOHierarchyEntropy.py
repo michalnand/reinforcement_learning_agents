@@ -89,12 +89,13 @@ class AgentPPOHierarchyEntropy():
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
-        self.states = states.copy()
- 
+        
         #entropy motivation
-        entropy_np      = self.entropy_coeff*self._entropy(states_t)
+        entropy_np      = self.entropy_coeff*self._entropy(states)
         entropy_np      = numpy.clip(entropy_np, -1.0, 1.0)
-         
+        
+        self.states = states.copy()
+
         #put into policy buffer
         if self.enabled_training:
             states_sampled_tr = torch.transpose(states_sampled_t, 0, 1).detach().to("cpu").numpy()
@@ -107,11 +108,12 @@ class AgentPPOHierarchyEntropy():
         for e in range(self.actors): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+
                 s_new = torch.from_numpy(self.states[e]).to(self.model_ppo.device)
                 for i in range(self.stages_count):
                     self.state_sampling[i].reset(e, s_new)
 
-                self.episodic_memory[e].reset(s_new[0])
+                self.episodic_memory[e].reset(self.states[e])
 
 
         #collect stats
@@ -246,11 +248,11 @@ class AgentPPOHierarchyEntropy():
 
         return state_norm_t
 
-    def _entropy(self, state_t):
-        result = numpy.zeros(state_t.shape[0])
+    def _entropy(self, states):
+        result = numpy.zeros(states.shape[0])
 
-        for e in range(state_t.shape[0]):
-            result[e] = self.episodic_memory[e].add(state_t[e][0])
+        for e in range(states.shape[0]):
+            result[e] = self.episodic_memory[e].add(states[e][0])
 
         return result
  

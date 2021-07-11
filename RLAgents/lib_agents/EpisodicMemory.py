@@ -25,7 +25,9 @@ class EpisodicMemory:
         self.idx    = 0
 
         
-    def add(self, state_t): 
+    def add(self, state): 
+        state_t = torch.from_numpy(state).to("cpu")
+
         if self.buffer is None:
             self.reset(state_t) 
 
