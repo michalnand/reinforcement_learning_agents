@@ -9,6 +9,8 @@ from .StateSampling     import *
 
 from .EpisodicMemory    import *
 
+import cv2
+
 class AgentPPOHierarchyEntropy():   
     def __init__(self, envs, ModelPPO, config):
         self.envs = envs  
