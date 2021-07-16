@@ -125,9 +125,10 @@ class AgentDDPG():
         self.model_critic.load(load_path + "trained/")
         self.model_actor.load(load_path + "trained/")
     
-
+    
     def _sample_action(self, state_t, epsilon):
         action_t    = self.model_actor(state_t)
+        
         action_t    = action_t + epsilon*torch.randn(action_t.shape).to(self.model_actor.device)
         action_t    = action_t.clamp(-1.0, 1.0)
 

@@ -136,6 +136,7 @@ class AgentPPOContinuous():
         advantages_norm = advantages_norm.unsqueeze(1)
         
         ratio       = torch.exp(log_probs_new - log_probs_old)
+
         p1          = ratio*advantages_norm
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
         loss_policy = -torch.min(p1, p2)  
