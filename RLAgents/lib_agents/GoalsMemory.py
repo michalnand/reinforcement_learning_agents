@@ -26,6 +26,7 @@ class GoalsMemory:
     def process(self, states_t, steps_t):
         tmp_t = self._preprocess(states_t)
 
+        
         #create buffer if not created yet
         if self.buffer is None:
             self.buffer = torch.zeros((self.size, tmp_t.shape[1])).float().to(self.device)
@@ -36,7 +37,7 @@ class GoalsMemory:
         
         #find closest
         indices   = torch.argmin(distances, dim=1)
-        
+
         #smooth update stored distances
         self.steps[indices] = (1.0 - self.alpha)*self.steps[indices] + self.alpha*(steps_t.float() + 1)
 
@@ -50,6 +51,18 @@ class GoalsMemory:
                 self.steps[self.buffer_idx]  = steps_t.clone()
 
                 self.buffer_idx = (self.buffer_idx + 1)%self.size
+
+        print("process ")
+        print("steps_t = ", steps_t.shape)
+        print("tmp_t   = ", tmp_t.shape)
+
+        print("distances    = ", distances.shape)
+        print("indices      = ", indices.shape)
+        print("steps        = ", self.steps[indices].shape, steps_t.shape)
+        print("motivation_t = ", motivation_t.shape)
+
+        print("\n\n\n")
+
 
         return motivation_t
 
