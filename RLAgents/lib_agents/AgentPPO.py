@@ -106,7 +106,6 @@ class AgentPPO():
         self.policy_buffer.clear()   
     
     def _compute_loss(self, states, logits, actions, returns, advantages):
-        probs_old     = torch.nn.functional.softmax(logits, dim = 1).detach()
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_new   = self.model.forward(states)
@@ -148,6 +147,6 @@ class AgentPPO():
         loss = loss_value + loss_policy + loss_entropy
 
         k = 0.02
-        self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages.mean().detach().to("cpu").numpy()
+        self.log_advantages = (1.0 - k)*self.log_advantages + k*advantages.mean().detach().to("cpu").numpy()
         
         return loss

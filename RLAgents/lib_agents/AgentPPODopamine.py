@@ -119,16 +119,6 @@ class AgentPPODopamine():
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         return result 
-    
-
-    '''
-    def _sample_action(self, logits):
-        action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
-        action_distribution_t = torch.distributions.Categorical(action_probs_t)
-        action_t              = action_distribution_t.sample()
-
-        return action_t.item()
-    '''
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)

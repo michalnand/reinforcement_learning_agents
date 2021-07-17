@@ -23,7 +23,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
-from .AgentPPOEntropy               import AgentPPOEntropy
+from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPODopamine              import AgentPPODopamine
 from .AgentPPOHierarchyRND          import AgentPPOHierarchyRND
 from .AgentPPOHierarchyEntropy      import AgentPPOHierarchyEntropy

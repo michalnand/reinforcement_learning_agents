@@ -53,7 +53,7 @@ class AgentPPORND():
 
     def enable_training(self):
         self.enabled_training = True
-
+ 
     def disable_training(self):
         self.enabled_training = False
 
@@ -231,15 +231,6 @@ class AgentPPORND():
         self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
 
         return loss 
-
-    def _action_one_hot(self, action_idx_t):
-        batch_size = action_idx_t.shape[0]
-
-        action_one_hot_t = torch.zeros((batch_size, self.actions_count))
-        action_one_hot_t[range(batch_size), action_idx_t] = 1.0  
-        action_one_hot_t = action_one_hot_t.to(self.model_ppo.device)
-
-        return action_one_hot_t
 
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
