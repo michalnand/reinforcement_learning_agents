@@ -26,7 +26,6 @@ class GoalsMemory:
     def process(self, states_t, steps_t):
         tmp_t = self._preprocess(states_t)
 
-        
         #create buffer if not created yet
         if self.buffer is None:
             self.buffer = torch.zeros((self.size, tmp_t.shape[1])).float().to(self.device)
@@ -52,6 +51,7 @@ class GoalsMemory:
 
                 self.buffer_idx = (self.buffer_idx + 1)%self.size
 
+        '''
         print("process ")
         print("states_t     = ", states_t.shape)
         print("steps_t      = ", steps_t.shape)
@@ -64,6 +64,7 @@ class GoalsMemory:
         print("result       = ", self.buffer_idx, indices[10], motivation_t[10], self.steps[indices][10], steps_t[10])
 
         print("\n\n\n")
+        '''
 
 
         return motivation_t
