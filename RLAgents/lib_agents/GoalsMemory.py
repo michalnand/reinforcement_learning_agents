@@ -53,8 +53,9 @@ class GoalsMemory:
                 self.buffer_idx = (self.buffer_idx + 1)%self.size
 
         print("process ")
-        print("steps_t = ", steps_t.shape)
-        print("tmp_t   = ", tmp_t.shape)
+        print("steps_t      = ", steps_t.shape)
+        print("states_t     = ", states_t.shape)
+        print("tmp_t        = ", tmp_t.shape)
 
         print("distances    = ", distances.shape)
         print("indices      = ", indices.shape)
