@@ -61,7 +61,7 @@ class GoalsMemory:
         print("indices      = ", indices.shape)
         print("steps        = ", self.steps[indices].shape, steps_t.shape)
         print("motivation_t = ", motivation_t.shape)
-        print("result       = ", indices[10], motivation_t[0], self.steps[indices][10], steps_t[10])
+        print("result       = ", indices[10], motivation_t[10], self.steps[indices][10], steps_t[10])
 
         print("\n\n\n")
 
