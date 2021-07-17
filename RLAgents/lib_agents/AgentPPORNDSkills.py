@@ -278,5 +278,5 @@ class AgentPPORNDSkills():
 
 
     def _skills(self, states_t, steps_t):
-        m = self.goal_memory.process(states_t, steps_t)
-        return m.detach().to("cpu").numpy()
+        motivation = self.goals_memory.process(states_t, steps_t)
+        return motivation.detach().to("cpu").numpy()
