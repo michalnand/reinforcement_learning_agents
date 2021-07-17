@@ -56,7 +56,7 @@ class GoalsMemory:
         print("states_t     = ", states_t.shape)
         print("steps_t      = ", steps_t.shape)
         print("tmp_t        = ", tmp_t.shape)
-        print("\n")
+        print()
         print("distances    = ", distances.shape)
         print("indices      = ", indices.shape)
         print("steps        = ", self.steps[indices].shape, steps_t.shape)
