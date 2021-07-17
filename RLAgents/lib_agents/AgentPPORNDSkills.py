@@ -45,7 +45,7 @@ class AgentPPORNDSkills():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.goals_memory = GoalsMemory(config.goals_memory_size, downsample = 8, add_prob = config.goals_memory_prob, alpha=config.goals_memory_alpha, epsilon = 0.0001, device = self.model_ppo.device)
+        self.goals_memory = GoalsMemory(config.goals_memory_size, downsample = 4, add_prob = config.goals_memory_prob, alpha=config.goals_memory_alpha, epsilon = 0.0001, device = self.model_ppo.device)
         
         self.steps_t      = torch.zeros((self.actors, )).to(self.model_ppo.device)
 

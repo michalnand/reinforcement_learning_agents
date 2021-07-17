@@ -48,7 +48,7 @@ class GoalsMemory:
         for i in range(tmp_t.shape[0]):
             if numpy.random.rand() < self.add_prob:
                 self.buffer[self.buffer_idx] = tmp_t[i].clone()
-                self.steps[self.buffer_idx]  = steps_t.clone()
+                self.steps[self.buffer_idx]  = steps_t[i].clone()
 
                 self.buffer_idx = (self.buffer_idx + 1)%self.size
 
