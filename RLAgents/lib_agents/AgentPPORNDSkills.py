@@ -255,7 +255,7 @@ class AgentPPORNDSkills():
         k = 0.02
         self.log_advantages             = (1.0 - k)*self.log_advantages             + k*advantages_ext.mean().detach().to("cpu").numpy()
         self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages    + k*advantages_int_a.mean().detach().to("cpu").numpy()
-        self.log_entropy_advatages      = (1.0 - k)*self.log_entropy_advatages      + k*advantages_int_b.mean().detach().to("cpu").numpy()
+        self.log_skills_advatages       = (1.0 - k)*self.log_skills_advatages      + k*advantages_int_b.mean().detach().to("cpu").numpy()
 
         return loss 
 
@@ -278,5 +278,5 @@ class AgentPPORNDSkills():
 
 
     def _skills(self, states_t, steps_t):
-        motivation = self.goals_memory.process(states_t, steps_t)
+        motivation = self.goals_memory.process(states_t[:, 0], steps_t)
         return motivation.detach().to("cpu").numpy()
