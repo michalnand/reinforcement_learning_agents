@@ -29,8 +29,6 @@ class AgentPPORNDSkills():
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
 
-        self.entropy_coeff      = config.entropy_coeff
-
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
         
