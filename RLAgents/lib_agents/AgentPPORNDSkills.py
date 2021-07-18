@@ -104,6 +104,8 @@ class AgentPPORNDSkills():
 
         self.steps_t+= 1
 
+        print(skills_np)
+
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards, curiosity_np, skills_np, dones)
