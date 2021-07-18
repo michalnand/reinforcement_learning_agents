@@ -120,11 +120,9 @@ class GoalsMemoryNovelty:
 
         closest   = distances[range(tmp_t.shape[0]), indices]
 
-        #smooth update storeddistances
-        self.buffer[indices] = (1.0 - self.alpha)*self.buffer[indices]  + self.alpha*tmp_t[range(indices.shape[0])].float()
-        #self.steps[indices]  = (1.0 - self.alpha)*self.steps[indices]   + self.alpha*(steps_t.float() + 1)
+        #smooth update stored distances
+        self.steps[indices]  = (1.0 - self.alpha)*self.steps[indices]   + self.alpha*(steps_t.float() + 1)
         
-
         #compute motivation
         motivation_t = torch.exp(steps_t*self.epsilon/self.steps[indices])
 
