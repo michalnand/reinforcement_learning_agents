@@ -77,7 +77,7 @@ class GoalsMemory:
         y = self.layer_flatten(y)
         return y 
 
-
+ 
 
 
 
@@ -109,6 +109,7 @@ class GoalsMemoryNovelty:
         if self.buffer is None:
             self.buffer = torch.zeros((self.size, tmp_t.shape[1])).float().to(self.device)
             self.steps  = torch.ones((self.size, )).to(self.device)
+            self.total_targets = 0
 
         #states_t distances from buffer
         distances = torch.cdist(tmp_t, self.buffer)
@@ -116,11 +117,13 @@ class GoalsMemoryNovelty:
         #find closest
         indices   = torch.argmin(distances, dim=1)
 
+
         closest   = distances[range(tmp_t.shape[0]), indices]
 
-        #smooth update stored distances
-        self.steps[indices] = (1.0 - self.alpha)*self.steps[indices] + self.alpha*(steps_t.float() + 1)
-
+        #smooth update storeddistances
+        self.buffer[indices] = (1.0 - self.alpha)*self.buffer[indices]  + self.alpha*tmp_t[range(indices.shape[0])].float()
+        #self.steps[indices]  = (1.0 - self.alpha)*self.steps[indices]   + self.alpha*(steps_t.float() + 1)
+        
 
         #compute motivation
         motivation_t = torch.exp(steps_t*self.epsilon/self.steps[indices])
@@ -131,6 +134,8 @@ class GoalsMemoryNovelty:
                 idx = numpy.random.randint(0, self.size - 1)
                 self.buffer[idx] = tmp_t[i].clone()
                 self.steps[idx]  = steps_t[i].clone()
+
+                self.total_targets+= 1
 
         return motivation_t
 

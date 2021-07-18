@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIMDual    import *  
 from .GoalsMemory           import *
 from .RunningStats          import *
- 
+  
    
 class AgentPPORNDSkills():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
@@ -141,6 +141,7 @@ class AgentPPORNDSkills():
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         result+= str(round(self.log_skills_advatages, 7)) + " "
+        result+= str(round(self.goals_memory.total_targets, 7)) + " "
 
         return result 
     
