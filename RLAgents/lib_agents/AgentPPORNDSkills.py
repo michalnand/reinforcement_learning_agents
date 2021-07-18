@@ -104,7 +104,7 @@ class AgentPPORNDSkills():
 
         self.steps_t+= 1
 
-        print(skills_np)
+        print(skills_np.mean(), skills_np.min(), skills_np.max())
 
         #put into policy buffer
         if self.enabled_training:
