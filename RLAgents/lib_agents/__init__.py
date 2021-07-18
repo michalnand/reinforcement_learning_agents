@@ -9,7 +9,7 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
 from .EpisodicMemory                import EpisodicMemory
-from .GoalsMemory                   import GoalsMemory
+from .GoalsMemory                   import GoalsMemory, GoalsMemoryNovelty
 from .StatesBuffer                  import StatesBuffer
 
 from .AgentRandom                   import AgentRandom
