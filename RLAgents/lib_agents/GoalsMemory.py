@@ -95,8 +95,7 @@ class GoalsMemoryNovelty:
         self.buffer     = None
  
         if downsample > 1:
-            #self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
-            self.layer_downsample = torch.nn.MaxPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
