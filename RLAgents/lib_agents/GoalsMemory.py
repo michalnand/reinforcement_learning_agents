@@ -83,8 +83,8 @@ class GoalsMemoryGraph:
         self.decay              = decay
         self.device             = device
 
-        self.total_targets      = 0
-        self.active_targets     = 0
+        self.total_targets          = 0
+        self.active_edges     = 0
 
 
 
@@ -148,8 +148,8 @@ class GoalsMemoryGraph:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
         
-        self.active_targets = int((self.connections > 0).sum().detach().to("cpu").numpy())
-         
+        self.active_edges = int((self.connections > 0).sum().detach().to("cpu").numpy())
+          
         return motivation
 
 
