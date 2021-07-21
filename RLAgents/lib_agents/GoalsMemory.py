@@ -74,13 +74,16 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
+        self.decay              = decay
         self.device             = device
 
         self.total_targets      = 0
+
+
 
         self.connections        = torch.zeros((self.size, self.size), dtype=torch.float32).to(self.device)
 
@@ -123,15 +126,15 @@ class GoalsMemoryGraph:
         self.connections[self.indices_prev, self.indices]+= 1
         self.connections[self.indices, self.indices_prev]+= 1
 
-        decay = 0.999
-        self.connections*= decay
+        self.connections*= self.decay
 
         eps = 0.0000001
-        #relative_count = self.connections/(self.connections.sum() + eps)
+        relative_count = self.connections/(self.connections.sum() + eps)
 
-        variance        = torch.var(1.0*self.connections[self.indices], dim = 1)
+        variance   = torch.var(relative_count[self.indices], dim = 1)
 
-        motivation = variance
+        motivation = 10000.0*variance
+        motivation = motivation.detach().to("cpu").numpy()
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
@@ -139,7 +142,7 @@ class GoalsMemoryGraph:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
         
-        return motivation, self.connections.detach().to("cpu").numpy()
+        return motivation #, self.connections.detach().to("cpu").numpy()
 
 
 
