@@ -10,7 +10,7 @@ class RunningStats:
             mean = initial_value.mean(axis=0)
             self.mean = numpy.float32(mean)
     
-    def update(self, x, alpha = 0.00001):      
+    def update(self, x, alpha = 0.0001):      
         mean        = x.mean(axis=0)
         self.mean   = (1.0 - alpha)*self.mean + alpha*mean
 
