@@ -76,7 +76,7 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.9999, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
@@ -129,6 +129,8 @@ class GoalsMemoryGraph:
         self.connections[self.indices, self.indices_prev]+= 1
 
         self.connections*= self.decay
+
+        self.connections = torch.nn.functional.hardshrink(self.connections, 0.01)
 
         eps            = 0.0000001
 
