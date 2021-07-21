@@ -97,7 +97,7 @@ class AgentPPORNDSkills():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
  
         #skills motivation
-        skills_np       = self._skills(states_t, self.steps_t)
+        skills_np       = self._skills(states_t)
         skills_np       = numpy.clip(skills_np, -1.0, 1.0)
         
         self.states     = states.copy()
@@ -279,6 +279,6 @@ class AgentPPORNDSkills():
         return curiosity_t.detach().to("cpu").numpy()
 
 
-    def _skills(self, states_t, steps_t):
-        motivation = self.goals_memory.process(states_t[:, 0], steps_t)
+    def _skills(self, states_t):
+        motivation = self.goals_memory.process(states_t[:, 0])
         return motivation.detach().to("cpu").numpy()

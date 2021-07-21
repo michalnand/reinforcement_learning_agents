@@ -134,7 +134,6 @@ class GoalsMemoryGraph:
         variance   = torch.var(relative_count[self.indices], dim = 1)
 
         motivation = 10000.0*variance
-        motivation = motivation.detach().to("cpu").numpy()
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
