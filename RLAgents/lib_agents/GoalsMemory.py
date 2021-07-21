@@ -148,7 +148,7 @@ class GoalsMemoryGraph:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
         
-        self.active_targets = float((self.connections > 0).sum().detach().to("cpu").numpy())
+        self.active_targets = int((self.connections > 0).sum().detach().to("cpu").numpy())
          
         return motivation
 
