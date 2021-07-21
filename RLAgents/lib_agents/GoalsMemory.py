@@ -76,7 +76,7 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.9999, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
@@ -84,6 +84,7 @@ class GoalsMemoryGraph:
         self.device             = device
 
         self.total_targets      = 0
+        self.active_targets     = 0
 
 
 
@@ -146,6 +147,8 @@ class GoalsMemoryGraph:
             if closest[i] > self.add_threshold:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
+        
+        self.active_targets = (self.connections > 0).sum().detach().to("cpu").numpy()
         
         return motivation
 

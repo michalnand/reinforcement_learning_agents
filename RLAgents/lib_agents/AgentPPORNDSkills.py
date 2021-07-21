@@ -143,6 +143,7 @@ class AgentPPORNDSkills():
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         result+= str(round(self.log_skills_advatages, 7)) + " "
         result+= str(round(self.goals_memory.total_targets, 7)) + " "
+        result+= str(round(self.goals_memory.active_targets, 7)) + " "
 
         return result 
     
