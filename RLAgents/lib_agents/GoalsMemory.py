@@ -2,6 +2,8 @@ from numpy.core.fromnumeric import var
 from numpy.core.numeric import indices
 import torch
 import numpy
+import networkx
+import matplotlib.pyplot as plt
 
 
 
@@ -91,7 +93,7 @@ class GoalsMemoryGraph:
         self.indices            = None
   
         if downsample > 1:
-            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample//2, self.downsample//2))
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
@@ -128,12 +130,14 @@ class GoalsMemoryGraph:
 
         self.connections*= self.decay
 
-        eps = 0.0000001
-        relative_count = self.connections/(self.connections.sum() + eps)
+        eps            = 0.0000001
 
-        variance   = torch.var(relative_count[self.indices], dim = 1)
+        counts         = self.connections[self.indices]
+        counts_probs   = counts/torch.sum(counts, dim=1).unsqueeze(1)
+        entropy        = -counts_probs*torch.log2(counts_probs + eps) 
+        entropy        = torch.sum(entropy, dim=1)
+        motivation     = entropy/(counts.sum(dim=1) + eps)
 
-        motivation = 10000.0*variance
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
@@ -141,10 +145,24 @@ class GoalsMemoryGraph:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
         
-        return motivation #, self.connections.detach().to("cpu").numpy()
+        return motivation
 
 
+    def save(self, path = "./"):
+        plt.clf()
 
+        z = self.connections.detach().to("cpu").numpy()
+        G = networkx.from_numpy_matrix(numpy.array(z), create_using=networkx.MultiDiGraph())
+        G.remove_nodes_from(list(networkx.isolates(G)))
+
+        pos = networkx.spring_layout(G, seed=1)
+
+        networkx.draw_networkx_nodes(G, pos, node_size = 4)
+        networkx.draw_networkx_edges(G, pos, arrows = False)
+
+        plt.savefig(path + "graph.png", dpi=300)
+
+    
     #downsample and flatten
     def _preprocess(self, x):
         if self.layer_downsample is not None:

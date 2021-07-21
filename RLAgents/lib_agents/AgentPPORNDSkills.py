@@ -128,6 +128,7 @@ class AgentPPORNDSkills():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
+        self.goals_memory(save_path + "result/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
