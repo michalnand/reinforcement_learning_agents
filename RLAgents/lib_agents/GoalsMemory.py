@@ -161,7 +161,7 @@ class GoalsMemoryGraph:
         networkx.draw_networkx_edges(G, pos, arrows = False)
 
         plt.savefig(path + "graph.png", dpi=300)
-
+ 
     
     #downsample and flatten
     def _preprocess(self, x):
