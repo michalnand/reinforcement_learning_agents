@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIMDual    import *  
 from .GoalsMemory           import *
 from .RunningStats          import *
-  
+   
    
 class AgentPPORNDSkills():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
@@ -45,8 +45,7 @@ class AgentPPORNDSkills():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
-        #self.goals_memory = GoalsMemoryNovelty(config.goals_memory_size, downsample = 4, add_threshold= config.goals_memory_threshold, alpha=config.goals_memory_alpha, epsilon = 0.0001, device = self.model_ppo.device)
-        self.goals_memory  = GoalsMemoryGraph(config.goals_memory_size, downsample = 8, add_threshold = config.goals_memory_threshold, device = self.model_ppo.device)
+        self.goals_memory  = GoalsMemoryGraph(config.goals_memory_size, downsample = 8, add_threshold = config.goals_memory_threshold, mode = config.goals_memory_mode, device = self.model_ppo.device)
 
         self.steps_t      = torch.zeros((self.actors, )).to(self.model_ppo.device)
 

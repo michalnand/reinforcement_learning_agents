@@ -6,7 +6,7 @@ import networkx
 import matplotlib.pyplot as plt
 
 
-
+ 
 class GoalsMemoryNovelty:
     def __init__(self, size, downsample = -1, add_threshold = 0.9, alpha = 0.01, epsilon = 0.0001, device = "cpu"):
         self.size       = size
@@ -21,7 +21,7 @@ class GoalsMemoryNovelty:
         self.buffer     = None
  
         if downsample > 1:
-            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample//2, self.downsample//2))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
@@ -76,16 +76,17 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, mode = "rising", device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
         self.decay              = decay
+        self.mode               = mode
         self.device             = device
 
         self.total_targets          = 0
         self.active_edges     = 0
-
+ 
 
 
         self.connections        = torch.zeros((self.size, self.size), dtype=torch.float32).to(self.device)
@@ -94,7 +95,7 @@ class GoalsMemoryGraph:
         self.indices            = None
   
         if downsample > 1:
-            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample//2, self.downsample//2))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
@@ -129,8 +130,8 @@ class GoalsMemoryGraph:
         self.connections[self.indices_prev, self.indices]+= 1
         self.connections[self.indices, self.indices_prev]+= 1
 
+        #regularisation
         self.connections*= self.decay
-
         self.connections = torch.nn.functional.hardshrink(self.connections, 0.01)
 
         eps            = 0.0000001
@@ -139,8 +140,17 @@ class GoalsMemoryGraph:
         counts_probs   = counts/torch.sum(counts, dim=1).unsqueeze(1)
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
         entropy        = torch.sum(entropy, dim=1)
-        motivation     = entropy/(counts.sum(dim=1) + eps)
 
+        if self.mode == "rising":
+            motivation = entropy/(counts.sum(dim=1) + eps)
+        else:
+            motivation = 1.0/(entropy + 1.0)
+        
+        '''
+        relative_count = self.connections/(self.connections.sum() + eps)
+        variance       = torch.var(relative_count[self.indices], dim = 1)
+        motivation     = 10000.0*variance
+        '''
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
@@ -154,6 +164,7 @@ class GoalsMemoryGraph:
 
 
     def save(self, path = "./"):
+        print("saving")
         plt.clf()
 
         z = self.connections.detach().to("cpu").numpy()
@@ -161,6 +172,7 @@ class GoalsMemoryGraph:
         G.remove_nodes_from(list(networkx.isolates(G)))
 
         pos = networkx.spring_layout(G, seed=1)
+        #pos = networkx.kamada_kawai_layout(G)
 
         networkx.draw_networkx_nodes(G, pos, node_size = 4)
         networkx.draw_networkx_edges(G, pos, arrows = False)
