@@ -76,12 +76,11 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, mode = "rising", device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
         self.decay              = decay
-        self.mode               = mode
         self.device             = device
 
         self.total_targets          = 0
@@ -141,10 +140,7 @@ class GoalsMemoryGraph:
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
         entropy        = torch.sum(entropy, dim=1)
 
-        if self.mode == "rising":
-            motivation = entropy/(counts.sum(dim=1) + eps)
-        else:
-            motivation = 1.0/(entropy + 1.0)
+        motivation     = entropy/(counts.sum(dim=1) + 1)
         
         '''
         relative_count = self.connections/(self.connections.sum() + eps)
