@@ -14,6 +14,6 @@ class RunningStats:
         mean        = x.mean(axis=0)
         self.mean   = (1.0 - alpha)*self.mean + alpha*mean
 
-        std         = numpy.std(x, axis=0) + 0.0000001
+        std         = x.std(axis=0) + 0.001
         self.std    = (1.0 - alpha)*self.std + alpha*std
-  
+   
