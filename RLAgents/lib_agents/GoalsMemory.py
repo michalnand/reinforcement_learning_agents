@@ -129,31 +129,31 @@ class GoalsMemoryGraph:
         self.connections[self.indices_prev, self.indices]+= 1
         self.connections[self.indices, self.indices_prev]+= 1
 
-        #regularisation
-        self.connections*= self.decay
-        self.connections = torch.nn.functional.hardshrink(self.connections, 0.01)
+        eps            = 0.000001
 
-        eps            = 0.0001
+        counts          = self.connections[self.indices]
+        
+        #maximum possible entropy of state
+        maximum_entropy = (counts > 0.0).sum(dim=1)
 
-        counts         = self.connections[self.indices]
+        #real state entropy
         counts_probs   = counts/(torch.sum(counts, dim=1).unsqueeze(1) + eps)
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
         entropy        = torch.sum(entropy, dim=1)
 
-        motivation     = entropy/(counts.sum(dim=1) + eps)
-        
-        '''
-        relative_count = self.connections/(self.connections.sum() + eps)
-        variance       = torch.var(relative_count[self.indices], dim = 1)
-        motivation     = 10000.0*variance
-        '''
+        #motivation, how close to maximum possible entropy
+        motivation     = maximum_entropy - entropy
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
             if closest[i] > self.add_threshold:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
                 self.total_targets = (self.total_targets + 1)%self.size
-        
+
+        #regularisation
+        self.connections = torch.nn.functional.hardshrink(self.connections*self.decay, 0.01)
+
+        #count active edges
         self.active_edges = int((self.connections > 0).sum().detach().to("cpu").numpy())
           
         return motivation
