@@ -45,6 +45,7 @@ class AgentPPORNDSkills():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
 
+        self.goals_coeff   = config.goals_coeff
         self.goals_memory  = GoalsMemoryGraph(config.goals_memory_size, downsample = 8, add_threshold = config.goals_memory_threshold, device = self.model_ppo.device)
 
         self.steps_t      = torch.zeros((self.actors, )).to(self.model_ppo.device)
@@ -96,7 +97,7 @@ class AgentPPORNDSkills():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
  
         #skills motivation
-        skills_np       = self._skills(states_t)
+        skills_np       = self.goals_coeff*self._skills(states_t)
         skills_np       = numpy.clip(skills_np, -1.0, 1.0)
         
         self.states     = states.copy()
