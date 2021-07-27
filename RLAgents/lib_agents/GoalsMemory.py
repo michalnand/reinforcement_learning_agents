@@ -133,14 +133,14 @@ class GoalsMemoryGraph:
         self.connections*= self.decay
         self.connections = torch.nn.functional.hardshrink(self.connections, 0.01)
 
-        eps            = 0.0000001
+        eps            = 0.0001
 
         counts         = self.connections[self.indices]
-        counts_probs   = counts/torch.sum(counts, dim=1).unsqueeze(1)
+        counts_probs   = counts/(torch.sum(counts, dim=1).unsqueeze(1) + eps)
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
         entropy        = torch.sum(entropy, dim=1)
 
-        motivation     = entropy/(counts.sum(dim=1) + 1)
+        motivation     = entropy/(counts.sum(dim=1) + eps)
         
         '''
         relative_count = self.connections/(self.connections.sum() + eps)
