@@ -134,7 +134,7 @@ class GoalsMemoryGraph:
         counts          = self.connections[self.indices]
         
         #maximum possible entropy of state
-        maximum_entropy = (counts > 0.0).sum(dim=1)
+        maximum_entropy = (counts > 0.0).sum(dim=1) + eps
 
         #real state entropy
         counts_probs   = counts/(torch.sum(counts, dim=1).unsqueeze(1) + eps)
@@ -142,7 +142,7 @@ class GoalsMemoryGraph:
         entropy        = torch.sum(entropy, dim=1)
 
         #motivation, how close to maximum possible entropy
-        motivation     = (maximum_entropy - entropy)/(torch.sum(counts, dim=1) + eps)
+        motivation = (1.0 - entropy/maximum_entropy) #/(torch.sum(counts, dim=1) + eps)
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
