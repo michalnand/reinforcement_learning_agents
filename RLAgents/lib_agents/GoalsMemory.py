@@ -142,7 +142,7 @@ class GoalsMemoryGraph:
         entropy        = torch.sum(entropy, dim=1)
 
         #motivation, how close to maximum possible entropy
-        motivation = (1.0 - entropy/maximum_entropy) #/(torch.sum(counts, dim=1) + eps)
+        motivation = (1.0 - entropy/maximum_entropy)*1.0/(torch.sum(counts, dim=1) + eps)
 
         #add new item if threashold reached
         for i in range(tmp_t.shape[0]):
