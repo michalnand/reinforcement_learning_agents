@@ -141,7 +141,7 @@ class GoalsMemoryGraph:
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
         entropy        = torch.sum(entropy, dim=1)
 
-        #motivation, how close to maximum possible entropy
+        #motivation, how close to maximum possible entropy, also prefer less visited states
         motivation = (1.0 - entropy/maximum_entropy)*1.0/(torch.sum(counts, dim=1) + eps)
 
         #add new item if threashold reached
