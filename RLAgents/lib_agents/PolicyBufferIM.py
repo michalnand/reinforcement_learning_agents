@@ -51,7 +51,7 @@ class PolicyBufferIM:
 
         self.dones_b            = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.ptr = 0 
+        self.ptr = 0  
  
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
@@ -82,7 +82,7 @@ class PolicyBufferIM:
     def sample_batch(self, batch_size, device):
 
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
-        indices_next    = (indices + 1)%self.envs_count*self.buffer_size
+        indices_next    = numpy.min(indices + 1, (self.envs_count*self.buffer_size - 1))
 
         states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
         states_next     = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
