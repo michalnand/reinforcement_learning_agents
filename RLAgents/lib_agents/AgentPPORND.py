@@ -6,7 +6,7 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
 from .RunningStats      import *
-   
+    
 class AgentPPORND():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
@@ -161,7 +161,7 @@ class AgentPPORND():
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
-                random_mask     = 1.0*(random_mask < 1.0/self.training_epochs)
+                random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
                 self.optimizer_rnd.zero_grad() 

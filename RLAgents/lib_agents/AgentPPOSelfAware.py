@@ -40,7 +40,8 @@ class AgentPPOSelfAware():
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
-
+ 
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
         self.enable_training()
         self.iterations                 = 0 
@@ -77,6 +78,8 @@ class AgentPPOSelfAware():
 
         self.states = states.copy()
 
+        #update long term states mean and variance 
+        self.states_running_stats.update(states_np)
 
         #curiosity motivation
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
@@ -146,9 +149,11 @@ class AgentPPOSelfAware():
                 self.optimizer_ppo.step()
 
                 #train self aware rnd model, MSE loss
+                state_norm    = self._norm_state(states).detach()
+
                 action_target = self._action_one_hot(actions)
                 
-                _, action_predicted, features_predicted_t, features_target_t  = self.model_sa(states, states_next)
+                _, action_predicted, features_predicted_t, features_target_t  = self.model_sa(states, states_next, state_norm)
 
                 loss_action     = ((action_target - action_predicted)**2)
                 loss_action     = loss_action.mean()
@@ -234,7 +239,9 @@ class AgentPPOSelfAware():
         return loss 
 
     def _curiosity(self, state_t):
-        features_predicted_t, features_target_t  = self.model_sa.forward_motivation(state_t)
+        state_norm_t    = self._norm_state(state_t).detach()
+
+        features_predicted_t, features_target_t  = self.model_sa.forward_motivation(state_t, state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
@@ -249,3 +256,9 @@ class AgentPPOSelfAware():
         result[range(actions.shape[0]), actions] = 1.0
 
         return result
+
+    def _norm_state(self, state_t):
+        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+
+        state_norm_t = state_t - mean
+        return state_norm_t
