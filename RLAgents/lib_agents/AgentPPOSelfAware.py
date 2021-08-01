@@ -1,6 +1,6 @@
 import numpy
 import torch
-import time
+import cv2
 
 from torch.distributions import Categorical
  
@@ -47,10 +47,10 @@ class AgentPPOSelfAware():
         self.iterations                 = 0 
 
         self.log_loss_sa                = 0.0
-        self.log_action_prediction      = 0.0
         self.log_curiosity              = 0.0
         self.log_advantages             = 0.0
         self.log_curiosity_advatages    = 0.0
+        self.log_action_prediction      = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -85,6 +85,8 @@ class AgentPPOSelfAware():
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+
+        #self._visualise(states_t)
          
         #put into policy buffer
         if self.enabled_training:
@@ -241,7 +243,7 @@ class AgentPPOSelfAware():
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t).detach()
 
-        features_predicted_t, features_target_t  = self.model_sa.forward_motivation(state_t, state_norm_t)
+        features_predicted_t, features_target_t, _  = self.model_sa.forward_motivation(state_t, state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
@@ -262,3 +264,25 @@ class AgentPPOSelfAware():
 
         state_norm_t = state_t - mean
         return state_norm_t
+
+
+    def _visualise(self, state_t):
+        state_norm_t        = self._norm_state(state_t).detach()
+        _, _, attention_t   = self.model_sa.forward_motivation(state_t, state_norm_t)
+
+        state_np     = state_t[0][0].detach().to("cpu").numpy()
+        attention_np = attention_t[0].detach().to("cpu").numpy()
+
+        image       = numpy.zeros((3, self.state_shape[1], self.state_shape[2]))
+
+        k           = 0.5
+        image[0]    = k*state_np
+        image[1]    = k*state_np
+        image[2]    = k*state_np + (1.0 - k)*attention_np
+
+
+        image = numpy.moveaxis(image, 0, 2)
+        image = cv2.resize(image, (256, 256), interpolation = cv2.INTER_AREA)
+
+        cv2.imshow("visualisation", image)
+        cv2.waitKey(1)
