@@ -76,7 +76,6 @@ class AgentPPOSelfAware():
 
         self.states     = states.copy()
 
-
         #curiosity motivation
         curiosity_np    = self._curiosity(states_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
@@ -126,7 +125,7 @@ class AgentPPOSelfAware():
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
-        
+
         return actions
     
     def train(self): 
