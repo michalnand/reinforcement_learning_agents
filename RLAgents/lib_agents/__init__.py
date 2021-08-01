@@ -10,6 +10,7 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 from .RunningStats                  import RunningStats
 from .EpisodicMemory                import EpisodicMemory
 from .GoalsMemory                   import GoalsMemoryNovelty, GoalsMemoryGraph
+from .CountsMemory                  import CountsMemory
 from .StatesBuffer                  import StatesBuffer
 
 from .AgentRandom                   import AgentRandom
@@ -24,6 +25,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPOADM                   import AgentPPOADM
 from .AgentPPOSelfAware             import AgentPPOSelfAware
 
 from .AgentPPORNDEntropy            import AgentPPORNDEntropy
