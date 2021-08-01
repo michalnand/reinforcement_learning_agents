@@ -45,12 +45,12 @@ class AgentPPOADM():
  
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
-        self.counts_memory              = CountsMemory(config.counts_memory_size, config.counts_memory_threshold)
+        self.counts_memory              = CountsMemory(config.counts_memory_size, config.counts_memory_threshold, device=self.model_ppo.device)
 
         self.enable_training()
         self.iterations                 = 0 
 
-        self.log_loss_adm               = 0.0
+        self.log_loss_adm               = 0.0 
         self.log_curiosity              = 0.0
         self.log_advantages             = 0.0
         self.log_curiosity_advatages    = 0.0
