@@ -5,7 +5,6 @@ import cv2
 from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
-from .RunningStats      import *
    
 class AgentPPOSelfAware():   
     def __init__(self, envs, ModelPPO, ModelSA, config):
@@ -41,7 +40,6 @@ class AgentPPOSelfAware():
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
  
-        self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
         self.enable_training()
         self.iterations                 = 0 
@@ -76,14 +74,11 @@ class AgentPPOSelfAware():
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
-        self.states = states.copy()
+        self.states     = states.copy()
 
-        #update long term states mean and variance 
-        self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
+        curiosity_np    = self._curiosity(states_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
         #self._visualise(states_t)
@@ -131,6 +126,7 @@ class AgentPPOSelfAware():
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
+        
         return actions
     
     def train(self): 
@@ -166,7 +162,7 @@ class AgentPPOSelfAware():
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                loss_sa = loss_action + loss_rnd
+                loss_sa         = 5.0*loss_action + loss_rnd
 
                 self.optimizer_sa.zero_grad() 
                 loss_sa.backward()
@@ -241,45 +237,39 @@ class AgentPPOSelfAware():
         return loss 
 
     def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t).detach()
-
-        features_predicted_t, features_target_t, _  = self.model_sa.forward_motivation(state_t, state_norm_t)
+        features_predicted_t, features_target_t, _  = self.model_sa.forward_motivation(state_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
-        
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        curiosity_t    = curiosity_t.mean(dim = (1, 2, 3))
         
         return curiosity_t.detach().to("cpu").numpy()
 
     def _action_one_hot(self, actions):
-
         result = torch.zeros((actions.shape[0], self.actions_count)).to(actions.device)
-
         result[range(actions.shape[0]), actions] = 1.0
 
         return result
 
-    def _norm_state(self, state_t):
-        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-
-        state_norm_t = state_t - mean
-        return state_norm_t
-
-
     def _visualise(self, state_t):
-        state_norm_t        = self._norm_state(state_t).detach()
-        _, _, attention_t   = self.model_sa.forward_motivation(state_t, state_norm_t)
+        features_predicted_t, features_target_t, attention_t = self.model_sa.forward_motivation(state_t)
 
-        state_np     = state_t[0][0].detach().to("cpu").numpy()
-        attention_np = attention_t[0].detach().to("cpu").numpy()
+        curiosity_t     = (features_target_t - features_predicted_t)**2
+        curiosity_t     = curiosity_t.mean(dim = 1)
+
+        state_np        = state_t[0][0].detach().to("cpu").numpy()
+        attention_np    = attention_t[0][0].detach().to("cpu").numpy()
+        curiosity_np    = curiosity_t[0].detach().to("cpu").numpy()[0]
+
+        attention_np = cv2.resize(attention_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
+        curiosity_np = cv2.resize(curiosity_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
 
         image       = numpy.zeros((3, self.state_shape[1], self.state_shape[2]))
+
 
         k           = 0.5
         image[0]    = k*state_np
         image[1]    = k*state_np
         image[2]    = k*state_np + (1.0 - k)*attention_np
-
 
         image = numpy.moveaxis(image, 0, 2)
         image = cv2.resize(image, (256, 256), interpolation = cv2.INTER_AREA)
