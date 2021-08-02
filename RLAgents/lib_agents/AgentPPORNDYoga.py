@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *  
 from .RunningStats      import * 
     
-class AgentPPORND():   
+class AgentPPORNDYoga():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
    
