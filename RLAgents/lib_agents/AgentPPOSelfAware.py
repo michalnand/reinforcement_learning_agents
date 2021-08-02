@@ -155,7 +155,7 @@ class AgentPPOSelfAware():
                 state_norm_t    = self._norm_state(states).detach()
                 action_target   = self._action_one_hot(actions)
                 
-                _, action_predicted, features_predicted_t, features_target_t  = self.model_sa(states, states_next, state_norm_t)
+                action_predicted, features_predicted_t, features_target_t, _  = self.model_sa(states, states_next, state_norm_t)
 
                 loss_action     = ((action_target - action_predicted)**2)
                 loss_action     = loss_action.mean()
