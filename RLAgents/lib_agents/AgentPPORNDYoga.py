@@ -174,7 +174,7 @@ class AgentPPORNDYoga():
                 sa_norm_t    = self._norm_state(sa_t).detach()
                 sb_norm_t    = self._norm_state(sb_t).detach()
 
-                distances       = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t)
+                distances       = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t).unsqueeze(1)
                 
                 print(">>>> ", distances_target.shape, distances.shape)
 
