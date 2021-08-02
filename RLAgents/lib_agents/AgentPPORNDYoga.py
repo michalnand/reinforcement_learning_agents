@@ -176,8 +176,6 @@ class AgentPPORNDYoga():
 
                 distances       = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t).unsqueeze(1)
                 
-                print(">>>> ", distances_target.shape, distances.shape)
-
                 loss_distances  = (distances_target - distances)**2
                 loss_distances  = loss_distances.mean()
 
