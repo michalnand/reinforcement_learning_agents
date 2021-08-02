@@ -1,22 +1,22 @@
 import numpy
 import torch
-import cv2
+import time
 
 from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
-from .RunningStats      import *
-
-class AgentPPOSelfAware():   
-    def __init__(self, envs, ModelPPO, ModelSA, config):
-        self.envs = envs  
+from .RunningStats      import * 
     
+class AgentPPORND():   
+    def __init__(self, envs, ModelPPO, ModelRND, config):
+        self.envs = envs  
+   
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-     
+    
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
    
@@ -26,31 +26,33 @@ class AgentPPOSelfAware():
         self.training_epochs    = config.training_epochs
         self.actors             = config.actors 
 
+        self.target_rnd_coeff   = config.target_rnd_coeff
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_sa       = ModelSA.Model(self.state_shape, self.actions_count)
-        self.optimizer_sa   = torch.optim.Adam(self.model_sa.parameters(), lr=config.learning_rate_sa)
+        self.model_rnd      = ModelRND.Model(self.state_shape)
+        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer  = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device)
  
         self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.actors):
             self.states[e] = self.envs.reset(e).copy()
- 
-        self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+ 
         self.enable_training()
         self.iterations                 = 0 
 
-        self.log_loss_sa                = 0.0
+        self.log_loss_rnd               = 0.0
+        self.log_loss_distances         = 0.0
         self.log_curiosity              = 0.0
         self.log_advantages             = 0.0
         self.log_curiosity_advatages    = 0.0
-        self.log_action_prediction      = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -76,8 +78,8 @@ class AgentPPOSelfAware():
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
-        self.states     = states.copy()
-
+        self.states = states.copy()
+ 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
@@ -85,8 +87,6 @@ class AgentPPOSelfAware():
         states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
-
-        #self._visualise(states_new_t)
          
         #put into policy buffer
         if self.enabled_training:
@@ -108,30 +108,36 @@ class AgentPPOSelfAware():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_sa.save(save_path + "trained/")
+        self.model_rnd.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_sa.load(load_path + "trained/")
+        self.model_rnd.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
-        result+= str(round(self.log_loss_sa, 7)) + " "
+        result+= str(round(self.log_loss_rnd, 7)) + " "
+        result+= str(round(self.log_loss_distances, 7)) + " "
         result+= str(round(self.log_curiosity, 7)) + " "
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
-        result+= str(round(self.log_action_prediction, 7)) + " "
-
         return result 
     
 
+    '''
+    def _sample_action(self, logits):
+        action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
+        action_distribution_t = torch.distributions.Categorical(action_probs_t)
+        action_t              = action_distribution_t.sample()
+
+        return action_t.item()
+    '''
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
-
         return actions
     
     def train(self): 
@@ -141,7 +147,7 @@ class AgentPPOSelfAware():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -151,14 +157,10 @@ class AgentPPOSelfAware():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train self aware rnd model, MSE loss
+                #train RND model, MSE loss
                 state_norm_t    = self._norm_state(states).detach()
-                action_target   = self._action_one_hot(actions)
-                
-                action_predicted, features_predicted_t, features_target_t, _  = self.model_sa(states, states_next, state_norm_t)
 
-                loss_action     = ((action_target - action_predicted)**2)
-                loss_action     = loss_action.mean()
+                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
@@ -166,18 +168,22 @@ class AgentPPOSelfAware():
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                loss_sa         = 4.0*loss_action + loss_rnd
+                #train RND target model - maximize distances
+                sa_t = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
+                sb_t = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
 
-                self.optimizer_sa.zero_grad() 
-                loss_sa.backward()
-                self.optimizer_sa.step()
+                distances       = self.model_rnd.forward_pairs(sa_t, sb_t)
+                loss_distances  = -distances.mean()
 
-                hits = (torch.argmax(action_target, dim=1) == torch.argmax(action_predicted, dim=1)).sum()
-                acc  = 100.0*hits/action_target.shape[0]
+                loss_internal   = loss_rnd + self.target_rnd_coeff*loss_distances
+
+                self.optimizer_rnd.zero_grad() 
+                loss_internal.backward()
+                self.optimizer_rnd.step()
 
                 k = 0.02
-                self.log_loss_sa            = (1.0 - k)*self.log_loss_sa            + k*loss_sa.detach().to("cpu").numpy()
-                self.log_action_prediction  = (1.0 - k)*self.log_action_prediction  + k*acc.detach().to("cpu").numpy()
+                self.log_loss_rnd           = (1.0 - k)*self.log_loss_rnd       + k*loss_rnd.detach().to("cpu").numpy()
+                self.log_loss_distances     = (1.0 - k)*self.log_loss_distances + k*loss_distances.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
@@ -241,48 +247,21 @@ class AgentPPOSelfAware():
         return loss 
 
     def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
+        state_norm_t            = self._norm_state(state_t)
 
-        features_predicted_t, features_target_t, _  = self.model_sa.forward_motivation(state_t, state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-        curiosity_t     = (features_target_t - features_predicted_t)**2
-        curiosity_t     = curiosity_t.sum(dim=1)/2.0
+        curiosity_t    = (features_target_t - features_predicted_t)**2
+        
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 
-
-    def _action_one_hot(self, actions):
-        result = torch.zeros((actions.shape[0], self.actions_count)).to(actions.device)
-        result[range(actions.shape[0]), actions] = 1.0
-
-        return result
-
-    def _visualise(self, state_t):
-        state_norm_t            = self._norm_state(state_t)
-
-        _, _, attention_t = self.model_sa.forward_motivation(state_t, state_norm_t)
-        
-        state_np        = state_t[0][0].detach().to("cpu").numpy()
-        attention_np    = attention_t[0][0].detach().to("cpu").numpy()
-
-        attention_np = cv2.resize(attention_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
-        image       = numpy.zeros((3, self.state_shape[1], self.state_shape[2]))
-
-
-        k           = 0.5
-        image[0]    = k*state_np
-        image[1]    = k*state_np
-        image[2]    = k*state_np + (1.0 - k)*attention_np
-
-        image = numpy.moveaxis(image, 0, 2)
-        image = cv2.resize(image, (256, 256), interpolation = cv2.INTER_AREA)
-
-        cv2.imshow("visualisation", image)
-        cv2.waitKey(1)
-
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
         state_norm_t = state_t - mean
+        #state_norm_t = torch.clip((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t

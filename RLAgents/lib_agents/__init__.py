@@ -25,8 +25,8 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
-from .AgentPPOADM                   import AgentPPOADM
 from .AgentPPOSelfAware             import AgentPPOSelfAware
+from .AgentPPORNDYoga               import AgentPPORNDYoga
 
 from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPORNDSkills             import AgentPPORNDSkills
