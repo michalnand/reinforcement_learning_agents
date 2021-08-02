@@ -112,7 +112,7 @@ class PolicyBufferIM:
 
         states_a        = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
         states_b        = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
-        labels_t        = torch.from_numpy(1.0*labels).unsqueeze(1).to(device)
+        labels_t        = torch.from_numpy(1.0*labels).to(device)
 
         return states_a, states_b, labels_t
     
