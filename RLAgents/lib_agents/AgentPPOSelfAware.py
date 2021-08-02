@@ -261,17 +261,11 @@ class AgentPPOSelfAware():
     def _visualise(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 
-        features_predicted_t, features_target_t, attention_t = self.model_sa.forward_motivation(state_t, state_norm_t)
-
-        curiosity_t     = (features_target_t - features_predicted_t)**2
-        curiosity_t     = curiosity_t.mean(dim = 1)
-
+        _, _, attention_t = self.model_sa.forward_motivation(state_t, state_norm_t)
+        
         state_np        = state_t[0][0].detach().to("cpu").numpy()
-        attention_np    = attention_t[0][0].detach().to("cpu").numpy()
 
         attention_np = cv2.resize(attention_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
-        curiosity_np = cv2.resize(curiosity_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
-
         image       = numpy.zeros((3, self.state_shape[1], self.state_shape[2]))
 
 
