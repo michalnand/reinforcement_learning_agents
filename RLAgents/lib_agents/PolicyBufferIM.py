@@ -99,10 +99,27 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
-    def sample_states(self, batch_size, device):
+    def sample_states_pairs(self, batch_size, device):
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
-        states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
-        return states
+        
+        close_random    = numpy.random.randint(-1, 2, size=batch_size*self.envs_count)
+        indices_close   = numpy.clip(indices + close_random, 0, self.envs_count*self.buffer_size - 1)
+        indices_far     = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+
+        labels          = numpy.random.randint(0, 1, batch_size*self.envs_count)
+
+        indices_next    = (1 - labels)*indices_close + labels*indices_far
+
+        print("indices      = ", indices[0:32])
+        print("labels       = ", labels[0:32])
+        print("indices_next = ", indices_next[0:32])
+        print("\n\n")
+
+        states_a        = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
+        states_b        = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
+        labels_t        = torch.from_numpy(1.0*labels).unsqueeze(1).to(device)
+
+        return states_a, states_b, labels_t
     
     def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
         buffer_size = rewards.shape[0]

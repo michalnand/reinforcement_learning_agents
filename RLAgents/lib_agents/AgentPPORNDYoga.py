@@ -168,15 +168,16 @@ class AgentPPORNDYoga():
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                #train RND target model - maximize distances
-                sa_t = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
-                sb_t = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
+                #train RND target model
+                sa_t, sb_t, distances_target = self.policy_buffer.sample_states_pairs(self.batch_size, self.model_ppo.device)
 
                 sa_norm_t    = self._norm_state(sa_t).detach()
                 sb_norm_t    = self._norm_state(sb_t).detach()
 
                 distances       = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t)
-                loss_distances  = -distances.mean()
+
+                loss_distances  = (distances_target - distances)**2
+                loss_distances  = loss_distances.mean()
 
                 loss_internal   = loss_rnd + self.target_rnd_coeff*loss_distances
 
