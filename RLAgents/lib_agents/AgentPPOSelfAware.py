@@ -286,7 +286,7 @@ class AgentPPOSelfAware():
         cv2.imshow("visualisation", image)
         cv2.waitKey(1)
 
-     def _norm_state(self, state_t):
+    def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
 
         state_norm_t = state_t - mean
