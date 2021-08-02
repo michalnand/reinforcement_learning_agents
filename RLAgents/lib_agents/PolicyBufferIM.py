@@ -110,11 +110,6 @@ class PolicyBufferIM:
 
         indices_next    = (1 - labels)*indices_close + labels*indices_far
 
-        print("indices      = ", indices[0:6])
-        print("labels       = ", labels[0:6])
-        print("indices_next = ", indices_next[0:6])
-        print("\n\n")
-
         states_a        = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
         states_b        = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
         labels_t        = torch.from_numpy(1.0*labels).unsqueeze(1).to(device)
