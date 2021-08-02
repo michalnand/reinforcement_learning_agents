@@ -176,9 +176,9 @@ class AgentPPORNDYoga():
 
                 distances   = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t)
                 
-                zeros = torch.zeros(distances_target.shape).to(distances_target.device)
-                l1 = (1.0 - distances_target)*distances
-                l2 = distances_target*torch.max(1.0 - distances, zeros)
+                zeros       = torch.zeros(distances_target.shape).to(distances_target.device)
+                l1          = (1.0 - distances_target)*distances
+                l2          = distances_target*torch.max(1.0 - distances, zeros)
  
                 loss_distances  = (l1 + l2).mean() 
 
