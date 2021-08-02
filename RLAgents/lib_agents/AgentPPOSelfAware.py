@@ -86,7 +86,7 @@ class AgentPPOSelfAware():
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #self._visualise(states_new_t)
+        self._visualise(states_new_t)
          
         #put into policy buffer
         if self.enabled_training:
