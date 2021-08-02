@@ -168,17 +168,21 @@ class AgentPPORNDYoga():
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-                #train RND target model
+                #train RND target model, contrastive loss
                 sa_t, sb_t, distances_target = self.policy_buffer.sample_states_pairs(self.batch_size, self.model_ppo.device)
 
-                sa_norm_t    = self._norm_state(sa_t).detach()
-                sb_norm_t    = self._norm_state(sb_t).detach()
+                sa_norm_t   = self._norm_state(sa_t).detach()
+                sb_norm_t   = self._norm_state(sb_t).detach()
 
-                distances       = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t).unsqueeze(1)
+                distances   = self.model_rnd.forward_pairs(sa_norm_t, sb_norm_t).unsqueeze(1)
                 
-                loss_distances  = (distances_target - distances)**2
-                loss_distances  = loss_distances.mean()
+                zeros = torch.zeros(distances_target.shape).to(distances_target.device)
+                l1 = (1.0 - distances_target)*distances
+                l2 = distances_target*torch.max(1.0 - distances, zeros)
+ 
+                loss_distances  = (l1 + l2).mean() 
 
+                #total loss
                 loss_internal   = loss_rnd + self.target_rnd_coeff*loss_distances
 
                 self.optimizer_rnd.zero_grad() 
@@ -263,9 +267,7 @@ class AgentPPORNDYoga():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
         state_norm_t = state_t - mean
-        #state_norm_t = torch.clip((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t
