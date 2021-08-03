@@ -26,12 +26,8 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSelfAware             import AgentPPOSelfAware
-from .AgentPPORNDYoga               import AgentPPORNDYoga
-
 from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPORNDSkills             import AgentPPORNDSkills
-from .AgentPPOHierarchyRND          import AgentPPOHierarchyRND
-from .AgentPPOHierarchyEntropy      import AgentPPOHierarchyEntropy
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
