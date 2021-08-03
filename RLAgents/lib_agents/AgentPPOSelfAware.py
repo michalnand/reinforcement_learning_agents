@@ -12,8 +12,8 @@ class AgentPPOSelfAware():
         self.envs = envs  
     
         self.gamma_ext          = config.gamma_ext
-        self.gamma_int          = config.gamma_int
-            
+        self.gamma_int          = config.gamma_int 
+             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
      
@@ -86,7 +86,7 @@ class AgentPPOSelfAware():
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #self._visualise(states_new_t)
+        self._visualise(states_new_t)
          
         #put into policy buffer
         if self.enabled_training:
