@@ -86,7 +86,7 @@ class AgentPPOSelfAware():
         curiosity_np    = self._curiosity(states_new_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #self._visualise(states_new_t)
+        self._visualise(states_new_t)
          
         #put into policy buffer
         if self.enabled_training:
@@ -265,6 +265,11 @@ class AgentPPOSelfAware():
         state_np        = state_t[0][0].detach().to("cpu").numpy()
         attention_np    = attention_t[0][0].detach().to("cpu").numpy()
 
+        maximum = attention_np.max() + 0.0001
+        minimum = attention_np.min()
+
+        attention_np = (attention_np - minimum) / (maximum - minimum)
+ 
         attention_np = cv2.resize(attention_np, (state_np.shape[0], state_np.shape[1]), interpolation = cv2.INTER_AREA)
         image       = numpy.zeros((3, self.state_shape[1], self.state_shape[2]))
 

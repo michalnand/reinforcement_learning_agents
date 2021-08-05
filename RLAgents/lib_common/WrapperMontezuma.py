@@ -92,8 +92,11 @@ class ResizeEnv(gym.ObservationWrapper):
         img = img.convert('L')
         img = img.resize((self.height, self.width))
 
+        '''
         for i in reversed(range(self.frame_stacking-1)):
             self.state[i+1] = self.state[i].copy()
+        '''
+        self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
 
         return self.state
@@ -143,6 +146,65 @@ class VisitedRoomsEnv(gym.Wrapper):
         distances   = distances.sum(axis=1)
 
         return numpy.min(distances), numpy.argmin(distances)
+
+
+
+class SeqEnv(gym.Wrapper):
+    def __init__(self, env, seq_length, decimation):
+        super(SeqEnv, self).__init__(env)
+        self.seq_length =   seq_length
+        self.decimation =   decimation
+
+        buffer_shape = (seq_length, ) + self.observation_space.shape
+        state_shape  = (seq_length//decimation, ) + self.observation_space.shape
+        self.dtype = numpy.float32
+        
+        self.state_buffer = numpy.zeros(buffer_shape, dtype=self.dtype)
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
+        
+    def reset(self):
+        state       = self.env.reset()
+        self.state  = self._update(state, True)
+        return self.state
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+
+        self.state = self._update(state)
+
+        #self._show()
+
+        return self.state, reward, done, info
+
+    def _update(self, state, clear = False):
+        if clear:
+            for i in range(self.seq_length):
+                self.state_buffer[i] = state.copy()
+        else:
+            self.state_buffer = numpy.roll(self.state_buffer, 1, axis=0)
+            self.state_buffer[0] = state.copy()
+
+        return self.state_buffer[0::self.decimation]
+
+
+    def _show(self):
+        seq_length  = self.state.shape[0]
+        size        = int(seq_length**0.5)
+        height      = self.state.shape[2]
+        width       = self.state.shape[3]
+
+        spacing     = 4
+
+        image = numpy.zeros((size*(height + spacing), size*(width + spacing)))
+        
+        for y in range(size):
+            for x in range(size): 
+                image[y*height + y*spacing:y*height + height + y*spacing, x*width + x*spacing:x*width + width + x*spacing] = self.state[y*size + x][0]
+        
+        
+        cv2.imshow("visualisation", image)
+        cv2.waitKey(1)
 
 
 class RawScoreEnv(gym.Wrapper):
@@ -199,13 +261,15 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     return env
 
 
-def WrapperMontezumaLong(env, height = 96, width = 96, frame_stacking = 12, max_steps = 4500):
+def WrapperMontezumaSequence(env, height = 96, width = 96, frame_stacking = 4, seq_length = 256, decimation = 16, max_steps = 4500):
     #env = VideoRecorder(env)    
 
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
+    env = SeqEnv(env, seq_length, decimation)
     env = RawScoreEnv(env, max_steps)
 
     return env
+
