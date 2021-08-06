@@ -76,17 +76,16 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.99, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
         self.decay              = decay
         self.device             = device
 
-        self.total_targets          = 0
-        self.active_edges     = 0
+        self.total_targets      = 0
+        self.active_edges       = 0
  
-
 
         self.connections        = torch.zeros((self.size, self.size), dtype=torch.float32).to(self.device)
 
@@ -151,7 +150,7 @@ class GoalsMemoryGraph:
                 self.total_targets = (self.total_targets + 1)%self.size
 
         #regularisation
-        self.connections = torch.nn.functional.hardshrink(self.connections*self.decay, 0.01)
+        self.connections = torch.nn.functional.hardshrink(self.connections*self.decay, 0.1)
 
         #count active edges
         self.active_edges = int((self.connections > 0).sum().detach().to("cpu").numpy())
@@ -174,6 +173,9 @@ class GoalsMemoryGraph:
         networkx.draw_networkx_edges(G, pos, arrows = False)
 
         plt.savefig(path + "graph.png", dpi=300)
+
+        f = open(path + "graph.npy", "wb")
+        numpy.save(f, z)
  
     
     #downsample and flatten
