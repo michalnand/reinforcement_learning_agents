@@ -76,7 +76,7 @@ class GoalsMemoryNovelty:
 
 
 class GoalsMemoryGraph:
-    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.99, device = "cpu"):
+    def __init__(self, size, downsample = -1, add_threshold = 1.0, decay = 0.999, device = "cpu"):
         self.size               = size
         self.downsample         = downsample
         self.add_threshold      = add_threshold
