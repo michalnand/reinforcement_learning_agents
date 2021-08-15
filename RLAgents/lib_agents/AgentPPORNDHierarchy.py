@@ -102,8 +102,11 @@ class AgentPPORNDHierarchy():
         
         for e in range(self.actors): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
-                self.state_sampling.reset(self.states[e], e)
+                s_tmp = self.envs.reset(e).copy()
+                self.state_sampling.reset(s_tmp, e)
+                
+                self.states[e] = self.state_sampling.get()[e]
+                
 
         #collect stats
         k = 0.02
