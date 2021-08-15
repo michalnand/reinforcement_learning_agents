@@ -26,7 +26,7 @@ class StateSampling:
     #input shape    : (features)
     def reset(self, state, batch_idx):
         for t in range(self.taps_count):
-            self.buffer[t][batch_idx] = state[batch_idx].copy()
+            self.buffer[t][batch_idx] = state.copy()
 
     def get(self):
         result = numpy.swapaxes(self.buffer,0, 1)
