@@ -2,7 +2,6 @@ import numpy
 
 class RunningStats:
     def __init__(self, shape = (), initial_value = None):
-
         self.mean  = numpy.zeros(shape)
         self.std   = numpy.ones(shape) 
 

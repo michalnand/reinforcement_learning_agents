@@ -82,7 +82,7 @@ class ResizeEnv(gym.ObservationWrapper):
         self.frame_stacking = frame_stacking
 
         state_shape = (self.frame_stacking, self.height, self.width)
-        self.dtype = numpy.float32
+        self.dtype  = numpy.float32
 
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
         self.state = numpy.zeros(state_shape, dtype=self.dtype)
@@ -250,6 +250,18 @@ class RawScoreEnv(gym.Wrapper):
  
  
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    #env = VideoRecorder(env)    
+
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = ResizeEnv(env, height, width, frame_stacking)
+    env = VisitedRoomsEnv(env)
+    env = RawScoreEnv(env, max_steps)
+
+    return env
+
+
+def WrapperMontezumaLong(env, height = 96, width = 96, frame_stacking = 12, max_steps = 4500):
     #env = VideoRecorder(env)    
 
     env = StickyActionEnv(env)
