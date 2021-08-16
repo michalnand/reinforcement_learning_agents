@@ -5,6 +5,7 @@ import numpy
 import networkx
 import matplotlib.pyplot as plt
 
+#import cv2
 
  
 class GoalsMemoryNovelty:
@@ -86,14 +87,14 @@ class GoalsMemoryGraph:
         self.total_targets      = 0
         self.active_edges       = 0
  
-
         self.connections        = torch.zeros((self.size, self.size), dtype=torch.float32).to(self.device)
 
         self.buffer             = None
         self.indices            = None
   
         if downsample > 1:
-            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample//2, self.downsample//2))
+            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+            #self.layer_downsample = torch.nn.MaxPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
@@ -147,14 +148,29 @@ class GoalsMemoryGraph:
         for i in range(tmp_t.shape[0]):
             if closest[i] > self.add_threshold:
                 self.buffer[self.total_targets] = tmp_t[i].clone()
+                #img = self.buffer[self.total_targets].detach().to("cpu").numpy()
+
                 self.total_targets = (self.total_targets + 1)%self.size
+            else:
+                idx = self.indices[i]
+                k   = 0.99
+                self.buffer[idx] = k*self.buffer[idx] + (1.0 - k)*tmp_t[i].clone()
+
+                #img = self.buffer[idx].detach().to("cpu").numpy()
 
         #regularisation
         self.connections = torch.nn.functional.hardshrink(self.connections*self.decay, 0.1)
 
         #count active edges
         self.active_edges = int((self.connections > 0).sum().detach().to("cpu").numpy())
-          
+        
+        '''
+        img = numpy.reshape(img, (12, 12))
+        img = cv2.resize(img, (96, 96), interpolation = cv2.INTER_NEAREST)
+        cv2.imshow("image", img)
+        cv2.waitKey(1)
+        '''
+
         return motivation
 
 
