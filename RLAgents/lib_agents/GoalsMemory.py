@@ -94,7 +94,6 @@ class GoalsMemoryGraph:
   
         if downsample > 1:
             self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
-            #self.layer_downsample = torch.nn.MaxPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
             self.layer_downsample.to(self.device)
 
         self.layer_flatten    = torch.nn.Flatten()
@@ -151,13 +150,7 @@ class GoalsMemoryGraph:
                 #img = self.buffer[self.total_targets].detach().to("cpu").numpy()
 
                 self.total_targets = (self.total_targets + 1)%self.size
-            else:
-                idx = self.indices[i]
-                k   = 0.99
-                self.buffer[idx] = k*self.buffer[idx] + (1.0 - k)*tmp_t[i].clone()
-
-                #img = self.buffer[idx].detach().to("cpu").numpy()
-
+                
         #regularisation
         self.connections = torch.nn.functional.hardshrink(self.connections*self.decay, 0.1)
 

@@ -124,7 +124,7 @@ class AgentPPORNDSkills():
 
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
-    
+     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
