@@ -1,21 +1,28 @@
 import torch
 import numpy 
 
+
 class PolicyBufferIM:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
         
         self.buffer_size    = buffer_size
-        self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
         self.device         = device
- 
+
+        self.uint8_storage  = uint8_storage
+
+        if self.uint8_storage:
+            self.scale  = 255
+        else:
+            self.scale  = 1
+      
         self.clear()   
  
     def add(self, state, logits, value_ext, value_int, action, reward, internal, done):
         
-        self.states_b[self.ptr]    = state.copy()
+        self.states_b[self.ptr]    = state.copy()*self.scale
         self.logits_b[self.ptr]    = logits.copy()
         
         self.values_ext_b[self.ptr]= value_ext.copy()
@@ -38,7 +45,11 @@ class PolicyBufferIM:
         return False 
  
     def clear(self):
-        self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        if self.uint8_storage: 
+            self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.ubyte)
+        else:
+            self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+
         self.logits_b           = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
 
         self.values_ext_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
@@ -84,8 +95,8 @@ class PolicyBufferIM:
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
         indices_next    = numpy.clip(indices + 1, 0, self.envs_count*self.buffer_size - 1)
  
-        states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
-        states_next     = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
+        states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device).float()/self.scale
+        states_next     = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device).float()/self.scale
         logits          = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
         
         actions         = torch.from_numpy(numpy.take(self.actions_b, indices, axis=0)).to(device)
@@ -110,8 +121,8 @@ class PolicyBufferIM:
 
         indices_next    = (1 - labels)*indices_close + labels*indices_far
 
-        states_a        = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
-        states_b        = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device)
+        states_a        = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device).float()/self.scale
+        states_b        = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device).float()/self.scale
         labels_t        = torch.from_numpy(1.0*labels).to(device)
 
         return states_a, states_b, labels_t
@@ -134,3 +145,4 @@ class PolicyBufferIM:
             advantages[n]   = last_gae
 
         return returns, advantages
+

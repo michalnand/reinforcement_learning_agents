@@ -112,7 +112,7 @@ class AgentDDPGHindsight():
         #update actor
         self.optimizer_actor.zero_grad()       
         actor_loss.backward()
-        self.optimizer_actor.step()
+        self.optimizer_actor.step() 
 
         # update target networks 
         for target_param, param in zip(self.model_actor_target.parameters(), self.model_actor.parameters()):
