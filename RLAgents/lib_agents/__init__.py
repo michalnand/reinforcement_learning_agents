@@ -28,6 +28,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPORNDMulti              import AgentPPORNDMulti
 from .AgentPPORNDHierarchy          import AgentPPORNDHierarchy
 from .AgentPPORNDSkills             import AgentPPORNDSkills
  
