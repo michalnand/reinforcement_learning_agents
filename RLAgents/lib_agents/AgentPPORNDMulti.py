@@ -128,13 +128,13 @@ class AgentPPORNDMulti():
         self.model_ppo.save(save_path + "trained/")
 
         for m in range(self.rnd_count):
-            self.model_rnd[m].save(save_path + "trained/" + str(m) + "_")
-
+            self.rnd_models[m].save(save_path + "trained/" + str(m) + "_")
+ 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
  
         for m in range(self.rnd_count):
-            self.model_rnd.load(load_path + "trained/" + str(m) + "_")
+            self.rnd_models[m].load(load_path + "trained/" + str(m) + "_")
 
     def get_log(self): 
         result = "" 
