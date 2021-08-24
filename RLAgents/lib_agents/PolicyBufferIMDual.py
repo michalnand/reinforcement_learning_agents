@@ -1,21 +1,28 @@
 import torch
 import numpy
-
+ 
 class PolicyBufferIMDual:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
         
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
         self.device         = device
+
+        self.uint8_storage  = uint8_storage
+
+        if self.uint8_storage:
+            self.scale  = 255
+        else:
+            self.scale  = 1
  
         self.clear()  
  
     def add(self, state, logits, value_ext, value_int_a, value_int_b, action, reward, internal_a, internal_b, done):
         
-        self.states_b[self.ptr]         = state.copy()
+        self.states_b[self.ptr]         = state.copy()*self.scale
         self.logits_b[self.ptr]         = logits.copy()
         
         self.values_ext_b[self.ptr]     = value_ext.copy()
@@ -39,7 +46,11 @@ class PolicyBufferIMDual:
         return False 
  
     def clear(self):
-        self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        if self.uint8_storage: 
+            self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.ubyte)
+        else:
+            self.states_b           = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+
         self.logits_b           = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
 
         self.values_ext_b       = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
@@ -94,9 +105,11 @@ class PolicyBufferIMDual:
     def sample_batch(self, batch_size, device):
         indices             = numpy.random.randint(0, self.buffer_size*self.envs_count, size=batch_size*self.envs_count)
         
-        
-        states              = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
+        indices_next    = numpy.clip(indices + 1, 0, self.envs_count*self.buffer_size - 1)
 
+        states          = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device).float()/self.scale
+        states_next     = torch.from_numpy(numpy.take(self.states_b, indices_next, axis=0)).to(device).float()/self.scale
+        
         logits              = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
         
         actions             = torch.from_numpy(numpy.take(self.actions_b, indices, axis=0)).to(device)
@@ -108,9 +121,8 @@ class PolicyBufferIMDual:
         advantages_ext      = torch.from_numpy(numpy.take(self.advantages_ext_b, indices, axis=0)).to(device)
         advantages_int_a    = torch.from_numpy(numpy.take(self.advantages_int_a_b, indices, axis=0)).to(device)
         advantages_int_b    = torch.from_numpy(numpy.take(self.advantages_int_b_b, indices, axis=0)).to(device)
-
     
-        return states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
+        return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
  
     def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
         buffer_size = rewards.shape[0]

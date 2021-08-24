@@ -7,36 +7,83 @@ import matplotlib.pyplot as plt
 
 #import cv2
 
- 
+
 class GoalsMemoryNovelty:
-    def __init__(self, size, downsample = -1, add_threshold = 0.9, alpha = 0.01, epsilon = 0.0001, device = "cpu"):
-        self.size       = size
-        self.downsample = downsample
-        
+    def __init__(self, size, downsample, add_threshold = 1.0, alpha = 0.1, device = "cpu"):
+        self.size               = size
+        self.downsample         = downsample
         self.add_threshold      = add_threshold
         self.alpha              = alpha
-        self.epsilon            = numpy.log(epsilon)
+        self.device             = device
 
-        self.device     = device
+        self.total_targets      = 0
+        self.active_edges       = 0
 
-        self.buffer     = None
- 
-        if downsample > 1:
-            self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample//2, self.downsample//2))
-            self.layer_downsample.to(self.device)
+        
+        self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
+        self.layer_downsample.to(self.device)
 
-        self.layer_flatten    = torch.nn.Flatten()
+        self.layer_upsample = torch.nn.Upsample(scale_factor=self.downsample, mode="nearest")
+        self.layer_upsample.to(self.device)
+
+        self.layer_flatten = torch.nn.Flatten()
         self.layer_flatten.to(self.device)
 
+        self.states             = None
+        self.visits             = numpy.zeros((self.size, ))
+        self.steps              = numpy.ones((self.size, ))
+        self.reward_ext         = numpy.zeros((self.size, ))
+        self.reward_int         = numpy.zeros((self.size, ))
 
-    def process(self, states_t, steps_t):
-        tmp_t = self._preprocess(states_t)
+    def step(self, states_t, goals_t, steps_np, rewards_ext_np, rewards_int_np):
+        reward_visits, reward_faster = self._add(states_t, steps_np, rewards_ext_np, rewards_int_np)
+
+        reached_goals   = self._reached_goals(states_t, goals_t)
+
+        reward_reached  = 1.0*reached_goals
+
+        #keep previous goals
+        new_goals_t     = goals_t.clone()
+
+        #clear goals if reached
+        for i in range(len(reached_goals)):
+            if reached_goals[i] == True:
+                new_goals_t[i] = torch.zeros((states_t[2], states_t[3])).to(states_t.device)
+
+        return new_goals_t, reward_visits, reward_faster, reward_reached
+
+
+    def _add(self, states_t, steps_np, rewards_ext_np, rewards_int_np):
+        tmp_t = self._preprocess(states_t[:,0])
 
         #create buffer if not created yet
-        if self.buffer is None:
-            self.buffer = torch.zeros((self.size, tmp_t.shape[1])).float().to(self.device)
-            self.steps  = torch.ones((self.size, )).to(self.device)
-            self.total_targets = 0
+        if self.states is None:
+            self.state_shape    = states_t.shape[1:]
+            self.states         = torch.zeros((self.size, ) + tmp_t.shape[1:]).float().to(self.device)
+           
+            self.states[self.total_targets] = tmp_t[0].clone()
+            self.total_targets+= 1
+
+            self.total_targets  = 0
+
+
+        #states_t distances from buffer
+        distances = torch.cdist(tmp_t, self.buffer)
+        
+        #find closest
+        indices   = torch.argmin(distances, dim=1)
+        closest   = distances[range(tmp_t.shape[0]), indices]
+
+        #add new item on random place if threashold reached
+        for i in range(tmp_t.shape[0]):
+            if closest[i] > self.add_threshold:
+                self.states[self.total_targets]     = tmp_t[i].clone()
+                self.steps[self.total_targets]      = steps_np[i].clone()
+                self.reward_ext[self.total_targets] = rewards_ext_np[i].clone()
+                self.reward_int[self.total_targets] = rewards_int_np[i].clone()
+
+                self.total_targets+= 1
+
 
         #states_t distances from buffer
         distances = torch.cdist(tmp_t, self.buffer)
@@ -44,34 +91,75 @@ class GoalsMemoryNovelty:
         #find closest
         indices   = torch.argmin(distances, dim=1)
 
+        #increment visits count
+        self.visits[indices]+= 1
 
-        closest   = distances[range(tmp_t.shape[0]), indices]
 
-        #smooth update stored distances
-        self.steps[indices]  = (1.0 - self.alpha)*self.steps[indices]   + self.alpha*(steps_t.float() + 1)
+        eps = 0.0000001
+
+        #less visiting reward
+        rewards_visits = 1.0/(self.visits[indices] + eps)
+
+        #less steps to goal reward
+        faster             = (steps_np).astype(int) < (self.steps[indices]).astype(int)
+        rewards_faster     = 1.0*faster
+
+        #smooth update steps
+        self.steps[indices] = (1.0 - self.alpha)*self.steps[indices] + self.alpha*steps_np
+
+        #update if better external reward
+        self.reward_ext[indices] = numpy.max(self.reward_ext[indices], rewards_ext_np)
+
+        #smooth update internal reward
+        self.reward_int[indices] = (1.0 - self.alpha)*self.reward_int[indices] + self.alpha*rewards_int_np
+  
+
+        return rewards_visits, rewards_faster
+
+    def _reached_goals(self, states_t, goals_t):
+        states_tmp  = self._preprocess(states_t[:,0])
+        goals_tmp   = self._preprocess(goals_t[:,0])
+
+        distances   = (((goals_tmp - states_tmp)**2.0).sum(dim=1))**0.5
         
-        #compute motivation
-        motivation_t = torch.exp(steps_t*self.epsilon/self.steps[indices])
+        result      = (distances <= self.add_threshold).detach().to("cpu").numpy()
 
-        #add new item on random place if threashold reached
-        for i in range(tmp_t.shape[0]):
-            if closest[i] > self.add_threshold:
-                idx = numpy.random.randint(0, self.size - 1)
-                self.buffer[idx] = tmp_t[i].clone()
-                self.steps[idx]  = steps_t[i].clone()
+        return result
+      
 
-                self.total_targets+= 1
+    def get_goal(self, shape, ext_reward_weight = 1.0):
+        #compute target eights
+        w   = ext_reward_weight*self.reward_ext + (1.0 - ext_reward_weight)*self.reward_int
+        
+        #select only from stored state
+        w   = w[0:self.total_targets]
 
-        return motivation_t
+        #convert to probs, softmax
+        probs   = numpy.exp(w - w.max())
+        probs   = probs/probs.sum() 
 
-    
+        #get random idx, with prob given in w
+        idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
+
+        y   = self.buffer[idx]
+
+        y = y.reshape((1, self.state_shape[1]//self.downsample, self.state_shape[2]//self.downsample))
+        y = self.layer_upsample(y)
+        
+        return y
+
+    def state_to_goal(self, states_t):
+        y = self.layer_downsample(states_t[:, 0].unsqeeze(1))
+        y = self.layer_upsample(y)
+        return y
+      
+
     #downsample and flatten
-    def _preprocess(self, x):
-        if self.layer_downsample is not None:
-            y = self.layer_downsample(x)
-        
+    def _preprocess(self, states_t):
+        y = self.layer_downsample(states_t)
         y = self.layer_flatten(y)
         return y 
+
 
 
 
