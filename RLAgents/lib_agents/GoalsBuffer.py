@@ -55,7 +55,7 @@ class GoalsBuffer:
         distances = torch.cdist(self.states_downsampled, self.candidate_goals_b)
     
         #find closest
-        self.indices   = torch.argmin(distances, dim=1)
+        self.indices   = torch.argmin(distances, dim=1).detach().to("cpu").numpy()
         self.closest   = distances[range(self.states_downsampled.shape[0]), self.indices]
 
         
@@ -86,17 +86,17 @@ class GoalsBuffer:
 
                 self.total_goals = (self.total_goals + 1)%self.size
 
-        indices = self.indices.detach().to("cpu").numpy()
+        #indices = self.indices.detach().to("cpu").numpy()
 
                
         #add higher reward
-        self.reward_ext_b[indices] = numpy.maximum(self.reward_ext_b[indices], reward_ext)
+        self.reward_ext_b[self.indices] = numpy.maximum(self.reward_ext_b[self.indices], reward_ext)
     
         #smooth update reward int
-        self.reward_int_b[indices] = (1.0 - self.alpha)*self.reward_int_b[indices] + self.alpha*reward_int
+        self.reward_int_b[self.indices] = (1.0 - self.alpha)*self.reward_int_b[self.indices] + self.alpha*reward_int
 
         #smooth update steps
-        self.steps_b[indices] = (1.0 - self.alpha)*self.steps_b[indices] + self.alpha*steps
+        self.steps_b[self.indices] = (1.0 - self.alpha)*self.steps_b[self.indices] + self.alpha*steps
  
    
     def new_goal(self, env_idx):
