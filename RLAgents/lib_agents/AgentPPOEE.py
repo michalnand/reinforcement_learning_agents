@@ -155,6 +155,7 @@ class AgentPPOEE():
         result+= str(round(self.log_advantages, 7)) + " "
         result+= str(round(self.log_curiosity_advatages, 7)) + " "
         result+= str(round(self.log_goals_advatages, 7)) + " "
+        result+= str(self.goals_buffer.total_goals) + " "
         return result 
 
     def _sample_actions(self, logits):
