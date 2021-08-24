@@ -11,7 +11,6 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
 from .EpisodicMemory                import EpisodicMemory
-from .GoalsMemory                   import GoalsMemoryNovelty, GoalsMemoryGraph
 from .StatesBuffer                  import StatesBuffer
 
 from .AgentRandom                   import AgentRandom
