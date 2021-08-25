@@ -24,7 +24,7 @@ class AgentPPORNDMulti():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.actors             = config.actors 
+        self.envs_count         = config.envs_count 
 
         self.rnd_count          = config.rnd_count
 
@@ -45,13 +45,13 @@ class AgentPPORNDMulti():
             self.rnd_models.append(model_rnd)
             self.rnd_optimizers.append(optimizer_rnd)
 
-        self.rnd_model_score = numpy.zeros((config.rnd_count, self.actors))
+        self.rnd_model_score = numpy.zeros((config.rnd_count, self.envs_count))
         
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device, True)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
  
-        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.actors):
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
         features_predicted_t, _     = self.rnd_models[0](torch.from_numpy(self.states).to(self.rnd_models[0].device))  
@@ -112,7 +112,7 @@ class AgentPPORNDMulti():
             if self.policy_buffer.is_full():
                 self.train()
         
-        for e in range(self.actors): 
+        for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 

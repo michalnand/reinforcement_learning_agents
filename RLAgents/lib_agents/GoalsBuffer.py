@@ -3,6 +3,7 @@ from numpy.core.numeric import indices
 import torch
 import numpy
 
+import cv2
 
 class GoalsBuffer:
     def __init__(self, size, add_threshold, downsample, goals_ext_reward_ratio, state_shape, parallel_envs, device = "cpu"):
@@ -73,6 +74,8 @@ class GoalsBuffer:
         faster             = (steps_np).astype(int) < (self.steps_b[self.indices]).astype(int)
         reward_goal_steps  = numpy.tanh(0.1*faster)*reached_goals
 
+        self._visualise(states_t[0], self.current_goal[0], self.desired_goals_b[0])
+
         return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_steps
 
     def add(self, reward_ext, reward_int, steps):
@@ -122,9 +125,10 @@ class GoalsBuffer:
         
 
     #downsample and flatten
-    def _downsmaple(self, states_t):
+    def _downsmaple(self, states_t, quant_levels = 8):
         y = self.layer_downsample(states_t)
         y = self.layer_flatten(y)
+        y = torch.round(y*quant_levels)/quant_levels
         return y 
 
     def _upsample(self, x):
@@ -136,6 +140,24 @@ class GoalsBuffer:
         y = self.layer_upsample(x)
 
         return y
+
+    def _visualise(self, state, current, target):
+        state_np    = state[0].detach().to("cpu").numpy()
+        current_np  = current[0].detach().to("cpu").numpy()
+        target_np   = target[0].detach().to("cpu").numpy()
+
+        size = 256
+
+        state_img   = cv2.resize(state_np, (size, size), interpolation = cv2.INTER_NEAREST)
+        current_img = cv2.resize(current_np, (size, size), interpolation = cv2.INTER_NEAREST)
+        target_img  = cv2.resize(target_np, (size, size), interpolation = cv2.INTER_NEAREST)
+
+        img = numpy.hstack((state_img, current_img, target_img))
+
+        cv2.imshow("image", img)
+        cv2.waitKey(1)
+
+        print(self.total_goals)
       
 
 

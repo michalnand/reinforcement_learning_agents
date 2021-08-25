@@ -16,7 +16,7 @@ class AgentPPO():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.actors             = config.actors
+        self.envs_count      = config.envs_count
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -24,10 +24,10 @@ class AgentPPO():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.actors, self.model.device)
+        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
  
-        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.actors):
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e)
 
         self.enable_training()
@@ -63,7 +63,7 @@ class AgentPPO():
             if self.policy_buffer.is_full():
                 self.train()
     
-        for e in range(self.actors):
+        for e in range(self.envs_count):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
            

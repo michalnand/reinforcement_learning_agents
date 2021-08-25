@@ -24,7 +24,7 @@ class AgentPPORND():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.actors             = config.actors 
+        self.envs_count      = config.envs_count 
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -35,10 +35,10 @@ class AgentPPORND():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.actors, self.model_ppo.device, True)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
  
-        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.actors):
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
@@ -92,7 +92,7 @@ class AgentPPORND():
             if self.policy_buffer.is_full():
                 self.train()
         
-        for e in range(self.actors): 
+        for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 

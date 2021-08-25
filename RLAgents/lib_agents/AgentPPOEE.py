@@ -27,7 +27,7 @@ class AgentPPOEE():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.parallel_envs             = config.actors 
+        self.envs_count         = config.envs_count 
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -39,12 +39,12 @@ class AgentPPOEE():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
 
         state_shape        = (self.state_shape[0] + 2, ) + self.state_shape[1:]
-        self.policy_buffer = PolicyBufferIMDual(self.steps, state_shape, self.actions_count, self.parallel_envs, self.model_ppo.device, True)
-        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.goals_ext_reward_ratio, self.state_shape, self.parallel_envs, self.model_ppo.device)
+        self.policy_buffer = PolicyBufferIMDual(self.steps, state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.goals_ext_reward_ratio, self.state_shape, self.envs_count, self.model_ppo.device)
 
 
-        self.states = numpy.zeros((self.parallel_envs, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.parallel_envs):
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
         goal    = numpy.expand_dims(self.states[:, 0], axis=1)
@@ -52,11 +52,11 @@ class AgentPPOEE():
 
         self.states_running_stats       = RunningStats(state_shape, tmp)
 
-        self.exploit_mode           = numpy.zeros(self.parallel_envs, dtype=bool)
-        self.reward_ext_episode_sum = numpy.zeros(self.parallel_envs, dtype=numpy.float32)
-        self.reward_int_episode_sum = numpy.zeros(self.parallel_envs, dtype=numpy.float32)
-        self.rewards_episode_sum    = numpy.zeros(self.parallel_envs, dtype=numpy.float32)
-        self.steps_episode          = numpy.zeros(self.parallel_envs, dtype=int)
+        self.exploit_mode           = numpy.zeros(self.envs_count, dtype=bool)
+        self.reward_ext_episode_sum = numpy.zeros(self.envs_count, dtype=numpy.float32)
+        self.reward_int_episode_sum = numpy.zeros(self.envs_count, dtype=numpy.float32)
+        self.rewards_episode_sum    = numpy.zeros(self.envs_count, dtype=numpy.float32)
+        self.steps_episode          = numpy.zeros(self.envs_count, dtype=int)
 
  
         self.enable_training()
@@ -121,7 +121,7 @@ class AgentPPOEE():
             if self.policy_buffer.is_full():
                 self.train()
         
-        for e in range(self.parallel_envs): 
+        for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]                  = self.envs.reset(e).copy()
                 self.steps_episode[e]           = 0
