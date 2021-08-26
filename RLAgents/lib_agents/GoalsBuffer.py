@@ -74,14 +74,17 @@ class GoalsBuffer:
         faster             = (steps_np).astype(int) < (self.steps_b[self.indices]).astype(int)
         reward_goal_steps  = numpy.tanh(0.1*faster)*reached_goals
 
+        if reached_goals[0]:
+            print("goal reached", reward_reached_goals[0], reward_goal_steps[0], "\n\n")
+
         self._visualise(states_t[0], self.current_goal[0], self.desired_goals_b[0])
 
         return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_steps
 
-    def add(self, reward_ext, reward_int, steps):
+    def add(self, reward_ext, reward_int, steps, dones):
         #add new item if threashold reached
         for i in range(self.states_downsampled.shape[0]):
-            if self.closest[i] > self.add_threshold and self.total_goals < self.size: 
+            if self.closest[i] > self.add_threshold and self.total_goals < self.size and dones[i] == False: 
                 self.candidate_goals_b[self.total_goals]       = self.states_downsampled[i].clone()
                 self.steps_b[self.total_goals]        = steps[i]
                 self.reward_ext_b[self.total_goals]   = reward_ext[i]
@@ -113,6 +116,7 @@ class GoalsBuffer:
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
+        
         #get random idx, with prob given in w
         idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
 
@@ -121,6 +125,10 @@ class GoalsBuffer:
         goal   = self._upsample(goal)[0]
 
         self.desired_goals_b[env_idx] = goal.clone()
+
+        print("targets_count = ", self.total_goals)
+        print("new target id = ", idx, w[idx])
+
 
         
 
@@ -148,16 +156,15 @@ class GoalsBuffer:
 
         size = 256
 
-        state_img   = cv2.resize(state_np, (size, size), interpolation = cv2.INTER_NEAREST)
-        current_img = cv2.resize(current_np, (size, size), interpolation = cv2.INTER_NEAREST)
-        target_img  = cv2.resize(target_np, (size, size), interpolation = cv2.INTER_NEAREST)
+        state_img   = cv2.resize(state_np, (size, size), interpolation      = cv2.INTER_NEAREST)
+        current_img = cv2.resize(current_np, (size, size), interpolation    = cv2.INTER_NEAREST)
+        target_img  = cv2.resize(target_np, (size, size), interpolation     = cv2.INTER_NEAREST)
 
         img = numpy.hstack((state_img, current_img, target_img))
 
         cv2.imshow("image", img)
         cv2.waitKey(1)
 
-        print(self.total_goals)
       
 
 
