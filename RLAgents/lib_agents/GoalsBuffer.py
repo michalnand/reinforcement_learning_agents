@@ -143,11 +143,11 @@ class GoalsBuffer:
         self.desired_goals_b[env_idx]   = goal.clone()
         self.reached[env_idx]           = False  
 
-        
+        '''
         print("targets_count = ", self.total_goals)
         print("new target id = ", idx, w[idx])
         print("\n\n")
-
+        '''
         
 
     #downsample and flatten
