@@ -84,14 +84,14 @@ class GoalsBuffer:
         faster             = (steps_np).astype(int) < (self.steps_b[self.indices]).astype(int)
         reward_goal_steps  = numpy.tanh(0.1*faster)*reached_goals
 
-        '''
+        
         if reached_goals[0]:
             print("goal reached", reward_reached_goals[0], reward_goal_steps[0], "\n\n")
 
         idx = self.goal_idx[0]
         self._visualise(states_t[0], self.current_goal[0], self.desired_goals_b[0], self.reward_ext_b[idx], self.reward_int_b[idx])
-        '''
         
+
         return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_steps
 
     def add(self, reward_ext, reward_int, steps, dones):
@@ -142,10 +142,10 @@ class GoalsBuffer:
         self.desired_goals_b[env_idx]   = goal.clone()
         self.reached[env_idx]           = False  
 
-        '''
+        
         print("targets_count = ", self.total_goals)
         print("new target id = ", idx, w[idx])
-        '''
+        print("\n\n")
 
         
 
