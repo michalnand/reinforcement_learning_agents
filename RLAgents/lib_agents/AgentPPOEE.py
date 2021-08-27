@@ -11,7 +11,7 @@ from .RunningStats      import *
     
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
-        self.envs = envs  
+        self.envs = envs   
    
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
