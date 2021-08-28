@@ -90,10 +90,12 @@ class GoalsBuffer:
                 self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
                 self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
 
-        '''
+        
         if reward_reached_goals[0] > 0.0:
             print("goal reached", reward_reached_goals, reward_visited_goals, "\n\n")
+            print(self.goals_counter[0:self.goals_counter])
 
+        '''
         idx = self.goals_indices[0]
         self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards[idx], self.goals_rewards[idx])
         '''
