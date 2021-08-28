@@ -111,8 +111,9 @@ class AgentPPOEE():
         goals_np        = reward_goal_achieved + reward_goal_steps
 
         self.rewards_episode_sum+= rewards
+        self.reward_int_episode_sum+= curiosity_np
 
-        self.goals_buffer.add(self.rewards_episode_sum, curiosity_np, self.steps_episode, dones)
+        self.goals_buffer.add(self.rewards_episode_sum, self.reward_int_episode_sum, self.steps_episode, dones)
 
         #put into policy buffer
         if self.enabled_training:
@@ -126,6 +127,7 @@ class AgentPPOEE():
                 self.states[e]                  = self.envs.reset(e).copy()
                 self.steps_episode[e]           = 0
                 self.rewards_episode_sum[e]     = 0.0
+                self.reward_int_episode_sum[e]  = 0.0
                 self.goals_buffer.new_goal(e)
 
 
