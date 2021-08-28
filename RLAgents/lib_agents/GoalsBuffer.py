@@ -160,7 +160,8 @@ class GoalsBuffer:
         return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.0000001)
 
     def _visited_rewards(self):
-        return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.0000001)
+        r = 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.0000001)
+        return numpy.max(r, 0.0)
 
 
 
