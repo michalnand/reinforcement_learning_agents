@@ -66,11 +66,6 @@ class GoalsBuffer:
         self.current_goals          = self._upsample(self.states_downsampled)
         self.desired_goals          = self._upsample(desired_goals_downsampled)
         
-        for e in range(self.envs_count):
-            if self.goals_reached[e]:
-                self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
-                self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
-
         #states_t distances from buffer
         distances = torch.cdist(self.states_downsampled, self.goals)
     
@@ -89,6 +84,12 @@ class GoalsBuffer:
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
+
+        for e in range(self.envs_count):
+            if self.goals_reached[e]:
+                self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
+                self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
+
         '''
         if reward_reached_goals[0] > 0.0:
             print("goal reached", reward_reached_goals, reward_visited_goals, "\n\n")
@@ -96,7 +97,7 @@ class GoalsBuffer:
         idx = self.goals_indices[0]
         self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards[idx], self.goals_rewards[idx])
         '''
-        
+
         return self.current_goals, self.desired_goals, reward
 
     def add(self, rewards):
