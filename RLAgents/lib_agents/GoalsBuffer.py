@@ -130,7 +130,7 @@ class GoalsBuffer:
         #compute target weights
         #w   = self.goals_ext_reward_ratio*self.reward_ext_b + (1.0 - self.goals_ext_reward_ratio)*self.reward_int_b
 
-        w = self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0001)
+        w = 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0001)
         
         #select only from stored state
         w   = w[0:self.total_goals]
