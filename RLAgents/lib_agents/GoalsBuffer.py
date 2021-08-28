@@ -93,7 +93,7 @@ class GoalsBuffer:
         
         if reward_reached_goals[0] > 0.0:
             print("goal reached", reward_reached_goals, reward_visited_goals, "\n\n")
-            print(self.goals_counter[0:self.goals_counter])
+            print(self.goals_counter[0:self.total_goals])
 
         '''
         idx = self.goals_indices[0]
