@@ -135,17 +135,11 @@ class GoalsBuffer:
         #select only from stored state
         w   = w[0:self.total_goals]
 
-        
-
         #convert to probs, softmax
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
-        print(w)
-        print(probs)
-        print("\n\n\n")
-
-        
+       
         #get random idx, with prob given in w
         idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
 
