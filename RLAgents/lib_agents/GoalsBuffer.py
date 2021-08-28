@@ -78,7 +78,7 @@ class GoalsBuffer:
         
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
-        reward_visited_goals    = (1.0 - self.goals_reached)*self._visited_rewards()[self.closet_indices]
+        reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
 
         reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
 
