@@ -86,16 +86,18 @@ class GoalsBuffer:
         faster             = (steps_np).astype(int) < (self.steps_b[self.indices]).astype(int)
         reward_goal_steps  = numpy.tanh(0.1*faster)*reached_goals
 
+        reward_goal_visited = reached_goals*self._get_visited_reward()[self.indices]
+
         
         if reached_goals[0]:
-            print("goal reached", reward_reached_goals[0], reward_goal_steps[0], "\n\n")
+            print("goal reached", reward_reached_goals[0], reward_goal_visited[0], "\n\n")
 
         '''
         idx = self.goal_idx[0]
         self._visualise(states_t[0], self.current_goal[0], self.desired_goals_b[0], self.reward_ext_b[idx], self.reward_int_b[idx])
         '''
 
-        return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_steps
+        return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_visited
 
     def add(self, reward_ext, reward_int, steps, dones):
         #add new item if threashold reached
@@ -128,7 +130,7 @@ class GoalsBuffer:
         #compute target weights
         #w   = self.goals_ext_reward_ratio*self.reward_ext_b + (1.0 - self.goals_ext_reward_ratio)*self.reward_int_b
 
-        w_visited       = 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0001)
+        w_visited       = self._get_visited_reward()
         w_ext_reward    = self.reward_ext_b
 
         w   = (1 + w_visited)*w_ext_reward
@@ -198,6 +200,9 @@ class GoalsBuffer:
 
         cv2.imshow("image", img)
         cv2.waitKey(1)
+
+    def _get_visited_reward(self):
+        return 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0000001)
 
       
 
