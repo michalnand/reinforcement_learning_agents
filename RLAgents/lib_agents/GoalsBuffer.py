@@ -14,7 +14,7 @@ class GoalsBuffer:
         self.add_threshold  = add_threshold
         self.state_shape    = state_shape
         self.goals_shape    = (1, state_shape[1], state_shape[2]) 
-        self.envs_count  = envs_count
+        self.envs_count     = envs_count
         self.device         = device
 
         
@@ -92,13 +92,13 @@ class GoalsBuffer:
 
         '''
         if reward_reached_goals[0] > 0.0:
-            print("goal reached", reward_reached_goals, reward_visited_goals, "\n\n")
+            print("goal reached = ", reward, "\n\n")
             print(self.goals_counter[0:self.total_goals])
-
-        idx = self.goals_indices[0]
-        self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards[idx], self.goals_rewards[idx])
+            print(self.goals_rewards[0:self.total_goals])
+            
+        self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], reward[0])
         '''
-
+        
         return self.current_goals, self.desired_goals, reward
 
     def add(self, rewards):
@@ -164,7 +164,7 @@ class GoalsBuffer:
 
 
 
-    def _visualise(self, state, current, target, reward, reward_int):
+    def _visualise(self, state, current, target, reward):
         state_np    = state[0].detach().to("cpu").numpy()
         current_np  = current[0].detach().to("cpu").numpy()
         target_np   = target[0].detach().to("cpu").numpy()
