@@ -157,11 +157,10 @@ class GoalsBuffer:
         return y
 
     def _external_rewards(self):
-        return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.0000001)
+        return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.000000001)
 
     def _visited_rewards(self):
-        r = 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.0000001)
-        return numpy.max(r, 0.0)
+        return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
 
 
 
@@ -374,7 +373,7 @@ class GoalsBuffer:
         cv2.waitKey(1)
 
     def _get_visited_reward(self):
-        return 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0000001)
+        return 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.000000001)
 
 '''   
 
