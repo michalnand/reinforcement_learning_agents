@@ -82,11 +82,8 @@ class GoalsBuffer:
                 self.current_goal[i]    = torch.zeros(self.goals_shape, device=self.device)
 
 
-        #reward for less steps to goal
-        faster             = (steps_np).astype(int) < (self.steps_b[self.indices]).astype(int)
-        reward_goal_steps  = numpy.tanh(0.1*faster)*reached_goals
-
-        reward_goal_visited = reached_goals*self._get_visited_reward()[self.indices]
+        #reward for less visited goal and reached goal
+        reward_goal_visited = self._get_visited_reward()[self.indices]
 
         
         if reached_goals[0]:
@@ -97,7 +94,7 @@ class GoalsBuffer:
         self._visualise(states_t[0], self.current_goal[0], self.desired_goals_b[0], self.reward_ext_b[idx], self.reward_int_b[idx])
         '''
 
-        return self.current_goal, self.desired_goals_b, reward_reached_goals, reward_goal_visited
+        return self.current_goal, self.desired_goals_b, 0.1*reward_reached_goals, reward_goal_visited
 
     def add(self, reward_ext, reward_int, steps, dones):
         #add new item if threashold reached
