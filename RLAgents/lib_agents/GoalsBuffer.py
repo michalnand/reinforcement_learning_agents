@@ -138,9 +138,8 @@ class GoalsBuffer:
         #select only from stored state
         w   = w[0:self.total_goals]
 
-        #convert to probs, softmax
-        #probs   = numpy.exp(w - w.max())
-        probs   = w
+        #convert weights to probs, softmax
+        probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
        
