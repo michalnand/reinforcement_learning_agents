@@ -133,13 +133,14 @@ class GoalsBuffer:
         w_visited       = 1.0 - self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0001)
         w_ext_reward    = self.reward_ext_b
 
-        w   = (w_visited + 1)*w_ext_reward
+        w   = (1 + w_visited)*w_ext_reward
         
         #select only from stored state
         w   = w[0:self.total_goals]
 
         #convert to probs, softmax
-        probs   = numpy.exp(w - w.max())
+        #probs   = numpy.exp(w - w.max())
+        probs   = w
         probs   = probs/probs.sum() 
 
        
