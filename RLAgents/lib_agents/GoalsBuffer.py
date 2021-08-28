@@ -122,8 +122,7 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights
-        goals_rewards_norm = self.goals_rewards/(numpy.max(self.goals_rewards) + 0.0000001)
-        w   = self.goals_ext_reward_ratio*goals_rewards_norm + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+        w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
         
         #select only from stored state
         w   = w[0:self.total_goals]
@@ -157,6 +156,8 @@ class GoalsBuffer:
 
         return y
 
+    def _external_rewards(self):
+        return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.0000001)
 
     def _visited_rewards(self):
         return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.0000001)
