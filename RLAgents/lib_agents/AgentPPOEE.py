@@ -52,11 +52,7 @@ class AgentPPOEE():
 
         self.states_running_stats       = RunningStats(state_shape, tmp)
 
-        self.exploit_mode           = numpy.zeros(self.envs_count, dtype=bool)
-        self.reward_ext_episode_sum = numpy.zeros(self.envs_count, dtype=numpy.float32)
-        self.reward_int_episode_sum = numpy.zeros(self.envs_count, dtype=numpy.float32)
         self.rewards_episode_sum    = numpy.zeros(self.envs_count, dtype=numpy.float32)
-        self.steps_episode          = numpy.zeros(self.envs_count, dtype=int)
 
  
         self.enable_training()
@@ -79,7 +75,7 @@ class AgentPPOEE():
         #state to tensor
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        current_goal_t, goals_t, reward_goal_achieved, reward_goal_steps = self.goals_buffer.get(states_t, self.steps_episode)
+        current_goal_t, goals_t, reward_goal_np = self.goals_buffer.get(states_t)
 
         states_t        = torch.cat([states_t, current_goal_t, goals_t], dim = 1)
 
@@ -107,17 +103,13 @@ class AgentPPOEE():
         curiosity_np    = self._curiosity(states_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        #motivation for achieved goal or faster achieved goal
-        goals_np        = reward_goal_achieved + reward_goal_steps
-
         self.rewards_episode_sum+= rewards
-        self.reward_int_episode_sum+= curiosity_np
 
-        self.goals_buffer.add(self.rewards_episode_sum, self.reward_int_episode_sum, self.steps_episode, dones)
+        self.goals_buffer.add(self.rewards_episode_sum)
 
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards, curiosity_np, goals_np, dones)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards, curiosity_np, reward_goal_np, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -125,18 +117,14 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]                  = self.envs.reset(e).copy()
-                self.steps_episode[e]           = 0
                 self.rewards_episode_sum[e]     = 0.0
-                self.reward_int_episode_sum[e]  = 0.0
                 self.goals_buffer.new_goal(e)
 
-
-        self.steps_episode+= 1
 
         #collect stats
         k = 0.02
         self.log_curiosity  = (1.0 - k)*self.log_curiosity  + k*curiosity_np.mean()
-        self.log_goals      = (1.0 - k)*self.log_goals      + k*goals_np.mean()
+        self.log_goals      = (1.0 - k)*self.log_goals      + k*reward_goal_np.mean()
         
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
