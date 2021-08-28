@@ -32,6 +32,8 @@ class GoalsBuffer:
         self.desired_goals_b        = torch.zeros((parallel_envs, ) + self.goals_shape, device=self.device)
 
         self.steps_b        = numpy.zeros(self.size, dtype=numpy.int)
+        self.visited_count_b= numpy.zeros(self.size, dtype=numpy.int)
+        
         self.reward_ext_b   = numpy.zeros(self.size, dtype=numpy.float32)
         self.reward_int_b   = numpy.zeros(self.size, dtype=numpy.float32)
 
@@ -104,6 +106,8 @@ class GoalsBuffer:
                 self.reward_ext_b[self.total_goals]   = reward_ext[i]
                 self.reward_int_b[self.total_goals]   = reward_int[i]
 
+                self.visited_count_b[self.total_goals]= 1
+
                 self.total_goals = self.total_goals + 1
 
         #indices = self.indices.detach().to("cpu").numpy()
@@ -117,18 +121,29 @@ class GoalsBuffer:
 
         #smooth update steps
         self.steps_b[self.indices] = (1.0 - self.alpha)*self.steps_b[self.indices] + self.alpha*steps
+
+        #update visited counter
+        self.visited_count_b[self.indices]+= 1
  
    
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self.goals_ext_reward_ratio*self.reward_ext_b + (1.0 - self.goals_ext_reward_ratio)*self.reward_int_b
+        #w   = self.goals_ext_reward_ratio*self.reward_ext_b + (1.0 - self.goals_ext_reward_ratio)*self.reward_int_b
+
+        w = self.visited_count_b/(numpy.max(self.visited_count_b) + 0.0001)
         
         #select only from stored state
         w   = w[0:self.total_goals]
 
+        
+
         #convert to probs, softmax
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
+
+        print(w)
+        print(probs)
+        print("\n\n\n")
 
         
         #get random idx, with prob given in w
