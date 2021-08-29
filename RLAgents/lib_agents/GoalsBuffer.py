@@ -40,7 +40,7 @@ class GoalsBuffer:
         self.goals_rewards_sum  = numpy.zeros((self.size, ))
 
         #visiting count
-        self.goals_counter  = numpy.zeros((self.size, ), dtype=int)
+        self.goals_counter  = numpy.zeros((self.size, ))
 
         #current goals indices
         self.goals_indices  = numpy.zeros((self.envs_count, ), dtype=int)
@@ -124,6 +124,7 @@ class GoalsBuffer:
         #update visited counter
         for e in range(self.envs_count):
             self.goals_counter[self.closet_indices[e]]+= 1
+            
 
 
     def new_goal(self, env_idx):
