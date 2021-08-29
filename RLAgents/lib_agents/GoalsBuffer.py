@@ -79,9 +79,8 @@ class GoalsBuffer:
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
 
-        #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
+        reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
 
-        reward   = 1.0*reward_reached_goals
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
@@ -92,34 +91,18 @@ class GoalsBuffer:
             print("goal reached = ", reward, "\n\n")
             print(self.goals_counter[0:self.total_goals])
             print(self.goals_rewards_sum[0:self.total_goals])
-        '''
 
         if reward_reached_goals[0] > 0.0:
             idx = self.goals_indices[0]
             self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards_sum[idx])
-        
+        '''        
 
 
         for e in range(self.envs_count):
             if self.goals_reached[e]:
                 self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
                 self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
-        '''
-        if self.goals_reached[0]:
-            w   = (self._external_rewards() + 1)*(self._visited_rewards() + 1)
-            w   = 10.0*w[0:self.total_goals]
-            w   = w - w.max()
-
-            #convert weights to probs, softmax
-            probs   = numpy.exp(w)
-            probs   = probs/probs.sum() 
-
-            #get random idx, with prob given in w
-            idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
-
-            print(idx, w[idx], probs[idx], numpy.max(w))
-            self._visualise_goal(idx)
-        '''
+       
 
         return self.current_goals, self.desired_goals, reward
 
@@ -146,14 +129,15 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights
-        #w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+        w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
 
-        w   = self._external_rewards()*(1 + 100.0*self._visited_rewards())
+        #w   = self._external_rewards()*(1 + 100.0*self._visited_rewards())
         
         #select only from stored state
         w   = w[0:self.total_goals]
 
         #convert weights to probs, softmax
+        w       = 10.0*w
         w       = (w - w.max())
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
