@@ -1,4 +1,4 @@
-from numpy.core.fromnumeric import var
+from numpy.core.fromnumeric import prod, var
 from numpy.core.numeric import indices
 import torch
 import numpy
@@ -36,7 +36,8 @@ class GoalsBuffer:
         self.goals          = torch.zeros((self.size, goals_shape), device=self.device)
 
         #external reward for reaching goal
-        self.goals_rewards  = numpy.zeros((self.size, ))
+        self.goals_rewards      = numpy.zeros((self.size, ))
+        self.goals_rewards_sum  = numpy.zeros((self.size, ))
 
         #visiting count
         self.goals_counter  = numpy.zeros((self.size, ), dtype=int)
@@ -78,40 +79,65 @@ class GoalsBuffer:
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
 
-        reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
+        #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
+
+        reward   = 1.0*reward_reached_goals
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
+
+
+      
+        '''
+        if reward_reached_goals[0] > 0.0:
+            print("goal reached = ", reward, "\n\n")
+            print(self.goals_counter[0:self.total_goals])
+            print(self.goals_rewards_sum[0:self.total_goals])
+        '''
+
+        if reward_reached_goals[0] > 0.0:
+            idx = self.goals_indices[0]
+            self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards_sum[idx])
+        
 
 
         for e in range(self.envs_count):
             if self.goals_reached[e]:
                 self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
                 self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
+        '''
+        if self.goals_reached[0]:
+            w   = (self._external_rewards() + 1)*(self._visited_rewards() + 1)
+            w   = 10.0*w[0:self.total_goals]
+            w   = w - w.max()
 
+            #convert weights to probs, softmax
+            probs   = numpy.exp(w)
+            probs   = probs/probs.sum() 
+
+            #get random idx, with prob given in w
+            idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
+
+            print(idx, w[idx], probs[idx], numpy.max(w))
+            self._visualise_goal(idx)
         '''
-        if reward_reached_goals[0] > 0.0:
-            print("goal reached = ", reward, "\n\n")
-            print(self.goals_counter[0:self.total_goals])
-            print(self.goals_rewards[0:self.total_goals])
-            
-        self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], reward[0])
-        '''
-        
+
         return self.current_goals, self.desired_goals, reward
 
-    def add(self, rewards):
+    def add(self, rewards, rewards_sum):
         #add new item if threashold reached
         for i in range(self.envs_count):
             if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
-                self.goals[self.total_goals]            = self.states_downsampled[i].clone()
-                self.goals_rewards[self.total_goals]    = rewards[i]
+                self.goals[self.total_goals]                = self.states_downsampled[i].clone()
+                self.goals_rewards[self.total_goals]        = rewards[i]
+                self.goals_rewards_sum[self.total_goals]    = rewards_sum[i]
 
                 self.goals_counter[self.total_goals]    = 1
 
                 self.total_goals = self.total_goals + 1
 
         #add higher reward
-        self.goals_rewards[self.goals_indices] = numpy.maximum(self.goals_rewards[self.goals_indices], rewards*(1.0 - self.goals_reached))
+        self.goals_rewards[self.goals_indices]      = numpy.maximum(self.goals_rewards[self.goals_indices], rewards*(1.0 - self.goals_reached))
+        self.goals_rewards_sum[self.goals_indices]  = numpy.maximum(self.goals_rewards_sum[self.goals_indices], rewards_sum*(1.0 - self.goals_reached))
      
         #update visited counter
         for e in range(self.envs_count):
@@ -120,12 +146,15 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+        #w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+
+        w   = self._external_rewards()*(1 + 100.0*self._visited_rewards())
         
         #select only from stored state
         w   = w[0:self.total_goals]
 
         #convert weights to probs, softmax
+        w       = (w - w.max())
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
@@ -134,6 +163,8 @@ class GoalsBuffer:
 
         self.goals_indices[env_idx] = idx
         self.goals_reached[env_idx] = False
+
+      
 
     #downsample and flatten
     def _downsmaple(self, states_t, quant_levels = 8):
@@ -153,13 +184,24 @@ class GoalsBuffer:
 
         return y
 
+    def _external_rewards_sum(self):
+        return self.goals_rewards_sum/(numpy.max(self.goals_rewards_sum) + 0.000000001)
+
     def _external_rewards(self):
         return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.000000001)
 
     def _visited_rewards(self):
         return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
 
+    def _visualise_goal(self, idx):
+        
+        goal_np = self._upsample(self.goals[idx].unsqueeze(0)).squeeze(0)
 
+        goal_np = goal_np[0].detach().to("cpu").numpy()
+
+        img   = cv2.resize(goal_np, (256, 256), interpolation      = cv2.INTER_NEAREST)
+        cv2.imshow("image", img)
+        cv2.waitKey(1)
 
     def _visualise(self, state, current, target, reward):
         state_np    = state[0].detach().to("cpu").numpy()
@@ -175,7 +217,7 @@ class GoalsBuffer:
         target_img  = cv2.resize(target_np, (size, size), interpolation     = cv2.INTER_NEAREST)
 
         font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-        cv2.putText(target_img, reward_str,(10, 20), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(target_img, reward_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         img = numpy.hstack((state_img, current_img, target_img))
 
