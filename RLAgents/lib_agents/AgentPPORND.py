@@ -200,12 +200,12 @@ class AgentPPORND():
         loss_int_value  = loss_int_value.mean()
         
         
-        loss_critic     = loss_ext_value + 0*loss_int_value
+        loss_critic     = loss_ext_value + loss_int_value
  
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + 0*self.int_adv_coeff*advantages_int
+        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
