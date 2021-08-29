@@ -4,7 +4,7 @@ import torch
 import numpy
 
 import cv2
-
+ 
 
 class GoalsBuffer:
     def __init__(self, size, add_threshold, downsample, goals_ext_reward_ratio, state_shape, envs_count, device = "cpu"):
@@ -17,9 +17,7 @@ class GoalsBuffer:
         self.envs_count     = envs_count
         self.device         = device
 
-        
-
-
+    
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
         self.layer_downsample.to(self.device)
 
@@ -30,7 +28,7 @@ class GoalsBuffer:
         self.layer_flatten.to(self.device)
 
         
-        states_downsampled_shape   = (1, self.state_shape[1]//self.downsample, self.state_shape[2]//self.downsample)
+        states_downsampled_shape = (1, self.state_shape[1]//self.downsample, self.state_shape[2]//self.downsample)
 
         goals_shape         = numpy.prod(states_downsampled_shape)
 
@@ -38,7 +36,7 @@ class GoalsBuffer:
         self.goals          = torch.zeros((self.size, goals_shape), device=self.device)
 
         #external reward for reaching goal
-        self.goals_rewards   = numpy.zeros((self.size, ))
+        self.goals_rewards  = numpy.zeros((self.size, ))
 
         #visiting count
         self.goals_counter  = numpy.zeros((self.size, ), dtype=int)
@@ -53,7 +51,7 @@ class GoalsBuffer:
 
 
     def get(self, states_t):        
-        self.states_downsampled          = self._downsmaple(states_t[:,0].unsqueeze(1))
+        self.states_downsampled = self._downsmaple(states_t[:,0].unsqueeze(1))
 
         #add first goal if buffer empty
         if self.total_goals == 0:
@@ -131,7 +129,6 @@ class GoalsBuffer:
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
-       
         #get random idx, with prob given in w
         idx = numpy.random.choice(range(len(w)), 1, p=probs)[0]
 

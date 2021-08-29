@@ -57,7 +57,7 @@ class AgentPPORND():
     def disable_training(self):
         self.enabled_training = False
 
-    def main(self):
+    def main(self): 
         #state to tensor
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
