@@ -227,12 +227,12 @@ class AgentPPOEE():
         loss_int_b_value  = loss_int_b_value.mean()
         
         
-        loss_critic     = loss_ext_value + 0*loss_int_a_value + 0*loss_int_b_value
+        loss_critic     = loss_ext_value #+ loss_int_a_value + loss_int_b_value
  
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + 0*self.int_a_adv_coeff*advantages_int_a + 0*self.int_b_adv_coeff*advantages_int_b
+        advantages      = self.ext_adv_coeff*advantages_ext #+ self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
