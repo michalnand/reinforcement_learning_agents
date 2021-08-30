@@ -81,7 +81,8 @@ class GoalsBuffer:
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
 
-        reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
+        #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
+        reward   = reward_reached_goals + reward_visited_goals
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
