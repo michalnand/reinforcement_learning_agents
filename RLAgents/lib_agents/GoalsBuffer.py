@@ -17,6 +17,9 @@ class GoalsBuffer:
         self.envs_count     = envs_count
         self.device         = device
 
+        self.steps          = 0
+        self.warm_up_steps  = 256
+
     
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
         self.layer_downsample.to(self.device)
@@ -107,13 +110,14 @@ class GoalsBuffer:
     def add(self, rewards_sum):
         #add new item if threashold reached
         for i in range(self.envs_count):
-            if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
-                self.goals[self.total_goals]                = self.states_downsampled[i].clone()
-                self.goals_rewards_sum[self.total_goals]    = rewards_sum[i]
+            if self.steps > self.warm_up_steps or i == 0:
+                if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
+                    self.goals[self.total_goals]                = self.states_downsampled[i].clone()
+                    self.goals_rewards_sum[self.total_goals]    = rewards_sum[i]
 
-                self.goals_counter[self.total_goals]    = 1
+                    self.goals_counter[self.total_goals]    = 1
 
-                self.total_goals = self.total_goals + 1
+                    self.total_goals = self.total_goals + 1
 
         #add higher reward
         self.goals_rewards_sum[self.goals_indices]  = numpy.maximum(self.goals_rewards_sum[self.goals_indices], rewards_sum*(1.0 - self.goals_reached))
@@ -121,6 +125,8 @@ class GoalsBuffer:
         #update visited counter
         for e in range(self.envs_count):
             self.goals_counter[self.closet_indices[e]]+= 1
+
+        self.steps+= 1
             
 
 
