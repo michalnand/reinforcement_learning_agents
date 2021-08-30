@@ -105,7 +105,7 @@ class AgentPPOEE():
 
         self.rewards_episode_sum+= rewards
 
-        self.goals_buffer.add(self.rewards_episode_sum)
+        self.goals_buffer.add(rewards)
 
         #put into policy buffer
         if self.enabled_training:
