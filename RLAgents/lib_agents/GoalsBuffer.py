@@ -18,7 +18,7 @@ class GoalsBuffer:
         self.device         = device
 
         self.steps          = 0
-        self.warm_up_steps  = 256
+        self.warm_up_steps  = 512
 
     
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
