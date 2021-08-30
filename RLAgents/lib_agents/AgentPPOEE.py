@@ -94,7 +94,7 @@ class AgentPPOEE():
         #execute action
         states, rewards, dones, infos = self.envs.step(actions)
 
-        self.states = states.copy()
+        self.states = states.copy() 
  
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
