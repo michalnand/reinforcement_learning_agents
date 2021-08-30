@@ -36,7 +36,6 @@ class GoalsBuffer:
         self.goals          = torch.zeros((self.size, goals_shape), device=self.device)
 
         #external reward for reaching goal
-        self.goals_rewards      = numpy.zeros((self.size, ))
         self.goals_rewards_sum  = numpy.zeros((self.size, ))
 
         #visiting count
@@ -105,12 +104,11 @@ class GoalsBuffer:
 
         return self.current_goals, self.desired_goals, reward
 
-    def add(self, rewards, rewards_sum):
+    def add(self, rewards_sum):
         #add new item if threashold reached
         for i in range(self.envs_count):
             if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
                 self.goals[self.total_goals]                = self.states_downsampled[i].clone()
-                self.goals_rewards[self.total_goals]        = rewards[i]
                 self.goals_rewards_sum[self.total_goals]    = rewards_sum[i]
 
                 self.goals_counter[self.total_goals]    = 1
@@ -118,7 +116,6 @@ class GoalsBuffer:
                 self.total_goals = self.total_goals + 1
 
         #add higher reward
-        self.goals_rewards[self.goals_indices]      = numpy.maximum(self.goals_rewards[self.goals_indices], rewards*(1.0 - self.goals_reached))
         self.goals_rewards_sum[self.goals_indices]  = numpy.maximum(self.goals_rewards_sum[self.goals_indices], rewards_sum*(1.0 - self.goals_reached))
      
         #update visited counter
@@ -129,16 +126,14 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+        w   = self.goals_ext_reward_ratio*self._external_rewards_sum() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
 
-        #w   = self._external_rewards()*(1 + 100.0*self._visited_rewards())
-        
         #select only from stored state
         w   = w[0:self.total_goals]
 
         #convert weights to probs, softmax
         w       = 10.0*w
-        w       = (w - w.max())
+        w       = w - w.max()
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
 
@@ -170,9 +165,6 @@ class GoalsBuffer:
 
     def _external_rewards_sum(self):
         return self.goals_rewards_sum/(numpy.max(self.goals_rewards_sum) + 0.000000001)
-
-    def _external_rewards(self):
-        return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.000000001)
 
     def _visited_rewards(self):
         return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
