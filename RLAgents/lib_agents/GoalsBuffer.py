@@ -349,7 +349,7 @@ class GoalsBufferGraph:
         w   = w[0:self.total_goals]
 
         #convert weights to probs, softmax
-        #w       = 10.0*w
+        w       = 10.0*w
         w       = w - w.max()
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
