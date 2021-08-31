@@ -348,6 +348,8 @@ class GoalsBufferGraph:
         #select only from stored state
         w   = w[0:self.total_goals]
 
+        print(">>> ", w)
+
         #convert weights to probs, softmax
         w       = 10.0*w
         w       = w - w.max()
