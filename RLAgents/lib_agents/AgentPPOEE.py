@@ -52,8 +52,6 @@ class AgentPPOEE():
 
         self.states_running_stats       = RunningStats(state_shape, tmp)
 
-        self.rewards_episode_sum    = numpy.zeros(self.envs_count, dtype=numpy.float32)
-
  
         self.enable_training()
         self.iterations                 = 0 
@@ -103,9 +101,8 @@ class AgentPPOEE():
         curiosity_np    = self._curiosity(states_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
 
-        self.rewards_episode_sum+= rewards
 
-        self.goals_buffer.add(rewards)
+        self.goals_buffer.add()
 
         #put into policy buffer
         if self.enabled_training:
@@ -117,7 +114,6 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]                  = self.envs.reset(e).copy()
-                self.rewards_episode_sum[e]     = 0.0
                 self.goals_buffer.new_goal(e)
 
 
