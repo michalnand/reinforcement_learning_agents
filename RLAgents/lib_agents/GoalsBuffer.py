@@ -287,15 +287,15 @@ class GoalsBufferGraph:
         counts          = self.connections[self.indices_now]
         
         #maximum possible entropy of state
-        maximum_entropy = (counts > 0.0).sum(dim=1) + eps
+        maximum_entropy = (counts > 0.0).sum(axis=1) + eps
 
         #real state entropy
-        counts_probs   = counts/(torch.sum(counts, dim=1).unsqueeze(1) + eps)
+        counts_probs   = counts/(torch.sum(counts, axis=1).unsqueeze(1) + eps)
         entropy        = -counts_probs*torch.log2(counts_probs + eps) 
-        entropy        = torch.sum(entropy, dim=1)
+        entropy        = torch.sum(entropy, axis=1)
 
         #motivation, how close to maximum possible entropy, also prefer less visited states
-        reward_entropy = (1.0 - entropy/maximum_entropy)*1.0/(torch.sum(counts, dim=1) + eps)
+        reward_entropy = 1.0 - entropy/maximum_entropy
 
       
 
