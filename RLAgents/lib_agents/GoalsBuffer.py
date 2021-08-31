@@ -270,12 +270,12 @@ class GoalsBufferGraph:
     
        
         #find closest
-        if self.indices_now is None:
-            self.indices_now     = torch.argmin(distances, dim=1).detach().to("cpu").numpy()
-            self.indices_prev       = self.indices_now.clone()
+        if self.indices_now is None: 
+            self.indices_now    = torch.argmin(distances, dim=1).detach().to("cpu").numpy()
+            self.indices_prev   = self.indices_now.copy()
         else:
-            self.indices_prev       = self.indices_now.clone()
-            self.indices_now     = torch.argmin(distances, dim=1).detach().to("cpu").numpy()
+            self.indices_prev   = self.indices_now.copy()
+            self.indices_now    = torch.argmin(distances, dim=1).detach().to("cpu").numpy()
 
         self.closest_distances  = distances[range(self.states_downsampled.shape[0]), self.indices_now]
 
