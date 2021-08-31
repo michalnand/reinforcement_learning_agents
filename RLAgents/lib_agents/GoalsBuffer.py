@@ -282,7 +282,7 @@ class GoalsBufferGraph:
 
         #update graph
         #print(">>> ", self.connections.shape, self.indices_prev.shape, self.indices_now.shape)
-        self.connections[self.indices_prev.detach().to("cpu").numpy(), self.indices_now.detach().to("cpu").numpy()]+= 1
+        self.connections[self.indices_prev, self.indices_now]+= 1
 
 
         eps             = 0.000001
