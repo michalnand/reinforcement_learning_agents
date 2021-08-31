@@ -1,3 +1,4 @@
+from numpy.lib.shape_base import expand_dims
 import torch
 import numpy
 import networkx
@@ -290,7 +291,7 @@ class GoalsBufferGraph:
         maximum_entropy = (counts > 0.0).sum(axis=1) + eps
 
         #real state entropy 
-        counts_probs   = counts/(numpy.sum(counts, axis=1).unsqueeze(1) + eps)
+        counts_probs   = counts/(numpy.expand_dims(numpy.sum(counts, axis=1), 1) + eps)
         entropy        = -counts_probs*numpy.log2(counts_probs + eps) 
         entropy        = numpy.sum(entropy, axis=1)
 
