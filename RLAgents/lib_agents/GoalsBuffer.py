@@ -282,6 +282,22 @@ class GoalsBufferGraph:
 
         #update graph
         self.connections[self.indices_prev][self.indices_now]+= 1
+
+
+        eps             = 0.000001
+        counts          = self.connections[self.indices_now]
+        
+        #maximum possible entropy of state
+        maximum_entropy = (counts > 0.0).sum(dim=1) + eps
+
+        #real state entropy
+        counts_probs   = counts/(torch.sum(counts, dim=1).unsqueeze(1) + eps)
+        entropy        = -counts_probs*torch.log2(counts_probs + eps) 
+        entropy        = torch.sum(entropy, dim=1)
+
+        #motivation, how close to maximum possible entropy, also prefer less visited states
+        reward_entropy = (1.0 - entropy/maximum_entropy)*1.0/(torch.sum(counts, dim=1) + eps)
+
       
 
         #reward for reached goal
@@ -292,7 +308,7 @@ class GoalsBufferGraph:
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.indices_now]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
-        reward   = self.reached_coeff*reward_reached_goals + self.visited_coeff*reward_visited_goals
+        reward   = self.reached_coeff*reward_reached_goals + self.visited_coeff*reward_visited_goals + self.entropy_coeff*reward_entropy
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
@@ -351,6 +367,27 @@ class GoalsBufferGraph:
 
         self.goals_indices[env_idx] = idx
         self.goals_reached[env_idx] = False
+
+
+    def save(self, path = "./"):
+        print("saving")
+        plt.clf()
+
+        z = self.connections
+        G = networkx.from_numpy_matrix(numpy.array(z), create_using=networkx.MultiDiGraph())
+        G.remove_nodes_from(list(networkx.isolates(G)))
+
+        pos = networkx.spring_layout(G, seed=1)
+        #pos = networkx.kamada_kawai_layout(G)
+
+        networkx.draw_networkx_nodes(G, pos, node_size = 4)
+        networkx.draw_networkx_edges(G, pos, arrows = False)
+
+        plt.savefig(path + "graph.png", dpi=300)
+
+        f = open(path + "graph.npy", "wb")
+        numpy.save(f, z)
+ 
 
     #downsample and flatten
     def _downsmaple(self, states_t, quant_levels = 8):
