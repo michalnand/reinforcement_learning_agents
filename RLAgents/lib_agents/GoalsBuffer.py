@@ -7,10 +7,9 @@ import cv2
  
 
 class GoalsBuffer:
-    def __init__(self, size, add_threshold, downsample, goals_ext_reward_ratio, state_shape, envs_count, device = "cpu"):
+    def __init__(self, size, add_threshold, downsample, state_shape, envs_count, device = "cpu"):
         self.size           = size
         self.downsample     = downsample
-        self.goals_ext_reward_ratio = goals_ext_reward_ratio
         self.add_threshold  = add_threshold
         self.state_shape    = state_shape
         self.goals_shape    = (1, state_shape[1], state_shape[2]) 
@@ -79,7 +78,7 @@ class GoalsBuffer:
         
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
-        reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
+        reward_visited_goals    = self._visited_rewards()[self.closet_indices]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
         reward   = reward_reached_goals + reward_visited_goals
@@ -133,7 +132,7 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self.goals_ext_reward_ratio*self._external_rewards() + (1.0 - self.goals_ext_reward_ratio)*self._visited_rewards()
+        w   = self._visited_rewards()
 
         #select only from stored state
         w   = w[0:self.total_goals]
