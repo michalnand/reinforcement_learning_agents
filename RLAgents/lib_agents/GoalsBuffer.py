@@ -285,7 +285,7 @@ class GoalsBufferGraph:
         self.connections[self.indices_prev, self.indices_now]+= 1
 
 
-        reward_entropy = self._entropy_rewards()[self.indices_now]
+        
       
 
         #reward for reached goal
@@ -294,6 +294,9 @@ class GoalsBufferGraph:
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.indices_now]
+
+        #entropy reward
+        reward_entropy = reward_reached_goals*self._entropy_rewards()[self.indices_now]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
         reward   = self.reached_coeff*reward_reached_goals + self.visited_coeff*reward_visited_goals + self.entropy_coeff*reward_entropy
