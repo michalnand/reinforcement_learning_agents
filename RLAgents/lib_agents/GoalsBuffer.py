@@ -20,7 +20,7 @@ class GoalsBuffer:
         self.warm_up_steps  = 512
 
         self.reach_ratio    = 1.0
-        self.visted_ratio   = 0.001
+        self.visted_ratio   = 0.1
 
     
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
@@ -81,7 +81,7 @@ class GoalsBuffer:
         
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
-        reward_visited_goals    = self._visited_rewards()[self.closet_indices]
+        reward_visited_goals    = (1.0 - self.goals_reached)*self._visited_rewards()[self.closet_indices]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
         reward   = self.reach_ratio*reward_reached_goals + self.reach_ratio*reward_visited_goals
