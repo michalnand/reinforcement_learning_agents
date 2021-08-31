@@ -49,8 +49,6 @@ class GoalsBuffer:
         self.goals_reached  = numpy.ones((self.envs_count, ), dtype=bool)
 
      
-        self.indices_now = None
-
         self.total_goals = 0
 
 
@@ -248,6 +246,7 @@ class GoalsBufferGraph:
         #graph of connections
         self.connections    = numpy.zeros((self.size, self.size), dtype=numpy.float32)
 
+        self.indices_now    = None
 
         self.total_goals = 0
 
