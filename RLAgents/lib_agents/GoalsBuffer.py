@@ -339,7 +339,8 @@ class GoalsBufferGraph:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self._visited_rewards()
+        w   = 0*self._visited_rewards() + self._entropy_rewards()
+
 
         #select only from stored state
         w   = w[0:self.total_goals]
