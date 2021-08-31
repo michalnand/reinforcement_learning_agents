@@ -342,14 +342,14 @@ class GoalsBufferGraph:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = self._visited_rewards() + self._entropy_rewards()
+        w   = (self._visited_rewards() + 1)*(self._entropy_rewards() + 1) - 1
 
 
         #select only from stored state
         w   = w[0:self.total_goals]
 
         #convert weights to probs, softmax
-        w       = 10.0*w
+        #w       = 10.0*w
         w       = w - w.max()
         probs   = numpy.exp(w - w.max())
         probs   = probs/probs.sum() 
