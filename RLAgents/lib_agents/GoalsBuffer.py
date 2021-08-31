@@ -285,20 +285,7 @@ class GoalsBufferGraph:
         self.connections[self.indices_prev, self.indices_now]+= 1
 
 
-        eps             = 0.000001
-        counts          = self.connections[self.indices_now]
-        
-        #maximum possible entropy of state
-        maximum_entropy = (counts > 0.0).sum(axis=1) + eps
-
-        #real state entropy 
-        counts_probs   = counts/(numpy.expand_dims(numpy.sum(counts, axis=1), 1) + eps)
-        entropy        = -counts_probs*numpy.log2(counts_probs + eps) 
-        entropy        = numpy.sum(entropy, axis=1)
-
-        #motivation, how close to maximum possible entropy, also prefer less visited states
-        reward_entropy = 1.0 - entropy/maximum_entropy
-
+        reward_entropy = self._entropy_rewards()[self.indices_now]
       
 
         #reward for reached goal
@@ -410,6 +397,23 @@ class GoalsBufferGraph:
 
     def _visited_rewards(self):
         return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
+
+
+    def _entropy_rewards(self):
+        eps             = 0.000001
+        counts          = self.connections
+        
+        #maximum possible entropy of state
+        maximum_entropy = (counts > 0.0).sum(axis=1) + eps
+
+        #real state entropy 
+        counts_probs   = counts/(numpy.expand_dims(numpy.sum(counts, axis=1), 1) + eps)
+        entropy        = -counts_probs*numpy.log2(counts_probs + eps) 
+        entropy        = numpy.sum(entropy, axis=1)
+
+        #motivation, how close to maximum possible entropy, also prefer less visited states
+        return 1.0 - entropy/maximum_entropy
+
 
     def _visualise_goal(self, idx):
         
