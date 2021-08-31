@@ -20,7 +20,7 @@ class GoalsBuffer:
         self.warm_up_steps  = 512
 
         self.reach_ratio    = 1.0
-        self.visted_ratio   = 1.0
+        self.visted_ratio   = 10.0
 
     
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
