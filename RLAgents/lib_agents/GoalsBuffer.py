@@ -7,7 +7,7 @@ import cv2
  
 
 class GoalsBuffer:
-    def __init__(self, size, add_threshold, downsample, state_shape, envs_count, device = "cpu"):
+    def __init__(self, size, add_threshold, downsample, reached_coeff, visted_coeff, state_shape, envs_count, device = "cpu"):
         self.size           = size
         self.downsample     = downsample
         self.add_threshold  = add_threshold
@@ -19,8 +19,8 @@ class GoalsBuffer:
         self.steps          = 0
         self.warm_up_steps  = 512
 
-        self.reach_ratio    = 1.0
-        self.visted_ratio   = 10.0
+        self.reached_coeff  = reached_coeff
+        self.visted_coeff   = visted_coeff
 
     
         self.layer_downsample = torch.nn.AvgPool2d((self.downsample, self.downsample), (self.downsample, self.downsample))
@@ -39,9 +39,6 @@ class GoalsBuffer:
 
         #downsampled goals
         self.goals          = torch.zeros((self.size, goals_shape), device=self.device)
-
-        #external reward for reaching goal
-        self.goals_rewards  = numpy.zeros((self.size, ))
 
         #visiting count
         self.goals_counter  = numpy.zeros((self.size, ))
@@ -84,7 +81,7 @@ class GoalsBuffer:
         reward_visited_goals    = reward_reached_goals*self._visited_rewards()[self.closet_indices]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
-        reward   = self.reach_ratio*reward_reached_goals + self.visted_ratio*reward_visited_goals
+        reward   = self.reached_coeff*reward_reached_goals + self.visted_coeff*reward_visited_goals
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
@@ -110,21 +107,16 @@ class GoalsBuffer:
 
         return self.current_goals, self.desired_goals, reward
 
-    def add(self, rewards):
+    def add(self):
         #add new item if threashold reached
         for i in range(self.envs_count):
             if self.steps > self.warm_up_steps or i == 0:
                 if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
                     self.goals[self.total_goals]                = self.states_downsampled[i].clone()
-                    self.goals_rewards[self.total_goals]    = rewards[i]
-
                     self.goals_counter[self.total_goals]    = 1
 
                     self.total_goals = self.total_goals + 1
-
-        #add higher reward
-        self.goals_rewards[self.goals_indices]  = numpy.maximum(self.goals_rewards[self.goals_indices], rewards*(1.0 - self.goals_reached))
-     
+  
         #update visited counter
         for e in range(self.envs_count):
             self.goals_counter[self.closet_indices[e]]+= 1
@@ -171,9 +163,6 @@ class GoalsBuffer:
         y = self.layer_upsample(x)
 
         return y
-
-    def _external_rewards(self):
-        return self.goals_rewards/(numpy.max(self.goals_rewards) + 0.000000001)
 
     def _visited_rewards(self):
         return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
