@@ -40,7 +40,9 @@ class AgentPPOEE():
 
         state_shape        = (self.state_shape[0] + 2, ) + self.state_shape[1:]
         self.policy_buffer = PolicyBufferIMDual(self.steps, state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.reached_coeff, config.visited_coeff,  self.state_shape, self.envs_count, self.model_ppo.device)
+        
+        #self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.reached_coeff, config.visited_coeff,  self.state_shape, self.envs_count, self.model_ppo.device)
+        self.goals_buffer  = GoalsBufferGraph(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.reached_coeff, config.visited_coeff,  config.entropy_coeff, self.state_shape, self.envs_count, self.model_ppo.device)
 
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
