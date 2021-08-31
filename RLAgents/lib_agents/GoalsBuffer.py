@@ -201,7 +201,7 @@ class GoalsBuffer:
 
 
 class GoalsBufferGraph:
-    def __init__(self, size, add_threshold, downsample, reached_coeff, visited_coeff, entropy_coeff, state_shape, envs_count, device = "cpu"):
+    def __init__(self, size, add_threshold, downsample, reached_coeff, entropy_coeff, state_shape, envs_count, device = "cpu"):
         self.size           = size
         self.downsample     = downsample
         self.add_threshold  = add_threshold
@@ -214,7 +214,6 @@ class GoalsBufferGraph:
         self.warm_up_steps  = 512
 
         self.reached_coeff  = reached_coeff
-        self.visited_coeff  = visited_coeff
         self.entropy_coeff  = entropy_coeff
 
     
@@ -234,9 +233,6 @@ class GoalsBufferGraph:
 
         #downsampled goals
         self.goals          = torch.zeros((self.size, goals_shape), device=self.device)
-
-        #visiting count
-        self.goals_counter  = numpy.zeros((self.size, ))
 
         #current goals indices
         self.goals_indices  = numpy.zeros((self.envs_count, ), dtype=int)
@@ -293,13 +289,12 @@ class GoalsBufferGraph:
         
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
         reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
-        reward_visited_goals    = self._visited_rewards()[self.indices_now]
 
         #entropy reward
         reward_entropy = self._entropy_rewards()[self.indices_now]
 
         #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
-        reward   = self.reached_coeff*reward_reached_goals + self.visited_coeff*reward_visited_goals + self.entropy_coeff*reward_entropy
+        reward   = self.reached_coeff*reward_reached_goals + self.entropy_coeff*reward_entropy
 
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
@@ -328,13 +323,8 @@ class GoalsBufferGraph:
             if self.steps > self.warm_up_steps or i == 0:
                 if self.closest_distances[i] > self.add_threshold and self.total_goals < self.size:
                     self.goals[self.total_goals]                = self.states_downsampled[i].clone()
-                    self.goals_counter[self.total_goals]    = 1
-
                     self.total_goals = self.total_goals + 1
   
-        #update visited counter
-        for e in range(self.envs_count):
-            self.goals_counter[self.indices_now[e]]+= 1
 
         self.steps+= 1
             
@@ -342,7 +332,7 @@ class GoalsBufferGraph:
 
     def new_goal(self, env_idx):
         #compute target weights
-        w   = (self._visited_rewards() + 1)*(self._entropy_rewards() + 1) - 1
+        w   = self._entropy_rewards()
 
         #select only from stored state
         w   = w[0:self.total_goals]
@@ -398,10 +388,7 @@ class GoalsBufferGraph:
 
         return y
 
-    def _visited_rewards(self):
-        return 1.0 - self.goals_counter/(numpy.max(self.goals_counter) + 0.000000001)
-
-
+ 
     def _entropy_rewards(self):
         eps             = 0.000001
         counts          = self.connections
