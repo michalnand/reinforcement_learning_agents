@@ -399,7 +399,7 @@ class GoalsBufferGraph:
         #real state entropy 
         counts_probs   = counts/(numpy.expand_dims(numpy.sum(counts, axis=1), 1) + eps)
         entropy        = -counts_probs*numpy.log2(counts_probs + eps) 
-        entropy        = numpy.max(0, entropy)
+        entropy[entropy < 0] = 0
         entropy        = numpy.sum(entropy, axis=1)
 
         #motivation, how close to maximum possible entropy, also prefer less visited states
