@@ -248,6 +248,6 @@ class AgentPPORND():
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
         #state_norm_t = state_t - mean 
-        state_norm_t = torch.clip((state_t - mean)/std, -1.0, 1.0)
+        state_norm_t = torch.clip((state_t - mean)/std, -4.0, 4.0)
 
         return state_norm_t

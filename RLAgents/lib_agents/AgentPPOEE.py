@@ -3,7 +3,7 @@ import numpy
 import torch
 import time
 
-from torch.distributions import Categorical
+from torch.distributions import Categorical 
  
 from .PolicyBufferIM    import *  
 from .GoalsBuffer       import *
@@ -17,8 +17,7 @@ class AgentPPOEE():
         self.gamma_int          = config.gamma_int
             
         self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_a_adv_coeff    = config.int_a_adv_coeff
-        self.int_b_adv_coeff    = config.int_b_adv_coeff
+        self.int_adv_coeff      = config.int_a_adv_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -41,9 +40,9 @@ class AgentPPOEE():
         state_shape        = (self.state_shape[0] + 2, ) + self.state_shape[1:]
         self.policy_buffer = PolicyBufferIMDual(self.steps, state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         
-        #self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.reached_coeff, config.visited_coeff,  self.state_shape, self.envs_count, self.model_ppo.device)
-        self.goals_buffer  = GoalsBufferGraph(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.reached_coeff, config.visited_coeff, self.state_shape, self.envs_count, self.model_ppo.device)
+        self.goals_buffer  = GoalsBufferGraph(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.goals_probs, self.state_shape, self.envs_count, self.model_ppo.device)
 
+        self.agent_mode    = numpy.zeros(self.envs_count, dtype=bool)
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -116,7 +115,13 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]                  = self.envs.reset(e).copy()
-                self.goals_buffer.new_goal(e)
+
+                #50% probability if agent enters goal reaching mode
+                if numpy.random.rand() < 0.5:
+                    self.agent_mode[e] = True
+                    self.goals_buffer.new_goal(e)
+                else:
+                    self.agent_mode[e] = False
 
 
         #collect stats
