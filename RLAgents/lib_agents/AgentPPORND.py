@@ -10,7 +10,7 @@ from .RunningStats      import *
 class AgentPPORND():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
-   
+    
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
             
@@ -206,6 +206,7 @@ class AgentPPORND():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
