@@ -165,6 +165,7 @@ class AgentPPORND():
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
                 '''
+                loss_rnd        = loss_rnd.mean()
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
