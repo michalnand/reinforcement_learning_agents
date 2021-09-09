@@ -160,9 +160,11 @@ class AgentPPORND():
 
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
+                ''' 
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+                '''
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
@@ -206,7 +208,7 @@ class AgentPPORND():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
-        #advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
+        advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
