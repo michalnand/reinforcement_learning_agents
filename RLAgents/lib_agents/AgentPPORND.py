@@ -143,7 +143,7 @@ class AgentPPORND():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -160,12 +160,9 @@ class AgentPPORND():
 
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
-                ''' 
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-                '''
-                loss_rnd        = loss_rnd.mean()
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
