@@ -91,18 +91,18 @@ class GoalsBuffer:
         
       
 
-        #reward for reached goal
+        #external reward for reached goal
         goals_distances         = (((desired_goals_downsampled - self.states_downsampled)**2.0).sum(dim=1))**0.5 
-        
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()
-        reward_reached_goals    = (1.0 - self.goals_reached)*reached_goals
+        #clear if already reached
+        reward_ext              = (1.0 - self.goals_reached)*reached_goals
 
-        #entropy reward
-        reward_entropy = self._entropy_rewards()[self.indices_now]
+        #internal reward, different motivations   
+        reward_int = self._reward_int(self.indices_now)
+        #clear if already reached
+        reward_int = (1.0 - self.goals_reached)*reward_int
 
-        #reward   = self.goals_ext_reward_ratio*reward_reached_goals + (1.0 - self.goals_ext_reward_ratio)*reward_visited_goals
-        reward   = self.reached_coeff*reward_reached_goals + self.entropy_coeff*reward_entropy
-
+        #set reached goal flag
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
         '''
@@ -116,13 +116,13 @@ class GoalsBuffer:
             self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards[idx])
         '''        
 
+        #clear already reached goals
         for e in range(self.envs_count):
             if self.goals_reached[e]:
-                self.current_goals[e] = torch.zeros(self.goals_shape, device=self.device)
                 self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
        
 
-        return self.current_goals, self.desired_goals, reward
+        return self.desired_goals, reward_ext, reward_int
 
     def add(self, rewards_sum):
         #add new item if threashold reached
@@ -132,6 +132,7 @@ class GoalsBuffer:
                     self.goals[self.total_goals]                = self.states_downsampled[e].clone()
                     self.total_goals = self.total_goals + 1
                 
+                #update state score sum of bigger
                 idx = self.indices_now[e]
                 if self.score_sum[idx] < rewards_sum[e]:
                     self.score_sum[idx] = rewards_sum[e]
@@ -142,17 +143,13 @@ class GoalsBuffer:
 
 
     def new_goal(self, env_idx):
-        #compute target weights
-        w0 = self.goals_weights[0]*self._score()
-        w1 = self.goals_weights[1]*self._visited()
-        w2 = self.goals_weights[2]*self._entropy()
+        #compute target weights using internal reward
+        w  = self._reward_int(self.indices_now)
 
-        w  = w0 + w1 + w2
-
-        #select only from stored state
+        #select only from stored states
         w   = w[0:self.total_goals]
 
-        #convert weights to probs, softmax
+        #convert weights to probs, use softmax
         w       = 10.0*w
         w       = w - w.max()
         probs   = numpy.exp(w - w.max())
@@ -163,6 +160,10 @@ class GoalsBuffer:
 
         self.goals_indices[env_idx] = idx
         self.goals_reached[env_idx] = False
+
+    def zero_goal(self, env_idx):
+        self.goals_indices[env_idx] = 0
+        self.goals_reached[env_idx] = True
 
 
     def save(self, path = "./"):
@@ -203,20 +204,29 @@ class GoalsBuffer:
 
         return y
 
-    #score count rewards
-    def _score(self):
+    def _reward_int(self, indices):
+        reward_int_score    = self.reward_int_weight[0]*self._reward_int_score()[indices]
+        reward_int_visited  = self.reward_int_weight[1]*self._reward_int_visited()[indices]
+        reward_int_entropy  = self.reward_int_weight[2]*self._reward_int_entropy()[indices]
+        
+        reward_int = reward_int_score + reward_int_visited + reward_int_entropy
+        
+        return reward_int
+
+    #score count rewards, max value = 1, for highest reward state
+    def _reward_int_score(self):
         eps  = 0.000001
         return self.score_sum/(self.score_sum.max() + eps)
     
-    #visited count rewards
-    def _visited(self):
+    #visited count rewards, max value = 1, for zero visited state
+    def _reward_int_visited(self):
         eps             = 0.000001
         visited_counts  = self.connections.sum(dim=1)
 
         return 1.0 - visited_counts/(visited_counts.max() + eps)
 
-    #state entropy rewards
-    def _entropy(self):
+    #state entropy rewards, max value = 1, for state with most unbalanced connections
+    def _reward_int_entropy(self):
         eps             = 0.000001
         counts          = self.connections
         
@@ -231,35 +241,30 @@ class GoalsBuffer:
         #motivation, how close to maximum possible entropy, also prefer less visited states
         return 1.0 - entropy/maximum_entropy
 
+    #TODO
+    #reward for shortest graph path distance
+    def _reward_int_distance(self):
+        #distances = networkx.algorithms.shortest_paths.generic.shortest_path(G, source = , target = )
+        pass
+
     
-
-    def _visualise_goal(self, idx):
-        
-        goal_np = self._upsample(self.goals[idx].unsqueeze(0)).squeeze(0)
-
-        goal_np = goal_np[0].detach().to("cpu").numpy()
-
-        img   = cv2.resize(goal_np, (256, 256), interpolation      = cv2.INTER_NEAREST)
-        cv2.imshow("image", img)
-        cv2.waitKey(1)
-
-    def _visualise(self, state, current, target, reward):
+    def _visualise(self, state, target, reward_int, reward_ext):
         state_np    = state[0].detach().to("cpu").numpy()
-        current_np  = current[0].detach().to("cpu").numpy()
         target_np   = target[0].detach().to("cpu").numpy()
 
-        reward_str = str(round(reward, 3))
+        reward_int_str = str(round(reward_int, 3))
+        reward_ext_str = str(round(reward_ext, 3))
 
         size = 256
 
         state_img   = cv2.resize(state_np, (size, size), interpolation      = cv2.INTER_NEAREST)
-        current_img = cv2.resize(current_np, (size, size), interpolation    = cv2.INTER_NEAREST)
         target_img  = cv2.resize(target_np, (size, size), interpolation     = cv2.INTER_NEAREST)
 
         font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-        cv2.putText(target_img, reward_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(target_img, reward_int_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(target_img, reward_ext_str,(30, 60), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-        img = numpy.hstack((state_img, current_img, target_img))
+        img = numpy.hstack((state_img, target_img))
 
         cv2.imshow("image", img)
         cv2.waitKey(1)

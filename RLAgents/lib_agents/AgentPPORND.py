@@ -206,7 +206,7 @@ class AgentPPORND():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
-        advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
+        #advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]

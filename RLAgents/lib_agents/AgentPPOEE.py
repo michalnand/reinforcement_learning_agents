@@ -4,8 +4,9 @@ import time
 
 from torch.distributions import Categorical
  
-from .PolicyBufferIM    import *  
-from .RunningStats      import * 
+from .PolicyBufferIMDual    import *  
+from .GoalsBuffer           import *
+from .RunningStats          import * 
     
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
@@ -24,28 +25,34 @@ class AgentPPOEE():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.envs_count      = config.envs_count 
+        self.envs_count         = config.envs_count 
 
-        self.state_shape    = self.envs.observation_space.shape
-        self.actions_count  = self.envs.action_space.n
-
+        self.state_shape        = self.envs.observation_space.shape
+        self.goal_shape         = (1, ) + self.state_shape[1:]
+        self.actions_count      = self.envs.action_space.n
+        
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer  = PolicyBufferIMEE(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.goal_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
-        self.goals_buffer = None
+
+        #TODO, load from config file
+        self.goals_buffer = GoalsBuffer(size, add_threshold, downsample, goals_weights, self.state_shape, self.envs_count, self.model_ppo.device)
+
+        #initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
+        #init moving average for RND
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
+        #initial all agents into explore mode 
         self.agent_mode                 = torch.zeros((self.envs_count,)).to(self.model_ppo.device)
-
 
         self.enable_training()
         self.iterations                 = 0 
@@ -64,17 +71,19 @@ class AgentPPOEE():
     def main(self): 
         #state to tensor
         states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-        goals_t, goals_reward_t = self.goals_buffer.get(states_t)
+        goals_t, goals_reward_ext, goals_reward_int = self.goals_buffer.get(states_t)
 
         #compute model output
-        logits_a_t, logits_b_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
+        logits_a_t, logits_b_t, values_ext_a_t, values_int_a_t, values_ext_b_t, values_int_b_t  = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_a_np     = logits_a_t.detach().to("cpu").numpy()
         logits_b_np     = logits_b_t.detach().to("cpu").numpy()
 
-        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_ext_a_np = values_ext_a_t.squeeze(1).detach().to("cpu").numpy()
         values_int_a_np = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
+
+        values_ext_b_np = values_ext_b_t.squeeze(1).detach().to("cpu").numpy()
         values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
@@ -94,13 +103,14 @@ class AgentPPOEE():
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
         
         goals_np        = goals_t.detach().to("cpu").numpy()
-        goals_reward_np = goals_reward_t.detach().to("cpu").numpy()
         mode_np         = self.agent_mode.detach().to("cpu").numpy()
          
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, goals_np, mode_np, logits_a_np, logits_b_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards, curiosity_np, goals_reward_np, dones)
-
+            self.policy_buffer.add(states_np, goals_np, mode_np)
+            self.policy_buffer.add_a(logits_a_np, values_ext_a_np, values_int_a_np, actions, reward, curiosity_np, dones)
+            self.policy_buffer.add_b(logits_b_np, values_ext_b_np, values_int_b_np, actions, goals_reward_ext, goals_reward_int, dones)
+      
             if self.policy_buffer.is_full():
                 self.train()
         
@@ -108,12 +118,13 @@ class AgentPPOEE():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-                if numpy.random.rand() > 0.5:
-                    self.goals_buffer.new(e)
-                    self.agent_mode[e] = True
+                #switch agent with 50% prob to exploit mode, except env 0
+                if numpy.random.rand() > 0.5 and e != 0:
+                    self.goals_buffer.new_goal(e)
+                    self.agent_mode[e] = 1.0
                 else:
-                    self.goals_buffer.zero(e)
-                    self.agent_mode[e] = False
+                    self.goals_buffer.zero_goal(e)
+                    self.agent_mode[e] = 0.0
 
         #collect stats
         k = 0.02
@@ -167,6 +178,7 @@ class AgentPPOEE():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
+                #TODO, loss + training this monster
                 states, goals, modes, logits_a, logits_b, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model

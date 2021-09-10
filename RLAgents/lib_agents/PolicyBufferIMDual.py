@@ -140,10 +140,10 @@ class PolicyBufferIMDual:
 
         self.ptr = self.ptr + 1 
 
-    def add_a(self logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done_a):
+    def add_a(self, logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done_a):
         self.buffer_a.add(logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done)
 
-    def add_b(self logits_b, value_ext_b, value_int_b, action_b, reward_ext_b, reward_int_b, done_b):
+    def add_b(self, logits_b, value_ext_b, value_int_b, action_b, reward_ext_b, reward_int_b, done_b):
         self.buffer_b.add(logits_b, value_ext_b, value_int_b, action_b, reward_ext_b, reward_int_b, done_b)
 
     def clear(self):
@@ -159,10 +159,10 @@ class PolicyBufferIMDual:
 
         self.modes          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.ptr = 0  
-
         self.buffer_a.clear()
         self.buffer_b.clear()
+
+        self.ptr = 0
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
         self.buffer_a.compute_returns(gamma_ext, gamma_int, lam)
