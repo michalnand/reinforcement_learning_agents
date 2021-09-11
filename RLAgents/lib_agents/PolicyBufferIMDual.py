@@ -76,15 +76,15 @@ class PolicyBufferPartial:
 
 
     def sample_batch(self, indices): 
-        logits          = torch.from_numpy(numpy.take(self.logits, indices, axis=0)).to(device)
+        logits          = torch.from_numpy(numpy.take(self.logits, indices, axis=0)).to(self.device)
         
-        actions         = torch.from_numpy(numpy.take(self.actions, indices, axis=0)).to(device)
+        actions         = torch.from_numpy(numpy.take(self.actions, indices, axis=0)).to(self.device)
         
-        returns_ext     = torch.from_numpy(numpy.take(self.returns_ext, indices, axis=0)).to(device)
-        returns_int     = torch.from_numpy(numpy.take(self.returns_int, indices, axis=0)).to(device)
+        returns_ext     = torch.from_numpy(numpy.take(self.returns_ext, indices, axis=0)).to(self.device)
+        returns_int     = torch.from_numpy(numpy.take(self.returns_int, indices, axis=0)).to(self.device)
 
-        advantages_ext  = torch.from_numpy(numpy.take(self.advantages_ext, indices, axis=0)).to(device)
-        advantages_int  = torch.from_numpy(numpy.take(self.advantages_int, indices, axis=0)).to(device)
+        advantages_ext  = torch.from_numpy(numpy.take(self.advantages_ext, indices, axis=0)).to(self.device)
+        advantages_int  = torch.from_numpy(numpy.take(self.advantages_int, indices, axis=0)).to(self.device)
 
 
         return logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
@@ -120,8 +120,8 @@ class PolicyBufferIMDual:
         self.envs_count     = envs_count
         self.device         = device
 
-        self.buffer_a = self.PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
-        self.buffer_b = self.PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
+        self.buffer_a = PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
+        self.buffer_b = PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
 
         self.uint8_storage  = uint8_storage
 
@@ -141,7 +141,7 @@ class PolicyBufferIMDual:
         self.ptr = self.ptr + 1 
 
     def add_a(self, logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done_a):
-        self.buffer_a.add(logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done)
+        self.buffer_a.add(logits_a, value_ext_a, value_int_a, action_a, reward_ext_a, reward_int_a, done_a)
 
     def add_b(self, logits_b, value_ext_b, value_int_b, action_b, reward_ext_b, reward_int_b, done_b):
         self.buffer_b.add(logits_b, value_ext_b, value_int_b, action_b, reward_ext_b, reward_int_b, done_b)
@@ -157,26 +157,39 @@ class PolicyBufferIMDual:
         else:
             self.goals     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.goal_shape, dtype=numpy.float32)
 
-        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, 1), dtype=numpy.float32)
 
         self.buffer_a.clear()
         self.buffer_b.clear()
 
         self.ptr = 0
 
+    def is_full(self):
+        if self.ptr >= self.buffer_size:
+            return True
+
+        return False 
+
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
         self.buffer_a.compute_returns(gamma_ext, gamma_int, lam)
         self.buffer_b.compute_returns(gamma_ext, gamma_int, lam)
 
+        #reshape buffer for faster batch sampling
+        self.states  = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+        self.goals   = self.goals.reshape((self.buffer_size*self.envs_count, ) + self.goal_shape)
+        self.modes   = self.modes.reshape((self.buffer_size*self.envs_count, 1))
+
     def sample_batch(self, batch_size, device):
 
         indices = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+
  
         states  = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
         goals   = torch.from_numpy(numpy.take(self.goals, indices, axis=0)).to(device).float()/self.scale
-        modes   = torch.from_numpy(numpy.take(self.modes, indices, axis=0)).to(device).float()/self.scale
+        modes   = torch.from_numpy(numpy.take(self.modes, indices, axis=0)).to(device).float()
 
-        res_a   = self.buffer_a.sample_batch(indices, sample_batch)
-        res_b   = self.buffer_b.sample_batch(indices, sample_batch)
+        res_a   = self.buffer_a.sample_batch(indices)
+        res_b   = self.buffer_b.sample_batch(indices)
+
 
         return states, goals, modes, res_a, res_b

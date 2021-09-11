@@ -204,10 +204,10 @@ class GoalsBuffer:
 
         return y
 
-    def _reward_int(self, indices):
-        reward_int_score    = self.reward_int_weight[0]*self._reward_int_score()[indices]
-        reward_int_visited  = self.reward_int_weight[1]*self._reward_int_visited()[indices]
-        reward_int_entropy  = self.reward_int_weight[2]*self._reward_int_entropy()[indices]
+    def _reward_int(self, indices): 
+        reward_int_score    = self.goals_weights[0]*self._reward_int_score()[indices]
+        reward_int_visited  = self.goals_weights[1]*self._reward_int_visited()[indices]
+        reward_int_entropy  = self.goals_weights[2]*self._reward_int_entropy()[indices]
         
         reward_int = reward_int_score + reward_int_visited + reward_int_entropy
         
@@ -221,7 +221,7 @@ class GoalsBuffer:
     #visited count rewards, max value = 1, for zero visited state
     def _reward_int_visited(self):
         eps             = 0.000001
-        visited_counts  = self.connections.sum(dim=1)
+        visited_counts  = self.connections.sum(axis=1)
 
         return 1.0 - visited_counts/(visited_counts.max() + eps)
 
@@ -248,9 +248,9 @@ class GoalsBuffer:
         pass
 
     
-    def _visualise(self, state, target, reward_int, reward_ext):
-        state_np    = state[0].detach().to("cpu").numpy()
-        target_np   = target[0].detach().to("cpu").numpy()
+    def visualise(self, state, goal, reward_int, reward_ext):
+        state_np  = state[0].detach().to("cpu").numpy()
+        goal_np   = goal[0].detach().to("cpu").numpy()
 
         reward_int_str = str(round(reward_int, 3))
         reward_ext_str = str(round(reward_ext, 3))
@@ -258,13 +258,13 @@ class GoalsBuffer:
         size = 256
 
         state_img   = cv2.resize(state_np, (size, size), interpolation      = cv2.INTER_NEAREST)
-        target_img  = cv2.resize(target_np, (size, size), interpolation     = cv2.INTER_NEAREST)
+        goal_img    = cv2.resize(goal_np, (size, size), interpolation     = cv2.INTER_NEAREST)
 
         font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-        cv2.putText(target_img, reward_int_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(target_img, reward_ext_str,(30, 60), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(goal_img, reward_int_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(goal_img, reward_ext_str,(30, 60), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
-        img = numpy.hstack((state_img, target_img))
+        img = numpy.hstack((state_img, goal_img))
 
         cv2.imshow("image", img)
         cv2.waitKey(1)
