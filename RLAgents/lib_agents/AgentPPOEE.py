@@ -128,6 +128,8 @@ class AgentPPOEE():
         states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
         goals_t, goals_reward_ext, goals_reward_int = self.goals_buffer.get(states_t)
 
+        print(">>> ", states_t.shape, goals_t.shape, self.agent_mode.shape)
+        
         #compute model output
         logits_a_t, logits_b_t, values_ext_a_t, values_int_a_t, values_ext_b_t, values_int_b_t  = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
         
@@ -141,6 +143,7 @@ class AgentPPOEE():
         values_ext_b_np = values_ext_b_t.squeeze(1).detach().to("cpu").numpy()
         values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
 
+        
         #collect actions
         actions = self._sample_actions(logits_a_t, logits_b_t, self.agent_mode)
         
