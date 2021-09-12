@@ -223,9 +223,9 @@ class AgentPPOEE():
         result+= str(round(self.log_loss_rnd, 7)) + " "
         
         result+= str(round(self.log_ext_a, 7)) + " "
-        result+= str(round(self.log_ext_b, 7)) + " "
-
         result+= str(round(self.log_int_a, 7)) + " "
+
+        result+= str(round(self.log_ext_b, 7)) + " "
         result+= str(round(self.log_int_b, 7)) + " "
 
         result+= str(round(self.log_advantages_ext_a, 7)) + " "
