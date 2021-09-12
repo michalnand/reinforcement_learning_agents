@@ -233,6 +233,7 @@ class AgentPPOEE():
         result+= str(round(self.log_advantages_ext_b, 7)) + " "
         result+= str(round(self.log_advantages_int_b, 7)) + " "
 
+        result+= str(round(self.goals_buffer.total_goals, 7)) + " "
         result+= str(round(self.goal_echieved_stats.result, 7)) + " "
         result+= str(round(self.goal_echieved_stats.goal_id, 7)) + " "
 
