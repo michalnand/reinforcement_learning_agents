@@ -7,6 +7,48 @@ from torch.distributions import Categorical
 from .PolicyBufferIMDual    import *  
 from .GoalsBuffer           import * 
 from .RunningStats          import * 
+
+
+class GoalAchievedCounter:
+    def __init__(self, envs_count, k = 0.1):
+
+        self.goal_mode      = numpy.zeros(envs_count, dtype=bool)
+        self.goal_achieved  = numpy.zeros(envs_count, dtype=bool)
+
+        #smoothing factor
+        self.k      = k
+
+        #result in [%]
+        self.result = 0.0
+
+        #average goal ID
+        self.goal_id = 0.0
+
+    def add(self, goal_reward, dones):
+        #set flag if goal achieved
+        self.goal_achieved = numpy.logical_or(self.goal_achieved, numpy.logical_and(self.goal_mode, goal_reward > numpy.zeros_like(goal_reward)))
+
+        #process results on episode end
+        for e in range(len(self.goal_mode)):
+            if dones[e]:
+                #achieved goals increase score
+                if self.goal_achieved[e]:
+                    self.result = (1.0 - self.k)*self.result + self.k*100.0
+
+                #not achieved goals decrease score
+                elif self.goal_mode[e]:
+                    self.result = (1.0 - self.k)*self.result + self.k*0.0
+        
+    def set_goal_mode(self, env_idx, mode, goal_id = -1):
+        self.goal_mode[env_idx]     = mode
+        self.goal_achieved[env_idx] = False
+
+        if goal_id != -1:
+            self.goal_id = (1.0 - self.k)*self.goal_id + self.k*goal_id
+
+        
+
+
     
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
@@ -54,6 +96,9 @@ class AgentPPOEE():
         self.agent_mode                 = torch.zeros((self.envs_count, )).to(self.model_ppo.device)
 
         self.episode_rewards_sum        = numpy.zeros((self.envs_count, ))
+
+        #stats for goal achieved
+        self.goal_echieved_stats  = GoalAchievedCounter(self.envs_count)
        
 
         self.enable_training()
@@ -108,8 +153,7 @@ class AgentPPOEE():
         self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
+        curiosity_np    = self._curiosity(states_t)
         curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
         
         goals_np        = goals_t.detach().to("cpu").numpy()
@@ -118,7 +162,7 @@ class AgentPPOEE():
         self.episode_rewards_sum+= rewards
 
         self.goals_buffer.add(self.episode_rewards_sum)
-        self.goals_buffer.visualise(states_t[1], goals_t[1], goals_reward_ext[1], goals_reward_int[1])
+        #self.goals_buffer.visualise(states_t[1], goals_t[1], goals_reward_ext[1], goals_reward_int[1])
          
         #put into policy buffer
         if self.enabled_training:
@@ -128,19 +172,29 @@ class AgentPPOEE():
       
             if self.policy_buffer.is_full():
                 self.train()
-        
+
+        #log achieved goal stats
+        self.goal_echieved_stats.add(goals_reward_ext, dones)
+
         for e in range(self.envs_count): 
+            #switch agent to explore mode, if goal achieved
+            if goals_reward_ext[e] > 0:
+                self.agent_mode[e] = 0.0
+
+            #episode done
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
                 self.episode_rewards_sum[e] = 0.0
 
-            #switch agent with 50% prob to exploit mode, except env 0
-            if numpy.random.rand() > 0.5 and e != 0:
-                self.goals_buffer.new_goal(e)
-                self.agent_mode[e] = 1.0
-            else:
-                self.goals_buffer.zero_goal(e)
-                self.agent_mode[e] = 0.0
+                #switch agent with 50% prob to exploit mode, except env 0
+                if e != 0 and numpy.random.rand() > 0.5:
+                    goal_id = self.goals_buffer.new_goal(e)
+                    self.agent_mode[e]      = 1.0
+                    self.goal_echieved_stats.set_goal_mode(e, True, goal_id)
+                else:
+                    self.goals_buffer.zero_goal(e)
+                    self.agent_mode[e]      = 0.0
+                    self.goal_echieved_stats.set_goal_mode(e, False)
 
         #collect stats
         k = 0.02
@@ -150,12 +204,14 @@ class AgentPPOEE():
         self.log_int_a = (1.0 - k)*self.log_int_a + k*curiosity_np.mean()
         self.log_int_b = (1.0 - k)*self.log_int_b + k*goals_reward_int.mean()
 
+
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
+        self.goals_buffer.save(save_path)
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
@@ -175,6 +231,10 @@ class AgentPPOEE():
         result+= str(round(self.log_advantages_int_a, 7)) + " "
         result+= str(round(self.log_advantages_ext_b, 7)) + " "
         result+= str(round(self.log_advantages_int_b, 7)) + " "
+
+        result+= str(round(self.goal_echieved_stats.result, 7)) + " "
+        result+= str(round(self.goal_echieved_stats.goal_id, 7)) + " "
+
         return result 
     
 
@@ -198,7 +258,6 @@ class AgentPPOEE():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                #TODO, loss + training this monster
                 states, goals, modes, res_a, res_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
@@ -231,7 +290,6 @@ class AgentPPOEE():
 
     
     def _compute_loss(self, states, goals, modes, res_a, res_b):
-
         logits_a, actions_a, returns_ext_a, returns_int_a, advantages_ext_a, advantages_int_a = res_a
         logits_b, actions_b, returns_ext_b, returns_int_b, advantages_ext_b, advantages_int_b = res_b
 
@@ -249,12 +307,12 @@ class AgentPPOEE():
  
         #compute external critic A loss, as MSE
         values_ext_a_new    = values_ext_a_new.squeeze(1)
-        loss_ext_value_a    = ((returns_ext_a.detach() - values_ext_a_new)**2)*(1 - modes)
+        loss_ext_value_a    = ((returns_ext_a.detach() - values_ext_a_new)**2)*(1.0 - modes)
         loss_ext_value_a    = loss_ext_value_a.mean()
 
         #compute internal critic A loss, as MSE
         values_int_a_new  = values_int_a_new.squeeze(1)
-        loss_int_value_a  = ((returns_int_a.detach() - values_int_a_new)**2)*(1 - modes)
+        loss_int_value_a  = ((returns_int_a.detach() - values_int_a_new)**2)*(1.0 - modes)
         loss_int_value_a  = loss_int_value_a.mean()
 
         #compute external critic B loss, as MSE

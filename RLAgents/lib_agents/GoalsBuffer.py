@@ -6,7 +6,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 
-class GoalsBuffer:
+class GoalsBuffer: 
     def __init__(self, size, add_threshold, downsample, goals_weights, state_shape, envs_count, device = "cpu"):
         self.size           = size
         self.add_threshold  = add_threshold
@@ -53,6 +53,8 @@ class GoalsBuffer:
         self.indices_now    = None
 
         self.total_goals = 0
+
+        self.save_idx   = 0
 
 
     def get(self, states_t):        
@@ -161,13 +163,14 @@ class GoalsBuffer:
         self.goals_indices[env_idx] = idx
         self.goals_reached[env_idx] = False
 
+        return idx
+
     def zero_goal(self, env_idx):
         self.goals_indices[env_idx] = 0
         self.goals_reached[env_idx] = True
 
 
     def save(self, path = "./"):
-        print("saving")
         plt.clf()
 
         z = self.connections
@@ -180,10 +183,20 @@ class GoalsBuffer:
         networkx.draw_networkx_nodes(G, pos, node_size = 4)
         networkx.draw_networkx_edges(G, pos, arrows = False)
 
-        plt.savefig(path + "graph.png", dpi=300)
+        plt.savefig(path + "result/graph/" + "graph.png", dpi=300)
 
-        f = open(path + "graph.npy", "wb")
-        numpy.save(f, z)
+        f = open(path + "result/graph/" + "graph_" + str(self.save_idx) + ".npy", "wb")
+        numpy.save(f, z)  
+ 
+        reward_int = self._reward_int(range(self.size))
+        f = open(path + "result/graph/" + "reward_int_" + str(self.save_idx) + ".npy", "wb")
+        numpy.save(f, reward_int) 
+
+        visited_count = self.connections.sum(axis=1)
+        f = open(path + "result/graph/" + "visited_count_" + str(self.save_idx) + ".npy", "wb")
+        numpy.save(f, visited_count) 
+
+        self.save_idx+= 1
  
 
     #downsample and flatten
