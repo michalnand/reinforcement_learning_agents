@@ -136,7 +136,7 @@ class PolicyBufferIMDual:
     def add(self, state, goal, mode):
         self.states[self.ptr]    = state.copy()*self.scale
         self.goals[self.ptr]     = goal.copy()*self.scale
-        self.modes[self.ptr]     = mode.copy()*self.scale
+        self.modes[self.ptr]     = mode.copy()
 
         self.ptr = self.ptr + 1 
 
@@ -157,7 +157,7 @@ class PolicyBufferIMDual:
         else:
             self.goals     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.goal_shape, dtype=numpy.float32)
 
-        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, 1), dtype=numpy.float32)
+        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
         self.buffer_a.clear()
         self.buffer_b.clear()
@@ -177,7 +177,7 @@ class PolicyBufferIMDual:
         #reshape buffer for faster batch sampling
         self.states  = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
         self.goals   = self.goals.reshape((self.buffer_size*self.envs_count, ) + self.goal_shape)
-        self.modes   = self.modes.reshape((self.buffer_size*self.envs_count, 1))
+        self.modes   = self.modes.reshape((self.buffer_size*self.envs_count, ))
 
     def sample_batch(self, batch_size, device):
 

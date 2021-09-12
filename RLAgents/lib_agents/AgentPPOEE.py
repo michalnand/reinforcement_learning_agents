@@ -51,13 +51,13 @@ class AgentPPOEE():
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
 
         #initial all agents into explore mode 
-        self.agent_mode                 = torch.zeros((self.envs_count, 1)).to(self.model_ppo.device)
+        self.agent_mode                 = torch.zeros((self.envs_count, )).to(self.model_ppo.device)
 
         self.episode_rewards_sum        = numpy.zeros((self.envs_count, ))
        
 
         self.enable_training()
-        self.iterations                 = 0 
+        self.iterations           = 0 
 
         self.log_loss_rnd         = 0.0
 
@@ -134,13 +134,13 @@ class AgentPPOEE():
                 self.states[e] = self.envs.reset(e).copy()
                 self.episode_rewards_sum[e] = 0.0
 
-                #switch agent with 50% prob to exploit mode, except env 0
-                if numpy.random.rand() > 0.5 and e != 0:
-                    self.goals_buffer.new_goal(e)
-                    self.agent_mode[e][0] = 1.0
-                else:
-                    self.goals_buffer.zero_goal(e)
-                    self.agent_mode[e][0] = 0.0
+            #switch agent with 50% prob to exploit mode, except env 0
+            if numpy.random.rand() > 0.5 and e != 0:
+                self.goals_buffer.new_goal(e)
+                self.agent_mode[e] = 1.0
+            else:
+                self.goals_buffer.zero_goal(e)
+                self.agent_mode[e] = 0.0
 
         #collect stats
         k = 0.02
@@ -186,7 +186,9 @@ class AgentPPOEE():
         return actions
 
     def _sample_actions(self, logits_a, logits_b, mode):
-        logits = (1.0 - mode)*logits_a + mode*logits_b
+        mode_  = mode.unsqueeze(1)
+        logits = (1.0 - mode_)*logits_a + mode_*logits_b
+        
         return self._sample_actions_from_logits(logits)
         
     def train(self): 
@@ -247,30 +249,28 @@ class AgentPPOEE():
  
         #compute external critic A loss, as MSE
         values_ext_a_new    = values_ext_a_new.squeeze(1)
-        loss_ext_value_a    = (returns_ext_a.detach() - values_ext_a_new)**2
+        loss_ext_value_a    = ((returns_ext_a.detach() - values_ext_a_new)**2)*(1 - modes)
         loss_ext_value_a    = loss_ext_value_a.mean()
 
         #compute internal critic A loss, as MSE
         values_int_a_new  = values_int_a_new.squeeze(1)
-        loss_int_value_a  = (returns_int_a.detach() - values_int_a_new)**2
+        loss_int_value_a  = ((returns_int_a.detach() - values_int_a_new)**2)*(1 - modes)
         loss_int_value_a  = loss_int_value_a.mean()
 
         #compute external critic B loss, as MSE
         values_ext_b_new    = values_ext_b_new.squeeze(1)
-        loss_ext_value_b    = (returns_ext_b.detach() - values_ext_b_new)**2
+        loss_ext_value_b    = ((returns_ext_b.detach() - values_ext_b_new)**2)*(modes)
         loss_ext_value_b    = loss_ext_value_b.mean()
 
         #compute internal critic B loss, as MSE
         values_int_b_new  = values_int_b_new.squeeze(1)
-        loss_int_value_b  = (returns_int_b.detach() - values_int_b_new)**2
+        loss_int_value_b  = ((returns_int_b.detach() - values_int_b_new)**2)*(modes)
         loss_int_value_b  = loss_int_value_b.mean()
         
-        
+        #sum to single critic loss
         loss_critic     = loss_ext_value_a + loss_int_value_a + loss_ext_value_b  + loss_int_value_b
  
-        ''' 
-        compute actor loss, surrogate loss
-        '''
+        #compute actors loss
         loss_actor_a = self._actor_loss(self.ext_adv_coeff*advantages_ext_a + self.int_adv_coeff*advantages_int_a, probs_a_new, log_probs_a_new, log_probs_a_old, actions_a, 1.0 - modes)
         loss_actor_b = self._actor_loss(self.ext_adv_coeff*advantages_ext_b + self.int_adv_coeff*advantages_int_b, probs_b_new, log_probs_b_new, log_probs_b_old, actions_b, modes)
         
@@ -279,10 +279,10 @@ class AgentPPOEE():
 
 
         k = 0.02
-        self.log_advantages_ext_a       = (1.0 - k)*self.log_advantages_ext_a + k*advantages_ext_a.mean().detach().to("cpu").numpy()
-        self.log_advantages_int_a       = (1.0 - k)*self.log_advantages_int_a + k*advantages_int_a.mean().detach().to("cpu").numpy()
-        self.log_advantages_ext_b       = (1.0 - k)*self.log_advantages_ext_b + k*advantages_ext_b.mean().detach().to("cpu").numpy()
-        self.log_advantages_int_b       = (1.0 - k)*self.log_advantages_int_b + k*advantages_int_b.mean().detach().to("cpu").numpy()
+        self.log_advantages_ext_a   = (1.0 - k)*self.log_advantages_ext_a + k*advantages_ext_a.mean().detach().to("cpu").numpy()
+        self.log_advantages_int_a   = (1.0 - k)*self.log_advantages_int_a + k*advantages_int_a.mean().detach().to("cpu").numpy()
+        self.log_advantages_ext_b   = (1.0 - k)*self.log_advantages_ext_b + k*advantages_ext_b.mean().detach().to("cpu").numpy()
+        self.log_advantages_int_b   = (1.0 - k)*self.log_advantages_int_b + k*advantages_int_b.mean().detach().to("cpu").numpy()
         
         return loss 
 
@@ -313,7 +313,7 @@ class AgentPPOEE():
         return loss_policy + loss_entropy
 
     def _curiosity(self, state_t):
-        state_norm_t            = self._norm_state(state_t)
+        state_norm_t = self._norm_state(state_t)
 
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
@@ -325,7 +325,6 @@ class AgentPPOEE():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
 
         state_norm_t = state_t - mean 
 
