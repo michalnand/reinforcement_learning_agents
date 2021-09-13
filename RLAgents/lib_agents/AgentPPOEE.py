@@ -336,17 +336,21 @@ class AgentPPOEE():
         return loss 
 
     def _critic_loss(self, returns_ext, values_ext, returns_int, values_int, mask):
+        eps = 0.000001
+
         #compute external critic loss, as MSE
         loss_ext_value    = ((returns_ext.detach() - values_ext.squeeze(1))**2)*mask
-        loss_ext_value    = loss_ext_value.mean()
+        loss_ext_value    = loss_ext_value/(mask.sum() + eps)
 
         #compute internal critic loss, as MSE
         loss_int_value    = ((returns_int.detach() - values_int.squeeze(1))**2)*mask
-        loss_int_value    = loss_int_value.mean()
+        loss_int_value    = loss_int_value/(mask.sum() + eps)
 
         return loss_ext_value + loss_int_value
 
     def _actor_loss(self, advantages, probs_new, log_probs_new, log_probs_old, actions, mask):
+        eps = 0.000001
+        
         ''' 
         compute actor loss, surrogate loss
         '''
@@ -360,15 +364,15 @@ class AgentPPOEE():
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy*mask
-        loss_policy = loss_policy.mean()
+        loss_policy = loss_policy/(mask.sum() + eps)
     
         ''' 
         compute entropy loss, to avoid greedy strategy
         L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
         '''
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
-        loss_entropy = loss_entropy*mask
-        loss_entropy = self.entropy_beta*loss_entropy.mean()
+        loss_entropy = self.entropy_beta*loss_entropy*mask
+        loss_entropy = loss_entropy/(mask.sum() + eps)
 
         return loss_policy + loss_entropy
 

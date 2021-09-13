@@ -10,7 +10,7 @@ class PolicyBufferPartial:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
         self.device         = device
-      
+       
         self.clear()   
  
     def add(self, logits, value_ext, value_int, action, reward_ext, reward_int, done):
