@@ -51,9 +51,9 @@ class PolicyBufferPartial:
         self.ptr = 0  
  
 
-    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
-        self.returns_ext, self.advantages_ext = self._gae_fast(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
-        self.returns_int, self.advantages_int = self._gae_fast(self.reward_int, self.values_int, self.dones, gamma_int, lam)
+    def compute_returns(self, mask, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
+        self.returns_ext, self.advantages_ext = self._gae_fast(mask, self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
+        self.returns_int, self.advantages_int = self._gae_fast(mask, self.reward_int, self.values_int, self.dones, gamma_int, lam)
         
         #reshape buffer for faster batch sampling
         self.logits           = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
@@ -89,21 +89,23 @@ class PolicyBufferPartial:
 
         return logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
-    def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+    def _gae_fast(self, mask, rewards, values, dones, gamma = 0.99, lam = 0.9):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
-
         returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
 
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
+
+        rewards_    = rewards*mask
+        values_     = values*mask
         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
+            delta           = rewards_[n] + gamma*values_[n+1]*(1.0 - dones[n]) - values_[n]
             last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
             
-            returns[n]      = last_gae + values[n]
+            returns[n]      = last_gae + values_[n]
             advantages[n]   = last_gae
 
         return returns, advantages
@@ -171,8 +173,8 @@ class PolicyBufferIMDual:
         return False 
 
     def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
-        self.buffer_a.compute_returns(gamma_ext, gamma_int, lam)
-        self.buffer_b.compute_returns(gamma_ext, gamma_int, lam)
+        self.buffer_a.compute_returns(1.0 - self.modes, gamma_ext, gamma_int, lam)
+        self.buffer_b.compute_returns(self.modes, gamma_ext, gamma_int, lam)
 
         #reshape buffer for faster batch sampling
         self.states  = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)

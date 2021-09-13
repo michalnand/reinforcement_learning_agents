@@ -307,35 +307,24 @@ class AgentPPOEE():
         log_probs_b_new = torch.nn.functional.log_softmax(logits_b_new, dim = 1)
 
  
-        #compute external critic A loss, as MSE
-        values_ext_a_new    = values_ext_a_new.squeeze(1)
-        loss_ext_value_a    = ((returns_ext_a.detach() - values_ext_a_new)**2)*(1.0 - modes)
-        loss_ext_value_a    = loss_ext_value_a.mean()
+        #compute critic A loss, as MSE
+        loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new, 1.0 - modes)
 
-        #compute internal critic A loss, as MSE
-        values_int_a_new  = values_int_a_new.squeeze(1)
-        loss_int_value_a  = ((returns_int_a.detach() - values_int_a_new)**2)*(1.0 - modes)
-        loss_int_value_a  = loss_int_value_a.mean()
+        #compute critic B loss, as MSE
+        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new, modes)
 
-        #compute external critic B loss, as MSE
-        values_ext_b_new    = values_ext_b_new.squeeze(1)
-        loss_ext_value_b    = ((returns_ext_b.detach() - values_ext_b_new)**2)*(modes)
-        loss_ext_value_b    = loss_ext_value_b.mean()
-
-        #compute internal critic B loss, as MSE
-        values_int_b_new  = values_int_b_new.squeeze(1)
-        loss_int_value_b  = ((returns_int_b.detach() - values_int_b_new)**2)*(modes)
-        loss_int_value_b  = loss_int_value_b.mean()
-        
         #sum to single critic loss
-        loss_critic     = loss_ext_value_a + loss_int_value_a + loss_ext_value_b  + loss_int_value_b
+        loss_critic     = loss_critic_a + loss_critic_b
  
         #compute actors loss
         loss_actor_a = self._actor_loss(self.ext_adv_coeff*advantages_ext_a + self.int_adv_coeff*advantages_int_a, probs_a_new, log_probs_a_new, log_probs_a_old, actions_a, 1.0 - modes)
         loss_actor_b = self._actor_loss(self.ext_adv_coeff*advantages_ext_b + self.int_adv_coeff*advantages_int_b, probs_b_new, log_probs_b_new, log_probs_b_old, actions_b, modes)
         
+        #sum to single actor loss
+        loss_actor     = loss_actor_a + loss_actor_b
+ 
 
-        loss = 0.5*loss_critic + loss_actor_a + loss_actor_b
+        loss = 0.5*loss_critic + loss_actor
 
 
         k = 0.02
@@ -345,6 +334,17 @@ class AgentPPOEE():
         self.log_advantages_int_b   = (1.0 - k)*self.log_advantages_int_b + k*advantages_int_b.mean().detach().to("cpu").numpy()
         
         return loss 
+
+    def _critic_loss(self, returns_ext, values_ext, returns_int, values_int, mask):
+        #compute external critic loss, as MSE
+        loss_ext_value    = ((returns_ext.detach() - values_ext.squeeze(1))**2)*mask
+        loss_ext_value    = loss_ext_value.mean()
+
+        #compute internal critic loss, as MSE
+        loss_int_value    = ((returns_int.detach() - values_int.squeeze(1))**2)*mask
+        loss_int_value    = loss_int_value.mean()
+
+        return loss_ext_value + loss_int_value
 
     def _actor_loss(self, advantages, probs_new, log_probs_new, log_probs_old, actions, mask):
         ''' 
