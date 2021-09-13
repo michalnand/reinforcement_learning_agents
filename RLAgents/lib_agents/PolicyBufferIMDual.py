@@ -103,7 +103,7 @@ class PolicyBufferPartial:
         
         for n in reversed(range(buffer_size-1)):
             delta           = rewards_[n] + gamma*values_[n+1]*(1.0 - dones[n]) - values_[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
+            last_gae        = (delta + gamma*lam*last_gae*(1.0 - dones[n]))*mask[n]
             
             returns[n]      = last_gae + values_[n]
             advantages[n]   = last_gae
