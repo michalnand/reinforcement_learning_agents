@@ -298,7 +298,7 @@ class AgentPPOEE():
         log_probs_a_old = torch.nn.functional.log_softmax(logits_a, dim = 1).detach()
         log_probs_b_old = torch.nn.functional.log_softmax(logits_b, dim = 1).detach()
 
-        logits_a_new, logits_b_new, values_ext_a_new, values_ext_b_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
+        logits_a_new, logits_b_new, values_ext_a_new, values_int_a_new, values_ext_b_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
 
         probs_a_new     = torch.nn.functional.softmax(logits_a_new, dim = 1)
         log_probs_a_new = torch.nn.functional.log_softmax(logits_a_new, dim = 1)

@@ -240,7 +240,7 @@ class AgentPPOEETest():
         log_probs_a_old = torch.nn.functional.log_softmax(logits_a, dim = 1).detach()
         log_probs_b_old = torch.nn.functional.log_softmax(logits_b, dim = 1).detach()
 
-        logits_a_new, logits_b_new, values_ext_a_new, values_ext_b_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
+        logits_a_new, logits_b_new, values_ext_a_new, values_int_a_new, values_ext_b_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
 
         probs_a_new     = torch.nn.functional.softmax(logits_a_new, dim = 1)
         log_probs_a_new = torch.nn.functional.log_softmax(logits_a_new, dim = 1)
@@ -282,16 +282,10 @@ class AgentPPOEETest():
 
         #compute external critic loss, as MSE
         loss_ext_value    = ((returns_ext.detach() - values_ext.squeeze(1))**2)
-
-        print(">>> loss_critic_ext = ", loss_ext_value.shape, mask.shape)
-
         loss_ext_value    = (loss_ext_value*mask).sum()/(mask.sum() + eps)
 
         #compute internal critic loss, as MSE
         loss_int_value    = ((returns_int.detach() - values_int.squeeze(1))**2)
-
-        print(">>> loss_critic_int = ", loss_int_value.shape, mask.shape)
-
         loss_int_value    = (loss_int_value*mask).sum()/(mask.sum() + eps)
 
         return loss_ext_value + loss_int_value
@@ -311,9 +305,7 @@ class AgentPPOEETest():
         p1          = ratio*advantages
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
-        print(">>> loss_policy = ", loss_policy.shape, mask.shape)
-        loss_policy = loss_policy*mask
-        loss_policy = loss_policy.sum()/(mask.sum() + eps)
+        loss_policy = (loss_policy*mask).sum()/(mask.sum() + eps)
     
         ''' 
         compute entropy loss, to avoid greedy strategy
@@ -321,10 +313,8 @@ class AgentPPOEETest():
         '''
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
 
-        print(">>> loss_entropy = ", loss_entropy.shape, mask.shape)
-
         loss_entropy = self.entropy_beta*loss_entropy*mask
-        loss_entropy = loss_entropy.sum()/(mask.sum() + eps)
+        loss_entropy = (loss_entropy*mask).sum()/(mask.sum() + eps)
 
         return loss_policy + loss_entropy
 
