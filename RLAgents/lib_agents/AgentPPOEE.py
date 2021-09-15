@@ -10,7 +10,7 @@ from .RunningStats          import *
 
 
 class GoalAchievedCounter:
-    def __init__(self, envs_count, k = 0.1):
+    def __init__(self, envs_count, k = 0.02):
 
         self.goal_mode      = numpy.zeros(envs_count, dtype=bool)
         self.goal_achieved  = numpy.zeros(envs_count, dtype=bool)
