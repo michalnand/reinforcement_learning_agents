@@ -47,7 +47,7 @@ class GoalAchievedCounter:
             self.goal_id = (1.0 - self.k)*self.goal_id + self.k*goal_id
 
         
-
+  
 
     
 class AgentPPOEE():   
@@ -277,8 +277,9 @@ class AgentPPOEE():
 
                 loss_rnd        = (features_target_t - features_predicted_t)**2
                 
+                #andom 75% regularisation mask and mask with explore mode only
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
-                random_mask     = 1.0*(random_mask < 0.25)
+                random_mask     = 1.0*(random_mask < 0.25)*(1.0 - modes)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
                 self.optimizer_rnd.zero_grad() 

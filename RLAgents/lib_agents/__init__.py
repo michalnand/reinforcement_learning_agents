@@ -29,7 +29,6 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOEE                    import AgentPPOEE
-from .AgentPPOEETest                import AgentPPOEETest
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
