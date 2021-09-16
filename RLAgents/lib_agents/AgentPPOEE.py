@@ -280,7 +280,7 @@ class AgentPPOEE():
                 
                 #andom 75% regularisation mask and mask with explore mode only
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
-                random_mask     = 1.0*(random_mask < 0.25)*(1.0 - modes.unsqueeze(1))
+                random_mask     = 1.0*(random_mask < 0.25) #*(1.0 - modes.unsqueeze(1))
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
                 self.optimizer_rnd.zero_grad() 
