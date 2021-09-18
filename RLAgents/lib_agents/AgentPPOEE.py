@@ -310,10 +310,10 @@ class AgentPPOEE():
 
  
         #compute critic A loss, as MSE
-        loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new, 1.0 - modes)
+        loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
 
         #compute critic B loss, as MSE
-        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new, modes)
+        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
 
         #sum to single critic loss
         loss_critic     = loss_critic_a + loss_critic_b
@@ -337,16 +337,16 @@ class AgentPPOEE():
         
         return loss 
 
-    def _critic_loss(self, returns_ext, values_ext, returns_int, values_int, mask):
+    def _critic_loss(self, returns_ext, values_ext, returns_int, values_int):
         eps = 0.000001
 
         #compute external critic loss, as MSE
-        loss_ext_value    = ((returns_ext.detach() - values_ext.squeeze(1))**2)*mask
-        loss_ext_value    = loss_ext_value.sum()/(mask.sum() + eps)
-
+        loss_ext_value    = (returns_ext.detach() - values_ext.squeeze(1))**2
+        loss_ext_value    = loss_ext_value.mean()
+ 
         #compute internal critic loss, as MSE
-        loss_int_value    = ((returns_int.detach() - values_int.squeeze(1))**2)*mask
-        loss_int_value    = loss_int_value.sum()/(mask.sum() + eps)
+        loss_int_value    = (returns_int.detach() - values_int.squeeze(1))**2
+        loss_int_value    = loss_int_value.mean()
 
         return loss_ext_value + loss_int_value
 
