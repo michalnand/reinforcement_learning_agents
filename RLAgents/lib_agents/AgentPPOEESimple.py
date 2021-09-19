@@ -79,7 +79,7 @@ class AgentPPOEESimple():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.goal_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMGoals(self.steps, self.state_shape, self.goal_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
 
         self.goals_buffer   = GoalsBuffer(config.goals_buffer_size, config.goals_add_threshold, config.goals_downsampling, config.goals_weights, self.state_shape, self.envs_count, self.model_ppo.device)
