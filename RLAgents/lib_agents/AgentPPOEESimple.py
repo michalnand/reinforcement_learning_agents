@@ -136,7 +136,7 @@ class AgentPPOEESimple():
 
         
         #collect actions
-        actions = self._sample_actions(logits_np)
+        actions = self._sample_actions(logits_t)
         
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
