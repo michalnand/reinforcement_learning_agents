@@ -164,7 +164,7 @@ class AgentPPOEEExtended():
         if self.enabled_training:
             #combine both rewards
           
-            self.policy_buffer.add(states, goals_np, mode_np)
+            self.policy_buffer.add(states_np, goals_np, mode_np)
             self.policy_buffer.add_a(logits_np, values_ext_a_np, values_int_a_np, actions, rewards_ext, rewards_int, dones)
             self.policy_buffer.add_b(logits_np, values_ext_b_np, values_int_b_np, actions, goals_rewards_ext, goals_rewards_int, dones)
 
@@ -267,7 +267,7 @@ class AgentPPOEEExtended():
                 loss_rnd        = (features_target_t - features_predicted_t)**2
 
                 
-                #andom 75% regularisation mask and mask with explore mode only
+                #random 75% regularisation mask and mask with explore mode only
                 random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
                 random_mask     = 1.0*(random_mask < 0.25)
                 loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
