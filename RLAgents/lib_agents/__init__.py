@@ -30,6 +30,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPOEESimple              import AgentPPOEESimple
 from .AgentPPOEE                    import AgentPPOEE
 
 from .AgentPPOContinuous            import AgentPPOContinuous
