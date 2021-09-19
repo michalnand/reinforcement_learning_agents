@@ -101,7 +101,7 @@ class AgentPPORND():
         self.log_internal_motivation = (1.0 - k)*self.log_internal_motivation + k*rewards_int.mean()
 
         self.iterations+= 1
-        return rewards[0], dones[0], infos[0]
+        return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
