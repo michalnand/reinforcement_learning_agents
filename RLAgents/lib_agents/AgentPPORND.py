@@ -47,9 +47,9 @@ class AgentPPORND():
         self.iterations                 = 0 
 
         self.log_loss_rnd               = 0.0
-        self.log_curiosity              = 0.0
-        self.log_advantages_ext             = 0.0
-        self.log_advantages_int    = 0.0
+        self.log_internal_motivation    = 0.0
+        self.log_advantages_ext         = 0.0
+        self.log_advantages_int         = 0.0
 
     def enable_training(self):
         self.enabled_training = True
