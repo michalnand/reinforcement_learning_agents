@@ -46,7 +46,7 @@ class GoalAchievedCounter:
         if goal_id != -1:
             self.goal_id = (1.0 - self.k)*self.goal_id + self.k*goal_id
 
-        
+         
   
  
     
@@ -160,7 +160,7 @@ class AgentPPOEESimple():
          
         #put into policy buffer
         if self.enabled_training:
-            #combine boths rewards
+            #combine both rewards
             rewards_ext_ = rewards_ext + goals_rewards_ext
             rewards_int_ = rewards_int + goals_rewards_int
 
