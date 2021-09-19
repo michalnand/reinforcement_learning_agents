@@ -315,7 +315,7 @@ class AgentPPOEE():
 
         #compute critic B loss, as MSE
         #loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
-        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new, mode)
+        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new, modes)
 
         #sum to single critic loss
         loss_critic     = loss_critic_a + loss_critic_b
