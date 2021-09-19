@@ -1,7 +1,7 @@
 import torch
 import numpy
 
-class PolicyBuffer:
+class PolicyBuffer: 
 
     def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
         

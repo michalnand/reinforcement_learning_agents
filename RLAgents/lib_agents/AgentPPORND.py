@@ -48,8 +48,8 @@ class AgentPPORND():
 
         self.log_loss_rnd               = 0.0
         self.log_curiosity              = 0.0
-        self.log_advantages             = 0.0
-        self.log_curiosity_advatages    = 0.0
+        self.log_advantages_ext             = 0.0
+        self.log_advantages_int    = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -73,7 +73,7 @@ class AgentPPORND():
         actions = self._sample_actions(logits_t)
         
         #execute action
-        states, rewards, dones, infos = self.envs.step(actions)
+        states, rewards_ext, dones, infos = self.envs.step(actions)
 
         self.states = states.copy()
  
@@ -81,13 +81,13 @@ class AgentPPORND():
         self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        states_new_t    = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        curiosity_np    = self._curiosity(states_new_t)
-        curiosity_np    = numpy.clip(curiosity_np, -1.0, 1.0)
+        states_new_t   = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
+        rewards_int    = self._curiosity(states_new_t)
+        rewards_int    = numpy.clip(rewards_int, -1.0, 1.0)
          
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards, curiosity_np, dones)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -98,7 +98,7 @@ class AgentPPORND():
 
         #collect stats
         k = 0.02
-        self.log_curiosity = (1.0 - k)*self.log_curiosity + k*curiosity_np.mean()
+        self.log_internal_motivation = (1.0 - k)*self.log_internal_motivation + k*rewards_int.mean()
 
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
@@ -114,9 +114,9 @@ class AgentPPORND():
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_curiosity, 7)) + " "
-        result+= str(round(self.log_advantages, 7)) + " "
-        result+= str(round(self.log_curiosity_advatages, 7)) + " "
+        result+= str(round(self.log_internal_motivation, 7)) + " "
+        result+= str(round(self.log_advantages_ext, 7)) + " "
+        result+= str(round(self.log_advantages_int, 7)) + " "
         return result 
     
 
@@ -174,7 +174,7 @@ class AgentPPORND():
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions,  returns_ext, returns_int, advantages_ext, advantages_int):
+    def _compute_loss(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
@@ -206,7 +206,6 @@ class AgentPPORND():
         compute actor loss, surrogate loss
         '''
         advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
-        #advantages      = (advantages - advantages.mean())/(advantages.std() + 0.00001)
         advantages      = advantages.detach() 
         
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
@@ -228,8 +227,8 @@ class AgentPPORND():
         loss = 0.5*loss_critic + loss_policy + loss_entropy
 
         k = 0.02
-        self.log_advantages             = (1.0 - k)*self.log_advantages + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_curiosity_advatages    = (1.0 - k)*self.log_curiosity_advatages + k*advantages_int.mean().detach().to("cpu").numpy()
+        self.log_advantages_ext     = (1.0 - k)*self.log_advantages_ext + k*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
 
         return loss 
 

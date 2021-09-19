@@ -5,6 +5,7 @@ from .ExperienceBufferGoalsContinuous   import ExperienceBufferGoalsContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
+from .PolicyBufferIMGoals           import PolicyBufferIMGoals
 from .PolicyBufferIMDual            import PolicyBufferIMDual
   
 from .PolicyBufferContinuous        import PolicyBufferContinuous
