@@ -249,7 +249,7 @@ class RawScoreEnv(gym.Wrapper):
         return self.env.reset()
  
  
-def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 1000):
     #env = VideoRecorder(env)    
 
     env = StickyActionEnv(env)

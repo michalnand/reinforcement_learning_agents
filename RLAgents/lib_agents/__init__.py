@@ -11,6 +11,7 @@ from .PolicyBufferIMDual            import PolicyBufferIMDual
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
+from .GoalsBuffer                   import GoalsBuffer
 
 from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous

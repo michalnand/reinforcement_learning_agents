@@ -91,6 +91,7 @@ class GoalsBuffer:
 
 
         
+        
       
 
         #external reward for reached goal
@@ -107,22 +108,14 @@ class GoalsBuffer:
         #set reached goal flag
         self.goals_reached      = numpy.logical_or(self.goals_reached, reached_goals)
 
-        '''
-        if reward_reached_goals[0] > 0.0:
-            print("goal reached = ", reward, "\n\n")
-            print(self.goals_counter[0:self.total_goals])
-            print(self.goals_rewards[0:self.total_goals])
-
-        if reward_reached_goals[0] > 0.0:
-            idx = self.goals_indices[0]
-            self._visualise(states_t[0], self.current_goals[0], self.desired_goals[0], self.goals_rewards[idx])
-        '''        
-
+      
         #clear already reached goals
         for e in range(self.envs_count):
             if self.goals_reached[e]:
                 self.desired_goals[e] = torch.zeros(self.goals_shape, device=self.device)
-       
+
+
+        #self._visualise(states_t[0], self.desired_goals[0], self.goals_indices[0], reward_ext[0], reward_int[0])
 
         return self.desired_goals, reward_ext, reward_int
 
@@ -138,7 +131,6 @@ class GoalsBuffer:
                 idx = self.indices_now[e]
                 if self.score_sum[idx] < rewards_sum[e]:
                     self.score_sum[idx] = rewards_sum[e]
-  
 
         self.steps+= 1
             
@@ -146,10 +138,8 @@ class GoalsBuffer:
 
     def new_goal(self, env_idx):
         #compute target weights using internal reward
-        w  = self._reward_int(self.indices_now)
-
         #select only from stored states
-        w   = w[0:self.total_goals]
+        w  = self._reward_int(range(self.total_goals))
 
         #convert weights to probs, use softmax
         w       = 10.0*w
@@ -163,7 +153,7 @@ class GoalsBuffer:
         self.goals_indices[env_idx] = idx
         self.goals_reached[env_idx] = False
 
-        return idx
+        return idx 
 
     def zero_goal(self, env_idx):
         self.goals_indices[env_idx] = 0
@@ -261,12 +251,13 @@ class GoalsBuffer:
         pass
 
     
-    def visualise(self, state, goal, reward_int, reward_ext):
+    def _visualise(self, state, goal, goal_id, reward_ext, reward_int):
         state_np  = state[0].detach().to("cpu").numpy()
         goal_np   = goal[0].detach().to("cpu").numpy()
 
-        reward_int_str = str(round(reward_int, 3))
+        goal_id_str    = str(goal_id)
         reward_ext_str = str(round(reward_ext, 3))
+        reward_int_str = str(round(reward_int, 3))
 
         size = 256
 
@@ -274,11 +265,18 @@ class GoalsBuffer:
         goal_img    = cv2.resize(goal_np, (size, size), interpolation     = cv2.INTER_NEAREST)
 
         font = cv2.FONT_HERSHEY_COMPLEX_SMALL
-        cv2.putText(goal_img, reward_int_str,(30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(goal_img, goal_id_str,   (30, 30), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.putText(goal_img, reward_ext_str,(30, 60), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(goal_img, reward_int_str,(30, 90), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         img = numpy.hstack((state_img, goal_img))
 
         cv2.imshow("image", img)
         cv2.waitKey(1)
+
+        print(">>> total goals ", self.total_goals)
+
+        w  = self._reward_int(range(self.total_goals))
+        print(">>> goals weights = ", w)
+
 
