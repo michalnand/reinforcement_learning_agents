@@ -90,10 +90,6 @@ class GoalsBuffer:
         self.connections[self.indices_prev, self.indices_now]+= 1
 
 
-        
-        
-      
-
         #external reward for reached goal
         goals_distances         = (((desired_goals_downsampled - self.states_downsampled)**2.0).sum(dim=1))**0.5 
         reached_goals           = (goals_distances <= self.add_threshold).detach().to("cpu").numpy()

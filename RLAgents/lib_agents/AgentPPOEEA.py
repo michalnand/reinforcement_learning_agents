@@ -50,7 +50,7 @@ class GoalAchievedCounter:
   
  
     
-class AgentPPOEEExtended():   
+class AgentPPOEEA():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
    
@@ -130,7 +130,9 @@ class AgentPPOEEExtended():
         logits_t, values_ext_a_t, values_int_a_t, values_ext_b_t, values_int_b_t = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
         
         states_np           = states_t.detach().to("cpu").numpy()
+        
         logits_np           = logits_t.detach().to("cpu").numpy()
+
         values_ext_a_np     = values_ext_a_t.squeeze(1).detach().to("cpu").numpy()
         values_int_a_np     = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
         values_ext_b_np     = values_ext_b_t.squeeze(1).detach().to("cpu").numpy()
@@ -174,18 +176,14 @@ class AgentPPOEEExtended():
         #log achieved goal stats
         self.goal_echieved_stats.add(goals_rewards_ext, dones)
 
-        for e in range(self.envs_count): 
-            #switch agent to explore mode, if goal achieved
-            if goals_rewards_ext[e] > 0:
-                self.agent_mode[e] = 0.0
-
+        for e in range(self.envs_count):
             #episode done
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
                 self.episode_rewards_sum[e] = 0.0
 
-                #switch agent with 50% prob to explore mode, except env 0
-                if e != 0 and numpy.random.rand() < 0.5:
+                #switch agent with 25% prob to explore mode, except env 0
+                if e != 0 and numpy.random.rand() < 0.25:
                     goal_id = self.goals_buffer.new_goal(e)
                     self.agent_mode[e]      = 1.0
                     self.goal_echieved_stats.set_goal_mode(e, True, goal_id)
@@ -294,20 +292,26 @@ class AgentPPOEEExtended():
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
         
         #compute critic A loss, as MSE
-        #loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
-        loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
+        loss_critic_a   = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
 
         #compute critic B loss, as MSE
-        #loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
-        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
+        loss_critic_b   = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
 
         #sum to single critic loss
         loss_critic     = loss_critic_a + loss_critic_b
+        
+        #external advantages only for explore mode
+        advantages = self.ext_a_adv_coeff*(1.0 - modes)*advantages_ext_a
 
-        advantages = self.ext_a_adv_coeff*advantages_ext_a
+        #rnd advantages for both cases (no modes masking)
         advantages+= self.int_a_adv_coeff*advantages_int_a
-        advantages+= self.ext_b_adv_coeff*advantages_ext_b
-        advantages+= self.int_b_adv_coeff*advantages_int_b
+
+        #external goal achieved advantages for explore mode only
+        advantages+= self.ext_b_adv_coeff*modes*advantages_ext_b
+
+        #internal goal advantages for explore mode only
+        advantages+= self.int_b_adv_coeff*modes*advantages_int_b
+        
  
         #compute actors loss
         loss_actor = self._actor_loss(advantages, probs_new, log_probs_new, log_probs_old, actions)

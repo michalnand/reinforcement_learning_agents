@@ -50,7 +50,7 @@ class GoalAchievedCounter:
   
  
     
-class AgentPPOEEExtended():   
+class AgentPPOEEB():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
    
@@ -113,7 +113,8 @@ class AgentPPOEEExtended():
         self.log_int_a      = 0.0
         self.log_int_b      = 0.0
         
-        self.log_advantages = 0.0
+        self.log_advantages_a = 0.0
+        self.log_advantages_b = 0.0
       
     def enable_training(self):
         self.enabled_training = True
@@ -127,10 +128,13 @@ class AgentPPOEEExtended():
         goals_t, goals_rewards_ext, goals_rewards_int = self.goals_buffer.get(states_t)
         
         #compute model output
-        logits_t, values_ext_a_t, values_int_a_t, values_ext_b_t, values_int_b_t = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
+        logits_a_t, logits_b_t, values_ext_a_t, values_int_a_t, values_ext_b_t, values_int_b_t = self.model_ppo.forward(states_t, goals_t, self.agent_mode)
         
         states_np           = states_t.detach().to("cpu").numpy()
-        logits_np           = logits_t.detach().to("cpu").numpy()
+        
+        logits_a_np         = logits_a_t.detach().to("cpu").numpy()
+        logits_b_np         = logits_b_t.detach().to("cpu").numpy()
+
         values_ext_a_np     = values_ext_a_t.squeeze(1).detach().to("cpu").numpy()
         values_int_a_np     = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
         values_ext_b_np     = values_ext_b_t.squeeze(1).detach().to("cpu").numpy()
@@ -138,7 +142,7 @@ class AgentPPOEEExtended():
 
         
         #collect actions
-        actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits_a_t, logits_b_t, self.agent_mode)
         
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
@@ -165,8 +169,8 @@ class AgentPPOEEExtended():
             #combine both rewards
           
             self.policy_buffer.add(states_np, goals_np, mode_np)
-            self.policy_buffer.add_a(logits_np, values_ext_a_np, values_int_a_np, actions, rewards_ext, rewards_int, dones)
-            self.policy_buffer.add_b(logits_np, values_ext_b_np, values_int_b_np, actions, goals_rewards_ext, goals_rewards_int, dones)
+            self.policy_buffer.add_a(logits_a_np, values_ext_a_np, values_int_a_np, actions, rewards_ext, rewards_int, dones)
+            self.policy_buffer.add_b(logits_b_np, values_ext_b_np, values_int_b_np, actions, goals_rewards_ext, goals_rewards_int, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -174,18 +178,14 @@ class AgentPPOEEExtended():
         #log achieved goal stats
         self.goal_echieved_stats.add(goals_rewards_ext, dones)
 
-        for e in range(self.envs_count): 
-            #switch agent to explore mode, if goal achieved
-            if goals_rewards_ext[e] > 0:
-                self.agent_mode[e] = 0.0
-
+        for e in range(self.envs_count):
             #episode done
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
                 self.episode_rewards_sum[e] = 0.0
 
-                #switch agent with 50% prob to explore mode, except env 0
-                if e != 0 and numpy.random.rand() < 0.5:
+                #switch agent with 25% prob to explore mode, except env 0
+                if e != 0 and numpy.random.rand() < 0.25:
                     goal_id = self.goals_buffer.new_goal(e)
                     self.agent_mode[e]      = 1.0
                     self.goal_echieved_stats.set_goal_mode(e, True, goal_id)
@@ -225,7 +225,8 @@ class AgentPPOEEExtended():
         result+= str(round(self.log_ext_b, 7)) + " "
         result+= str(round(self.log_int_b, 7)) + " "
 
-        result+= str(round(self.log_advantages, 7)) + " "
+        result+= str(round(self.log_advantages_a, 7)) + " "
+        result+= str(round(self.log_advantages_b, 7)) + " "
         
         result+= str(round(self.goals_buffer.total_goals, 7)) + " "
         result+= str(round(self.goal_echieved_stats.result, 7)) + " "
@@ -234,12 +235,18 @@ class AgentPPOEEExtended():
         return result 
     
 
-    def _sample_actions(self, logits):
+    def _sample_actions_from_logits(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
         return actions
+
+    def _sample_actions(self, logits_a, logits_b, mode):
+        mode_  = mode.unsqueeze(1)
+        logits = (1.0 - mode_)*logits_a + mode_*logits_b
+        
+        return self._sample_actions_from_logits(logits)
 
         
     def train(self): 
@@ -283,39 +290,54 @@ class AgentPPOEEExtended():
 
 
     def _compute_loss(self, states, goals, modes, res_a, res_b):
-        logits, actions,    returns_ext_a, returns_int_a, advantages_ext_a, advantages_int_a = res_a
-        _, _,               returns_ext_b, returns_int_b, advantages_ext_b, advantages_int_b = res_b
+        logits_a, actions_a,  returns_ext_a, returns_int_a, advantages_ext_a, advantages_int_a = res_a
+        logits_b, actions_b,  returns_ext_b, returns_int_b, advantages_ext_b, advantages_int_b = res_b
 
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+        log_probs_a_old = torch.nn.functional.log_softmax(logits_a, dim = 1).detach()
+        log_probs_b_old = torch.nn.functional.log_softmax(logits_b, dim = 1).detach()
 
-        logits_new, values_ext_a_new, values_int_a_new, values_ext_b_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
+        logits_a_new, logits_b_new, values_ext_a_new, values_int_a_new, values_ext_b_new, values_int_b_new  = self.model_ppo.forward(states, goals, modes)
 
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
-        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
+        probs_a_new     = torch.nn.functional.softmax(logits_a_new, dim = 1)
+        log_probs_a_new = torch.nn.functional.log_softmax(logits_a_new, dim = 1)
+
+        probs_b_new     = torch.nn.functional.softmax(logits_b_new, dim = 1)
+        log_probs_b_new = torch.nn.functional.log_softmax(logits_b_new, dim = 1)
         
         #compute critic A loss, as MSE
-        #loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
-        loss_critic_a = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
+        loss_critic_a   = self._critic_loss(returns_ext_a, values_ext_a_new, returns_int_a, values_int_a_new)
 
         #compute critic B loss, as MSE
-        #loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
-        loss_critic_b = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
+        loss_critic_b   = self._critic_loss(returns_ext_b, values_ext_b_new, returns_int_b, values_int_b_new)
 
         #sum to single critic loss
         loss_critic     = loss_critic_a + loss_critic_b
-
-        advantages = self.ext_a_adv_coeff*advantages_ext_a
-        advantages+= self.int_a_adv_coeff*advantages_int_a
-        advantages+= self.ext_b_adv_coeff*advantages_ext_b
-        advantages+= self.int_b_adv_coeff*advantages_int_b
- 
-        #compute actors loss
-        loss_actor = self._actor_loss(advantages, probs_new, log_probs_new, log_probs_old, actions)
         
-        loss = 0.5*loss_critic + loss_actor
+        #external advantages only for explore mode
+        advantages_a = self.ext_a_adv_coeff*advantages_ext_a
+        #add rnd advantages, use in both
+        advantages_a+= self.int_a_adv_coeff*advantages_int_a
+
+        advantages_a = (1.0 - modes)*advantages_a
+
+        #external goal achieved advantages for explore mode only
+        advantages_b = self.ext_b_adv_coeff*advantages_ext_b
+        #add rnd advantages
+        advantages_b+= self.int_b_adv_coeff*advantages_int_a
+        #add internal goal advantages for explore mode only
+        advantages_b+= self.int_b_adv_coeff*advantages_int_b
+
+        advantages_b = modes*advantages_b
+        
+        #compute actors loss
+        loss_actor_a = self._actor_loss(advantages_a, probs_a_new, log_probs_a_new, log_probs_a_old, actions_a)
+        loss_actor_b = self._actor_loss(advantages_b, probs_b_new, log_probs_b_new, log_probs_b_old, actions_b)
+        
+        loss = 0.5*loss_critic + loss_actor_a + loss_actor_b
 
         k = 0.02
-        self.log_advantages   = (1.0 - k)*self.log_advantages + k*advantages.mean().detach().to("cpu").numpy()
+        self.log_advantages_a   = (1.0 - k)*self.log_advantages_a + k*advantages_a.mean().detach().to("cpu").numpy()
+        self.log_advantages_b   = (1.0 - k)*self.log_advantages_b + k*advantages_b.mean().detach().to("cpu").numpy()
         
         return loss 
     
