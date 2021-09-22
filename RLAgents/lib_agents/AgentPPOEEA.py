@@ -183,7 +183,7 @@ class AgentPPOEEA():
                 self.episode_rewards_sum[e] = 0.0
 
                 #switch agent with 25% prob to explore mode, except env 0
-                if e != 0 and numpy.random.rand() < 0.25:
+                if e != 0 and numpy.random.rand() < 0.8:
                     goal_id = self.goals_buffer.new_goal(e)
                     self.agent_mode[e]      = 1.0
                     self.goal_echieved_stats.set_goal_mode(e, True, goal_id)
