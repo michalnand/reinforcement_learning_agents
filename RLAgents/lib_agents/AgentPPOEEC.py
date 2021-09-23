@@ -168,8 +168,8 @@ class AgentPPOEEC():
 
         self.episode_rewards_sum+= rewards_ext
 
-        arbiter_reward = self.goals_buffer.reward_int_all()
-
+        arbiter_reward = self.goals_buffer.reward_int_all().mean().repeat(self.envs_count)
+ 
         self.goals_buffer.add(self.episode_rewards_sum)
         #self.goals_buffer.visualise(states_t[1], goals_t[1], goals_rewards_ext[1], goals_rewards_int[1])
          
