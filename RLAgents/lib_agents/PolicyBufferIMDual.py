@@ -195,3 +195,100 @@ class PolicyBufferIMDual:
 
 
         return states, goals, modes, res_a, res_b
+
+
+
+
+
+
+
+class PolicyBufferIMTripple:
+
+    def __init__(self, buffer_size, state_shape, goal_shape, actions_size, arbiter_size, envs_count, device, uint8_storage = False):
+        self.buffer_size    = buffer_size
+        self.state_shape    = state_shape
+        self.goal_shape     = goal_shape
+        self.envs_count     = envs_count
+        self.device         = device
+
+        self.buffer_a = PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
+        self.buffer_b = PolicyBufferPartial(buffer_size, actions_size, envs_count, device)
+        self.buffer_c = PolicyBufferPartial(buffer_size, arbiter_size, envs_count, device)
+
+        self.uint8_storage  = uint8_storage
+
+        if self.uint8_storage:
+            self.scale  = 255
+        else:
+            self.scale  = 1
+      
+        self.clear()   
+
+
+    def add(self, state, goal, mode):
+        self.states[self.ptr]    = state.copy()*self.scale
+        self.goals[self.ptr]     = goal.copy()*self.scale
+        self.modes[self.ptr]     = mode.copy()
+
+        self.ptr = self.ptr + 1 
+
+    def add_a(self, logits, value_ext, value_int, action, reward_ext, reward_int, done):
+        self.buffer_a.add(logits, value_ext, value_int, action, reward_ext, reward_int, done)
+
+    def add_b(self, logits, value_ext, value_int, action, reward_ext, reward_int, done):
+        self.buffer_b.add(logits, value_ext, value_int, action, reward_ext, reward_int, done)
+
+    def add_c(self, logits, value, action, reward, done):
+        self.buffer_c.add(logits, value, value, action, reward, reward, done)
+
+   
+    def clear(self):
+        if self.uint8_storage: 
+            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.ubyte)
+        else:
+            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+
+        if self.uint8_storage: 
+            self.goals     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.goal_shape, dtype=numpy.ubyte)
+        else:
+            self.goals     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.goal_shape, dtype=numpy.float32)
+
+        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+
+        self.buffer_a.clear()
+        self.buffer_b.clear()
+        self.buffer_c.clear()
+
+        self.ptr = 0
+
+    def is_full(self):
+        if self.ptr >= self.buffer_size:
+            return True
+
+        return False 
+
+    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
+        self.buffer_a.compute_returns(1.0 - self.modes, gamma_ext, gamma_int, lam)
+        self.buffer_b.compute_returns(self.modes, gamma_ext, gamma_int, lam)
+
+        ones = numpy.ones_like(self.modes)
+        self.buffer_c.compute_returns(ones, gamma_ext, gamma_int, lam)
+
+        #reshape buffer for faster batch sampling
+        self.states  = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+        self.goals   = self.goals.reshape((self.buffer_size*self.envs_count, ) + self.goal_shape)
+        self.modes   = self.modes.reshape((self.buffer_size*self.envs_count, ))
+
+    def sample_batch(self, batch_size, device):
+        indices = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+
+        states  = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
+        goals   = torch.from_numpy(numpy.take(self.goals, indices, axis=0)).to(device).float()/self.scale
+        modes   = torch.from_numpy(numpy.take(self.modes, indices, axis=0)).to(device).float()
+
+        res_a   = self.buffer_a.sample_batch(indices)
+        res_b   = self.buffer_b.sample_batch(indices)
+        res_c   = self.buffer_c.sample_batch(indices)
+
+
+        return states, goals, modes, res_a, res_b, res_c

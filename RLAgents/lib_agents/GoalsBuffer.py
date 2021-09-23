@@ -183,8 +183,16 @@ class GoalsBuffer:
         numpy.save(f, visited_count) 
 
         self.save_idx+= 1
- 
 
+    def reward_int_all(self): 
+        reward_int_score    = self.goals_weights[0]*self._reward_int_score()
+        reward_int_visited  = self.goals_weights[1]*self._reward_int_visited()
+        reward_int_entropy  = self.goals_weights[2]*self._reward_int_entropy()
+        
+        reward_int = reward_int_score + reward_int_visited + reward_int_entropy
+        
+        return reward_int
+        
     #downsample and flatten
     def _downsmaple(self, states_t, quant_levels = 8):
         y = self.layer_downsample(states_t)
