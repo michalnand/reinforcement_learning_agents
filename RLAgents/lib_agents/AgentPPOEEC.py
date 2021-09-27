@@ -302,7 +302,7 @@ class AgentPPOEEC():
     def _compute_loss(self, states, goals, modes, res_a, res_b, res_c):
         logits, actions,    returns_ext_a, returns_int_a, advantages_ext_a, advantages_int_a = res_a
         _, _,               returns_ext_b, returns_int_b, advantages_ext_b, advantages_int_b = res_b
-        arbiter_logits, arbiter_actions, arbiter_returns, _, arbiter_advantages, _          = res_c
+        arbiter_logits, arbiter_actions, arbiter_returns, _, arbiter_advantages, _           = res_c
 
         log_probs_old           = torch.nn.functional.log_softmax(logits, dim = 1).detach()
         arbiter_log_probs_old   = torch.nn.functional.log_softmax(arbiter_logits, dim = 1).detach()
