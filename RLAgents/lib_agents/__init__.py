@@ -5,6 +5,7 @@ from .ExperienceBufferGoalsContinuous   import ExperienceBufferGoalsContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
+from .PolicyBufferIMMode            import PolicyBufferIMMode
 from .PolicyBufferIMGoals           import PolicyBufferIMGoals
 from .PolicyBufferIMDual            import PolicyBufferIMDual
   
@@ -31,6 +32,7 @@ from .AgentPPORND                   import AgentPPORND
 from .AgentPPOEEA                   import AgentPPOEEA
 from .AgentPPOEEB                   import AgentPPOEEB
 from .AgentPPOEEC                   import AgentPPOEEC
+from .AgentPPOEED                   import AgentPPOEED
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

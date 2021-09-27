@@ -2,7 +2,7 @@ import torch
 import numpy 
 
 
-class PolicyBufferIM:
+class PolicyBufferIMMode:
 
     def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
         
@@ -21,9 +21,10 @@ class PolicyBufferIM:
       
         self.clear()   
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done):
+    def add(self, state, modes, logits, value_ext, value_int, action, reward_ext, reward_int, done):
         
         self.states[self.ptr]    = state.copy()*self.scale
+        self.modes[self.ptr]     = modes.copy()
         self.logits[self.ptr]    = logits.copy()
         
         self.values_ext[self.ptr]= value_ext.copy()
@@ -51,6 +52,8 @@ class PolicyBufferIM:
         else:
             self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
 
+        self.modes          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+
         self.logits         = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
 
         self.values_ext     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
@@ -66,12 +69,17 @@ class PolicyBufferIM:
         self.ptr = 0  
  
 
-    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
+    def compute_returns(self, gamma_ext_a, gamma_int_a, gamma_ext_b, gamma_int_b, lam = 0.95):
+
+        gamma_ext = (1.0 - self.modes)*gamma_ext_a + self.modes*gamma_ext_b
+        gamma_int = (1.0 - self.modes)*gamma_int_a + self.modes*gamma_int_b
+
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
         
         #reshape buffer for faster batch sampling
         self.states           = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
+        self.modes            = self.modes.reshape((self.buffer_size*self.envs_count, ))
         self.logits           = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
 
         self.values_ext       = self.values_ext.reshape((self.buffer_size*self.envs_count, ))        
@@ -96,6 +104,7 @@ class PolicyBufferIM:
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
  
         states          = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
+        modes           = torch.from_numpy(numpy.take(self.modes, indices, axis=0)).to(device)
         logits          = torch.from_numpy(numpy.take(self.logits, indices, axis=0)).to(device)
         
         actions         = torch.from_numpy(numpy.take(self.actions, indices, axis=0)).to(device)
@@ -107,9 +116,9 @@ class PolicyBufferIM:
         advantages_int  = torch.from_numpy(numpy.take(self.advantages_int, indices, axis=0)).to(device)
 
 
-        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, modes, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
-    def _gae(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+    def _gae(self, rewards, values, dones, gamma, lam = 0.9):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
@@ -120,8 +129,8 @@ class PolicyBufferIM:
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
+            delta           = rewards[n] + gamma[n+1]*values[n+1]*(1.0 - dones[n]) - values[n]
+            last_gae        = delta + gamma[n]*lam*last_gae*(1.0 - dones[n])
             
             returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
