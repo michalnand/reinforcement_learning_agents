@@ -66,7 +66,7 @@ class PolicyBufferIMMode:
 
         self.dones          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.ptr = 0  
+        self.ptr = 0   
  
 
     def compute_returns(self, gamma_ext_a, gamma_int_a, gamma_ext_b, gamma_int_b, lam = 0.95):
