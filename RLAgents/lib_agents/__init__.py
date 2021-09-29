@@ -13,6 +13,7 @@ from .PolicyBufferContinuous        import PolicyBufferContinuous
 
 from .RunningStats                  import RunningStats
 from .GoalsBuffer                   import GoalsBuffer
+from .CABuffer                      import CABuffer
 
 from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
@@ -29,6 +30,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPOCA                    import AgentPPOCA
 from .AgentPPOEEA                   import AgentPPOEEA
 
 from .AgentPPOContinuous            import AgentPPOContinuous
