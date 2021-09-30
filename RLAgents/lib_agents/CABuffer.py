@@ -50,7 +50,7 @@ class CABuffer():
         min_indices         = min_indices.detach().to("cpu").numpy()
         position_indices    = position_indices.detach().to("cpu").numpy()
 
-        result = 1.0/((self.visited_b[min_indices, position_indices] + 0.001)**0.5)
+        result = 1.0/((self.visited_b[min_indices, position_indices] + 0.00001)**0.5)
         result = numpy.clip(result, 0.0, 1.0)
 
         return result
