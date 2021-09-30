@@ -78,10 +78,9 @@ class AgentPPOCA():
 
         self.states = states.copy()
 
-
         #curiosity motivation
-        attention_t    = self.model_ca.forward(states_t)
-        rewards_int    = self.ca_buffer.add(states_t, attention_t)
+        attention_t = self.model_ca.forward(states_t)
+        rewards_int = self.ca_buffer.add(states_t, attention_t)
          
         #put into policy buffer
         if self.enabled_training:

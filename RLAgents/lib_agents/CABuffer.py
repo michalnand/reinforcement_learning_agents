@@ -1,6 +1,8 @@
 import numpy
 import torch
 
+import cv2
+
 class CABuffer():
     def __init__(self, size, shape, add_threshold = 0.5, downsample = 8, device = "cpu"):
 
@@ -20,11 +22,11 @@ class CABuffer():
 
 
     def add(self, states_t, attentions_t):
-        states_flt = self._downsmaple(states_t[:,0].unsqueeze(1))
+        states_flt      = self._downsmaple(states_t[:,0].unsqueeze(1))
 
-        attentions_flt = attentions_t.reshape((attentions_t.shape[0], attentions_t.shape[2]*attentions_t.shape[3]))
+        attentions_flt  = attentions_t.reshape((attentions_t.shape[0], attentions_t.shape[2]*attentions_t.shape[3]))
 
-        distances     = torch.cdist(self.states_b, states_flt)
+        distances       = torch.cdist(self.states_b, states_flt)
 
         min_distances, min_indices = torch.min(distances, dim=0)
 
@@ -43,15 +45,8 @@ class CABuffer():
         for b in range(states_t.shape[0]):
             self.visited_b[min_indices[b], position_indices[b]]+= 1
 
-        '''
-        b = 0
-        print("rooms_count = ", self.current_idx)
-        print("room_id = ", min_indices[b])
-        print("visited_map = ")
-        v = self.visited_b[min_indices[b]].reshape((attentions_t.shape[2], attentions_t.shape[3]))
-        print(v)
-        print("\n\n\n\n")
-        '''
+        #self._visualise(states_t, attentions_t, min_indices[0], 0)
+
         min_indices         = min_indices.detach().to("cpu").numpy()
         position_indices    = position_indices.detach().to("cpu").numpy()
 
@@ -65,6 +60,24 @@ class CABuffer():
         y = self.layer_flatten(y)
         return y 
 
+
+    def _visualise(self, states_t, attentions_t, visited_idx, idx = 0):
+        state       = states_t[idx][0].detach().to("cpu").numpy()
+        attention   = attentions_t[idx][0].detach().to("cpu").numpy()
+        attention   = attention/(attention.max() + 0.00001)
+        visited     = self.visited_b[visited_idx].reshape((attentions_t.shape[2], attentions_t.shape[3]))
+        visited     = visited/(visited.max() + 0.00001)
+
+        size        = 256
+
+        state_img       = cv2.resize(state, (size, size), interpolation      = cv2.INTER_NEAREST)
+        attention_img   = cv2.resize(attention, (size, size), interpolation  = cv2.INTER_NEAREST)
+        visited_img     = cv2.resize(visited, (size, size), interpolation    = cv2.INTER_NEAREST)
+
+        img = numpy.hstack((state_img, attention_img, visited_img))
+
+        cv2.imshow("image", img)
+        cv2.waitKey(1)
 
 if __name__ == "__main__":
     size                = 32
