@@ -146,23 +146,15 @@ class AgentPPORND():
                 states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
                 #train RND model, MSE loss
-                state_norm_t    = self._norm_state(states).detach()
-
-                features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
-
-                loss_rnd        = (features_target_t - features_predicted_t)**2
-                
-                random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
-                random_mask     = 1.0*(random_mask < 0.25)
-                loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+                loss_rnd = self._compute_loss_rnd(states)
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
@@ -174,7 +166,7 @@ class AgentPPORND():
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
@@ -232,6 +224,21 @@ class AgentPPORND():
 
         return loss 
 
+    def _compute_loss_rnd(self, states):
+        #MSE loss for RND model
+        state_norm_t    = self._norm_state(states).detach()
+
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+
+        loss_rnd        = (features_target_t - features_predicted_t)**2
+        
+        #75% regularisation
+        random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
+        random_mask     = 1.0*(random_mask < 0.25)
+        loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+
+        return loss_rnd
+        
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)
 

@@ -6,9 +6,12 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIM    import * 
 from .CABuffer          import * 
-    
-class AgentPPOCA():   
-    def __init__(self, envs, ModelPPO, ModelCA, config):
+
+from .RunningStats      import * 
+
+
+class AgentPPOCSA():   
+    def __init__(self, envs, ModelPPO, ModelRND, ModelCA, config):
         self.envs = envs  
     
         self.gamma_ext          = config.gamma_ext
@@ -31,6 +34,9 @@ class AgentPPOCA():
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+
+        self.model_rnd      = ModelRND.Model(self.state_shape)
+        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.model_ca      = ModelCA.Model(self.state_shape, self.actions_count)
         self.optimizer_ca  = torch.optim.Adam(self.model_ca.parameters(), lr=config.learning_rate_ca)
@@ -41,16 +47,21 @@ class AgentPPOCA():
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
- 
+
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+
         self.enable_training()
         self.iterations                 = 0 
 
-        self.log_internal_motivation    = 0.0
-        self.log_ca_buffer              = 0.0
-        self.log_action_prediction      = 0.0
+        self.log_internal_motivation_rnd    = 0.0
+        self.log_internal_motivation_ca     = 0.0
+        self.log_ca_buffer_usage            = 0.0
+        self.log_action_prediction          = 0.0
 
-        self.log_advantages_ext         = 0.0
-        self.log_advantages_int         = 0.0
+        self.log_loss_rnd                   = 0.0
+        self.log_loss_ca                    = 0.0
+        self.log_advantages_ext             = 0.0
+        self.log_advantages_int             = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -78,12 +89,23 @@ class AgentPPOCA():
 
         self.states = states.copy()
 
-        #curiosity motivation
-        attention_t = self.model_ca.forward(states_t)
-        rewards_int = self.ca_buffer.add(states_t, attention_t)
-         
+        #update long term states mean and variance
+        self.states_running_stats.update(states_np)
+
+        #internal RND motivation
+        rewards_int_rnd    = self._curiosity(states_t)
+        rewards_int_rnd    = numpy.clip(rewards_int_rnd, 0.0, 1.0)
+
+        #internal CA motivation
+        attention_t     = self.model_ca.forward(states_t)
+        rewards_int_ca  = self.ca_buffer.add(states_t, attention_t)
+        
+        #combine internal rewards
+        rewards_int = rewards_int_rnd + rewards_int_ca
+
         #put into policy buffer
         if self.enabled_training:
+            
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
 
             if self.policy_buffer.is_full():
@@ -95,27 +117,37 @@ class AgentPPOCA():
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation = (1.0 - k)*self.log_internal_motivation + k*rewards_int.mean()
-        self.log_ca_buffer           = (1.0 - k)*self.log_ca_buffer + k*self.ca_buffer.current_idx
+        self.log_internal_motivation_rnd    = (1.0 - k)*self.log_internal_motivation_rnd + k*rewards_int_rnd.mean()
+        self.log_internal_motivation_ca     = (1.0 - k)*self.log_internal_motivation_ca  + k*rewards_int_ca.mean()
+        self.log_ca_buffer_usage            = (1.0 - k)*self.log_ca_buffer_usage         + k*self.ca_buffer.current_idx
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
+        self.model_rnd.save(save_path + "trained/")
         self.model_ca.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
+        self.model_rnd.load(load_path + "trained/")
         self.model_ca.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
-        result+= str(round(self.log_internal_motivation, 7)) + " "
-        result+= str(round(self.log_ca_buffer, 7)) + " "
+        result+= str(round(self.log_internal_motivation_rnd, 7)) + " "
+        result+= str(round(self.log_internal_motivation_ca, 7)) + " "
+
+        result+= str(round(self.log_ca_buffer_usage, 7)) + " "
+
+        result+= str(round(self.log_loss_rnd, 7)) + " "
+        result+= str(round(self.log_loss_ca, 7)) + " "
+
         result+= str(round(self.log_action_prediction, 7)) + " "
         result+= str(round(self.log_advantages_ext, 7)) + " "
         result+= str(round(self.log_advantages_int, 7)) + " "
+
         return result 
 
     def _sample_actions(self, logits):
@@ -135,42 +167,37 @@ class AgentPPOCA():
                 states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss = self._compute_loss(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
+                #train RND model, MSE loss
+                loss_rnd = self._compute_loss_rnd(states)
+
+                self.optimizer_rnd.zero_grad() 
+                loss_rnd.backward()
+                self.optimizer_rnd.step()
+
                 #train CA model for action prediction
-                
-                #one hot actions encoding
-                actions_target_t = torch.zeros((states.shape[0], self.actions_count)).to(self.model_ca.device)
-                actions_target_t[range(states.shape[0]), actions] = 1.0
-
-                action_pred_t    = self.model_ca.forward_inverse(states, states_next)
-
-                loss_ca = ((actions_target_t - action_pred_t)**2).mean()
+                loss_ca,  acc_ca = self._compute_loss_ca(states, states_next, actions)
 
                 self.optimizer_ca.zero_grad() 
                 loss_ca.backward()
                 self.optimizer_ca.step()
 
-                target_indices = numpy.argmax(actions_target_t.detach().to("cpu").numpy(), axis=1)
-                pred_indices   = numpy.argmax(action_pred_t.detach().to("cpu").numpy(), axis=1)
-                
-                hit     = (target_indices == pred_indices).sum()
-                miss    = (target_indices != pred_indices).sum()
-
-                acc     = 100.0*hit/(hit + miss)
-
+                #update logs
                 k = 0.02
-                self.log_action_prediction  = (1.0 - k)*self.log_action_prediction + k*acc
+                self.log_loss_rnd           = (1.0 - k)*self.log_loss_rnd   + k*loss_rnd.detach().to("cpu").numpy()
+                self.log_loss_ca            = (1.0 - k)*self.log_loss_ca    + k*loss_ca.detach().to("cpu").numpy()
+                self.log_action_prediction  = (1.0 - k)*self.log_action_prediction + k*acc_ca
 
         self.policy_buffer.clear() 
 
     
-    def _compute_loss(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
@@ -227,3 +254,56 @@ class AgentPPOCA():
         self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
 
         return loss 
+
+    def _compute_loss_rnd(self, states):
+        #MSE loss for RND model
+        state_norm_t    = self._norm_state(states).detach()
+
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+
+        loss_rnd        = (features_target_t - features_predicted_t)**2
+        
+        #75% regularisation
+        random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
+        random_mask     = 1.0*(random_mask < 0.25)
+        loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+
+        return loss_rnd
+
+    def _compute_loss_ca(self, states, states_next, actions):
+        #one hot actions encoding
+        actions_target_t = torch.zeros((states.shape[0], self.actions_count)).to(self.model_ca.device)
+        actions_target_t[range(states.shape[0]), actions] = 1.0
+
+        action_pred_t    = self.model_ca.forward_inverse(states, states_next)
+
+        loss_ca = ((actions_target_t - action_pred_t)**2).mean()
+
+        #accuracy stats
+        target_indices = numpy.argmax(actions_target_t.detach().to("cpu").numpy(), axis=1)
+        pred_indices   = numpy.argmax(action_pred_t.detach().to("cpu").numpy(), axis=1)
+        
+        hit     = (target_indices == pred_indices).sum()
+        miss    = (target_indices != pred_indices).sum()
+
+        acc     = 100.0*hit/(hit + miss)
+
+        return loss_ca, acc
+
+
+    def _curiosity(self, state_t):
+        state_norm_t            = self._norm_state(state_t)
+
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+
+        curiosity_t    = (features_target_t - features_predicted_t)**2
+        
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        
+        return curiosity_t.detach().to("cpu").numpy()
+
+    def _norm_state(self, state_t):
+        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        state_norm_t = state_t - mean 
+        
+        return state_norm_t

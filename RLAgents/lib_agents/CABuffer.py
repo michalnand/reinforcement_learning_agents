@@ -38,10 +38,15 @@ class CABuffer():
                 self.states_b[self.current_idx] = states_flt[b].clone()                
                 self.current_idx+= 1
 
+                #add new only once time, to avoid duplicities
+                if min_distances[b] > self.add_threshold:
+                    break
+
+                '''
                 #first run - add only first
                 if self.current_idx == 1:
                     break
-
+                '''
         for b in range(states_t.shape[0]):
             self.visited_b[min_indices[b], position_indices[b]]+= 1
 
