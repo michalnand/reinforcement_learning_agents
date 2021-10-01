@@ -13,7 +13,7 @@ from .RunningStats      import *
 class AgentPPOCSA():   
     def __init__(self, envs, ModelPPO, ModelRND, ModelCA, config):
         self.envs = envs  
-    
+     
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
             
