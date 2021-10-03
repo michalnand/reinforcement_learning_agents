@@ -39,6 +39,9 @@ class TrainingIterations:
         time_now = time.time()
         dt       = 0.0
 
+        filter_k = 0.1
+
+        time_remaining = 0.0
         for iteration in range(self.iterations_count):
             
             reward, done, info    = self.agent.main()
@@ -49,7 +52,7 @@ class TrainingIterations:
 
                 #compute fps, and remaining time in hours
                 dt              = (time_now - time_prev)/self.log_period_iterations
-                time_remaining  = ((self.iterations_count - iteration)*dt)/3600.0
+                time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
 
  
             if isinstance(self.env, list):
@@ -65,8 +68,8 @@ class TrainingIterations:
             score_per_episode_+= reward
             if done:
                 episodes+= 1
-                k = 0.1
-                score_per_episode = (1.0 - k)*score_per_episode + k*score_per_episode_
+                
+                score_per_episode = (1.0 - filter_k)*score_per_episode + filter_k*score_per_episode_
                 score_per_episode_= 0.0
                 
             #get raw episodes count if availible
