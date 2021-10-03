@@ -30,6 +30,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPORNDB                  import AgentPPORNDB
 from .AgentPPOCA                    import AgentPPOCA
 from .AgentPPOCSA                   import AgentPPOCSA
 from .AgentPPOEEA                   import AgentPPOEEA

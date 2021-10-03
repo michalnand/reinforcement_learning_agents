@@ -7,7 +7,7 @@ from torch.distributions import Categorical
 from .PolicyBufferIM    import *  
 from .RunningStats      import * 
     
-class AgentPPORND():   
+class AgentPPORNDB():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
     
@@ -33,8 +33,10 @@ class AgentPPORND():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
         self.model_rnd      = ModelRND.Model(self.state_shape)
+        
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
- 
+        self.optimizer_rnd_distances  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd_dist)
+  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
  
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
@@ -47,6 +49,7 @@ class AgentPPORND():
         self.iterations                 = 0 
 
         self.log_loss_rnd               = 0.0
+        self.log_loss_rnd_distances     = 0.0
         self.log_internal_motivation    = 0.0
         self.log_advantages_ext         = 0.0
         self.log_advantages_int         = 0.0
@@ -114,6 +117,7 @@ class AgentPPORND():
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
+        result+= str(round(self.log_loss_rnd_distances, 7)) + " "
         result+= str(round(self.log_internal_motivation, 7)) + " "
         result+= str(round(self.log_advantages_ext, 7)) + " "
         result+= str(round(self.log_advantages_int, 7)) + " "
@@ -160,8 +164,17 @@ class AgentPPORND():
                 loss_rnd.backward()
                 self.optimizer_rnd.step()
 
+                #train target RND model, to maintain correct distance between states
+                states_a, states_b = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
+                loss_rnd_distances = self._compute_loss_rnd_distances(states_a, states_b)
+
+                self.optimizer_rnd_distances.zero_grad() 
+                loss_rnd_distances.backward()
+                self.optimizer_rnd_distances.step()
+
                 k = 0.02
-                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
+                self.log_loss_rnd               = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
+                self.log_loss_rnd_distances     = (1.0 - k)*self.log_loss_rnd_distances + k*loss_rnd_distances.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
@@ -228,16 +241,35 @@ class AgentPPORND():
         #MSE loss for RND model
         state_norm_t    = self._norm_state(states).detach()
 
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
+        features_predicted_t, features_target_t  = self.model_rnd.forward(state_norm_t)
 
-        loss_rnd        = (features_target_t - features_predicted_t)**2
+        loss_rnd        = (features_target_t.detach() - features_predicted_t)**2
         
         #75% regularisation
         random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
         random_mask     = 1.0*(random_mask < 0.25)
         loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-        return loss_rnd
+        return loss_rnd 
+
+    def _compute_loss_rnd_distances(self, states_a, states_b, target_dist = 1.0):
+        states_a_norm_t = self._norm_state(states_a).detach()
+        states_b_norm_t = self._norm_state(states_b).detach()
+
+        features_a_t = self.model_rnd.forward_target(states_a_norm_t)
+        features_b_t = self.model_rnd.forward_target(states_b_norm_t)
+
+        #euclidean distance
+        dist            = ((features_a_t - features_b_t)**2.0).mean(dim=1)
+        loss_distances  = ((target_dist - dist)**2).mean()
+
+        #orthogonality
+        ortho               = (features_a_t*features_b_t).mean(dim=1)
+        loss_orthogonality  = ortho.mean()
+
+        print("loss distances = ", dist.mean(), ortho.mean())
+
+        return loss_distances + loss_orthogonality
         
     def _curiosity(self, state_t):
         state_norm_t            = self._norm_state(state_t)

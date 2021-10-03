@@ -17,7 +17,7 @@ class PolicyBufferIM:
         if self.uint8_storage:
             self.scale  = 255
         else:
-            self.scale  = 1
+            self.scale  = 1 
       
         self.clear()   
  
@@ -92,7 +92,6 @@ class PolicyBufferIM:
 
 
     def sample_batch(self, batch_size, device):
-
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
         indices_next    = numpy.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
 
@@ -111,6 +110,16 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
+    def sample_states(self, batch_size, device):
+        indices_a         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+        indices_b         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+
+        states_a          = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)).to(device).float()/self.scale
+        states_b          = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)).to(device).float()/self.scale
+
+        return states_a, states_b
+
+
     def _gae(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
