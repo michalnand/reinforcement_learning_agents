@@ -267,8 +267,6 @@ class AgentPPORNDB():
         ortho               = (features_a_t*features_b_t).mean(dim=1)
         loss_orthogonality  = ortho.mean()
 
-        print("loss distances = ", dist.mean(), ortho.mean())
-
         return loss_distances + loss_orthogonality
         
     def _curiosity(self, state_t):
