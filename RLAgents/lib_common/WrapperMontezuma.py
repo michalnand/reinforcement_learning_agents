@@ -101,6 +101,56 @@ class ResizeEnv(gym.ObservationWrapper):
 
         return self.state
 
+
+class StateFlagsEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env, flags_max = 4)
+        self.score_episode  = 0
+        self.flags_max      = flags_max
+
+        self.height         = env.height
+        self.width          = env.width
+        self.frame_stacking = env.frame_stacking
+
+        self.state_shape    = (self.frame_stacking + self.flags_max, self.height, self.width)
+        self.dtype          = numpy.float32
+
+        self.observation_space  = gym.spaces.Box(low=0.0, high=1.0, shape=self.state_shape, dtype=self.dtype)
+        self.state              = numpy.zeros(self.state_shape, dtype=self.dtype)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+
+        if reward > 0:
+            self.score_episode+= 1
+        
+        obs = self._update_observation(obs, self.score_episode)
+
+        return obs, reward, done, info
+
+    def reset(self):
+        self.score_episode = 0
+        obs = self.env.reset()
+        obs = self._update_observation(obs, self.score_episode)
+        return obs
+
+    def _update_observation(self, obs, score_episode):
+        self.state = numpy.zeros(self.state_shape, dtype=self.dtype)
+        self.state[0:self.frame_stacking] = obs.copy()
+
+        ones = numpy.ones((self.height, self.width), dtype=self.dtype)
+
+        for b in range(self.count_max):
+            if score_episode&(1<<b) != 0:
+                self.state[self.frame_stacking + b] = ones.copy()
+
+        return self.state
+
+
+  
+
+
+
 class VisitedRoomsEnv(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
@@ -149,62 +199,6 @@ class VisitedRoomsEnv(gym.Wrapper):
 
 
 
-class SeqEnv(gym.Wrapper):
-    def __init__(self, env, seq_length, decimation):
-        super(SeqEnv, self).__init__(env)
-        self.seq_length =   seq_length
-        self.decimation =   decimation
-
-        buffer_shape = (seq_length, ) + self.observation_space.shape
-        state_shape  = (seq_length//decimation, ) + self.observation_space.shape
-        self.dtype = numpy.float32
-        
-        self.state_buffer = numpy.zeros(buffer_shape, dtype=self.dtype)
-
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
-        
-    def reset(self):
-        state       = self.env.reset()
-        self.state  = self._update(state, True)
-        return self.state
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-
-        self.state = self._update(state)
-
-        #self._show()
-
-        return self.state, reward, done, info
-
-    def _update(self, state, clear = False):
-        if clear:
-            for i in range(self.seq_length):
-                self.state_buffer[i] = state.copy()
-        else:
-            self.state_buffer = numpy.roll(self.state_buffer, 1, axis=0)
-            self.state_buffer[0] = state.copy()
-
-        return self.state_buffer[0::self.decimation]
-
-
-    def _show(self):
-        seq_length  = self.state.shape[0]
-        size        = int(seq_length**0.5)
-        height      = self.state.shape[2]
-        width       = self.state.shape[3]
-
-        spacing     = 4
-
-        image = numpy.zeros((size*(height + spacing), size*(width + spacing)))
-        
-        for y in range(size):
-            for x in range(size): 
-                image[y*height + y*spacing:y*height + height + y*spacing, x*width + x*spacing:x*width + width + x*spacing] = self.state[y*size + x][0]
-        
-        
-        cv2.imshow("visualisation", image)
-        cv2.waitKey(1)
 
 
 class RawScoreEnv(gym.Wrapper):
@@ -260,6 +254,19 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
 
     return env
 
+
+def WrapperMontezumaFlags(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    #env = VideoRecorder(env)    
+
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = ResizeEnv(env, height, width, frame_stacking)
+    env = StateFlagsEnv(env)
+    env = VisitedRoomsEnv(env)
+    env = RawScoreEnv(env, max_steps)
+
+    return env
+
 def WrapperMontezumaMedium(env, height = 96, width = 96, frame_stacking = 8, max_steps = 4500):
     #env = VideoRecorder(env)    
 
@@ -270,28 +277,3 @@ def WrapperMontezumaMedium(env, height = 96, width = 96, frame_stacking = 8, max
     env = RawScoreEnv(env, max_steps)
 
     return env
-
-def WrapperMontezumaLong(env, height = 96, width = 96, frame_stacking = 12, max_steps = 4500):
-    #env = VideoRecorder(env)    
-
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = VisitedRoomsEnv(env)
-    env = RawScoreEnv(env, max_steps)
-
-    return env
-
-
-def WrapperMontezumaSequence(env, height = 96, width = 96, frame_stacking = 4, seq_length = 256, decimation = 16, max_steps = 4500):
-    #env = VideoRecorder(env)    
-
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = VisitedRoomsEnv(env)
-    env = SeqEnv(env, seq_length, decimation)
-    env = RawScoreEnv(env, max_steps)
-
-    return env
-
