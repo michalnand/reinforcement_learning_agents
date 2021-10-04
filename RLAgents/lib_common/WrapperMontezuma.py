@@ -103,8 +103,8 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 class StateFlagsEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env, flags_max = 4)
+    def __init__(self, env, flags_max = 4):
+        gym.Wrapper.__init__(self, env)
         self.score_episode  = 0
         self.flags_max      = flags_max
 
