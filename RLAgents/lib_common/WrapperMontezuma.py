@@ -138,13 +138,14 @@ class StateFlagsEnv(gym.Wrapper):
         self.state = numpy.zeros(self.state_shape, dtype=self.dtype)
         self.state[0:self.frame_stacking] = obs.copy()
 
-        ones = numpy.ones((self.height, self.width), dtype=self.dtype)
+        #ones = numpy.ones((self.height, self.width), dtype=self.dtype)
 
         for b in range(self.flags_max):
             if score_episode&(1<<b) != 0:
-                self.state[self.frame_stacking + b] = ones.copy()
+                self.state[self.frame_stacking + b]+= 1
             else:
-                self.state[self.frame_stacking + b] = ones.copy()
+                self.state[self.frame_stacking + b]+= 1
+           
 
         return self.state
 
