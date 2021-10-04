@@ -140,7 +140,7 @@ class StateFlagsEnv(gym.Wrapper):
 
         ones = numpy.ones((self.height, self.width), dtype=self.dtype)
 
-        for b in range(self.count_max):
+        for b in range(self.flags_max):
             if score_episode&(1<<b) != 0:
                 self.state[self.frame_stacking + b] = ones.copy()
 
