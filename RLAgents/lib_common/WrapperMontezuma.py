@@ -143,6 +143,8 @@ class StateFlagsEnv(gym.Wrapper):
         for b in range(self.flags_max):
             if score_episode&(1<<b) != 0:
                 self.state[self.frame_stacking + b] = ones.copy()
+            else:
+                self.state[self.frame_stacking + b] = ones.copy()
 
         return self.state
 
