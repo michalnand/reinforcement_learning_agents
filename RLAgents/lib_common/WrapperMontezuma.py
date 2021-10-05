@@ -103,16 +103,15 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 class StateFlagsEnv(gym.Wrapper):
-    def __init__(self, env, flags_max = 4):
+    def __init__(self, env):
         gym.Wrapper.__init__(self, env)
-        self.score_episode  = 0
-        self.flags_max      = flags_max
+        self.score_flag  = 0
 
         self.height         = env.height
         self.width          = env.width
         self.frame_stacking = env.frame_stacking
 
-        self.state_shape    = (self.frame_stacking + self.flags_max, self.height, self.width)
+        self.state_shape    = (self.frame_stacking + 1, self.height, self.width)
         self.dtype          = numpy.float32
 
         self.observation_space  = gym.spaces.Box(low=0.0, high=1.0, shape=self.state_shape, dtype=self.dtype)
@@ -122,25 +121,33 @@ class StateFlagsEnv(gym.Wrapper):
         obs, reward, done, info = self.env.step(action)
 
         if reward > 0:
-            self.score_episode+= 1
-        
-        obs = self._update_observation(obs, self.score_episode)
-
+            #LCG flag generator
+            self.score_flag = (1103515245*self.score_flag + 12345)%(2<<31)
+            
+        obs = self._update_observation(obs)
         return obs, reward, done, info
 
     def reset(self):
-        self.score_episode = 0
+        self.score_flag = 0
         obs = self.env.reset()
-        obs = self._update_observation(obs, self.score_episode)
+        obs = self._update_observation(obs)
         return obs
 
-    def _update_observation(self, obs, score_episode):
+    def _update_observation(self, obs):
         self.state = numpy.zeros(self.state_shape, dtype=self.dtype)
-        self.state[0:self.frame_stacking] = obs.copy()
 
-        for b in range(self.flags_max):
-            if score_episode&(1<<b) != 0:
-                self.state[self.frame_stacking + b]+= 1
+        basic_size = 4
+
+        flag_bits = numpy.zeros(basic_size*basic_size, dtype=numpy.float32)
+        for b in range(basic_size*basic_size):
+            flag_bits[b] = (self.score_flag&(1<<b)) != 0
+        
+        flag_mask = flag_bits.reshape((basic_size, basic_size))
+        flag_mask = numpy.repeat(flag_mask, self.height//basic_size, axis=0)
+        flag_mask = numpy.repeat(flag_mask, self.width//basic_size, axis=1)
+        
+        self.state[0:self.frame_stacking] = obs.copy()
+        self.state[-1] = flag_mask.copy()
 
         return self.state
 
