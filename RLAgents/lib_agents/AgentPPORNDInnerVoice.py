@@ -44,7 +44,7 @@ class AgentPPORNDInnerVoice():
  
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e][0:4] = self.envs.reset(e).copy()
+            self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()
 
         self.states_running_stats       = RunningStats(self.state_shape, self.states)
         self.internal_state             = numpy.zeros((self.envs_count, self.actions_internal_count), dtype=int)
@@ -103,7 +103,7 @@ class AgentPPORNDInnerVoice():
         
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e]          = self.envs.reset(e).copy()
+                self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()
                 self.internal_state[e]  = 0
 
         #collect stats
