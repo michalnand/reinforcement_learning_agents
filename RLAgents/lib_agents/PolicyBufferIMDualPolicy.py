@@ -2,13 +2,15 @@ import torch
 import numpy 
 
 
-class PolicyBufferIM:
+class PolicyBufferIMDualPolicy:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
+    def __init__(self, buffer_size, state_shape, actions_a_size, actions_b_size, envs_count, device, uint8_storage = False):
         
+
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
-        self.actions_size   = actions_size
+        self.actions_a_size = actions_a_size
+        self.actions_b_size = actions_b_size
         self.envs_count     = envs_count
         self.device         = device
 
@@ -21,15 +23,17 @@ class PolicyBufferIM:
       
         self.clear()   
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done):
+    def add(self, state, logits_a, logits_b, value_ext, value_int, action_a, action_b, reward_ext, reward_int, done):
         
         self.states[self.ptr]    = state.copy()*self.scale
-        self.logits[self.ptr]    = logits.copy()
+        self.logits_a[self.ptr]  = logits_a.copy()
+        self.logits_b[self.ptr]  = logits_b.copy()
         
         self.values_ext[self.ptr]= value_ext.copy()
         self.values_int[self.ptr]= value_int.copy()
 
-        self.actions[self.ptr]   = action.copy()
+        self.actions_a[self.ptr]   = action_a.copy()
+        self.actions_b[self.ptr]   = action_b.copy()
         
         self.reward_ext[self.ptr]  = reward_ext.copy()
         self.reward_int[self.ptr]  = reward_int.copy()
@@ -51,12 +55,14 @@ class PolicyBufferIM:
         else:
             self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
 
-        self.logits         = numpy.zeros((self.buffer_size, self.envs_count, self.actions_size), dtype=numpy.float32)
+        self.logits_a       = numpy.zeros((self.buffer_size, self.envs_count, self.actions_a_size), dtype=numpy.float32)
+        self.logits_b       = numpy.zeros((self.buffer_size, self.envs_count, self.actions_b_size), dtype=numpy.float32)
 
         self.values_ext     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)        
         self.values_int     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-        self.actions        = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
+        self.actions_a      = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
+        self.actions_b      = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
         self.reward_ext     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
         self.reward_int     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
@@ -72,12 +78,14 @@ class PolicyBufferIM:
         
         #reshape buffer for faster batch sampling
         self.states           = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
-        self.logits           = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
+        self.logits_a         = self.logits_a.reshape((self.buffer_size*self.envs_count, self.actions_a_size))
+        self.logits_b         = self.logits_b.reshape((self.buffer_size*self.envs_count, self.actions_b_size))
 
         self.values_ext       = self.values_ext.reshape((self.buffer_size*self.envs_count, ))        
         self.values_int       = self.values_int.reshape((self.buffer_size*self.envs_count, ))
 
-        self.actions          = self.actions.reshape((self.buffer_size*self.envs_count, ))
+        self.actions_a        = self.actions_a.reshape((self.buffer_size*self.envs_count, ))
+        self.actions_b        = self.actions_b.reshape((self.buffer_size*self.envs_count, ))
         
         self.reward_ext       = self.reward_ext.reshape((self.buffer_size*self.envs_count, ))
         self.reward_int       = self.reward_int.reshape((self.buffer_size*self.envs_count, ))
@@ -97,10 +105,12 @@ class PolicyBufferIM:
 
         states          = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
         states_next     = torch.from_numpy(numpy.take(self.states, indices_next, axis=0)).to(device).float()/self.scale
-        logits          = torch.from_numpy(numpy.take(self.logits, indices, axis=0)).to(device)
+        logits_a        = torch.from_numpy(numpy.take(self.logits_a, indices, axis=0)).to(device)
+        logits_b        = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
         
-        actions         = torch.from_numpy(numpy.take(self.actions, indices, axis=0)).to(device)
-        
+        actions_a       = torch.from_numpy(numpy.take(self.actions_a, indices, axis=0)).to(device)
+        actions_b       = torch.from_numpy(numpy.take(self.actions_b, indices, axis=0)).to(device)
+
         returns_ext     = torch.from_numpy(numpy.take(self.returns_ext, indices, axis=0)).to(device)
         returns_int     = torch.from_numpy(numpy.take(self.returns_int, indices, axis=0)).to(device)
 
@@ -108,9 +118,9 @@ class PolicyBufferIM:
         advantages_int  = torch.from_numpy(numpy.take(self.advantages_int, indices, axis=0)).to(device)
 
 
-        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, states_next, logits_a, logits_b, actions_a, actions_b, returns_ext, returns_int, advantages_ext, advantages_int 
     
-
+  
     def _gae(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]

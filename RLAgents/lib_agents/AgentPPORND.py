@@ -171,9 +171,24 @@ class AgentPPORND():
 
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
-        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
+       
+        #critic loss
+        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
+        #actor loss
+        advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages  = advantages.detach() 
+        loss_policy, loss_entropy  = self._compute_actor_loss(log_probs_old, logits_new, advantages, actions)
+        
+        loss = 0.5*loss_critic + loss_policy + loss_entropy
+
+        k = 0.02
+        self.log_advantages_ext     = (1.0 - k)*self.log_advantages_ext + k*advantages_ext.mean().detach().to("cpu").numpy()
+        self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
+
+        return loss 
+
+    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
@@ -193,13 +208,17 @@ class AgentPPORND():
         
         
         loss_critic     = loss_ext_value + loss_int_value
- 
+
+        return loss_critic
+
+
+    def _compute_actor_loss(self, log_probs_old, logits_new, advantages, actions):
+        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
+        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
+
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages      = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
-        advantages      = advantages.detach() 
-        
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
@@ -216,13 +235,8 @@ class AgentPPORND():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = 0.5*loss_critic + loss_policy + loss_entropy
+        return loss_policy, loss_entropy
 
-        k = 0.02
-        self.log_advantages_ext     = (1.0 - k)*self.log_advantages_ext + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
-
-        return loss 
 
     def _compute_loss_rnd(self, states):
         #MSE loss for RND model
