@@ -9,7 +9,6 @@ from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMMode            import PolicyBufferIMMode
 from .PolicyBufferIMGoals           import PolicyBufferIMGoals
 from .PolicyBufferIMDual            import PolicyBufferIMDual
-from .PolicyBufferIMDualPolicy      import PolicyBufferIMDualPolicy
 
 
 from .PolicyBufferContinuous        import PolicyBufferContinuous
@@ -33,9 +32,6 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
-from .AgentPPORNDInnerVoice         import AgentPPORNDInnerVoice
-
-
 from .AgentPPOCA                    import AgentPPOCA
 from .AgentPPOCSA                   import AgentPPOCSA
 from .AgentPPOEEA                   import AgentPPOEEA
