@@ -16,7 +16,7 @@ class AgentPPO():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.envs_count      = config.envs_count
+        self.envs_count         = config.envs_count
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -44,7 +44,7 @@ class AgentPPO():
 
     def main(self):        
         states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
- 
+    
         logits_t, values_t  = self.model.forward(states_t)
 
         states_np = states_t.detach().to("cpu").numpy() 

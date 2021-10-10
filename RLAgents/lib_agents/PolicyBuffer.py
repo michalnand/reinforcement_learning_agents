@@ -62,7 +62,7 @@ class PolicyBuffer:
     
 
     def sample_batch(self, batch_size, device):
-        indices     = numpy.random.randint(0, self.buffer_size*batch_size, size=batch_size*self.envs_count)
+        indices     = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
                  
         states      = torch.from_numpy(numpy.take(self.states_b, indices, axis=0)).to(device)
         logits      = torch.from_numpy(numpy.take(self.logits_b, indices, axis=0)).to(device)
