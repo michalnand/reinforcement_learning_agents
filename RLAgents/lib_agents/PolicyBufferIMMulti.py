@@ -94,6 +94,8 @@ class PolicyBufferIMMulti:
         self.returns_int      = self.returns_int.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
 
+        self.heads_ids        = self.heads_ids.reshape((self.buffer_size*self.envs_count, ))
+
 
     def sample_batch(self, batch_size, device):
         indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
