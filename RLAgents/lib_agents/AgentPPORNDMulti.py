@@ -270,7 +270,9 @@ class AgentPPORNDMulti():
     def _curiosity(self, state_t, heads_ids):
         state_norm_t    = self._norm_state(state_t)
 
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, heads_ids)
+        head_ids_t    = torch.from_numpy(heads_ids).to(state_norm_t.device)
+
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, head_ids_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
