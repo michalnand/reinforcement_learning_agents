@@ -85,8 +85,6 @@ class AgentPPORNDMulti():
         self.episode_score_sum+= rewards_ext
 
         rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
-
-        self.states = self._make_states(states, self.episode_score_sum)
  
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
@@ -104,9 +102,10 @@ class AgentPPORNDMulti():
         
         for e in range(self.envs_count): 
             if dones[e]:
-                state = self.envs.reset(e)
-                self.states[e]              = self._make_state(state)
+                states[e]                   = self.envs.reset(e)
                 self.episode_score_sum[e]   = 0
+
+        self.states = self._make_states(states, self.episode_score_sum)
 
         #collect stats
         k = 0.02
@@ -298,8 +297,3 @@ class AgentPPORNDMulti():
 
         return result
 
-    def _make_state(self, state):
-        tmp     = numpy.zeros((1, state.shape[1], state.shape[2]), dtype=numpy.float32)
-        result  = numpy.concatenate([state, tmp], axis=0)
-
-        return result
