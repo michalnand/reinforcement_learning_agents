@@ -298,9 +298,8 @@ class AgentPPORNDMulti():
 
         return result
 
-
     def _make_state(self, state):
-        tmp     = numpy.zeros((state.shape[0], 1, state.shape[2], state.shape[3]), dtype=numpy.float32)
-        result  = numpy.concatenate([state, tmp], axis=1)
+        tmp     = numpy.zeros((1, state.shape[1], state.shape[2]), dtype=numpy.float32)
+        result  = numpy.concatenate([state, tmp], axis=0)
 
         return result
