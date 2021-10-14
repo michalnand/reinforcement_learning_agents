@@ -17,16 +17,16 @@ class MultiEnvSeq:
 		self.observation_space 	= dummy_env.observation_space
 		self.action_space 		= dummy_env.action_space
 
-		self.envs	= []
+		self.envs	= [] 
 
 		for i in range(envs_count):
 
 			try:
-				env 	= gym.make(env_name)
+				env = gym.make(env_name)
 				if wrapper is not None:
 					env 	= wrapper(env)
 			except:
-				env 	= wrapper(env_name)
+				env = wrapper(env_name)
 
 			self.envs.append(env)
 

@@ -1,13 +1,12 @@
 import numpy
 import torch
-import time
 
 from torch.distributions import Categorical
  
 from .PolicyBufferIMMulti   import *  
 from .RunningStats          import * 
     
-class AgentPPORNDMulti():   
+class AgentPPORNDMulti():    
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
      
@@ -24,9 +23,10 @@ class AgentPPORNDMulti():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.envs_count      = config.envs_count 
+        self.envs_count         = config.envs_count 
 
-        self.state_shape    = self.envs.observation_space.shape
+        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
 
         self.rnd_heads      = config.rnd_heads
@@ -38,15 +38,16 @@ class AgentPPORNDMulti():
         self.model_rnd      = ModelRND.Model(self.state_shape, self.rnd_heads)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIMMulti(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMMulti(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
  
-        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        states = numpy.zeros((self.envs_count, ) + state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+            states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+        self.episode_score_sum      = numpy.zeros(self.envs_count)
+        self.states                 = self._make_states(states, self.episode_score_sum)
 
-        self.episode_score_sum  = numpy.zeros(self.envs_count)
+        self.states_running_stats   = RunningStats(self.state_shape, self.states)
  
         self.enable_training()
         self.iterations                 = 0 
@@ -65,7 +66,7 @@ class AgentPPORNDMulti():
 
     def main(self): 
         #state to tensor
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t  = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
@@ -85,7 +86,7 @@ class AgentPPORNDMulti():
 
         rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
 
-        self.states = states.copy()
+        self.states = self._make_states(states, self.episode_score_sum)
  
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
@@ -103,7 +104,8 @@ class AgentPPORNDMulti():
         
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e]              = self.envs.reset(e).copy()
+                state = self.envs.reset(e)
+                self.states[e]              = self._make_state(state)
                 self.episode_score_sum[e]   = 0
 
         #collect stats
@@ -284,3 +286,21 @@ class AgentPPORNDMulti():
 
         state_norm_t = state_t - mean 
         return state_norm_t
+
+    def _make_states(self, state, score, max_range = 16):
+        tmp     = (numpy.floor(score)%max_range)/(1.0*max_range)
+
+        tmp     = numpy.reshape(tmp, (score.shape[0], 1, 1, 1))
+        tmp     = numpy.repeat(tmp, state.shape[2], axis=2)
+        tmp     = numpy.repeat(tmp, state.shape[3], axis=3)
+
+        result  = numpy.concatenate([state, tmp], axis=1)
+
+        return result
+
+
+    def _make_state(self, state):
+        tmp     = numpy.zeros((state.shape[0], 1, state.shape[2], state.shape[3]), dtype=numpy.float32)
+        result  = numpy.concatenate([state, tmp], axis=1)
+
+        return result
