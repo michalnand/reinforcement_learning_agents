@@ -268,9 +268,6 @@ class AgentPPORND():
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-
-
-        print(">>> ", state_t.shape, mean.shape, std.shape)
         
         #state_norm_t = state_t - mean 
         state_norm_t = (state_t - mean)/std
