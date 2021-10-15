@@ -282,10 +282,14 @@ class AgentPPORNDMulti():
 
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+        
+        #state_norm_t = state_t - mean 
+        state_norm_t = (state_t - mean)/std
+        state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
 
-        state_norm_t = state_t - mean 
         return state_norm_t
-
+        
     def _make_states(self, state, score, max_range = 16):
         tmp     = (numpy.floor(score)%max_range)/(1.0*max_range)
 
