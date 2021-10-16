@@ -33,6 +33,8 @@ class RunningStats:
 
         x_ = x.mean(axis=1)
 
+        print(">>> ", x_.shape, x.shape)
+
         self.n+= 1
 
         self.mean = self.mean + (x_ - self.mean)/self.n
