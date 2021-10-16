@@ -41,7 +41,7 @@ class AgentPPORND():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats       = RunningStats(self.state_shape)
+        self.states_running_stats       = RunningStats(self.state_shape, self.states)
  
         self.enable_training()
         self.iterations                 = 0 

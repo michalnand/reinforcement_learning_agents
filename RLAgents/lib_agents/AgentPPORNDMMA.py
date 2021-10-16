@@ -50,7 +50,7 @@ class AgentPPORNDMMA():
         self.episode_score_sum      = numpy.zeros(self.envs_count)
         self.states                 = self._make_states(states, self.episode_score_sum)
 
-        self.states_running_stats   = RunningStats(self.state_shape)
+        self.states_running_stats   = RunningStats(self.state_shape, self.states)
  
         self.enable_training()
         self.iterations                 = 0 

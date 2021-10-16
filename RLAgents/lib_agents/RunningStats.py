@@ -24,20 +24,24 @@ class RunningStats:
 '''
 
 class RunningStats:
-    def __init__(self, shape):
+    def __init__(self, shape, initial_value = None):
         self.n     = 0
 
         self.mean  = numpy.zeros(shape)
         self.var   = numpy.zeros(shape)
 
+        if initial_value is not None:
+            self.mean = initial_value.mean(axis=0)
+            self.var  = initial_value.var(axis=0)
+
     def update(self, x):   
 
         x_ = x.mean(axis=0)
 
-        self.n+= 1 
+        self.n+= x.shape[0] 
 
         mean = self.mean + (x_ - self.mean)/self.n
-        var  = self.var  + (x_ - self.mean)*(x_ - self.mean)
+        var  = self.var  + ((x_ - self.mean)**2)
 
         self.mean = mean
         self.var  = var
