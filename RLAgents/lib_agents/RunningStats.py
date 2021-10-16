@@ -31,9 +31,7 @@ class RunningStats:
 
     def update(self, x):   
 
-        x_ = x.mean(axis=1)
-
-        print(">>> ", x_.shape, x.shape)
+        x_ = x.mean(axis=0)
 
         self.n+= 1
 
