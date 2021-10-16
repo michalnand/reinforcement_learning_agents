@@ -33,9 +33,9 @@ class RunningStats:
 
         x_ = x.mean(axis=0)
 
-        self.n+= 1
+        self.n+= 1 
 
         self.mean = self.mean + (x_ - self.mean)/self.n
         self.var  = self.var  + (x_ - self.mean)*(x_ - self.mean)
 
-        self.std  = (self.var/self.n)**0.5
+        self.std  = ((self.var/self.n)**0.5) + 0.000001 
