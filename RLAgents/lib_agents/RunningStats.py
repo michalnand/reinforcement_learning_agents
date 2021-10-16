@@ -27,7 +27,7 @@ class RunningStats:
     def __init__(self, shape = (), initial_value = None):
         self.n     = 0
         self.mean  = numpy.zeros(shape)
-        self.var   = numpy.zeros(shape)
+        self.var   = numpy.ones(shape)
 
     def update(self, x):   
 
