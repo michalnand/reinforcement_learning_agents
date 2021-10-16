@@ -62,6 +62,9 @@ class RunningStats(object):
             self.mean = initial_value.mean(axis=0)
             self.var  = initial_value.var(axis=0)
 
+        self.mean   = self.mean.astype(numpy.float64)
+        self.var    = self.var.astype(numpy.float64)
+
     def update(self, x):
         batch_mean  = numpy.mean(x, axis=0)
         batch_var   = numpy.var(x, axis=0)
