@@ -5,23 +5,20 @@ import numpy
 class RunningStats:
     def __init__(self, shape = (), initial_value = None):
         self.mean  = numpy.zeros(shape)
-        self.mean2 = numpy.zeros(shape)
-
         self.std   = numpy.ones(shape) 
 
         if initial_value is not None:
-            mean = initial_value.mean(axis=0)
-            self.mean = numpy.float32(mean)
+            self.mean   = initial_value.mean(axis=0)
+            self.std    = initial_value.std(axis=0)
     
-    def update(self, x, alpha = 0.0001):      
+    def update(self, x, alpha = 0.01):    
         mean        = x.mean(axis=0)
-        mean2       = (x**2).mean(axis=0)
+        std         = x.std(axis=0)  
 
-        self.mean   = (1.0 - alpha)*self.mean  + alpha*mean
-        self.mean2  = (1.0 - alpha)*self.mean2 + alpha*mean2
-
-        self.std    = (mean2 - (mean**2))**0.5
+        self.mean   = (1.0 - alpha)*self.mean   + alpha*mean
+        self.std    = (1.0 - alpha)*self.std    + alpha*std
 '''
+
 
 class RunningStats:
     def __init__(self, shape, initial_value = None):
@@ -32,12 +29,13 @@ class RunningStats:
         if initial_value is not None:
             self.mean   = initial_value.mean(axis=0)
             self.var    = initial_value.var(axis=0)
-            self.count  = 1
 
         self.mean   = self.mean.astype(numpy.float64)
         self.var    = self.var.astype(numpy.float64)
 
-    def update(self, x):   
+        self.std    = (self.var**0.5) + 0.0000001 
+
+    def update(self, x): 
 
         self.count+= 1
 
