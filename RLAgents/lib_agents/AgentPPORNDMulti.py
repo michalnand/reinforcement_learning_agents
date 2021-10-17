@@ -54,8 +54,8 @@ class AgentPPORNDMulti():
 
         self.log_loss_rnd               = 0.0
         self.log_internal_motivation    = 0.0
-        self.log_advantages_ext         = 0.0
-        self.log_advantages_int         = 0.0
+        self.log_loss_actor             = 0.0
+        self.log_loss_critic            = 0.0
         self.log_heads_usage            = numpy.zeros(self.rnd_heads)
 
     def enable_training(self):
@@ -133,8 +133,8 @@ class AgentPPORNDMulti():
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
         result+= str(round(self.log_internal_motivation, 7)) + " "
-        result+= str(round(self.log_advantages_ext, 7)) + " "
-        result+= str(round(self.log_advantages_int, 7)) + " "
+        result+= str(round(self.log_loss_actor, 7)) + " "
+        result+= str(round(self.log_loss_critic, 7)) + " "
 
         for h in range(self.rnd_heads):
             result+= str(round(self.log_heads_usage[h], 3)) + " "
@@ -179,8 +179,6 @@ class AgentPPORNDMulti():
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
-
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         #critic loss
@@ -189,13 +187,14 @@ class AgentPPORNDMulti():
         #actor loss
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
-        loss_policy, loss_entropy  = self._compute_actor_loss(log_probs_old, logits_new, advantages, actions)
+        loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
         
-        loss = 0.5*loss_critic + loss_policy + loss_entropy
+        loss_actor  = loss_policy + loss_entropy
+        loss        = 0.5*loss_critic + loss_actor
 
         k = 0.02
-        self.log_advantages_ext     = (1.0 - k)*self.log_advantages_ext + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
+        self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
+        self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
 
         return loss 
 
@@ -221,7 +220,9 @@ class AgentPPORNDMulti():
         return loss_critic
 
 
-    def _compute_actor_loss(self, log_probs_old, logits_new, advantages, actions):
+    def _compute_actor_loss(self, logits, logits_new, advantages, actions):
+        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
@@ -277,9 +278,8 @@ class AgentPPORNDMulti():
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
                 
-        #curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        curiosity_t    = curiosity_t.mean(dim=1)
-
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        
         return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):

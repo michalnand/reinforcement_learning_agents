@@ -230,7 +230,7 @@ class AgentPPORNDMMA():
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic   + k*loss_critic.mean().detach().to("cpu").numpy()
 
         return loss
-
+ 
 
     def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
         ''' 
@@ -307,8 +307,7 @@ class AgentPPORNDMMA():
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
-        #curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        curiosity_t    = curiosity_t.mean(dim=1)
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -316,9 +315,10 @@ class AgentPPORNDMMA():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        #state_norm_t = state_t - mean 
-        state_norm_t = (state_t - mean)/std
-        state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+        state_norm_t = state_t - mean 
+
+        #state_norm_t = (state_t - mean)/std
+        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
 
         return state_norm_t
 

@@ -50,3 +50,5 @@ class RunningStats:
         self.var  = var
 
         self.std  = ((self.var/self.count)**0.5) + 0.000001 
+
+        

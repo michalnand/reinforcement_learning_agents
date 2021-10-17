@@ -48,8 +48,8 @@ class AgentPPORND():
 
         self.log_loss_rnd               = 0.0
         self.log_internal_motivation    = 0.0
-        self.log_advantages_ext         = 0.0
-        self.log_advantages_int         = 0.0
+        self.log_loss_actor             = 0.0
+        self.log_loss_critic            = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -81,8 +81,7 @@ class AgentPPORND():
         self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        states_new_t   = torch.tensor(states, dtype=torch.float).detach().to(self.model_ppo.device)
-        rewards_int    = self._curiosity(states_new_t)
+        rewards_int    = self._curiosity(states_t)
         rewards_int    = numpy.clip(rewards_int, -1.0, 1.0)
          
         #put into policy buffer
@@ -115,8 +114,8 @@ class AgentPPORND():
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
         result+= str(round(self.log_internal_motivation, 7)) + " "
-        result+= str(round(self.log_advantages_ext, 7)) + " "
-        result+= str(round(self.log_advantages_int, 7)) + " "
+        result+= str(round(self.log_loss_actor, 7)) + " "
+        result+= str(round(self.log_loss_critic, 7)) + " "
         return result 
     
 
@@ -167,24 +166,23 @@ class AgentPPORND():
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
-
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-       
         #critic loss
         loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
-        loss_policy, loss_entropy  = self._compute_actor_loss(log_probs_old, logits_new, advantages, actions)
+        loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
+
+        loss_actor = loss_policy + loss_entropy
         
-        loss = 0.5*loss_critic + loss_policy + loss_entropy
+        loss = 0.5*loss_critic + loss_actor
 
         k = 0.02
-        self.log_advantages_ext     = (1.0 - k)*self.log_advantages_ext + k*advantages_ext.mean().detach().to("cpu").numpy()
-        self.log_advantages_int     = (1.0 - k)*self.log_advantages_int + k*advantages_int.mean().detach().to("cpu").numpy()
+        self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
+        self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
 
         return loss 
 
@@ -212,7 +210,9 @@ class AgentPPORND():
         return loss_critic
 
 
-    def _compute_actor_loss(self, log_probs_old, logits_new, advantages, actions):
+    def _compute_actor_loss(self, logits, logits_new, advantages, actions):
+        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+
         probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
@@ -261,8 +261,7 @@ class AgentPPORND():
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
         
-        #curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        curiosity_t    = curiosity_t.mean(dim=1)
+        curiosity_t    = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -270,8 +269,14 @@ class AgentPPORND():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        #state_norm_t = state_t - mean 
-        state_norm_t = (state_t - mean)/std
-        state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+        state_norm_t = state_t - mean 
+         
+        #state_norm_t = (state_t - mean)/std
+        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+
+        print(">>> STD          = ", self.std.mean(), self.std.min(), self.std.max())
+        print(">>> state_norm_t = ", self.state_norm_t.mean(), self.state_norm_t.min(), self.state_norm_t.max(), state_norm_t.std())
+        print("\n\n")
+
 
         return state_norm_t 
