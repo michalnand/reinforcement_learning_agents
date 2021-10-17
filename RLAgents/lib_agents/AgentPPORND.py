@@ -275,8 +275,8 @@ class AgentPPORND():
         #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
 
         print(">>> mean std      ", torch.mean(mean), torch.mean(std))
-        print(">>> state_t       ", torch.mean(state_t), torch.std(state_t))
-        print(">>> state_norm_t  ", torch.mean(state_norm_t), torch.std(state_norm_t))
+        print(">>> state_t       ", torch.mean(torch.mean(state_t, dim=1)), torch.mean(torch.std(state_t, dim = 1)))
+        print(">>> state_norm_t  ", torch.mean(torch.mean(state_norm_t, dim=1)), torch.mean(torch.std(state_norm_t, dim = 1)))
         print("\n\n")
 
 
