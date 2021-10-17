@@ -82,7 +82,7 @@ class AgentPPORND():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
-        #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
          
         #put into policy buffer
         if self.enabled_training:
