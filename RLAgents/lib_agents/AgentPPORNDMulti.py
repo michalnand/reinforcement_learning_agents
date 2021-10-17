@@ -276,8 +276,10 @@ class AgentPPORNDMulti():
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, head_ids_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        
+                
+        #curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        curiosity_t    = curiosity_t.mean(dim=1)
+
         return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):
