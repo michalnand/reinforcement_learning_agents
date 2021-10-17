@@ -254,12 +254,10 @@ class AgentPPORND():
 
         return loss_rnd
         
-    def _curiosity(self, state_t, heads_ids):
+    def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
-        head_ids_t    = torch.from_numpy(heads_ids).to(state_norm_t.device)
-
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, head_ids_t)
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         curiosity_t    = (features_target_t - features_predicted_t)**2
                 
