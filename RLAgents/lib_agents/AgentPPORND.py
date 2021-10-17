@@ -269,10 +269,10 @@ class AgentPPORND():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        state_norm_t = state_t - mean 
+        #state_norm_t = state_t - mean 
          
-        #state_norm_t = (state_t - mean)/std
-        #state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
+        state_norm_t = (state_t - mean)/std
+        state_norm_t = torch.clamp(state_norm_t, -4.0, 4.0)
 
         print(">>> mean std      ", torch.mean(mean), torch.mean(std))
         print(">>> state_t       ", torch.mean(torch.mean(state_t, dim=1)), torch.mean(torch.std(state_t, dim = 1)))
