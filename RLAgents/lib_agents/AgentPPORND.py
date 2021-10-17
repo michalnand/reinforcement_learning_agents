@@ -262,7 +262,7 @@ class AgentPPORND():
         curiosity_t    = (features_target_t - features_predicted_t)**2
                 
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        curiosity_t    = (curiosity_t - torch.mean(curiosity_t))/(torch.std(curiosity_t) + 0.000001)
+        curiosity_t    = (curiosity_t - 0*torch.mean(curiosity_t))/(torch.std(curiosity_t) + 0.000001)
         
         return curiosity_t.detach().to("cpu").numpy()
 
