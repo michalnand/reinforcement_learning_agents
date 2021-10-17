@@ -47,4 +47,4 @@ class RunningStats:
         self.mean = mean
         self.var  = var
 
-        self.std  = ((self.var/self.count)**0.5) + 0.000001 
+        self.std  = ((self.var/self.count)**0.5) + 0.0000001 
