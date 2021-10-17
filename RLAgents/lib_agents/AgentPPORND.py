@@ -264,7 +264,7 @@ class AgentPPORND():
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
 
         #normalise intrinsic reward
-        curiosity_t    = (curiosity_t - torch.mean(curiosity_t))/(torch.std(curiosity_t) + 0.000001)
+        curiosity_t    = curiosity_t/(torch.std(curiosity_t) + 0.000001)
         
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -272,15 +272,7 @@ class AgentPPORND():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        #state_norm_t = state_t - mean 
-        state_norm_t = (state_t - mean)/std
-        state_norm_t = torch.clamp(state_norm_t, -5.0, 5.0)
-
-        '''
-        print(">>> mean std      ", torch.mean(mean), torch.mean(std))
-        print(">>> state_t       ", torch.mean(torch.mean(state_t, dim=0)), torch.mean(torch.std(state_t, dim=0)))
-        print(">>> state_norm_t  ", torch.mean(torch.mean(state_norm_t, dim=0)), torch.mean(torch.std(state_norm_t, dim=0)))
-        print("\n\n")
-        '''
+        state_norm_t = state_t - mean 
+        #state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
 
         return state_norm_t 
