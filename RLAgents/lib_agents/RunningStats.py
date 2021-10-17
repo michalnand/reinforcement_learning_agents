@@ -32,7 +32,7 @@ class RunningStats:
         if initial_value is not None:
             self.mean   = initial_value.mean(axis=0)
             self.var    = initial_value.var(axis=0)
-            self.count  = initial_value.shape[0]
+            self.count  = 1 #initial_value.shape[0]
 
         self.mean   = self.mean.astype(numpy.float64)
         self.var    = self.var.astype(numpy.float64)
@@ -41,7 +41,7 @@ class RunningStats:
 
         x_ = x.mean(axis=0)
 
-        self.count+= x.shape[0] 
+        self.count+= 1 #x.shape[0]  
 
         mean = self.mean + (x_ - self.mean)/self.count
         var  = self.var  + ((x_ - self.mean)**2)
