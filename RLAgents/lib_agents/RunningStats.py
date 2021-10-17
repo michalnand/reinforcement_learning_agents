@@ -39,12 +39,10 @@ class RunningStats:
 
     def update(self, x):   
 
-        x_ = x.mean(axis=0)
-
         self.count+= 1
 
-        mean = self.mean + (x_ - self.mean)/self.count
-        var = self.var   + (x_ - self.mean)*(x_ - mean)
+        mean = self.mean + (x.mean(axis=0) - self.mean)/self.count
+        var  = self.var  + ((x - self.mean)*(x - mean)).mean(axis=0)
 
         self.mean = mean
         self.var  = var
