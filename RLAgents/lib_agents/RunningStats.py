@@ -1,7 +1,7 @@
 import numpy
 
 
-
+'''
 class RunningStats:
     def __init__(self, shape = (), initial_value = None):
         self.mean  = numpy.zeros(shape)
@@ -21,8 +21,8 @@ class RunningStats:
         self.mean2  = (1.0 - alpha)*self.mean2 + alpha*mean2
 
         self.std    = (mean2 - (mean**2))**0.5
-
 '''
+
 class RunningStats:
     def __init__(self, shape, initial_value = None):
         self.count = 1
@@ -50,4 +50,3 @@ class RunningStats:
         self.var  = var
 
         self.std  = ((self.var/self.count)**0.5) + 0.000001 
-'''
