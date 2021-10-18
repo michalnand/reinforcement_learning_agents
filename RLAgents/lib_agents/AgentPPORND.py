@@ -172,6 +172,9 @@ class AgentPPORND():
         loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss
+        print("advantages_ext >>> ", torch.mean(advantages_ext), torch.std(advantages_ext))
+        print("advantages_int>>> ", torch.mean(advantages_int), torch.std(advantages_int))
+        print("\n\n\n")
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
@@ -260,13 +263,10 @@ class AgentPPORND():
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         curiosity_t = (features_target_t - features_predicted_t)**2
-        curiosity_t = curiosity_t.mean(dim=1)    
-                
+        
+        curiosity_t = curiosity_t.mean(dim=1)                   
         #curiosity_t    = curiosity_t.sum(dim=1)/2.0
 
-        #normalise intrinsic reward
-        #curiosity_t    = curiosity_t/(torch.std(curiosity_t) + 0.000001)
-        
         return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):
