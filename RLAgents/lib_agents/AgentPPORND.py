@@ -172,10 +172,9 @@ class AgentPPORND():
         loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss
+        #normalise internal reward advantages
         advantages_int_norm = (advantages_int - torch.mean(advantages_int))/(torch.std(advantages_int) + 0.0000001)
-        print("advantages_ext >>> ", torch.mean(advantages_ext), torch.std(advantages_ext))
-        print("advantages_int>>> ", torch.mean(advantages_int_norm), torch.std(advantages_int_norm))
-        print("\n\n\n")
+        
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int_norm
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
