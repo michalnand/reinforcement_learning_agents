@@ -41,6 +41,7 @@ class AgentPPORND():
             self.envs.reset(e).copy()
         
         self.states_running_stats       = RunningStats(self.state_shape)
+        self.rewards_int_running_stats  = RunningStats((1, ))
 
 
         #random policy for stats init
@@ -48,7 +49,15 @@ class AgentPPORND():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
+            states_t     = torch.from_numpy(states).to(self.model_rnd.device)
+            curiosity   = self._curiosity(states_t)
+           
             self.states_running_stats.update(states)
+            self.rewards_int_running_stats.update(curiosity)
+
+            print(">>>> ", self.rewards_int_running_stats.mean.shape, self.rewards_int_running_stats.std.shape)
+            print(">>>> ", self.rewards_int_running_stats.mean, self.rewards_int_running_stats.std)
+            print("\n\n\n")
 
             for e in range(self.envs_count): 
                 if dones[e]:
