@@ -37,11 +37,25 @@ class AgentPPORND():
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
  
-        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+        
 
         self.states_running_stats       = RunningStats(self.state_shape)
+        
+        #random policy for stats init
+        for _ in range(1024):
+            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
+            states, _, dones, _ = self.envs.step(actions)
+
+            self.states_running_stats.update(states)
+
+            for e in range(self.envs_count): 
+                if dones[e]:
+                    self.envs.reset(e)
+
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+            for e in range(self.envs_count):
+                self.states[e] = self.envs.reset(e).copy()
+
  
         self.enable_training()
         self.iterations                 = 0 
@@ -78,10 +92,7 @@ class AgentPPORND():
         self.states = states.copy()
  
         #update long term states mean and variance
-        if self.iterations < 10:
-            self.states_running_stats.update_initial(states_np)
-        else:
-            self.states_running_stats.update(states_np)
+        self.states_running_stats.update(states_np)
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
