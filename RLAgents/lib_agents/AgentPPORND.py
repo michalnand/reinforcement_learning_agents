@@ -144,16 +144,6 @@ class AgentPPORND():
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
 
         return result 
-    
-
-    '''
-    def _sample_action(self, logits):
-        action_probs_t        = torch.nn.functional.softmax(logits, dim = 0)
-        action_distribution_t = torch.distributions.Categorical(action_probs_t)
-        action_t              = action_distribution_t.sample()
-
-        return action_t.item()
-    '''
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -222,7 +212,6 @@ class AgentPPORND():
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
         loss_ext_value  = loss_ext_value.mean()
 
-
         '''
         compute internal critic loss, as MSE
         L = (T - V(s))^2
@@ -231,9 +220,7 @@ class AgentPPORND():
         loss_int_value  = (returns_int.detach() - values_int_new)**2
         loss_int_value  = loss_int_value.mean()
         
-        
         loss_critic     = loss_ext_value + loss_int_value
-
         return loss_critic
 
 
@@ -288,8 +275,8 @@ class AgentPPORND():
 
         curiosity_t = (features_target_t - features_predicted_t)**2
         
-        #curiosity_t = curiosity_t.mean(dim=1)                   
-        curiosity_t     = curiosity_t.sum(dim=1)/2.0
+        curiosity_t = curiosity_t.mean(dim=1)                   
+        #curiosity_t = curiosity_t.sum(dim=1)/2.0
 
         return curiosity_t.detach().to("cpu").numpy()
 
