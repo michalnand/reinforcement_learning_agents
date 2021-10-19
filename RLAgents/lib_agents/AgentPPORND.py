@@ -48,8 +48,6 @@ class AgentPPORND():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            print(numpy.mean(self.states_running_stats.mean), numpy.mean(self.states_running_stats.std))
-
             self.states_running_stats.update(states)
 
             for e in range(self.envs_count): 
@@ -293,5 +291,9 @@ class AgentPPORND():
         
         #state_norm_t = state_t - mean  
         state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
+
+        print("mean std ", torch.mean(mean), torch.mean(std))
+        print("mean std ", torch.mean(torch.mean(state_norm_t, dim=0)), torch.mean(torch.std(std, dim=0)))
+        print("\n\n\n")
 
         return state_norm_t 
