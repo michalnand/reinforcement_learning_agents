@@ -68,7 +68,7 @@ class AgentPPORND():
         self.log_loss_rnd                   = 0.0
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
-        
+
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
         
@@ -104,7 +104,7 @@ class AgentPPORND():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
-        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
          
         #put into policy buffer
         if self.enabled_training:
@@ -135,11 +135,14 @@ class AgentPPORND():
 
     def get_log(self): 
         result = "" 
+
         result+= str(round(self.log_loss_rnd, 7)) + " "
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
+
         result+= str(round(self.log_internal_motivation_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
+
         return result 
     
 
