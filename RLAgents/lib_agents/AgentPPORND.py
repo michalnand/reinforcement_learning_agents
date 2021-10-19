@@ -63,12 +63,15 @@ class AgentPPORND():
 
  
         self.enable_training()
-        self.iterations                 = 0 
+        self.iterations                     = 0 
 
-        self.log_loss_rnd               = 0.0
-        self.log_internal_motivation    = 0.0
-        self.log_loss_actor             = 0.0
-        self.log_loss_critic            = 0.0
+        self.log_loss_rnd                   = 0.0
+        self.log_loss_actor                 = 0.0
+        self.log_loss_critic                = 0.0
+        
+        self.log_internal_motivation_mean   = 0.0
+        self.log_internal_motivation_std    = 0.0
+        
 
     def enable_training(self):
         self.enabled_training = True
@@ -116,7 +119,8 @@ class AgentPPORND():
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation = (1.0 - k)*self.log_internal_motivation + k*rewards_int.mean()
+        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
+        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -132,9 +136,10 @@ class AgentPPORND():
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_internal_motivation, 7)) + " "
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
+        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_std, 7)) + " "
         return result 
     
 
