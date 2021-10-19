@@ -25,7 +25,7 @@ class RunningStats:
         self.count = 1
         self.eps   = 0.0000001
         self.mean  = numpy.zeros(shape)
-        self.var   = numpy.zeros(shape)
+        self.var   = 0.01*numpy.ones(shape)
 
         if initial_value is not None:
             self.mean   = initial_value.mean(axis=0)
@@ -34,11 +34,9 @@ class RunningStats:
         self.mean   = self.mean.astype(numpy.float64)
         self.var    = self.var.astype(numpy.float64)
 
-
         self.std    = (self.var**0.5) + self.eps
 
  
-
     def update(self, x): 
 
         self.count+= 1
