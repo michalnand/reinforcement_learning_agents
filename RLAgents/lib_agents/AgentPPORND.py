@@ -111,7 +111,7 @@ class AgentPPORND():
         rewards_int    = self._curiosity(states_t)
         self.rewards_int_running_stats.update(rewards_int)
 
-        rewards_int    = rewards_int/self.rewards_int_running_stats.std()
+        rewards_int    = rewards_int/self.rewards_int_running_stats.std
         #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
 
