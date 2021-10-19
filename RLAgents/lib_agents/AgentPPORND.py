@@ -78,7 +78,7 @@ class AgentPPORND():
         self.states = states.copy()
  
         #update long term states mean and variance
-        if self.iterations < 32:
+        if self.iterations < 10:
             self.states_running_stats.update_initial(states_np)
         else:
             self.states_running_stats.update(states_np)
