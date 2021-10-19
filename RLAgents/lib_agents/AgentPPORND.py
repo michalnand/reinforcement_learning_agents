@@ -38,26 +38,12 @@ class AgentPPORND():
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
         for e in range(self.envs_count):
-            self.envs.reset(e).copy()
+            self.envs.reset(e)
         
         self.states_running_stats       = RunningStats(self.state_shape)
         self.rewards_int_running_stats  = RunningStats((1, ))
 
-
-        #random policy for stats init
-        for _ in range(256):
-            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
-            states, _, dones, _ = self.envs.step(actions)
-
-            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
-            curiosity   = self._curiosity(states_t)
-           
-            self.states_running_stats.update(states)
-            self.rewards_int_running_stats.update(curiosity)
-
-            for e in range(self.envs_count): 
-                if dones[e]:
-                    self.envs.reset(e)
+        self._init_running_stats()
 
 
 
@@ -204,14 +190,17 @@ class AgentPPORND():
 
         loss_actor = loss_policy + loss_entropy
         
+        #total loss
         loss = 0.5*loss_critic + loss_actor
 
+        #store to log
         k = 0.02
         self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
 
         return loss 
 
+    #MSE critic loss
     def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
         ''' 
         compute external critic loss, as MSE
@@ -232,7 +221,7 @@ class AgentPPORND():
         loss_critic     = loss_ext_value + loss_int_value
         return loss_critic
 
-
+    #PPO actor loss
     def _compute_actor_loss(self, logits, logits_new, advantages, actions):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
@@ -260,23 +249,24 @@ class AgentPPORND():
 
         return loss_policy, loss_entropy
 
-
+    #MSE loss for RND model
     def _compute_loss_rnd(self, states):
-        #MSE loss for RND model
+        
         state_norm_t    = self._norm_state(states).detach()
 
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         loss_rnd        = (features_target_t - features_predicted_t)**2
         
-        #regularisation
+        #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 32.0/self.envs_count
         random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
         random_mask     = 1.0*(random_mask < prob)
         loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
         return loss_rnd
-        
+    
+    #compute internal motivation
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
@@ -286,9 +276,9 @@ class AgentPPORND():
         
         curiosity_t = curiosity_t.sum(dim=1)/2.0
 
-
         return curiosity_t.detach().to("cpu").numpy()
 
+    #normalise mean and std for state
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
@@ -296,3 +286,23 @@ class AgentPPORND():
         state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
 
         return state_norm_t 
+
+    #random policy for stats init
+    def _init_running_stats(self, steps = 256):
+        for _ in range(steps):
+            #random action
+            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
+            states, _, dones, _ = self.envs.step(actions)
+
+            #compute internal motivation
+            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
+            curiosity   = self._curiosity(states_t)
+
+            #update stats
+            self.states_running_stats.update(states)
+            self.rewards_int_running_stats.update(curiosity)
+
+            for e in range(self.envs_count): 
+                if dones[e]:
+                    self.envs.reset(e)
+
