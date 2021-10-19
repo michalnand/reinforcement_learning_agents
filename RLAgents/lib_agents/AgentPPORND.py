@@ -281,7 +281,7 @@ class AgentPPORND():
         curiosity_t = (features_target_t - features_predicted_t)**2
         
         #curiosity_t = curiosity_t.mean(dim=1)                   
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        curiosity_t     = curiosity_t.sum(dim=1)/2.0
 
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -291,9 +291,5 @@ class AgentPPORND():
         
         #state_norm_t = state_t - mean  
         state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
-
-        print("mean std ", torch.mean(mean), torch.mean(std))
-        print("mean std ", torch.mean(torch.mean(state_norm_t, dim=0)), torch.mean(torch.std(state_norm_t, dim=0)))
-        print("\n\n\n")
 
         return state_norm_t 
