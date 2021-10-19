@@ -51,4 +51,3 @@ class RunningStats:
 
         self.std  = ((self.var/self.count)**0.5) + self.eps
 
-        print(numpy.mean(self.mean), numpy.mean(self.std))
