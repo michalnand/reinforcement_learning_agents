@@ -49,15 +49,11 @@ class AgentPPORND():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            states_t     = torch.from_numpy(states).to(self.model_rnd.device)
+            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
             curiosity   = self._curiosity(states_t)
            
             self.states_running_stats.update(states)
             self.rewards_int_running_stats.update(curiosity)
-
-            print(">>>> ", self.rewards_int_running_stats.mean.shape, self.rewards_int_running_stats.std.shape)
-            print(">>>> ", self.rewards_int_running_stats.mean, self.rewards_int_running_stats.std)
-            print("\n\n\n")
 
             for e in range(self.envs_count): 
                 if dones[e]:
@@ -113,8 +109,13 @@ class AgentPPORND():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
+        self.rewards_int_running_stats.update(rewards_int)
+
+        rewards_int    = rewards_int/self.rewards_int_running_stats.std()
         #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
-         
+        
+
+
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -285,6 +286,7 @@ class AgentPPORND():
         curiosity_t = (features_target_t - features_predicted_t)**2
         
         curiosity_t = curiosity_t.sum(dim=1)/2.0
+
 
         return curiosity_t.detach().to("cpu").numpy()
 
