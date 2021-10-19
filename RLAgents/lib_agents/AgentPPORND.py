@@ -41,7 +41,7 @@ class AgentPPORND():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
-        self.states_running_stats       = RunningStats(self.state_shape, self.states)
+        self.states_running_stats       = RunningStats(self.state_shape)
  
         self.enable_training()
         self.iterations                 = 0 
@@ -78,7 +78,10 @@ class AgentPPORND():
         self.states = states.copy()
  
         #update long term states mean and variance
-        self.states_running_stats.update(states_np)
+        if self.iterations < 32:
+            self.states_running_stats.update_initial(states_np)
+        else:
+            self.states_running_stats.update(states_np)
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
