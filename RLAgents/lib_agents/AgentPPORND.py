@@ -264,6 +264,8 @@ class AgentPPORND():
         curiosity_t = curiosity_t.mean(dim=1)                   
         #curiosity_t    = curiosity_t.sum(dim=1)/2.0
 
+        curiosity_t = curiosity_t/(torch.std(curiosity_t) + 0.00000001)
+
         return curiosity_t.detach().to("cpu").numpy()
 
     def _norm_state(self, state_t):
