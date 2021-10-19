@@ -44,7 +44,7 @@ class AgentPPORND():
 
 
         #random policy for stats init
-        for _ in range(1024):
+        for _ in range(256):
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
