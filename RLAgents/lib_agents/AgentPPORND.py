@@ -111,11 +111,10 @@ class AgentPPORND():
         rewards_int    = self._curiosity(states_t)
         self.rewards_int_running_stats.update(rewards_int)
 
+        #normalise internal motivation
         rewards_int    = rewards_int/self.rewards_int_running_stats.std
-        #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
-
-
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -294,7 +293,6 @@ class AgentPPORND():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        #state_norm_t = state_t - mean  
         state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
 
         return state_norm_t 
