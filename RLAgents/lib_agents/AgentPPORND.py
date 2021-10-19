@@ -52,9 +52,10 @@ class AgentPPORND():
                 if dones[e]:
                     self.envs.reset(e)
 
+        #reset envs
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
-            for e in range(self.envs_count):
-                self.states[e] = self.envs.reset(e).copy()
+        for e in range(self.envs_count):
+            self.states[e] = self.envs.reset(e).copy()
 
  
         self.enable_training()
