@@ -26,6 +26,10 @@ class AgentPPORND():
         self.training_epochs    = config.training_epochs
         self.envs_count      = config.envs_count 
 
+
+        self.normalise_state_std = config.normalise_state_std
+        self.normalise_im_std    = config.normalise_im_std
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
@@ -98,7 +102,9 @@ class AgentPPORND():
         self.rewards_int_running_stats.update(rewards_int)
 
         #normalise internal motivation
-        rewards_int    = rewards_int/self.rewards_int_running_stats.std
+        if self.normalise_im_std:
+            rewards_int    = rewards_int/self.rewards_int_running_stats.std
+            
         rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
@@ -284,7 +290,9 @@ class AgentPPORND():
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
         state_norm_t = state_t - mean
-        #state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
+
+        if self.normalise_state_std:
+            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
 
         return state_norm_t 
 
@@ -300,8 +308,8 @@ class AgentPPORND():
             curiosity   = self._curiosity(states_t)
 
             #update stats
-            self.states_running_stats.update(states)
-            self.rewards_int_running_stats.update(curiosity)
+            self.states_running_stats.update(states, 0.01)
+            self.rewards_int_running_stats.update(curiosity, 0.01)
 
             for e in range(self.envs_count): 
                 if dones[e]:
