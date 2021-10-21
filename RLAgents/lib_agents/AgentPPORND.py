@@ -19,7 +19,7 @@ class AgentPPORND():
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-   
+    
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
@@ -283,7 +283,8 @@ class AgentPPORND():
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
+        state_norm_t = state_t - mean
+        #state_norm_t = torch.clamp((state_t - mean)/std, -5.0, 5.0)
 
         return state_norm_t 
 
