@@ -49,8 +49,6 @@ class AgentPPORND():
 
         self._init_running_stats()
 
-
-
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -88,7 +86,7 @@ class AgentPPORND():
 
         #collect actions
         actions = self._sample_actions(logits_t)
-        
+         
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
@@ -308,8 +306,8 @@ class AgentPPORND():
             curiosity   = self._curiosity(states_t)
 
             #update stats
-            self.states_running_stats.update(states, 0.01)
-            self.rewards_int_running_stats.update(curiosity, 0.01)
+            self.states_running_stats.update(states)
+            self.rewards_int_running_stats.update(curiosity)
 
             for e in range(self.envs_count): 
                 if dones[e]:
