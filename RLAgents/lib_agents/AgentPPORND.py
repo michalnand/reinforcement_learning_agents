@@ -1,6 +1,7 @@
 import numpy
 import torch
 import time
+import cv2
 
 from torch.distributions import Categorical
  
@@ -64,6 +65,10 @@ class AgentPPORND():
 
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
+
+        #fourcc = cv2.VideoWriter_fourcc(*'XVID') 
+        #self.writer = cv2.VideoWriter("rnd_attention.avi", fourcc, 50.0, (256, 256)) 
+        
         
 
     def enable_training(self):
@@ -143,6 +148,32 @@ class AgentPPORND():
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
 
         return result 
+
+    def render(self, env_id, alpha = 0.5):
+        size            = 256
+        state_im        = cv2.resize(self.states[env_id][0], (size, size))
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        attention       = self.model_ppo.forward_features(states_t).detach().to("cpu").numpy()[0]
+        attention_im    = cv2.resize(attention, (size, size)) 
+ 
+        result_im       = numpy.zeros((3, size, size))
+        result_im[0]    = state_im
+        result_im[1]    = state_im
+        result_im[2]    = state_im + 2*attention_im
+        result_im       = numpy.clip(result_im, 0.0, 1.0)
+
+        result_im = numpy.moveaxis(result_im, 0, 2)        
+
+        #result_vid = (255*result_im).astype(numpy.uint8)
+        #self.writer.write(result_vid)
+
+        cv2.imshow("RND agent", result_im)
+        cv2.waitKey(1)
+
+        
+
+
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
