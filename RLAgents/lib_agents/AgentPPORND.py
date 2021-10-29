@@ -288,7 +288,7 @@ class AgentPPORND():
     def _compute_loss_rnd(self, states):
         
         state_norm_t    = self._norm_state(states).detach()
-
+ 
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
         loss_rnd        = (features_target_t - features_predicted_t)**2

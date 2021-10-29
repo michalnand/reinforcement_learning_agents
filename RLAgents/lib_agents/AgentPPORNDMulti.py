@@ -15,10 +15,11 @@ class AgentPPORNDMulti():
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+        self.ortho_coeff        = config.ortho_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
-   
+    
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
@@ -39,23 +40,35 @@ class AgentPPORNDMulti():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer  = PolicyBufferIMMulti(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
- 
-        states = numpy.zeros((self.envs_count, ) + state_shape, dtype=numpy.float32)
+         
+
+        for e in range(self.envs_count):
+            self.envs.reset(e)
+        
+        self.states_running_stats       = RunningStats(self.state_shape)
+        self.rewards_int_running_stats  = RunningStats((1, ))
+
+        self._init_running_stats()
+
+        #reset envs and fill initial state
+        states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             states[e] = self.envs.reset(e).copy()
 
         self.episode_score_sum      = numpy.zeros(self.envs_count)
         self.states                 = self._make_states(states, self.episode_score_sum)
-
-        self.states_running_stats   = RunningStats(self.state_shape, self.states)
  
         self.enable_training()
-        self.iterations                 = 0 
 
-        self.log_loss_rnd               = 0.0
-        self.log_internal_motivation    = 0.0
-        self.log_loss_actor             = 0.0
-        self.log_loss_critic            = 0.0
+        self.iterations                     = 0 
+
+        self.log_loss_rnd                   = 0.0
+        self.log_loss_actor                 = 0.0
+        self.log_loss_critic                = 0.0
+
+        self.log_internal_motivation_mean   = 0.0
+        self.log_internal_motivation_std    = 0.0
+
         self.log_heads_usage            = numpy.zeros(self.rnd_heads)
 
     def enable_training(self):
@@ -84,14 +97,20 @@ class AgentPPORNDMulti():
 
         self.episode_score_sum+= rewards_ext
 
-        rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
- 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
+
+        rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
+
         #curiosity motivation
         rewards_int     = self._curiosity(states_t, rnd_head_ids)
-        rewards_int     = numpy.clip(rewards_int, 0.0, 1.0)
+        
+        self.rewards_int_running_stats.update(rewards_int)
+
+        #normalise internal motivation
+        if self.normalise_im_std:
+            rewards_int    = rewards_int/self.rewards_int_running_stats.std
          
         #put into policy buffer
         if self.enabled_training:
@@ -166,7 +185,8 @@ class AgentPPORNDMulti():
                 self.optimizer_ppo.step()
 
                 #train RND model, MSE loss
-                loss_rnd = self._compute_loss_rnd(states, rnd_head_ids)
+                states_b = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
+                loss_rnd = self._compute_loss_rnd(states, states_b, rnd_head_ids)
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
@@ -248,21 +268,33 @@ class AgentPPORNDMulti():
         return loss_policy, loss_entropy
 
 
-    def _compute_loss_rnd(self, states, heads_ids):
-        #MSE loss for RND model
-        state_norm_t    = self._norm_state(states).detach()
+    def _compute_loss_rnd(self, states_a, states_b, heads_ids):
+        eps = 0.00000001
+        state_a_norm_t      = self._norm_state(states_a).detach()
+        state_b_norm_t      = self._norm_state(states_b).detach()
 
-        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, heads_ids)
+        features_predicted_a_t, features_target_a_t  = self.model_rnd(state_a_norm_t, heads_ids)
+        _,                      features_target_b_t  = self.model_rnd(state_b_norm_t, heads_ids)
 
-        loss_rnd        = (features_target_t - features_predicted_t)**2 
+        #MSE prediction loss
+        loss_mse        = (features_target_a_t.detach() - features_predicted_a_t)**2 
         
-        #regularisation
+        #target model orthogonality loss
+        mag_a_target    = torch.norm(features_target_a_t, dim=1)
+        mag_b_target    = torch.norm(features_target_b_t, dim=1)
+        loss_ortho      = (features_target_a_t*features_target_b_t).sum(dim=1)/(mag_a_target*mag_b_target + eps)
+        loss_ortho      = self.ortho_coeff*loss_ortho
+
+        #loss regularisation
+        #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 32.0/self.envs_count
-        random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
+        random_mask     = torch.rand(loss_mse.shape).to(loss_mse.device)
         random_mask     = 1.0*(random_mask < prob)
-        loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+
+        loss_rnd        = ((loss_mse + loss_ortho)*random_mask).sum() / (random_mask.sum() + eps)
 
         return loss_rnd
+
 
     def _rnd_heads_ids(self, episode_score_sum):
         tmp = numpy.floor(episode_score_sum/self.rnd_steps)
@@ -279,20 +311,40 @@ class AgentPPORNDMulti():
         curiosity_t    = (features_target_t - features_predicted_t)**2
                 
         curiosity_t    = curiosity_t.sum(dim=1)/2.0
-        curiosity_t    = curiosity_t/(torch.std(curiosity_t) + 0.000001)
         
         return curiosity_t.detach().to("cpu").numpy()
 
+    #normalise mean and std for state
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
         std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        #state_norm_t = state_t - mean  
-        state_norm_t = (state_t - mean)/std
-        state_norm_t = torch.clamp(state_norm_t, -5.0, 5.0)
+        state_norm_t = state_t - mean
 
-        return state_norm_t
-        
+        if self.normalise_state_std:
+            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
+
+        return state_norm_t 
+
+    #random policy for stats init
+    def _init_running_stats(self, steps = 256):
+        for _ in range(steps):
+            #random action
+            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
+            states, _, dones, _ = self.envs.step(actions)
+
+            #compute internal motivation
+            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
+            curiosity   = self._curiosity(states_t)
+
+            #update stats
+            self.states_running_stats.update(states)
+            self.rewards_int_running_stats.update(curiosity)
+
+            for e in range(self.envs_count): 
+                if dones[e]:
+                    self.envs.reset(e)
+
     def _make_states(self, state, score, max_range = 16):
         tmp     = (numpy.floor(score)%max_range)/(1.0*max_range)
 
