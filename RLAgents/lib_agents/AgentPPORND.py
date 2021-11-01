@@ -332,13 +332,8 @@ class AgentPPORND():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            #compute internal motivation
-            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
-            curiosity   = self._curiosity(states_t)
-
             #update stats
             self.states_running_stats.update(states)
-            self.rewards_int_running_stats.update(curiosity)
 
             for e in range(self.envs_count): 
                 if dones[e]:
