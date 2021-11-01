@@ -7,12 +7,12 @@ from torch.distributions import Categorical
  
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
-    
+      
 class AgentPPORND():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
     
-        self.gamma_ext          = config.gamma_ext
+        self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
             
         self.ext_adv_coeff      = config.ext_adv_coeff
@@ -25,7 +25,7 @@ class AgentPPORND():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.envs_count      = config.envs_count 
+        self.envs_count         = config.envs_count 
 
 
         self.normalise_state_std = config.normalise_state_std

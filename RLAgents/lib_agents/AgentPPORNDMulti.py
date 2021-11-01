@@ -9,7 +9,7 @@ from .RunningStats          import *
 class AgentPPORNDMulti():    
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
-     
+      
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
             
@@ -26,12 +26,14 @@ class AgentPPORNDMulti():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
-        self.actions_count  = self.envs.action_space.n
+        self.state_shape        = self.envs.observation_space.shape
+        self.actions_count      = self.envs.action_space.n
 
         self.rnd_heads      = config.rnd_heads
         self.rnd_steps      = config.rnd_steps
+
+        self.normalise_state_std = config.normalise_state_std
+        self.normalise_im_std    = config.normalise_im_std
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
@@ -51,12 +53,11 @@ class AgentPPORNDMulti():
         self._init_running_stats()
 
         #reset envs and fill initial state
-        states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            states[e] = self.envs.reset(e).copy()
+            self.states[e] = self.envs.reset(e).copy()
 
         self.episode_score_sum      = numpy.zeros(self.envs_count)
-        self.states                 = self._make_states(states, self.episode_score_sum)
  
         self.enable_training()
 
@@ -69,7 +70,7 @@ class AgentPPORNDMulti():
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
 
-        self.log_heads_usage            = numpy.zeros(self.rnd_heads)
+        self.log_heads_usage                = numpy.zeros(self.rnd_heads)
 
     def enable_training(self):
         self.enabled_training = True
@@ -95,6 +96,8 @@ class AgentPPORNDMulti():
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
+        self.states = states.copy()
+
         self.episode_score_sum+= rewards_ext
 
         #update long term states mean and variance
@@ -111,6 +114,8 @@ class AgentPPORNDMulti():
         #normalise internal motivation
         if self.normalise_im_std:
             rewards_int    = rewards_int/self.rewards_int_running_stats.std
+
+        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
          
         #put into policy buffer
         if self.enabled_training:
@@ -121,14 +126,13 @@ class AgentPPORNDMulti():
         
         for e in range(self.envs_count): 
             if dones[e]:
-                states[e]                   = self.envs.reset(e)
+                self.states[e]              = self.envs.reset(e)
                 self.episode_score_sum[e]   = 0
-
-        self.states = self._make_states(states, self.episode_score_sum)
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation = (1.0 - k)*self.log_internal_motivation + k*rewards_int.mean()
+        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
+        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
 
         heads_usage = numpy.zeros(self.rnd_heads)
         for h in range(self.rnd_heads):
@@ -151,9 +155,11 @@ class AgentPPORNDMulti():
     def get_log(self): 
         result = "" 
         result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_internal_motivation, 7)) + " "
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
+
+        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_std, 7)) + " "
 
         for h in range(self.rnd_heads):
             result+= str(round(self.log_heads_usage[h], 3)) + " "
@@ -283,7 +289,8 @@ class AgentPPORNDMulti():
         mag_a_target    = torch.norm(features_target_a_t, dim=1)
         mag_b_target    = torch.norm(features_target_b_t, dim=1)
         loss_ortho      = (features_target_a_t*features_target_b_t).sum(dim=1)/(mag_a_target*mag_b_target + eps)
-        loss_ortho      = self.ortho_coeff*loss_ortho
+        loss_ortho      = self.ortho_coeff*loss_ortho.mean()
+
 
         #loss regularisation
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
@@ -291,7 +298,9 @@ class AgentPPORNDMulti():
         random_mask     = torch.rand(loss_mse.shape).to(loss_mse.device)
         random_mask     = 1.0*(random_mask < prob)
 
-        loss_rnd        = ((loss_mse + loss_ortho)*random_mask).sum() / (random_mask.sum() + eps)
+        loss_mse        = (loss_mse*random_mask).sum() / (random_mask.sum() + eps)
+
+        loss_rnd        = loss_mse + loss_ortho
 
         return loss_rnd
 
@@ -333,17 +342,13 @@ class AgentPPORNDMulti():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            #compute internal motivation
-            states_t    = torch.from_numpy(states).to(self.model_rnd.device)
-            curiosity   = self._curiosity(states_t)
-
             #update stats
             self.states_running_stats.update(states)
-            self.rewards_int_running_stats.update(curiosity)
 
             for e in range(self.envs_count): 
                 if dones[e]:
-                    self.envs.reset(e)
+                    self.envs.reset(e) 
+ 
 
     def _make_states(self, state, score, max_range = 16):
         tmp     = (numpy.floor(score)%max_range)/(1.0*max_range)
