@@ -31,6 +31,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPORNDSiam               import AgentPPORNDSiam
 from .AgentPPORNDMulti              import AgentPPORNDMulti
 from .AgentPPORNDMMA                import AgentPPORNDMMA
 from .AgentPPOCA                    import AgentPPOCA
