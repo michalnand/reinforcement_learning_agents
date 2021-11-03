@@ -18,6 +18,7 @@ class AgentPPORNDSiam():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.rnd_siam_coeff     = config.rnd_siam_coeff
+        self.int_reward_coeff   = config.int_reward_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -109,7 +110,7 @@ class AgentPPORNDSiam():
         if self.normalise_im_std:
             rewards_int    = rewards_int/self.rewards_int_running_stats.std
             
-        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
