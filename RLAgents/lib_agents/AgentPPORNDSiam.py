@@ -302,11 +302,9 @@ class AgentPPORNDSiam():
 
         #RND model regularisation loss
         loss_reg        = self.model_rnd.forward_regularisation(state_norm_t, state_norm_t)
-        loss_reg        = loss_reg.mean()
+        loss_reg        = self.rnd_siam_coeff*loss_reg.mean()
 
-        print(">>> ", loss_rnd, loss_reg)
-
-        return loss_rnd + self.rnd_siam_coeff*loss_reg
+        return loss_rnd + loss_reg 
     
     #compute internal motivation
     def _curiosity(self, state_t):
