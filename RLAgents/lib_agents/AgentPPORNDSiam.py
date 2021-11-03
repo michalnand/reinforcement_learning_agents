@@ -302,7 +302,11 @@ class AgentPPORNDSiam():
         loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
         #RND model regularisation loss
-        loss_reg        = self.model_rnd.forward_regularisation(state_norm_t, state_norm_t)
+        noise_level     = 0.1
+        noise_a_t       = noise_level*torch.randn(state_norm_t.shape).to(state_norm_t.device)
+        noise_b_t       = noise_level*torch.randn(state_norm_t.shape).to(state_norm_t.device)
+        
+        loss_reg        = self.model_rnd.forward_regularisation(state_norm_t + noise_a_t, state_norm_t + noise_b_t)
         loss_reg        = self.rnd_siam_coeff*loss_reg.mean()
 
         return loss_rnd + loss_reg 
