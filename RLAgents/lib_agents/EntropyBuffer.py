@@ -35,7 +35,6 @@ class EntropyBuffer:
         #compute variance
         variance = torch.var(self.buffer, dim=0).mean(dim=1)
 
-        print(variance.shape)
         return variance
 
     def clear(self, env_idx):
