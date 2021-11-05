@@ -6,7 +6,7 @@ import cv2
 from torch.distributions import Categorical
  
 from .PolicyBufferIMDual    import *  
-from .EntropyBUffer         import *
+from .EntropyBuffer         import *
 from .RunningStats          import *  
       
 class AgentPPORNDEntropy():   
