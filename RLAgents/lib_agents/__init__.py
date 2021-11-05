@@ -8,6 +8,8 @@ from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMMulti           import PolicyBufferIMMulti
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
+from .EntropyBuffer                 import EntropyBuffer
+
 
 
 from .PolicyBufferContinuous        import PolicyBufferContinuous
@@ -31,6 +33,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPORNDSiam               import AgentPPORNDSiam
 from .AgentPPORNDMulti              import AgentPPORNDMulti
 from .AgentPPORNDMMA                import AgentPPORNDMMA
