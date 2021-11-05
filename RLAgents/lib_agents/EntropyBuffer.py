@@ -19,8 +19,8 @@ class EntropyBuffer:
         ]
 
         self.model = torch.nn.Sequential(*self.layers)
-        self.model.to(self.device) 
-        self.model.eval()
+        self.model.to(device) 
+        self.model.eval() 
 
         self.ptr = 0
 
