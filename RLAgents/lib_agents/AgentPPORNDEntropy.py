@@ -167,8 +167,11 @@ class AgentPPORNDEntropy():
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
-        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_std, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_std, 7)) + " "
+
+        result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
 
         return result 
 
