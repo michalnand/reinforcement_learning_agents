@@ -28,9 +28,9 @@ class AgentPPORNDEntropy():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
-
-        self.normalise_im_a_std  = config.normalise_im_a_std
-        self.normalise_im_b_std  = config.normalise_im_b_std
+ 
+        self.normalise_int_a_std  = config.normalise_int_a_std
+        self.normalise_int_b_std  = config.normalise_int_b_std
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
