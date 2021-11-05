@@ -29,8 +29,6 @@ class AgentPPORNDEntropy():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-
-        self.normalise_state_std = config.normalise_state_std
         self.normalise_im_a_std  = config.normalise_im_a_std
         self.normalise_im_b_std  = config.normalise_im_b_std
 
@@ -358,12 +356,9 @@ class AgentPPORNDEntropy():
     #normalise mean and std for state
     def _norm_state(self, state_t):
         mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
+        #std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
         state_norm_t = state_t - mean
-
-        if self.normalise_state_std:
-            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
 
         return state_norm_t 
 
