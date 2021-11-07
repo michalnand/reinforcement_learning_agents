@@ -76,7 +76,7 @@ class AgentGoExplore():
 
         self.episode_ext_reward_sum+= rewards_ext
         
-        #TODO, use RND
+        #TODO, use RND ?
         #self.episode_int_reward_sum+= rewards_int
 
         self.goals_buffer.add(states_t, self.episode_ext_reward_sum, self.episode_int_reward_sum, self.current_actions_list)
@@ -97,7 +97,7 @@ class AgentGoExplore():
                 self.mode[e]  = False
 
                 #sample goal, and actions leading to goal
-                goal, actions = self.goals_buffer.get_goal(1.0, 1.0, 1.0)
+                goal, actions = self.goals_buffer.get_goal(1.0, 1.0, 0.001)
 
                 self.goals_t[e]                 = goal.clone()
                 self.buffer_actions_list[e]     = actions
@@ -148,7 +148,6 @@ class AgentGoExplore():
                 self.actions_step[e]+= 1
             #agent Explore mode
             else:
-                self.mode[e]    = True
                 actions[e]      = numpy.random.randint(0, self.actions_count)
 
         return actions
