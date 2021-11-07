@@ -42,4 +42,6 @@ from .AgentPPOCSA                   import AgentPPOCSA
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
- 
+from .AgentGoExplore                import AgentGoExplore
+
+  

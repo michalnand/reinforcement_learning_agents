@@ -102,58 +102,6 @@ class ResizeEnv(gym.ObservationWrapper):
         return self.state
 
 
-class StateFlagsEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-        self.score_flag  = 0
-
-        self.height         = env.height
-        self.width          = env.width
-        self.frame_stacking = env.frame_stacking
-
-        self.state_shape    = (self.frame_stacking + 1, self.height, self.width)
-        self.dtype          = numpy.float32
-
-        self.observation_space  = gym.spaces.Box(low=0.0, high=1.0, shape=self.state_shape, dtype=self.dtype)
-        self.state              = numpy.zeros(self.state_shape, dtype=self.dtype)
-
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-
-        if reward > 0:
-            #LCG flag generator
-            self.score_flag = (1103515245*self.score_flag + 12345)%(2<<31)
-            
-        obs = self._update_observation(obs)
-        return obs, reward, done, info
-
-    def reset(self):
-        self.score_flag = 0
-        obs = self.env.reset()
-        obs = self._update_observation(obs)
-        return obs
-
-    def _update_observation(self, obs):
-        self.state = numpy.zeros(self.state_shape, dtype=self.dtype)
-
-        basic_size = 4
-
-        flag_bits = numpy.zeros(basic_size*basic_size, dtype=numpy.float32)
-        for b in range(basic_size*basic_size):
-            flag_bits[b] = (self.score_flag&(1<<b)) != 0
-        
-        flag_mask = flag_bits.reshape((basic_size, basic_size))
-        flag_mask = numpy.repeat(flag_mask, self.height//basic_size, axis=0)
-        flag_mask = numpy.repeat(flag_mask, self.width//basic_size, axis=1)
-        
-        self.state[0:self.frame_stacking] = obs.copy()
-        self.state[-1] = flag_mask.copy()
-
-        return self.state
-
-
-  
-
 
 
 class VisitedRoomsEnv(gym.Wrapper):
@@ -260,25 +208,13 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     return env
 
 
-def WrapperMontezumaFlags(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezumaDeterministic(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     #env = VideoRecorder(env)    
 
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = StateFlagsEnv(env)
-    env = VisitedRoomsEnv(env)
-    env = RawScoreEnv(env, max_steps)
-
-    return env
-
-def WrapperMontezumaMedium(env, height = 96, width = 96, frame_stacking = 8, max_steps = 4500):
-    #env = VideoRecorder(env)    
-
-    env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
     env = RawScoreEnv(env, max_steps)
 
     return env
+
