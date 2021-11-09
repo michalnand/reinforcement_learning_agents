@@ -106,7 +106,6 @@ class AgentDQNPolicy():
         #maximize logits probs
         loss_policy = -logits*advantages
         loss_policy = loss_policy[range(logits.shape[0]), actions]
-        print("loss_policy = ", loss_policy.shape)
         loss_policy = loss_policy.mean()
 
         #entropy regularisation loss
