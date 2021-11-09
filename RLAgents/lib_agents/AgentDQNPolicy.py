@@ -75,7 +75,7 @@ class AgentDQNPolicy():
         _,      q_predicted_next = self.model_target.forward(state_next_t)
 
         loss_critic = self._loss_critic(q_predicted, q_predicted_next, actions_t, rewards_t, dones_t)
-        loss_actor  = self._loss_actor(logits, q_predicted)
+        loss_actor  = self._loss_actor(logits, q_predicted, actions_t)
         
         loss = loss_critic + loss_actor
 
