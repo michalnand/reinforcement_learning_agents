@@ -43,8 +43,6 @@ class AgentDQNPolicy():
         state_t         = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
         logits_t, _     = self.model(state_t)
 
-        print(">>> logits_t = ", logits_t)
-
         action          = self._sample_actions(logits_t)[0]
 
         state_new, reward, done, info = self.env.step(action)
