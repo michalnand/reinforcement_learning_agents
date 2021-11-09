@@ -22,6 +22,7 @@ from .AgentRandom                   import AgentRandom
 from .AgentRandomContinuous         import AgentRandomContinuous
 
 from .AgentDQN                      import AgentDQN
+from .AgentDQNPolicy                import AgentDQNPolicy
 from .AgentDQNRND                   import AgentDQNRND
 from .AgentDQNHindsight             import AgentDQNHindsight
 from .AgentDQNDuel                  import AgentDQNDuel
