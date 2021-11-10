@@ -117,8 +117,8 @@ class AgentDQNPolicy():
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
         
-        return logits.mean()
-        
+        return (logits**2).mean()
+
         rewards_t   = rewards_t.unsqueeze(1)
         dones_t     = dones_t.unsqueeze(1)
 
