@@ -102,9 +102,8 @@ class AgentDQNPolicy():
 
         self.optimizer.zero_grad()
         loss.backward()
-        for param in self.model.parameters():
-            param.grad.data.clamp_(-10.0, 10.0)
-        self.optimizer.step()
+        torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+        self.optimizer.step() 
 
         k = 0.02
         self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
