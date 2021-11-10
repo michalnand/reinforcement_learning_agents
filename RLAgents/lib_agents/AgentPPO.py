@@ -126,16 +126,16 @@ class AgentPPO():
         compute actor loss, surrogate loss
         '''
         advantages       = advantages.detach() 
-        #advantages_norm  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
                         
         ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages_norm
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages_norm
+        p1          = ratio*advantages
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean()
+        loss_policy = loss_policy.mean() 
     
         '''
         compute entropy loss, to avoid greedy strategy
