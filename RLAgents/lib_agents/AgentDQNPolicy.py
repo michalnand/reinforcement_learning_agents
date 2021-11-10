@@ -124,7 +124,7 @@ class AgentDQNPolicy():
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
         
-
+        '''
         rewards_t   = rewards_t.unsqueeze(1)
         dones_t     = dones_t.unsqueeze(1)
 
@@ -135,7 +135,10 @@ class AgentDQNPolicy():
         
         advantages  = value_next - value_now
         advantages  = advantages.detach()
-        
+        '''
+
+        advantages  = (q_values_next - q_values)[range(logits.shape[0]), actions]
+        advantages  = advantages.detach()
 
         #maximize logits probs
         loss_policy  = -advantages*logits[range(logits.shape[0]), actions]
