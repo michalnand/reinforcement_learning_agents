@@ -129,14 +129,9 @@ class AgentDQNPolicy():
         probs       = torch.nn.functional.softmax(logits, dim = 1)
         log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
 
-        #advantages  = (q_values - q_values.mean(dim=1, keepdim=True))[range(logits.shape[0]), actions]
-
-        #advantages  = (q_values_next - q_values)[range(logits.shape[0]), actions]
-
-        advantages  = q_values_next.mean(dim=1, keepdim=True) - q_values[range(logits.shape[0]), actions]
-
-        #advantages  = q_values_next[range(logits.shape[0]), actions] - q_values.mean(dim=1, keepdim=True)
-        
+       
+        delta  = rewards_t.unsqueeze(1) + q_values_next.mean(dim=1, keepdim=True) - q_values
+        advantages = delta[range(logits.shape[0]), actions]
          
         advantages  = advantages.detach()
 
