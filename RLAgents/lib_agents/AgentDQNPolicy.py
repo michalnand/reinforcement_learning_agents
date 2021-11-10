@@ -148,7 +148,7 @@ class AgentDQNPolicy():
         log_probs_new   = torch.nn.functional.log_softmax(logits, dim = 1)
 
         loss_entropy    = (probs_new*log_probs_new).sum(dim = 1)
-        loss_entropy    = self.entropy_beta*loss_entropy.mean()
+        loss_entropy    = -self.entropy_beta*loss_entropy.mean()
 
 
         return 0 + loss_entropy
