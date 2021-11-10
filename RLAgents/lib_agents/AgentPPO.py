@@ -125,8 +125,8 @@ class AgentPPO():
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages       = advantages.detach()
-        advantages_norm  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        advantages       = advantages.detach() 
+        #advantages_norm  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
