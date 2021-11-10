@@ -7,12 +7,14 @@ class AgentDQNPolicy():
     def __init__(self, env, Model, config):
         self.env = env
  
-        self.batch_size         = config.batch_size
         self.gamma              = config.gamma
-        self.entropy_beta       = config.entropy_beta
-
-        self.target_update      = config.target_update
+        
         self.update_frequency   = config.update_frequency        
+        self.batch_size         = config.batch_size
+        
+        self.entropy_beta       = config.entropy_beta
+        self.tau                = config.tau
+
                
         self.state_shape    = self.env.observation_space.shape
         self.actions_count  = self.env.action_space.n
@@ -64,8 +66,13 @@ class AgentDQNPolicy():
             if self.iterations%self.update_frequency == 0:
                 self.train()
 
-            if self.iterations%self.target_update == 0:
-                self.model_target.load_state_dict(self.model.state_dict())
+            #if self.iterations%self.target_update == 0:
+            #    self.model_target.load_state_dict(self.model.state_dict())
+
+            # update target model 
+            for target_param, param in zip(self.model_target.parameters(), self.model.parameters()):
+                target_param.data.copy_((1.0 - self.tau)*target_param.data + self.tau*param.data)
+       
 
         if done:
             self.state = self.env.reset()
