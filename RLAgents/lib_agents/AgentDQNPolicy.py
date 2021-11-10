@@ -42,7 +42,7 @@ class AgentDQNPolicy():
     def disable_training(self):
         self.enabled_training = False
 
-     def get_log(self):
+    def get_log(self):
         result = "" 
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
