@@ -82,7 +82,7 @@ class AgentDQNPolicy():
       
         self.iterations+= 1
 
-        if (self.iterations%10000)
+        if self.iterations%10000 == 0:
             print("logits_t = ", logits_t, "\n\n")
 
         return reward, done, info
