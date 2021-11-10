@@ -31,6 +31,9 @@ class AgentDQNPolicy():
 
         self.iterations     = 0
 
+        self.log_loss_actor                 = 0.0
+        self.log_loss_critic                 = 0.0
+
         self.enable_training()
 
     def enable_training(self):
@@ -38,6 +41,12 @@ class AgentDQNPolicy():
 
     def disable_training(self):
         self.enabled_training = False
+
+     def get_log(self):
+        result = "" 
+        result+= str(round(self.log_loss_actor, 7)) + " "
+        result+= str(round(self.log_loss_critic, 7)) + " "
+        return result
     
     def main(self):     
         state_t         = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
@@ -79,11 +88,18 @@ class AgentDQNPolicy():
         
         loss = loss_critic + loss_actor
 
+        print(loss_critic, loss_actor)
+
         self.optimizer.zero_grad()
         loss.backward()
         for param in self.model.parameters():
             param.grad.data.clamp_(-10.0, 10.0)
         self.optimizer.step()
+
+        k = 0.02
+        self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
+        self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
+      
 
     def _loss_critic(self, q_predicted, q_predicted_next, actions, rewards_t, dones_t):
         #q-learning equation
@@ -113,8 +129,7 @@ class AgentDQNPolicy():
         advantages  = advantages.detach()
         '''
 
-        advantages  = q_values - q_values.mean(dim=1, keepdim=True)
-        advantages  = advantages[range(logits.shape[0]), actions]
+        advantages  = q_values[range(logits.shape[0]), actions] - q_values.mean(dim=1)
         advantages  = advantages.detach()
 
         #maximize logits probs
