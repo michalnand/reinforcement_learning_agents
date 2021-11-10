@@ -127,8 +127,11 @@ class AgentDQNPolicy():
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
         
-        advantages  = (q_values_next - q_values)[range(logits.shape[0]), actions]
-        advantages  = advantages.detach()
+        advantages  = q_values[range(logits.shape[0]), actions] - q_values.mean(dim=1, keepdim=True)
+        advantages  = advantages.detach() 
+
+        #advantages  = (q_values_next - q_values)[range(logits.shape[0]), actions]
+        #advantages  = advantages.detach()
 
         #advantages  = q_values_next.mean(dim=1, keepdim=True) - q_values[range(logits.shape[0]), actions]
         #advantages  = advantages.detach()
@@ -148,7 +151,7 @@ class AgentDQNPolicy():
         loss_entropy    = self.entropy_beta*loss_entropy.mean()
 
 
-        return loss_policy + loss_entropy
+        return 0 + loss_entropy
 
     def save(self, save_path):
         self.model.save(save_path + "trained/")
