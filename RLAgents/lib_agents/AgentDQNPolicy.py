@@ -125,7 +125,9 @@ class AgentDQNPolicy():
         return loss
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
-        
+
+        logprobs    = torch.nn.functional.log_softmax(logits, dim = 1)
+
         advantages  = (q_values - q_values.mean(dim=1, keepdim=True))[range(logits.shape[0]), actions]
 
         #advantages  = (q_values_next - q_values)[range(logits.shape[0]), actions]
@@ -135,11 +137,11 @@ class AgentDQNPolicy():
         #advantages  = q_values_next[range(logits.shape[0]), actions] - q_values.mean(dim=1, keepdim=True)
         
          
-        advantages  = 0.1*advantages.detach()
+        advantages  = advantages.detach()
 
         #maximize logits probs
-        loss_policy  = -advantages*logits[range(logits.shape[0]), actions]
-        loss_policy  = loss_policy.mean()
+        loss_policy  = -advantages*logprobs[range(logits.shape[0]), actions]
+        loss_policy  = loss_policy.mean() 
 
         #entropy regularisation loss
         probs_new       = torch.nn.functional.softmax(logits, dim = 1)
