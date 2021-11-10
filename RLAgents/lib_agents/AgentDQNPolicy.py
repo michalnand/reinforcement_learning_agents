@@ -85,9 +85,9 @@ class AgentDQNPolicy():
         _,      q_predicted_next = self.model_target.forward(state_next_t)
 
         loss_critic = self._loss_critic(q_predicted, q_predicted_next, actions_t, rewards_t, dones_t)
-        #loss_actor  = self._loss_actor(logits, q_predicted, q_predicted_next, rewards_t, dones_t, actions_t)
+        loss_actor  = self._loss_actor(logits, q_predicted, q_predicted_next, rewards_t, dones_t, actions_t)
         
-        loss = loss_critic #+ loss_actor
+        loss = loss_critic + loss_actor
 
 
         self.optimizer.zero_grad()
@@ -97,7 +97,7 @@ class AgentDQNPolicy():
         self.optimizer.step()
 
         k = 0.02
-        #self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
+        self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
       
 
@@ -116,6 +116,8 @@ class AgentDQNPolicy():
         return loss
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
+        
+        return logits.mean()
         
         rewards_t   = rewards_t.unsqueeze(1)
         dones_t     = dones_t.unsqueeze(1)
