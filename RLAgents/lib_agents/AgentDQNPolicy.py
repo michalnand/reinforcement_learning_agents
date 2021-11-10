@@ -50,9 +50,10 @@ class AgentDQNPolicy():
     
     def main(self):     
         state_t         = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
-        logits_t, _     = self.model(state_t)
+        logits_t, q_values_t     = self.model(state_t)
 
-        action          = self._sample_actions(logits_t)[0]
+        #action          = self._sample_actions(logits_t)[0]
+        action = self._sample_action(q_values_t.detach().to("cpu").numpy()[0])
 
         state_new, reward, done, info = self.env.step(action)
  
@@ -115,7 +116,7 @@ class AgentDQNPolicy():
         return loss
 
     def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
-        '''
+        
         rewards_t   = rewards_t.unsqueeze(1)
         dones_t     = dones_t.unsqueeze(1)
 
@@ -126,10 +127,7 @@ class AgentDQNPolicy():
         
         advantages  = value_next - value_now
         advantages  = advantages.detach()
-        '''
-
-        advantages  = q_values[range(logits.shape[0]), actions] - q_values.mean(dim=1)
-        advantages  = advantages.detach()
+        
 
         #maximize logits probs
         loss_policy  = -advantages*logits[range(logits.shape[0]), actions]
@@ -151,9 +149,20 @@ class AgentDQNPolicy():
     def load(self, load_path):
         self.model.load(load_path + "trained/")
     
+
+    '''
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
         return actions
+    '''
+
+    def _sample_action(self, q_values, epsilon = 0.1):
+        if numpy.random.rand() < epsilon:
+            action_idx = numpy.random.randint(self.actions_count)
+        else:
+            action_idx = numpy.argmax(q_values)
+
+        return action_idx
