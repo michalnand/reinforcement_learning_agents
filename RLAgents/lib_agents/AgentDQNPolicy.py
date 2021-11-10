@@ -88,7 +88,6 @@ class AgentDQNPolicy():
         
         loss = loss_critic + loss_actor
 
-        print(loss_critic, loss_actor)
 
         self.optimizer.zero_grad()
         loss.backward()
