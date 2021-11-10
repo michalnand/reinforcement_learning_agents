@@ -97,7 +97,7 @@ class AgentDQNPolicy():
         self.optimizer.step()
 
         k = 0.02
-        self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
+        #self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
       
 
