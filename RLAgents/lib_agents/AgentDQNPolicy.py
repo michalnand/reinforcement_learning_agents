@@ -75,7 +75,7 @@ class AgentDQNPolicy():
         _,      q_predicted_next = self.model_target.forward(state_next_t)
 
         loss_critic = self._loss_critic(q_predicted, q_predicted_next, actions_t, rewards_t, dones_t)
-        loss_actor  = self._loss_actor(logits, q_predicted, actions_t)
+        loss_actor  = self._loss_actor(logits, q_predicted, q_predicted_next, rewards_t, dones_t, actions_t)
         
         loss = loss_critic + loss_actor
 
@@ -99,13 +99,22 @@ class AgentDQNPolicy():
 
         return loss
 
-    def _loss_actor(self, logits, q_predicted, actions):
-        advantages = q_predicted - q_predicted.sum(dim=1, keepdim=True)
+    def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
+
+        rewards_t       = rewards_t.unsqueeze(1)
+        dones_t         = dones_t.unsqueeze(1)
+
+        value_next = rewards_t + self.gamma*(1.0 - dones_t)*q_values_next
+        value_next = value_next.mean(dim=1)
+
+        value_now  = q_values[range(logits.shape[0]), actions]
+        
+        advantages = value_next - value_now
         advantages = advantages.detach()
 
         #maximize logits probs
-        loss_policy = -logits*advantages
-        loss_policy = loss_policy[range(logits.shape[0]), actions]
+        loss_policy = -advantages*logits[range(logits.shape[0]), actions]
+
         loss_policy = loss_policy.mean()
 
         #entropy regularisation loss
