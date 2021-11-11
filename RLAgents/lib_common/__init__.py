@@ -9,5 +9,5 @@ from .TrainingLog           import TrainingLog
 
 
 from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
-from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaDeterministic
+from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaBig
 from .WrapperSuperMario     import WrapperSuperMario, WrapperSuperMarioNoRewards

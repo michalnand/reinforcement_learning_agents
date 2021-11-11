@@ -1,10 +1,5 @@
 import numpy
-import torch
-import time
-import cv2
-
-from torch.distributions import Categorical
- 
+import torch 
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
       
@@ -65,11 +60,7 @@ class AgentPPORND():
 
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
-
-        #fourcc = cv2.VideoWriter_fourcc(*'XVID') 
-        #self.writer = cv2.VideoWriter("rnd_attention.avi", fourcc, 50.0, (256, 256)) 
-        
-        
+      
 
     def enable_training(self):
         self.enabled_training = True
@@ -149,6 +140,7 @@ class AgentPPORND():
 
         return result 
 
+    '''
     def render(self, env_id, alpha = 0.5):
         size            = 256
         state_im        = cv2.resize(self.states[env_id][0], (size, size))
@@ -170,7 +162,7 @@ class AgentPPORND():
 
         cv2.imshow("RND agent", result_im)
         cv2.waitKey(1)
-
+    '''
         
 
 
