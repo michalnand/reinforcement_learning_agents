@@ -91,13 +91,35 @@ class AgentDQNPolicy():
         state_t, state_next_t, actions_t, rewards_t, dones_t, _ = self.experience_replay.sample(self.batch_size, self.model.device)
 
         #q values, state now, state next
-        logits, q_predicted      = self.model.forward(state_t)
-        _,      q_predicted_next = self.model_target.forward(state_next_t)
+        logits,         q_values      = self.model.forward(state_t)
+        logits_next,    q_values_next = self.model_target.forward(state_next_t)
 
-        loss_critic = self._loss_critic(q_predicted, q_predicted_next, actions_t, rewards_t, dones_t)
-        loss_actor  = self._loss_actor(logits, q_predicted, q_predicted_next, rewards_t, dones_t, actions_t)
-        
-        loss = loss_critic + loss_actor
+        probs       = torch.nn.functional.softmax(logits, dim = 1)
+        log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
+
+        probs_next  = torch.nn.functional.softmax(logits_next, dim = 1)
+
+        #V(s(n+1)) = Ea∼pi Q(s(n+1), a)
+        state_value_next = (probs_next*q_values_next).sum(dim=1)
+
+        q_target    = rewards_t + self.gamma*state_value_next*(1.0 - dones_t)
+
+        delta       = q_target.detach() - q_values[range(self.batch_size), actions_t]
+
+
+        #critic, MSE loss
+        loss_critic = (delta**2).mean()
+
+        #actor, policy gradient loss
+        loss_actor  = -delta.detach()*log_probs[range(self.batch_size), actions_t]
+        loss_actor  = loss_actor.mean()
+
+        #entropy regularisation loss
+        loss_entropy    = (probs*log_probs).sum(dim = 1)
+        loss_entropy    = self.entropy_beta*loss_entropy.mean()
+
+
+        loss = loss_critic + loss_actor + loss_entropy
 
 
         self.optimizer.zero_grad()
@@ -110,42 +132,8 @@ class AgentDQNPolicy():
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
       
 
-    def _loss_critic(self, q_predicted, q_predicted_next, actions, rewards_t, dones_t):
-        #q-learning equation
-        q_target    = q_predicted.clone()
+   
 
-        q_max, _    = torch.max(q_predicted_next, axis=1)
-        q_new       = rewards_t + self.gamma*(1.0 - dones_t)*q_max
-        q_target[range(q_predicted.shape[0]), actions.type(torch.long)] = q_new
-
-        #train DQN model, MSE loss
-        loss  = ((q_target.detach() - q_predicted)**2)
-        loss  = loss.mean() 
-
-        return loss
-
-    def _loss_actor(self, logits, q_values, q_values_next, rewards_t, dones_t, actions):
-
-        probs       = torch.nn.functional.softmax(logits, dim = 1)
-        log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
-
-        '''
-        delta  = rewards_t.unsqueeze(1) + self.gamma*q_values_next - q_values
-        advantages = delta[range(logits.shape[0]), actions]
-         
-        advantages  = advantages.detach()
-        '''
- 
-        #maximize logits probs
-        loss_policy  = -(q_values*log_probs)[range(logits.shape[0]), actions]
-        loss_policy  = loss_policy.mean() 
-
-        #entropy regularisation loss
-        loss_entropy    = (probs*log_probs).sum(dim = 1)
-        loss_entropy    = self.entropy_beta*loss_entropy.mean()
-
-
-        return loss_policy + loss_entropy
 
     def save(self, save_path):
         self.model.save(save_path + "trained/")
