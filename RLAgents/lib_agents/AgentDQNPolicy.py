@@ -51,10 +51,11 @@ class AgentDQNPolicy():
         return result
     
     def main(self):     
-        state_t         = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
-        logits_t, _     = self.model(state_t)
+        state_t                 = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
+        logits_t, q_values_t    = self.model(state_t)
 
-        action          = self._sample_actions(logits_t)[0]
+        action          = self._sample_action(q_values_t.detach().to("cpu").numpy()[0])
+        #action          = self._sample_actions(logits_t)[0]
         state_new, reward, done, info = self.env.step(action)
  
         if self.enabled_training:
@@ -144,7 +145,8 @@ class AgentDQNPolicy():
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
         return actions
-    '''
+    
+
     def _sample_action(self, q_values, epsilon = 0.1):
         if numpy.random.rand() < epsilon:
             action_idx = numpy.random.randint(self.actions_count)
@@ -152,4 +154,4 @@ class AgentDQNPolicy():
             action_idx = numpy.argmax(q_values)
 
         return action_idx
-    '''
+    
