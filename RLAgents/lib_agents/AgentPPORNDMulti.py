@@ -1,4 +1,5 @@
 import numpy
+from numpy.core.arrayprint import printoptions
 import torch
 
 from torch.distributions import Categorical
@@ -12,10 +13,9 @@ class AgentPPORNDMulti():
       
         self.gamma_ext          = config.gamma_ext
         self.gamma_int          = config.gamma_int
-            
+             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.ortho_coeff        = config.ortho_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -67,8 +67,9 @@ class AgentPPORNDMulti():
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
-        self.log_internal_motivation_mean   = 0.0
-        self.log_internal_motivation_std    = 0.0
+        self.log_internal_motivation_mean       = 0.0
+        self.log_internal_motivation_std        = 0.0
+        self.log_internal_motivation_single     = 0.0
 
         self.log_heads_usage                = numpy.zeros(self.rnd_heads)
 
@@ -108,7 +109,7 @@ class AgentPPORNDMulti():
 
         #curiosity motivation
         rewards_int     = self._curiosity(states_t, rnd_head_ids)
-        
+         
         self.rewards_int_running_stats.update(rewards_int)
 
         #normalise internal motivation
@@ -133,6 +134,8 @@ class AgentPPORNDMulti():
         k = 0.02
         self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
         self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
+
+        self.log_internal_motivation_single = (1.0 - k)*self.log_internal_motivation_single + k*rewards_int[0]
 
         heads_usage = numpy.zeros(self.rnd_heads)
         for h in range(self.rnd_heads):
@@ -160,6 +163,7 @@ class AgentPPORNDMulti():
 
         result+= str(round(self.log_internal_motivation_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
+        result+= str(round(self.log_internal_motivation_single, 7)) + " "
 
         for h in range(self.rnd_heads):
             result+= str(round(self.log_heads_usage[h], 3)) + " "
@@ -191,8 +195,7 @@ class AgentPPORNDMulti():
                 self.optimizer_ppo.step()
 
                 #train RND model, MSE loss
-                states_b = self.policy_buffer.sample_states(self.batch_size, self.model_ppo.device)
-                loss_rnd = self._compute_loss_rnd(states, states_b, rnd_head_ids)
+                loss_rnd = self._compute_loss_rnd(states, rnd_head_ids)
 
                 self.optimizer_rnd.zero_grad() 
                 loss_rnd.backward()
@@ -273,36 +276,22 @@ class AgentPPORNDMulti():
 
         return loss_policy, loss_entropy
 
+    def _compute_loss_rnd(self, states, heads_ids):
+        state_norm_t    = self._norm_state(states).detach()
+ 
+        features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, heads_ids)
 
-    def _compute_loss_rnd(self, states_a, states_b, heads_ids):
-        eps = 0.00000001
-        state_a_norm_t      = self._norm_state(states_a).detach()
-        state_b_norm_t      = self._norm_state(states_b).detach()
-
-        features_predicted_a_t, features_target_a_t  = self.model_rnd(state_a_norm_t, heads_ids)
-        _,                      features_target_b_t  = self.model_rnd(state_b_norm_t, heads_ids)
-
-        #MSE prediction loss
-        loss_mse        = (features_target_a_t.detach() - features_predicted_a_t)**2 
+        loss_rnd        = (features_target_t - features_predicted_t)**2
         
-        #target model orthogonality loss
-        mag_a_target    = torch.norm(features_target_a_t, dim=1)
-        mag_b_target    = torch.norm(features_target_b_t, dim=1)
-        loss_ortho      = (features_target_a_t*features_target_b_t).sum(dim=1)/(mag_a_target*mag_b_target + eps)
-        loss_ortho      = self.ortho_coeff*loss_ortho.mean()
-
-
-        #loss regularisation
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 32.0/self.envs_count
-        random_mask     = torch.rand(loss_mse.shape).to(loss_mse.device)
+        random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
         random_mask     = 1.0*(random_mask < prob)
-
-        loss_mse        = (loss_mse*random_mask).sum() / (random_mask.sum() + eps)
-
-        loss_rnd        = loss_mse + loss_ortho
+        loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
         return loss_rnd
+
+    
 
 
     def _rnd_heads_ids(self, episode_score_sum):
@@ -313,13 +302,13 @@ class AgentPPORNDMulti():
     def _curiosity(self, state_t, heads_ids):
         state_norm_t    = self._norm_state(state_t)
 
-        head_ids_t    = torch.from_numpy(heads_ids).to(state_norm_t.device)
+        head_ids_t      = torch.from_numpy(heads_ids).to(state_norm_t.device)
 
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, head_ids_t)
 
-        curiosity_t    = (features_target_t - features_predicted_t)**2
+        curiosity_t     = (features_target_t - features_predicted_t)**2
                 
-        curiosity_t    = curiosity_t.sum(dim=1)/2.0
+        curiosity_t     = curiosity_t.sum(dim=1)/2.0
         
         return curiosity_t.detach().to("cpu").numpy()
 

@@ -51,15 +51,23 @@ class AgentDQNPolicy():
         return result
     
     def main(self):     
-        state_t                 = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
-        logits_t, q_values_t    = self.model(state_t)
+        state_t     = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
 
-        #action          = self._sample_action(q_values_t.detach().to("cpu").numpy()[0])
-        action          = self._sample_actions(logits_t)[0]
-        state_new, reward, done, info = self.env.step(action)
+        features_t  = self.model.features(state_t)
+        logits_t    = self.model.policy(features_t)
+
+        actions     = self._sample_actions(logits_t)
+
+        '''
+        actions_one_hot_t   = torch.from_numpy(self._one_hot_actions(actions)).to(self.model.device)
+
+        q_values_t  = self.model.critic(features_t, actions_one_hot_t)
+        '''
+        
+        state_new, reward, done, info = self.env.step(actions[0])
  
         if self.enabled_training:
-            self.experience_replay.add(self.state, action, reward, done)
+            self.experience_replay.add(self.state, actions[0], reward, done)
 
         if self.enabled_training and (self.iterations > self.experience_replay.size):
             if self.iterations%self.update_frequency == 0:
@@ -82,7 +90,8 @@ class AgentDQNPolicy():
             print("logits_t = ", logits_t, "\n\n")
 
         return reward, done, info
-        
+
+   
     def train(self):
         state_t, state_next_t, actions_t, rewards_t, dones_t, _ = self.experience_replay.sample(self.batch_size, self.model.device)
 
@@ -93,7 +102,7 @@ class AgentDQNPolicy():
         probs       = torch.nn.functional.softmax(logits, dim = 1)
         log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
 
-
+        #q learning
         q_max, _    = torch.max(q_values_next, axis=1)
         q_target    = q_values.clone()
         q_new       = rewards_t + self.gamma*(1.0 - dones_t)*q_max
@@ -104,8 +113,6 @@ class AgentDQNPolicy():
         loss_critic = (q_target.detach() - q_values)**2
         loss_critic = loss_critic.mean()
 
-        
-    
 
         #actor, policy gradient loss
         advantages  = q_target - q_values
@@ -128,7 +135,7 @@ class AgentDQNPolicy():
         k = 0.02
         self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
-      
+    
 
    
 
