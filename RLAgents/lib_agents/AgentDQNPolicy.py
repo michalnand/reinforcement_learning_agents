@@ -115,7 +115,7 @@ class AgentDQNPolicy():
         loss_entropy    = self.entropy_beta*loss_entropy.mean()
 
 
-        loss = loss_critic + loss_actor + loss_entropy
+        loss = loss_critic # + loss_actor + loss_entropy
 
 
         self.optimizer.zero_grad()
