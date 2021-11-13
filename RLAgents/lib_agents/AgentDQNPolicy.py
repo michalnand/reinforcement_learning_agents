@@ -15,7 +15,7 @@ class AgentDQNPolicy():
         self.entropy_beta       = config.entropy_beta
         self.tau                = config.tau
 
-               
+                
         self.state_shape    = self.env.observation_space.shape
         self.actions_count  = self.env.action_space.n
 
@@ -52,11 +52,9 @@ class AgentDQNPolicy():
     
     def main(self):     
         state_t         = torch.from_numpy(self.state).to(self.model.device).unsqueeze(0).float()
-        logits_t, q_values_t     = self.model(state_t)
+        logits_t, _     = self.model(state_t)
 
         action          = self._sample_actions(logits_t)[0]
-        #action = self._sample_action(q_values_t.detach().to("cpu").numpy()[0])
-
         state_new, reward, done, info = self.env.step(action)
  
         if self.enabled_training:
@@ -66,10 +64,7 @@ class AgentDQNPolicy():
             if self.iterations%self.update_frequency == 0:
                 self.train()
 
-            #if self.iterations%self.target_update == 0:
-            #    self.model_target.load_state_dict(self.model.state_dict())
-
-            # update target model 
+            #smooth update target model 
             for target_param, param in zip(self.model_target.parameters(), self.model.parameters()):
                 target_param.data.copy_((1.0 - self.tau)*target_param.data + self.tau*param.data)
        
