@@ -90,6 +90,19 @@ class AgentDQNPolicy():
         logits,         q_values      = self.model.forward(state_t)
         logits_next,    q_values_next = self.model_target.forward(state_next_t)
 
+
+        q_max, _    = torch.max(q_values_next, axis=1)
+        q_target    = q_values.clone()
+        q_new       = rewards_t + self.gamma*(1.0 - dones_t)*q_max
+        q_target[range(self.batch_size), actions_t.type(torch.long)] = q_new
+
+
+        loss_critic = (q_target.detach() - q_values)**2
+        loss_critic = loss_critic.mean()
+
+        loss = loss_critic
+
+        '''
         probs       = torch.nn.functional.softmax(logits, dim = 1)
         log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
 
@@ -116,7 +129,7 @@ class AgentDQNPolicy():
 
 
         loss = loss_critic # + loss_actor + loss_entropy
-
+        '''
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -124,7 +137,7 @@ class AgentDQNPolicy():
         self.optimizer.step() 
 
         k = 0.02
-        self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
+        #self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
       
 
