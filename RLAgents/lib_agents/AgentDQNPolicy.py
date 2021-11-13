@@ -109,8 +109,7 @@ class AgentDQNPolicy():
 
         #actor, policy gradient loss
         advantages  = q_target - q_values
-        print(">>>> ", advantages.shape, log_probs.shape)
-        loss_actor  = -advantages.detach()*log_probs[range(self.batch_size), actions_t]
+        loss_actor  = -(advantages.detach()*log_probs)[range(self.batch_size), actions_t]
         loss_actor  = loss_actor.mean()
 
         #entropy regularisation loss
