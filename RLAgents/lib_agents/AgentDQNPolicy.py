@@ -96,31 +96,19 @@ class AgentDQNPolicy():
         q_new       = rewards_t + self.gamma*(1.0 - dones_t)*q_max
         q_target[range(self.batch_size), actions_t.type(torch.long)] = q_new
 
-
+        
+        #critic MSE loss
         loss_critic = (q_target.detach() - q_values)**2
         loss_critic = loss_critic.mean()
 
-        loss = loss_critic
-
-        '''
         probs       = torch.nn.functional.softmax(logits, dim = 1)
         log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
 
-        probs_next  = torch.nn.functional.softmax(logits_next, dim = 1)
-
-        #V(s(n+1)) = Ea∼pi Q(s(n+1), a)
-        state_value_next = (probs_next*q_values_next).sum(dim=1)
-
-        q_target    = rewards_t + self.gamma*state_value_next*(1.0 - dones_t)
-
-        delta       = q_target.detach() - q_values[range(self.batch_size), actions_t]
-
-
-        #critic, MSE loss
-        loss_critic = (delta**2).mean()
+    
 
         #actor, policy gradient loss
-        loss_actor  = -delta.detach()*log_probs[range(self.batch_size), actions_t]
+        advantages  = q_target - q_values
+        loss_actor  = -advantages.detach()*log_probs[range(self.batch_size), actions_t]
         loss_actor  = loss_actor.mean()
 
         #entropy regularisation loss
@@ -128,8 +116,8 @@ class AgentDQNPolicy():
         loss_entropy    = self.entropy_beta*loss_entropy.mean()
 
 
-        loss = loss_critic # + loss_actor + loss_entropy
-        '''
+        loss = loss_critic  + loss_actor + loss_entropy
+
 
         self.optimizer.zero_grad()
         loss.backward()
@@ -137,7 +125,7 @@ class AgentDQNPolicy():
         self.optimizer.step() 
 
         k = 0.02
-        #self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
+        self.log_loss_actor  = (1.0 - k)*self.log_loss_actor + k*loss_actor.mean().detach().to("cpu").numpy()
         self.log_loss_critic = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
       
 
