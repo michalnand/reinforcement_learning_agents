@@ -90,6 +90,9 @@ class AgentDQNPolicy():
         logits,         q_values      = self.model.forward(state_t)
         logits_next,    q_values_next = self.model_target.forward(state_next_t)
 
+        probs       = torch.nn.functional.softmax(logits, dim = 1)
+        log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
+
 
         q_max, _    = torch.max(q_values_next, axis=1)
         q_target    = q_values.clone()
@@ -101,13 +104,12 @@ class AgentDQNPolicy():
         loss_critic = (q_target.detach() - q_values)**2
         loss_critic = loss_critic.mean()
 
-        probs       = torch.nn.functional.softmax(logits, dim = 1)
-        log_probs   = torch.nn.functional.log_softmax(logits, dim = 1)
-
+        
     
 
         #actor, policy gradient loss
         advantages  = q_target - q_values
+        print(">>>> ", advantages.shape, log_probs.shape)
         loss_actor  = -advantages.detach()*log_probs[range(self.batch_size), actions_t]
         loss_actor  = loss_actor.mean()
 
