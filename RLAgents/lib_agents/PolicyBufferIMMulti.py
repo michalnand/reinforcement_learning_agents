@@ -15,7 +15,7 @@ class PolicyBufferIMMulti:
         self.uint8_storage  = uint8_storage
 
         if self.uint8_storage:
-            self.scale  = 255
+            self.scale  = 255 
         else:
             self.scale  = 1 
       

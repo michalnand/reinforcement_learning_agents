@@ -70,7 +70,7 @@ class AgentPPORND():
 
     def main(self): 
         #state to tensor
-        states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)

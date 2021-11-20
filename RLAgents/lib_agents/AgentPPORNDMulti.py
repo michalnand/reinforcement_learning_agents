@@ -1,9 +1,5 @@
 import numpy
-from numpy.core.arrayprint import printoptions
 import torch
-
-from torch.distributions import Categorical
- 
 from .PolicyBufferIMMulti   import *  
 from .RunningStats          import * 
     
@@ -81,7 +77,7 @@ class AgentPPORNDMulti():
 
     def main(self): 
         #state to tensor
-        states_t  = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
         logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
@@ -275,7 +271,7 @@ class AgentPPORNDMulti():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
         return loss_policy, loss_entropy
-
+ 
     def _compute_loss_rnd(self, states, heads_ids):
         state_norm_t    = self._norm_state(states).detach()
  
@@ -337,16 +333,3 @@ class AgentPPORNDMulti():
             for e in range(self.envs_count): 
                 if dones[e]:
                     self.envs.reset(e) 
- 
-
-    def _make_states(self, state, score, max_range = 16):
-        tmp     = (numpy.floor(score)%max_range)/(1.0*max_range)
-
-        tmp     = numpy.reshape(tmp, (score.shape[0], 1, 1, 1))
-        tmp     = numpy.repeat(tmp, state.shape[2], axis=2)
-        tmp     = numpy.repeat(tmp, state.shape[3], axis=3)
-
-        result  = numpy.concatenate([state, tmp], axis=1)
-
-        return result
-
