@@ -43,8 +43,8 @@ class AgentPPORNDMulti():
         for e in range(self.envs_count):
             self.envs.reset(e)
         
-        self.states_running_stats       = RunningStatsMultiHead(self.state_shape, None, self.rnd_heads)
-        self.rewards_int_running_stats  = RunningStatsMultiHead((1, ), None, self.rnd_heads)
+        self.states_running_stats       = RunningStats(self.state_shape)
+        self.rewards_int_running_stats  = RunningStats((1, ))
 
         self._init_running_stats()
 
@@ -97,20 +97,20 @@ class AgentPPORNDMulti():
 
         self.episode_score_sum+= rewards_ext
 
-        rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
-
         #update long term states mean and variance
-        self.states_running_stats.update(states_np, rnd_head_ids)
+        self.states_running_stats.update(states_np)
+
+
+        rnd_head_ids = self._rnd_heads_ids(self.episode_score_sum)
 
         #curiosity motivation
         rewards_int     = self._curiosity(states_t, rnd_head_ids)
          
-        self.rewards_int_running_stats.update(rewards_int, rnd_head_ids)
+        self.rewards_int_running_stats.update(rewards_int)
 
         #normalise internal motivation
         if self.normalise_im_std:
-            _, stds     = self.rewards_int_running_stats.get(rewards_int.shape[0], rnd_head_ids)
-            rewards_int = rewards_int/stds
+            rewards_int    = rewards_int/self.rewards_int_running_stats.std
 
         rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
          
@@ -273,7 +273,7 @@ class AgentPPORNDMulti():
         return loss_policy, loss_entropy
  
     def _compute_loss_rnd(self, states, heads_ids):
-        state_norm_t    = self._norm_state(states, heads_ids).detach()
+        state_norm_t    = self._norm_state(states).detach()
  
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, heads_ids)
 
@@ -296,7 +296,7 @@ class AgentPPORNDMulti():
         return tmp
         
     def _curiosity(self, state_t, heads_ids):
-        state_norm_t    = self._norm_state(state_t, heads_ids)
+        state_norm_t    = self._norm_state(state_t)
 
         head_ids_t      = torch.from_numpy(heads_ids).to(state_norm_t.device)
 
@@ -309,30 +309,26 @@ class AgentPPORNDMulti():
         return curiosity_t.detach().to("cpu").numpy()
 
     #normalise mean and std for state
-    def _norm_state(self, state_t, rnd_head_ids):
-        means, stds  = self.states_running_stats.get(state_t.shape[0], rnd_head_ids)
-
-        means = torch.from_numpy(means).to(state_t.device).float()
-        stds  = torch.from_numpy(stds).to(state_t.device).float()
+    def _norm_state(self, state_t):
+        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
         
-        state_norm_t = state_t - means
+        state_norm_t = state_t - mean
 
         if self.normalise_state_std:
-            state_norm_t = torch.clamp(state_norm_t/stds, -5.0, 5.0)
+            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
 
         return state_norm_t 
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
-        head_ids = numpy.zeros(self.envs_count, dtype=int)
-
         for _ in range(steps):
             #random action
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
             #update stats
-            self.states_running_stats.update(states, head_ids)
+            self.states_running_stats.update(states)
 
             for e in range(self.envs_count): 
                 if dones[e]:
