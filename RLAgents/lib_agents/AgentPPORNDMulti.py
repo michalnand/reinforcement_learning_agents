@@ -273,7 +273,8 @@ class AgentPPORNDMulti():
         return loss_policy, loss_entropy
  
     def _compute_loss_rnd(self, states, heads_ids):
-        state_norm_t    = self._norm_state(states, heads_ids).detach()
+        heads_ids_np    = heads_ids.detach().to("cpu").numpy()
+        state_norm_t    = self._norm_state(states, heads_ids_np).detach()
  
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t, heads_ids)
 
