@@ -29,8 +29,39 @@ class RunningStats:
         self.var  = var
 
         self.std  = ((self.var/self.count)**0.5) + self.eps
- 
 
+
+class RunningStatsMultiHead:
+    def __init__(self, shape, initial_value=None, heads_count=1):
+        self.shape          = shape
+        self.heads_count    = heads_count
+        self.stats          = []
+
+        for _ in range(self.heads_count):
+            self.stats.append(RunningStats(self.shape, initial_value))
+
+    def update(self, x, head_ids):
+
+        for h in range(self.heads_count):
+            indices = (head_ids == h).nonzero()[0]
+
+            if len(indices) > 0:
+                values  = numpy.take(x, indices, axis=0)
+
+                self.stats[h].update(values)
+
+    def get(self, batch_size, head_ids):
+        means   = numpy.zeros((batch_size, ) + self.shape)
+        stds    = numpy.zeros((batch_size, ) + self.shape)
+
+        for i in range(batch_size)
+            idx      = head_ids[i]
+            means[i] = self.stats[idx].mean
+            stds[i]  = self.stats[idx].std
+
+        return means, stds
+
+'''
 class RunningStatsMultiHead:
     def __init__(self, shape, initial_value=None, heads_count=1):
         self.shape          = shape
@@ -73,4 +104,4 @@ class RunningStatsMultiHead:
             stds+=  stds_*mask
 
         return means, stds
-
+'''
