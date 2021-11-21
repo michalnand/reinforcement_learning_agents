@@ -41,7 +41,6 @@ class RunningStatsMultiHead:
             self.stats.append(RunningStats(self.shape, initial_value))
 
     def update(self, x, head_ids):
-
         for h in range(self.heads_count):
             indices = (head_ids == h).nonzero()[0]
 
@@ -54,7 +53,7 @@ class RunningStatsMultiHead:
         means   = numpy.zeros((batch_size, ) + self.shape)
         stds    = numpy.zeros((batch_size, ) + self.shape)
 
-        for i in range(batch_size)
+        for i in range(batch_size):
             idx      = head_ids[i]
             means[i] = self.stats[idx].mean
             stds[i]  = self.stats[idx].std
