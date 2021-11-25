@@ -1,154 +1,105 @@
+from numpy.core.fromnumeric import reshape
 import torch
 import numpy
 
 class GoalsBuffer: 
 
-    def __init__(self, buffer_size, state_shape, add_threshold = 0.1, downsample = 8, uint8_storage = False):
+    def __init__(self, envs_count, buffer_size, add_threshold, reach_threshold, downsample, state_shape):
 
         self.buffer_size        = buffer_size
-        self.state_shape        = state_shape
         self.add_threshold      = add_threshold
+        self.reach_threshold    = reach_threshold
         self.downsample         = downsample
 
         self.goal_shape         = (1, state_shape[1]//self.downsample, state_shape[2]//self.downsample)
 
-        self.uint8_storage  = uint8_storage
-
-        if self.uint8_storage:
-            self.scale  = 255
-        else:
-            self.scale  = 1 
-
-        count                   = self.goal_shape[0]*self.goal_shape[1]*self.goal_shape[2]
+        self.downsampled_size   = self.goal_shape[0]*self.goal_shape[1]*self.goal_shape[2]
 
         #init buffers
-        if self.uint8_storage:
-            self.states             = numpy.zeros((self.buffer_size, ) + self.state_shape, dtype=numpy.ubyte)
-        else:
-            self.states             = numpy.zeros((self.buffer_size, ) + self.state_shape, dtype=numpy.float32)
- 
-        self.goals              = torch.zeros((self.buffer_size, count))
-        self.actions            = [[] for _ in range(self.buffer_size)]
-        self.scores_ext         = numpy.zeros((self.buffer_size))
-        self.scores_int         = numpy.zeros((self.buffer_size))
-        self.visited            = numpy.zeros((self.buffer_size))
- 
-        #downsampling model
-        self.layers = [
-            torch.nn.AvgPool2d(downsample, downsample),
-            torch.nn.Flatten()
-        ]
+        self.goals              = torch.zeros((self.buffer_size, self.downsampled_size))
+        self.active_goals       = torch.ones((envs_count, self.buffer_size))
 
-        self.model = torch.nn.Sequential(*self.layers)
-        self.model.eval() 
+        self.downsample         = torch.nn.AvgPool2d(downsample, downsample)
+        self.upsample           = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr = 0
+        self.goals_ptr = 1
 
-    def add(self, states_t, scores_ext, scores_int, actions):
-        states_np       = states_t.detach().to("cpu").numpy()
-
-        x               = states_t[:,0,:,:].unsqueeze(1).to("cpu")
-        downsampled     = self.model(x)
+        self.log_used_goals             = 0.0
+        self.log_current_active_goals   = 0.0
 
 
-        #measure distances, resulted matrix shape = (batch_size, buffer_size)
-        distances       = torch.cdist(downsampled, self.goals)   
+    def step(self, states):
+        batch_size  = states.shape[0]
+        states      = torch.from_numpy(states)
 
-        #find closest values and indices
-        #resulted shapes shape = (batch_size)
-        closest_values, closest_indices  = torch.min(distances, dim=1)  
+        states_down, dif   = self._preprocess(states)
+        
+      
+        #select only used goals from buffer
+        goals_used = self.goals[0:self.goals_ptr]
 
-        #process whole batch
-        for i in range(x.shape[0]):
+        distances   = torch.cdist(states_down, goals_used)
 
-            #update existing goal record
-            if closest_values[i] < self.add_threshold:
-                self._add_existing(i, closest_indices, actions, scores_ext, scores_int)
+        distances_min, distances_ids = torch.min(distances, dim=1)
+
+        #add new goal, if add threshold reached
+        self._add_goals(states_down, distances_min, dif)
+
+        rewards     = torch.zeros(batch_size)
+
+        #returning goals
+        goals_result = torch.zeros((batch_size, self.downsampled_size))
+
+        if len(goals_used) > 0:
+            #select only actual goals
+            actual_goals  = self.active_goals[range(batch_size), distances_ids]
+
+            #reward only if goal is active and reached close distance
+            reached = 1.0*(distances_min < self.reach_threshold)
+            rewards = actual_goals*reached
+
+            #clear reached and active goal flag
+            self.active_goals[range(batch_size), distances_ids] = actual_goals*(1.0 - reached)
             
-            #add new goal
-            else:
-                self._add_new(i, states_np, downsampled, actions, scores_ext, scores_int)
+            #set new goals - closest goals to given state
+            goals_result[range(batch_size)] = goals_used[distances_ids].clone()
 
-            #initial runs, add only from first batch item
-            if self.goals_ptr < 128:
-                break
-
-    def goals_reached(self, states_t, goals_t):
-        x               = states_t[:,0,:,:].unsqueeze(1).to("cpu")
-        downsampled     = self.model(x)
-        goals           = goals_t.reshape(downsampled.shape)
-
-        distances       = torch.cdist(downsampled, goals)   
-
-        goals_reached = numpy.zeros(x.shape[0], dtype=bool)
-        for i in range(x.shape[0]): 
-            if distances[i][i] < self.add_threshold:
-                goals_reached[i] = True
-
-        return goals_reached
-    
-    #add new goal into buffer if still space
-    def _add_new(self, batch_i, states, downsampled, actions, scores_ext, scores_int):
-        if self.goals_ptr < self.buffer_size:
-            self.states[self.goals_ptr]     = states[batch_i].copy()
-            self.goals[self.goals_ptr]      = downsampled[batch_i].clone()
-            self.actions[self.goals_ptr]    = actions[batch_i].copy()
-            self.scores_ext[self.goals_ptr] = scores_ext[batch_i]
-            self.scores_int[self.goals_ptr] = scores_int[batch_i]
-            self.visited[self.goals_ptr]    = 1
-
-            self.goals_ptr = self.goals_ptr + 1 
-
-    #update goal to closest stored goal
-    def _add_existing(self, batch_i, closest_indices, actions, scores_ext, scores_int):
-
-        idx = closest_indices[batch_i]
-
-        #add shorter actions sequence leading to this target
-        if len(self.actions[idx]) > len(actions[batch_i]) or len(self.actions[idx]) == 0:
-            self.actions[idx] = actions[batch_i].copy()
-
-        #add better external score
-        if self.scores_ext[idx] < scores_ext[batch_i]:
-            self.scores_ext[idx] = scores_ext[batch_i]
-
-        #update internal score
-        self.scores_int[idx] = scores_int[batch_i]
-
-        #increment visited counter
-        self.visited[idx]+= 1
+            k = 0.02
+            self.log_used_goals             = len(goals_used)
+            self.log_current_active_goals   = (1.0 - k)*self.log_current_active_goals   + k*actual_goals.mean().detach().to("cpu").numpy()
 
 
-    def sample_batch(self, batch_size, device):
-        indices = numpy.random.randint(0, self.goals_ptr, size=batch_size)
+        goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
+        goals_result = self.upsample(goals_result)
 
-        states  = torch.gather(self.states, 0, indices).to(device).float()/self.scale
-
-        goals   = torch.gather(self.goals, 0, indices).to(device).float()
-        goals   = goals.reshape((batch_size, ) + self.goal_shape)
-
-        actions = numpy.zeros(batch_size)
-        for i in range(batch_size):
-            #take last action leading to goal
-            actions[i] = self.actions[indices[i]][-1]
-
-        actions = torch.from_numpy(actions).to(device).float()
-
-        return states, goals, actions
+        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy()
 
 
-    def get_goal(self, ext_weight, int_weight, visited_weight):
+    def activate_goals(self, env_idx):
+        self.active_goals[env_idx] = True
 
-        visited = 1.0/((self.visited**0.5) + 1.0)
-        values  = ext_weight*self.scores_ext + int_weight*self.scores_int + visited_weight*visited
-        values  = values[0:self.goals_ptr]
+    def _preprocess(self, states):
+        batch_size  = states.shape[0]
 
-        tmp     = numpy.exp(values - values.max())
-        probs   = tmp/tmp.sum()
+        s0_down = self.downsample(states[range(batch_size), 0].unsqueeze(1))
+        s0_down = torch.flatten(s0_down, start_dim=1)
 
-        idx     = numpy.random.choice(range(self.goals_ptr), 1, p=probs)[0]
+        s1_down = self.downsample(states[range(batch_size), 1].unsqueeze(1))
+        s1_down = torch.flatten(s1_down, start_dim=1)
 
-        goal    = self.goals[idx].reshape(self.goal_shape)
-        actions = self.actions[idx]
+        dif     = torch.abs(s0_down - s1_down).mean(dim=1)
  
-        return goal, actions
+        return s0_down, dif
+
+    def _add_goals(self, goals, distances_min, dif):
+        #add only new goal : long distance from existing goals
+        #add only interesting goal : big change value
+        candidates = (distances_min > self.reach_threshold)*(dif > self.add_threshold)
+         
+        indices = torch.where(candidates > 0)[0]
+
+        for idx in indices:
+            if self.goals_ptr < self.buffer_size:
+                self.goals[self.goals_ptr] = goals[idx].clone()
+                self.goals_ptr = self.goals_ptr + 1
+        

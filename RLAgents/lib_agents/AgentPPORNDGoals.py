@@ -1,17 +1,20 @@
 import numpy
 import torch 
-from .PolicyBufferIM    import *  
-from .RunningStats      import *  
-      
-class AgentPPORND():   
+from .PolicyBufferIMDual    import *  
+from .RunningStats          import *  
+from .GoalsBuffer           import *
+
+class AgentPPORNDGoals():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
     
         self.gamma_ext          = config.gamma_ext 
-        self.gamma_int          = config.gamma_int
+        self.gamma_int_a        = config.gamma_int_a
+        self.gamma_int_b        = config.gamma_int_b
             
         self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_adv_coeff      = config.int_adv_coeff
+        self.int_a_adv_coeff    = config.int_a_adv_coeff
+        self.int_b_adv_coeff    = config.int_b_adv_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -26,7 +29,12 @@ class AgentPPORND():
         self.normalise_state_std = config.normalise_state_std
         self.normalise_im_std    = config.normalise_im_std
 
-        self.state_shape    = self.envs.observation_space.shape
+        self.goals_reactivate    = config.goals_reactivate
+
+        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
+
+        self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
@@ -35,7 +43,10 @@ class AgentPPORND():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
+        
+        self.episode_score_sum = numpy.zeros(self.envs_count)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -44,12 +55,12 @@ class AgentPPORND():
         self.rewards_int_running_stats  = RunningStats((1, ))
 
         self._init_running_stats()
-
+        
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
-
+            self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()
+ 
  
         self.enable_training()
         self.iterations                     = 0 
@@ -58,9 +69,12 @@ class AgentPPORND():
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
-        self.log_internal_motivation_mean   = 0.0
-        self.log_internal_motivation_std    = 0.0
-      
+        self.log_internal_motivation_a_mean = 0.0
+        self.log_internal_motivation_a_std  = 0.0
+        
+        self.log_internal_motivation_b_mean = 0.0
+        self.log_internal_motivation_b_std  = 0.0
+
 
     def enable_training(self):
         self.enabled_training = True
@@ -70,15 +84,16 @@ class AgentPPORND():
 
     def main(self): 
         #state to tensor
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
         values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_a_np = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
 
         #collect actions
         actions = self._sample_actions(logits_t)
@@ -86,36 +101,64 @@ class AgentPPORND():
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
-        self.states = states.copy()
- 
+        #acumulate score per episode
+        episode_score_sum_old = self.episode_score_sum.copy()
+        self.episode_score_sum+= rewards_ext
+
+        #curiosity motivation
+        rewards_int_a    = self._curiosity(states_t)
+        self.rewards_int_running_stats.update(rewards_int_a)
+
+        #normalise RND internal motivation
+        if self.normalise_im_std:
+            rewards_int_a    = rewards_int_a/self.rewards_int_running_stats.std
+            
+        rewards_int_a = numpy.clip(rewards_int_a, 0.0, 1.0)
+
+
+        #goal motivation - state transfer reached
+        rewards_int_b, goals = self.goals_buffer.step(self.states)  
+        rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
-        #curiosity motivation
-        rewards_int    = self._curiosity(states_t)
-        self.rewards_int_running_stats.update(rewards_int)
-
-        #normalise internal motivation
-        if self.normalise_im_std:
-            rewards_int    = rewards_int/self.rewards_int_running_stats.std
-            
-        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
-        
+        #create new state
+        self.states = numpy.concatenate([states, goals], axis=1)
+      
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
-
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
             if self.policy_buffer.is_full():
                 self.train()
-        
+
+        score_int = numpy.floor(self.episode_score_sum).astype(int)
         for e in range(self.envs_count): 
+           
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
+                s       = self.envs.reset(e)
+                zero    = numpy.zeros(self.goal_shape)
+
+                self.states[e] = numpy.concatenate([s, zero], axis=0)
+
+                self.episode_score_sum[e] = 0.0
+
+                self.goals_buffer.activate_goals(e)
+
+        for e in range(self.envs_count):
+            #only when score changed
+            if episode_score_sum_old[e] != self.episode_score_sum[e]:
+                if score_int[e]%self.goals_reactivate == self.goals_reactivate-1:
+                    self.goals_buffer.activate_goals(e)            
+        
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
-        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
+        self.log_internal_motivation_a_mean   = (1.0 - k)*self.log_internal_motivation_a_mean + k*rewards_int_a.mean()
+        self.log_internal_motivation_a_std    = (1.0 - k)*self.log_internal_motivation_a_std  + k*rewards_int_a.std()
+        self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
+        self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
+        
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -135,9 +178,15 @@ class AgentPPORND():
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
-        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_std, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_std, 7)) + " "
 
+        result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
+
+        result+= str(round(self.goals_buffer.log_used_goals, 7)) + " "
+        result+= str(round(self.goals_buffer.log_current_active_goals, 7)) + " "
+        
         return result 
 
     '''
@@ -175,16 +224,16 @@ class AgentPPORND():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, _, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -204,14 +253,14 @@ class AgentPPORND():
         self.policy_buffer.clear() 
 
     
-    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
+        logits_new, values_ext_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states)
 
         #critic loss
-        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
+        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b)
 
         #actor loss        
-        advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages  = self.ext_adv_coeff*advantages_ext + self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
 
@@ -228,7 +277,7 @@ class AgentPPORND():
         return loss 
 
     #MSE critic loss
-    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
+    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
@@ -238,14 +287,23 @@ class AgentPPORND():
         loss_ext_value  = loss_ext_value.mean()
 
         '''
-        compute internal critic loss, as MSE
+        compute internal A critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
-        loss_int_value  = (returns_int.detach() - values_int_new)**2
-        loss_int_value  = loss_int_value.mean()
+        values_int_a_new  = values_int_a_new.squeeze(1)
+        loss_int_a_value  = (returns_int_a.detach() - values_int_a_new)**2
+        loss_int_a_value  = loss_int_a_value.mean()
+
+
+        '''
+        compute internal B critic loss, as MSE
+        L = (T - V(s))^2
+        '''
+        values_int_b_new  = values_int_b_new.squeeze(1)
+        loss_int_b_value  = (returns_int_b.detach() - values_int_b_new)**2
+        loss_int_b_value  = loss_int_b_value.mean()
         
-        loss_critic     = loss_ext_value + loss_int_value
+        loss_critic     = loss_ext_value + loss_int_a_value + loss_int_b_value
         return loss_critic
 
     #PPO actor loss
@@ -324,10 +382,14 @@ class AgentPPORND():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
+            zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
+            states_     = numpy.concatenate([states, zeros], axis=1)
+
             #update stats
-            self.states_running_stats.update(states)
+            self.states_running_stats.update(states_)
 
             for e in range(self.envs_count): 
                 if dones[e]:
                     self.envs.reset(e)
-
+    
+    

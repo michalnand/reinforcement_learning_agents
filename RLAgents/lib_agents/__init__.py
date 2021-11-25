@@ -37,6 +37,7 @@ from .AgentPPORND                   import AgentPPORND
 from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPORNDSiam               import AgentPPORNDSiam
 from .AgentPPORNDMulti              import AgentPPORNDMulti
+from .AgentPPORNDGoals              import AgentPPORNDGoals
 from .AgentPPORNDMMA                import AgentPPORNDMMA
 from .AgentPPOCA                    import AgentPPOCA
 from .AgentPPOCSA                   import AgentPPOCSA
