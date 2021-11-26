@@ -34,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -64,7 +64,7 @@ class AgentPPORNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e][0:self.state_shape[0]-2] = self.envs.reset(e).copy()
+            self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()
  
  
         self.enable_training()
@@ -112,18 +112,18 @@ class AgentPPORNDGoals():
         self.episode_score_sum+= rewards_ext
 
         #curiosity motivation
-        rewards_int_a    = self._curiosity(states_t)
+        rewards_int_a       = self._curiosity(states_t)
         self.rewards_int_running_stats.update(rewards_int_a)
 
         #normalise RND internal motivation
         if self.normalise_im_std:
-            rewards_int_a    = rewards_int_a/self.rewards_int_running_stats.std
+            rewards_int_a   = rewards_int_a/self.rewards_int_running_stats.std
             
         rewards_int_a = numpy.clip(rewards_int_a, 0.0, 1.0)
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals, active = self.goals_buffer.step(self.states, dones)  
+        rewards_int_b, goals = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
@@ -132,7 +132,7 @@ class AgentPPORNDGoals():
         self.states_running_stats.update(states_np)
 
         #create new state
-        self.states = numpy.concatenate([states, goals, active], axis=1)
+        self.states = numpy.concatenate([states, goals], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -146,7 +146,7 @@ class AgentPPORNDGoals():
                 s       = self.envs.reset(e)
                 zero    = numpy.zeros(self.goal_shape)
 
-                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
+                self.states[e] = numpy.concatenate([s, zero], axis=0)
 
                 self.episode_score_sum[e] = 0.0
 
@@ -207,13 +207,8 @@ class AgentPPORNDGoals():
         size        = 256
         state       = self.states[env_id]
 
-        result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
-        result_im   = cv2.resize(result_im, (3*size, size)) 
-
-        #result_im = numpy.moveaxis(result_im, 0, 2)        
-
-        #result_vid = (255*result_im).astype(numpy.uint8)
-        #self.writer.write(result_vid)
+        result_im   = numpy.concatenate([state[0], state[4]], axis=1)
+        result_im   = cv2.resize(result_im, (2*size, size)) 
 
         cv2.imshow("RND agent", result_im)
         cv2.waitKey(1)
@@ -389,7 +384,7 @@ class AgentPPORNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
+            states_     = numpy.concatenate([states, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)
