@@ -24,8 +24,7 @@ class GoalsBuffer:
 
         self.goals_ptr = 1
 
-        self.log_used_goals             = 0.0
-        self.log_current_active_goals   = 0.0
+        self.log_used_goals     = 0.0
 
 
     def step(self, states):
@@ -50,23 +49,20 @@ class GoalsBuffer:
         #returning goals
         goals_result = torch.zeros((batch_size, self.downsampled_size))
 
-        if len(goals_used) > 0:
-            #select only actual goals
-            actual_goals  = self.active_goals[range(batch_size), distances_ids]
+        #select only actual goals
+        actual_goals  = self.active_goals[range(batch_size), distances_ids]
 
-            #reward only if goal is active and reached close distance
-            reached = 1.0*(distances_min < self.reach_threshold)
-            rewards = actual_goals*reached
+        #reward only if goal is active and reached close distance
+        reached = 1.0*(distances_min < self.reach_threshold)
+        rewards = actual_goals*reached
 
-            #clear reached and active goal flag
-            self.active_goals[range(batch_size), distances_ids] = actual_goals*(1.0 - reached)
-            
-            #set new goals - closest goals to given state
-            goals_result[range(batch_size)] = goals_used[distances_ids].clone()
+        #clear reached and active goal flag
+        self.active_goals[range(batch_size), distances_ids] = actual_goals*(1.0 - reached)
+        
+        #set new goals - closest goals to given state
+        goals_result[range(batch_size)] = goals_used[distances_ids].clone()
 
-            k = 0.02
-            self.log_used_goals             = len(goals_used)
-            self.log_current_active_goals   = (1.0 - k)*self.log_current_active_goals   + k*actual_goals.mean().detach().to("cpu").numpy()
+        self.log_used_goals             = len(goals_used)
 
 
         goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)

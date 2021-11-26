@@ -4,7 +4,7 @@ from .PolicyBufferIMDual    import *
 from .RunningStats          import *  
 from .GoalsBuffer           import *
 
-class AgentPPORNDGoals():   
+class AgentPPORNDGoals():    
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
     
@@ -46,7 +46,10 @@ class AgentPPORNDGoals():
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
         
-        self.episode_score_sum = numpy.zeros(self.envs_count)
+        self.episode_score_sum          = numpy.zeros(self.envs_count)
+
+        self.log_reached_goals_episode  = numpy.zeros(self.envs_count)
+        self.episode_goals_reached      = numpy.zeros(self.envs_count)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -74,6 +77,7 @@ class AgentPPORNDGoals():
         
         self.log_internal_motivation_b_mean = 0.0
         self.log_internal_motivation_b_std  = 0.0
+
 
 
     def enable_training(self):
@@ -120,6 +124,8 @@ class AgentPPORNDGoals():
         rewards_int_b, goals = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
+        self.episode_goals_reached+= (rewards_int_b > 0.9)
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
@@ -132,7 +138,6 @@ class AgentPPORNDGoals():
             if self.policy_buffer.is_full():
                 self.train()
 
-        score_int = numpy.floor(self.episode_score_sum).astype(int)
         for e in range(self.envs_count): 
            
             if dones[e]:
@@ -145,6 +150,12 @@ class AgentPPORNDGoals():
 
                 self.goals_buffer.activate_goals(e)
 
+                #log for counting goals reached per episode
+                self.log_reached_goals_episode[e]   = self.episode_goals_reached[e]
+                self.episode_goals_reached[e]       = 0.0
+
+
+        score_int = numpy.floor(self.episode_score_sum).astype(int)
         for e in range(self.envs_count):
             #only when score changed
             if episode_score_sum_old[e] != self.episode_score_sum[e]:
@@ -185,7 +196,7 @@ class AgentPPORNDGoals():
         result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
 
         result+= str(round(self.goals_buffer.log_used_goals, 7)) + " "
-        result+= str(round(self.goals_buffer.log_current_active_goals, 7)) + " "
+        result+= str(round(self.log_reached_goals_episode.mean(), 7)) + " "
         
         return result 
 
