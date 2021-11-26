@@ -123,7 +123,7 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
+        rewards_int_b, goals, active = self.goals_buffer.step(self.states, dones)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
