@@ -4,6 +4,8 @@ from .PolicyBufferIMDual    import *
 from .RunningStats          import *  
 from .GoalsBuffer           import *
 
+import cv2
+
 class AgentPPORNDGoals():    
     def __init__(self, envs, ModelPPO, ModelRND, config):
         self.envs = envs  
@@ -32,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -62,7 +64,7 @@ class AgentPPORNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()
+            self.states[e][0:self.state_shape[0]-2] = self.envs.reset(e).copy()
  
  
         self.enable_training()
@@ -91,7 +93,9 @@ class AgentPPORNDGoals():
         states_t = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_a_t  = self.model_ppo.forward(states_t)
+
+        values_int_b_t = values_int_a_t
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -121,7 +125,7 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals = self.goals_buffer.step(self.states)  
+        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
@@ -130,7 +134,7 @@ class AgentPPORNDGoals():
         self.states_running_stats.update(states_np)
 
         #create new state
-        self.states = numpy.concatenate([states, goals], axis=1)
+        self.states = numpy.concatenate([states, goals, active], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -144,7 +148,7 @@ class AgentPPORNDGoals():
                 s       = self.envs.reset(e)
                 zero    = numpy.zeros(self.goal_shape)
 
-                self.states[e] = numpy.concatenate([s, zero], axis=0)
+                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
 
                 self.episode_score_sum[e] = 0.0
 
@@ -200,29 +204,22 @@ class AgentPPORNDGoals():
         
         return result 
 
-    '''
-    def render(self, env_id, alpha = 0.5):
-        size            = 256
-        state_im        = cv2.resize(self.states[env_id][0], (size, size))
+    
+    def render(self, env_id):
+        size        = 256
+        state       = self.states[env_id]
 
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-        attention       = self.model_ppo.forward_features(states_t).detach().to("cpu").numpy()[0]
-        attention_im    = cv2.resize(attention, (size, size)) 
- 
-        result_im       = numpy.zeros((3, size, size))
-        result_im[0]    = state_im
-        result_im[1]    = state_im
-        result_im[2]    = state_im + 2*attention_im
-        result_im       = numpy.clip(result_im, 0.0, 1.0)
+        result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
+        result_im   = cv2.resize(result_im, (3*size, size)) 
 
-        result_im = numpy.moveaxis(result_im, 0, 2)        
+        #result_im = numpy.moveaxis(result_im, 0, 2)        
 
         #result_vid = (255*result_im).astype(numpy.uint8)
         #self.writer.write(result_vid)
 
         cv2.imshow("RND agent", result_im)
         cv2.waitKey(1)
-    '''
+    
         
 
 
@@ -394,7 +391,7 @@ class AgentPPORNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros], axis=1)
+            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)

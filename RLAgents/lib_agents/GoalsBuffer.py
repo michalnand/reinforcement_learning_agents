@@ -33,7 +33,6 @@ class GoalsBuffer:
 
         states_down, dif   = self._preprocess(states)
         
-      
         #select only used goals from buffer
         goals_used = self.goals[0:self.goals_ptr]
 
@@ -50,25 +49,30 @@ class GoalsBuffer:
         goals_result = torch.zeros((batch_size, self.downsampled_size))
 
         #select only actual goals
-        actual_goals  = self.active_goals[range(batch_size), distances_ids]
+        active_goals  = self.active_goals[range(batch_size), distances_ids]
 
         #reward only if goal is active and reached close distance
         reached = 1.0*(distances_min < self.reach_threshold)
-        rewards = actual_goals*reached
+        rewards = active_goals*reached
 
         #clear reached and active goal flag
-        self.active_goals[range(batch_size), distances_ids] = actual_goals*(1.0 - reached)
+        self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
         
         #set new goals - closest goals to given state
         goals_result[range(batch_size)] = goals_used[distances_ids].clone()
 
         self.log_used_goals             = len(goals_used)
 
-
         goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
         goals_result = self.upsample(goals_result)
 
-        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy()
+        #add active goals flag
+        size = int(self.buffer_size**0.5)
+        active_goals = self.active_goals.reshape((batch_size, 1, size, size))
+        active_goals = numpy.repeat(active_goals, states.shape[2]//size, axis=2)
+        active_goals = numpy.repeat(active_goals, states.shape[3]//size, axis=3)
+ 
+        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy(), active_goals
 
 
     def activate_goals(self, env_idx):
