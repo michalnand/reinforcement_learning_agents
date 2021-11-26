@@ -94,8 +94,9 @@ class GoalsBuffer:
          
         indices = torch.where(candidates > 0)[0]
 
-        for idx in indices:
-            if self.goals_ptr < self.buffer_size:
-                self.goals[self.goals_ptr] = goals[idx].clone()
-                self.goals_ptr = self.goals_ptr + 1
-        
+        if len(indices) > 0 and self.goals_ptr < self.buffer_size:
+            idx = indices[0]
+
+            self.goals[self.goals_ptr] = goals[idx].clone()
+            self.goals_ptr = self.goals_ptr + 1
+    
