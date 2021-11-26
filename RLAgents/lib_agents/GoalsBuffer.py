@@ -30,7 +30,7 @@ class GoalsBuffer:
     def step(self, states, dones):
         batch_size  = states.shape[0]
         states      = torch.from_numpy(states)
-        dones       = torch.from_numpy(dones)
+        dones       = torch.from_numpy(1.0*dones)
 
         states_down, dif   = self._preprocess(states)
         
@@ -95,7 +95,7 @@ class GoalsBuffer:
     def _add_goals(self, goals, distances_min, dif, dones):
         #add only new goal : long distance from existing goals
         #add only interesting goal : big change value
-        candidates = (distances_min > self.reach_threshold)*(dif > self.add_threshold)*(1 - dones)
+        candidates = (distances_min > self.reach_threshold)*(dif > self.add_threshold)*(1.0 - dones)
          
         indices = torch.where(candidates > 0)[0]
 
