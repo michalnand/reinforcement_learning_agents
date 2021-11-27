@@ -18,6 +18,7 @@ class GoalsBuffer:
         #init buffers
         self.goals          = torch.zeros((self.buffer_size, self.downsampled_size))
         self.active_goals   = torch.ones((envs_count, self.buffer_size))
+        self.active_goals[range(envs_count), 0] = False
 
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
@@ -76,7 +77,8 @@ class GoalsBuffer:
 
 
     def activate_goals(self, env_idx):
-        self.active_goals[env_idx] = True
+        self.active_goals[env_idx]      = True
+        self.active_goals[env_idx][0]   = False
 
     def _preprocess(self, states):
         batch_size  = states.shape[0]
