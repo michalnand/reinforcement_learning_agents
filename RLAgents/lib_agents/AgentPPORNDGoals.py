@@ -146,7 +146,7 @@ class AgentPPORNDGoals():
                 s       = self.envs.reset(e)
                 zero    = numpy.zeros(self.goal_shape)
 
-                self.states[e] = numpy.concatenate([s, zero], axis=0)
+                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
 
                 self.episode_score_sum[e] = 0.0
 
