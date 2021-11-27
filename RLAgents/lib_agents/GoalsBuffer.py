@@ -49,29 +49,30 @@ class GoalsBuffer:
         reached = 1.0*(distances_min < self.reach_threshold)
         rewards = active_goals*reached
 
+
+        #flag for active goals
+        current_active = self.active_goals[range(batch_size), distances_ids]
+
+        current_active = current_active.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        current_active = torch.tile(current_active, (1, 1, states.shape[2], states.shape[3]))
+
         #clear reached and active goal flag
         self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
         
-        #set new goals - closest goals to given state
-        #try eliminate non-active goals by adding long distance
-        active_goals            = self.active_goals[range(batch_size), 0:self.goals_ptr]
-        distances_active        = distances + (1.0 - active_goals)*torch.max(distances)
-        _, distances_ids_active = torch.min(distances_active, dim=1)
-
         #returning goals
         goals_result = torch.zeros((batch_size, self.downsampled_size))
-        goals_result[range(batch_size)] = goals_used[distances_ids_active].clone()
+        goals_result[range(batch_size)] = goals_used[distances_ids].clone()
 
-        self.log_used_goals = len(goals_used)
-
+        
         goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
         goals_result = self.upsample(goals_result)
 
         #add new goal, if add threshold reached
         self._add_goals(states_down, distances_min, dif)
 
+        self.log_used_goals = len(goals_used)
  
-        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy()
+        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy(), current_active.detach().to("cpu").numpy()
 
 
     def activate_goals(self, env_idx):
@@ -94,7 +95,7 @@ class GoalsBuffer:
         #add only new goal : long distance from existing goals
         #add only interesting goal : big change value
         candidates  = (distances_min > self.reach_threshold)*(dif > self.add_threshold)
-         
+        
         indices     = torch.where(candidates > 0)[0]
 
         for idx in indices:
