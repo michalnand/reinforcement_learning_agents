@@ -22,7 +22,7 @@ class GoalsBuffer:
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 3
+        self.goals_ptr      = 1
 
         self.log_used_goals = 0.0
 
@@ -57,8 +57,6 @@ class GoalsBuffer:
         #set new goals - closest goals to given state
         #try eliminate non-active goals by adding long distance
         active_goals = self.active_goals[range(batch_size), 0:self.goals_ptr]
-        print(">>> ", distances.shape, active_goals.shape, torch.max(distances).shape)
-        print(active_goals)
         distances_active        = distances + (1.0 - active_goals)*torch.max(distances)
         _, distances_ids_active = torch.min(distances_active, dim=1)
 
