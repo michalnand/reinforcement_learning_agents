@@ -38,7 +38,7 @@ class GoalsBuffer:
 
         distances   = torch.cdist(states_down, goals_used)
 
-        print(">>> distances = ", distances.shape)
+        print(">>> distances = ", distances.shape, self.goals_ptr)
 
         distances_min, distances_ids = torch.min(distances, dim=1)
 
