@@ -36,6 +36,8 @@ class GoalsBuffer:
         #select only used goals from buffer
         goals_used = self.goals[0:self.goals_ptr]
 
+        print(">>> goals = ", self.goals.shape, goals_used.shape)
+
         distances   = torch.cdist(states_down, goals_used)
 
         distances_min, distances_ids = torch.min(distances, dim=1)
