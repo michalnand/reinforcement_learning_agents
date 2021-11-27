@@ -56,8 +56,8 @@ class GoalsBuffer:
         
         #set new goals - closest goals to given state
         #try eliminate non-active goals by adding long distance
-        print(">>> ", distances.shape, active_goals.shape, torch.max(distances).shape)
-        distances_active        = distances + (1.0 - active_goals)*torch.max(distances)
+        print(">>> ", distances.shape, self.active_goals.shape, torch.max(distances).shape)
+        distances_active        = distances + (1.0 - self.active_goals)*torch.max(distances)
         _, distances_ids_active = torch.min(distances_active, dim=1)
 
         #returning goals
