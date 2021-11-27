@@ -40,9 +40,7 @@ class GoalsBuffer:
 
         distances_min, distances_ids = torch.min(distances, dim=1)
 
-        #add new goal, if add threshold reached
-        self._add_goals(states_down, distances_min, dif)
-
+        
         
         #select only actual goals
         active_goals  = self.active_goals[range(batch_size), distances_ids]
@@ -72,6 +70,10 @@ class GoalsBuffer:
 
         goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
         goals_result = self.upsample(goals_result)
+
+        #add new goal, if add threshold reached
+        self._add_goals(states_down, distances_min, dif)
+
  
         return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy()
 
