@@ -207,8 +207,38 @@ class AgentPPORNDGoals():
         size        = 256
         state       = self.states[env_id]
 
+
+        goals, active   = self.goals_buffer.get_goals_for_render()
+
+        goal_height = goals.shape[2]
+        goal_width  = goals.shape[3]
+
+        count       = goals.shape[0]
+        grid_size   = int(count**0.5) 
+
+        goals_result  = numpy.zeros((grid_size*goals.shape[2], grid_size*goals.shape[3]))
+        active_result = numpy.zeros((grid_size*goals.shape[2], grid_size*goals.shape[3]))
+
+
+        for y in range(grid_size):
+            for x in range(grid_size):
+                y_ = y*goal_height
+                x_ = x*goal_width
+                goals_result[y_:y_+goal_height, x_:x_+goal_width]   = goals[y*grid_size + x][0]
+                active_result[y_:y_+goal_height, x_:x_+goal_width]  = active[env_id][y*grid_size + x]*0.3
+
+        goals_result   = cv2.resize(goals_result, (size, size))
+        active_result  = cv2.resize(active_result, (size, size)) 
+
         result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
         result_im   = cv2.resize(result_im, (3*size, size)) 
+        result_im   = numpy.concatenate([result_im, goals_result, active_result], axis=1)
+
+        cv2.putText(result_im, "observation", (10 + 0*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+        cv2.putText(result_im, "goal",  (10 + 1*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+        cv2.putText(result_im, "reached", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+        cv2.putText(result_im, "goals", (10 + 3*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
+        cv2.putText(result_im, "active", (10 + 4*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255)
 
         cv2.imshow("RND agent", result_im)
         cv2.waitKey(1)
