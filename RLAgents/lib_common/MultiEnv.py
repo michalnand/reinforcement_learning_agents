@@ -279,7 +279,7 @@ class MultiEnvParallel:
 			self.child_conn.append(child_conn)
 			self.workers.append(worker) 
 
-		for i in range(self.envs_count):
+		for i in range(self.threads_count):
 			self.workers[i].start()
 
 	def close(self):
