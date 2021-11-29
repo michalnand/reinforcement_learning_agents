@@ -240,7 +240,7 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 
 class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, threads_count = 4):
+	def __init__(self, env_name, wrapper, envs_count, threads_count = 8):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
