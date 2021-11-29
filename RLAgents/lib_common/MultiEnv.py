@@ -259,7 +259,7 @@ class MultiEnvParallel:
 		self.envs_per_thread		= self.envs_count//self.threads_count
 
 		self.parent_conn	= []
-		self.child_con		= []
+		self.child_conn		= []
 		self.workers		= []
 
 		print("MultiEnvParallel")
