@@ -124,9 +124,6 @@ class MultiEnvParallel:
 		print("\n\n")
 
 		for i in range(self.envs_count):
-			inq	 =	multiprocessing.Queue()
-			outq =	multiprocessing.Queue()
-
 			parent_conn, child_conn = multiprocessing.Pipe()
 
 			worker = multiprocessing.Process(target=env_process_main, args=(i, child_conn, env_name, wrapper))
