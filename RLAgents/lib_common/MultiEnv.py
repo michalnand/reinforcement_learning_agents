@@ -265,7 +265,7 @@ class MultiEnvParallel:
 		print("MultiEnvParallel")
 		print("env_name		   = ", env_name)
 		print("envs_count      = ", self.envs_count)
-		print("threads_count   = ", self.envs_count)
+		print("threads_count   = ", self.threads_count)
 		print("\n\n")
 
 		#create threads
@@ -292,12 +292,12 @@ class MultiEnvParallel:
 	def reset(self, env_id):
 		thread_id, thread_env = self._get_ids(env_id)
 
-		self.parent_conn[thread_id].send(["reset"], thread_env)
+		self.parent_conn[thread_id].send(["reset", thread_env])
 		return self.parent_conn[thread_id].recv() 
 
 	def render(self, env_id):
 		thread_id, thread_env = self._get_ids(env_id)
-		self.parent_conn[thread_id].send(["render"], thread_env)
+		self.parent_conn[thread_id].send(["render", thread_env])
 
 
 	def step(self, actions):
@@ -327,7 +327,7 @@ class MultiEnvParallel:
 
 	def get(self, env_id):
 		thread_id, thread_env = self._get_ids(env_id)
-		self.parent_conn[thread_id].send(["get"], thread_env)
+		self.parent_conn[thread_id].send(["get", thread_env])
 		return self.parent_conn[thread_id].recv()
 
 	def _get_ids(self, env_id):
