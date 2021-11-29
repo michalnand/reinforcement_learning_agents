@@ -331,7 +331,7 @@ class MultiEnvParallel:
 		return self.parent_conn[thread_id].recv()
 
 	def _get_ids(self, env_id):
-		env_id//self.threads_count, env_id%self.threads_count 
+		return env_id//self.threads_count, env_id%self.threads_count 
 
 
 if __name__ == "__main__":
