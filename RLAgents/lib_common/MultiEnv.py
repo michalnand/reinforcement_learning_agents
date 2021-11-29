@@ -272,7 +272,7 @@ class MultiEnvParallel:
 		for i in range(self.threads_count):
 			parent_conn, child_conn = multiprocessing.Pipe()
 
-			worker = multiprocessing.Process(target=env_process_main, args=(i, child_conn, env_name, wrapper, self.envs_per_thread))
+			worker = multiprocessing.Process(target=env_process_main, args=(i, self.envs_per_thread, child_conn, env_name, wrapper))
 			worker.daemon = True
 			
 			self.parent_conn.append(parent_conn)
