@@ -253,10 +253,10 @@ class MultiEnvParallel:
 
 		dummy_env.close()
 
-		self.envs_count 	= envs_count
-		self.threads_count	= threads_count
+		self.envs_count 	 = envs_count
+		self.threads_count	 = threads_count
 
-		self.envs_per_thread		= self.envs_count//self.threads_count
+		self.envs_per_thread = self.envs_count//self.threads_count
 
 		self.parent_conn	= []
 		self.child_conn		= []
@@ -281,6 +281,8 @@ class MultiEnvParallel:
 
 		for i in range(self.threads_count):
 			self.workers[i].start()
+
+		print("len = ", len(self.parent_conn), len(self.child_conn), len(self.workers))
 
 	def close(self):
 		for i in range(len(self.workers)):
@@ -331,8 +333,8 @@ class MultiEnvParallel:
 		return self.parent_conn[thread_id].recv()
 
 	def _get_ids(self, env_id):
-		return env_id//self.threads_count, env_id%self.threads_count 
-
+		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
+  
 
 if __name__ == "__main__":
 	from WrapperAtari import *
