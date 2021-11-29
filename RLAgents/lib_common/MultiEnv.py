@@ -232,7 +232,7 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 
 class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, threads_count = 8):
+	def __init__(self, env_name, wrapper, envs_count, threads_count = 4):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -274,7 +274,6 @@ class MultiEnvParallel:
 		for i in range(self.threads_count):
 			self.workers[i].start()
 
-		print("len = ", len(self.parent_conn), len(self.child_conn), len(self.workers))
 
 	def close(self):
 		for i in range(len(self.workers)):
