@@ -58,172 +58,8 @@ class MultiEnvSeq:
 	def get(self, env_id):
 		return self.envs[env_id]
 
+
 '''
-def env_process_main(id, inq, outq, env_name, wrapper, count):
-
-	print("env_process_main = ", id, count, env_name)
-	envs 	= []
-
-	for _ in range(count):
-		
-		try:
-			env 	= gym.make(env_name)
-			if wrapper is not None:
-				env 	= wrapper(env)
-		except:
-			env 	= wrapper(env_name)
-
-		envs.append(env)
-
-		observation_space 	= env.observation_space
-
-	
-	while True:
-		val = inq.get()
-		
-		if val[0] == "end":
-			break
-
-		elif val[0] == "reset":
-			env_id 	= val[1]
-
-			_obs 	= envs[env_id].reset()
-			
-			outq.put(_obs)
-
-		elif val[0] == "step":
-			actions = val[1]
-
-			obs 		= numpy.zeros((count, ) + observation_space.shape, dtype=numpy.float32)
-			rewards 	= numpy.zeros((count, ), dtype=numpy.float32)
-			dones 		= numpy.zeros((count, ), dtype=bool)
-			infos 		= []
-
-			for i in range(count):
-				_obs, _reward, _done, _info = envs[i].step(actions[i])
-
-				obs[i] 		= _obs
-				rewards[i] 	= _reward
-				dones[i]	= _done 
-				infos.append(_info)
-
-			outq.put((obs, rewards, dones, infos))
-
-		elif val[0] == "render":
-			env_id = val[1]
-			envs[env_id].render()
-
-		elif val[0] == "get":
-			env_id = val[1]
-			outq.put(envs[env_id])
-	
-
-class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count):
-		try:
-			dummy_env 	= gym.make(env_name)
-			if wrapper is not None:
-				dummy_env 	= wrapper(dummy_env)
-		except:
-			dummy_env 	= wrapper(env_name)
-
-		self.observation_space 	= dummy_env.observation_space
-		self.action_space 		= dummy_env.action_space
-
-
-		self.inq		= []
-		self.outq 		= []
-		self.workers 	= []
-
-		envs_per_thread			= 8
-
-		self.envs_count			= envs_count
-		self.threads_count 		= envs_count//envs_per_thread
-		self.envs_per_thread	= envs_per_thread
-
-		print("MultiEnvParallel")
-		print("envs_count      = ", self.envs_count)
-		print("threads_count   = ", self.threads_count)
-		print("envs_per_thread = ", self.envs_per_thread)
-		print("\n\n")
-
-		for i in range(self.threads_count):
-			inq	 =	multiprocessing.Queue()
-			outq =	multiprocessing.Queue()
-
-			worker = multiprocessing.Process(target=env_process_main, args=(i, inq, outq, env_name, wrapper, envs_per_thread))
-			
-			self.inq.append(inq)
-			self.outq.append(outq)
-			self.workers.append(worker) 
-
-		for i in range(self.threads_count):
-			self.workers[i].start()
-
-	
-
-	def close(self):
-		for i in range(len(self.workers)):
-			self.inq[i].put(["end"])
-		
-		for i in range(len(self.workers)):
-			self.workers[i].join()
-
-	def reset(self, env_id):
-		thread, id = self._position(env_id)
-
-		self.inq[thread].put(["reset", id])
-
-		obs = self.outq[thread].get()
-		return obs 
-
-	def render(self, env_id):
-		thread, id = self._position(env_id)
-
-		self.inq[thread].put(["render", id])
-
-
-	def step(self, actions):
-		for j in range(self.threads_count):
-			_actions = []
-			for i in range(self.envs_per_thread):
-				_actions.append(actions[j*self.envs_per_thread + i])
-
-			self.inq[j].put(["step", _actions])
-
-
-		obs 	= numpy.zeros((self.threads_count, self.envs_per_thread) + self.observation_space.shape, dtype=numpy.float32)
-		rewards = numpy.zeros((self.threads_count, self.envs_per_thread), dtype=numpy.float32)
-		dones 	= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=bool)
-		infos 	= None
-
-		for j in range(self.threads_count):
-			_obs, _reward, _done, _info = self.outq[j].get()
-
-			obs[j] 		= _obs
-			rewards[j] 	= _reward
-			dones[j] 	= _done
-
-
-		obs 		= numpy.reshape(obs, (self.threads_count*self.envs_per_thread, ) + self.observation_space.shape)
-		rewards 	= numpy.reshape(rewards, (self.threads_count*self.envs_per_thread, ))
-		dones 		= numpy.reshape(dones, (self.threads_count*self.envs_per_thread, ))
-
-		return obs, rewards, dones, infos
-
-	def get(self, env_id):
-		thread, id = self._position(env_id)
-
-		self.inq[thread].put(["get", id])
-
-		return self.outq[thread].get()
-
-	def _position(self, env_id):
-		return env_id//self.envs_per_thread, env_id%self.envs_per_thread
-'''
-
-
-
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -340,7 +176,162 @@ class MultiEnvParallel:
 	def get(self, env_id):
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
+'''
 
+
+
+
+def env_process_main(id, envs_count, child_conn, env_name, wrapper):
+	envs = []
+
+	#create envs
+	for i in range(envs_count):
+		print("env_process_main = ", id, i)
+
+		try:
+			env 	= gym.make(env_name)
+			if wrapper is not None:
+				env 	= wrapper(env)
+		except:
+			env 	= wrapper(env_name)
+
+		envs.append(env)
+
+	#init buffers
+	observations 	= numpy.zeros((envs_count, ) + envs[0].observation_space.shape, dtype=numpy.float32)
+	rewards 		= numpy.zeros(envs_count, dtype=numpy.float32)
+	dones 			= numpy.zeros(envs_count, dtype=bool)
+	infos 			= []
+
+	while True:
+		val 	= child_conn.recv()
+		infos 	= []
+		
+		if val[0] == "step":
+			actions = val[1]
+
+			for i in range(envs_count):
+				obs, reward, done, info = envs[i].step(actions[i])
+				observations[i] = obs
+				rewards[i] 		= reward
+				dones[i] 		= done
+				infos.append(info)
+
+			child_conn.send((observations, rewards, dones, infos))
+		
+		elif val[0] == "end":
+			for i in range(envs_count):
+				envs[i].close()
+			break
+
+		elif val[0] == "reset":
+			env_id 	= val[1]
+			obs 	= envs[env_id].reset()
+			child_conn.send(obs)
+
+		elif val[0] == "render":
+			env_id 	= val[1]
+			envs[env_id].render() 
+
+		elif val[0] == "get":
+			env_id 	= val[1]
+			child_conn.send(envs[env_id])
+
+
+
+class MultiEnvParallel:
+	def __init__(self, env_name, wrapper, envs_count, threads_count):
+		try:
+			dummy_env 	= gym.make(env_name)
+			if wrapper is not None:
+				dummy_env 	= wrapper(dummy_env)
+		except:
+			dummy_env 	= wrapper(env_name)
+
+		self.observation_space 	= dummy_env.observation_space
+		self.action_space 		= dummy_env.action_space
+
+		dummy_env.close()
+
+		self.envs_count 	= envs_count
+		self.threads_count	= threads_count
+
+		self.envs_per_thread		= self.envs_count//self.threads_count
+
+		self.parent_conn	= []
+		self.child_con		= []
+		self.workers		= []
+
+		print("MultiEnvParallel")
+		print("env_name		   = ", env_name)
+		print("envs_count      = ", self.envs_count)
+		print("threads_count   = ", self.envs_count)
+		print("\n\n")
+
+		#create threads
+		for i in range(self.threads_count):
+			parent_conn, child_conn = multiprocessing.Pipe()
+
+			worker = multiprocessing.Process(target=env_process_main, args=(i, child_conn, env_name, wrapper, self.envs_per_thread))
+			worker.daemon = True
+			
+			self.parent_conn.append(parent_conn)
+			self.child_conn.append(child_conn)
+			self.workers.append(worker) 
+
+		for i in range(self.envs_count):
+			self.workers[i].start()
+
+	def close(self):
+		for i in range(len(self.workers)):
+			self.parent_conn[i].send(["end"])
+		
+		for i in range(len(self.workers)):
+			self.workers[i].join()
+
+	def reset(self, env_id):
+		thread_id, thread_env = self._get_ids(env_id)
+
+		self.parent_conn[thread_id].send(["reset"], thread_env)
+		return self.parent_conn[thread_id].recv() 
+
+	def render(self, env_id):
+		thread_id, thread_env = self._get_ids(env_id)
+		self.parent_conn[thread_id].send(["render"], thread_env)
+
+
+	def step(self, actions):
+		for i in range(self.threads_count):
+			self.parent_conn[i].send(["step", actions[(i+0)*self.envs_per_thread:(i+1)*self.envs_per_thread]])
+
+		observations 	= numpy.zeros((self.threads_count, self.envs_per_thread) + self.observation_space.shape, dtype=numpy.float32)
+		rewards 		= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=numpy.float32)
+		dones 			= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=bool)
+		infos 			= []
+ 
+		for i in range(self.threads_count):
+			_obs, _reward, _done, _info = self.parent_conn[i].recv()
+
+			observations[i]	= _obs
+			rewards[i] 		= _reward
+			dones[i] 		= _done
+
+			for j in range(len(_info)):
+				infos.append(_info[j])
+
+		obs = numpy.reshape(observations, (self.envs_count, ) + self.observation_space.shape)
+		rewards = numpy.reshape(rewards, (self.envs_count, ))
+		dones = numpy.reshape(dones, (self.envs_count, ))
+			
+		return obs, rewards, dones, infos
+
+	def get(self, env_id):
+		thread_id, thread_env = self._get_ids(env_id)
+		self.parent_conn[thread_id].send(["get"], thread_env)
+		return self.parent_conn[thread_id].recv()
+
+	def _get_ids(self, env_id):
+		env_id//self.threads_count, env_id%self.threads_count 
 
 
 if __name__ == "__main__":

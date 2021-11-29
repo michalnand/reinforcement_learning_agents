@@ -41,7 +41,6 @@ class GoalsBuffer:
 
         distances_min, distances_ids = torch.min(distances, dim=1)
 
-        
         #select only actual goals
         active_goals  = self.active_goals[range(batch_size), distances_ids]
 
@@ -97,8 +96,8 @@ class GoalsBuffer:
         return s0_down, dif
 
     def _add_goals(self, goals, distances_min, dif):
-        #add only new goal : long distance from existing goals
-        #add only interesting goal : big change value
+        #add only new goal          : long distance from existing goals
+        #add only interesting goal  : big value change
         candidates  = (distances_min > self.reach_threshold)*(dif > self.add_threshold)
         
         indices     = torch.where(candidates > 0)[0]
