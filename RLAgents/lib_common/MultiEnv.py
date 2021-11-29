@@ -59,7 +59,7 @@ class MultiEnvSeq:
 		return self.envs[env_id]
 
 
-'''
+
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -176,11 +176,11 @@ class MultiEnvParallel:
 	def get(self, env_id):
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
+
+
+
+
 '''
-
-
-
-
 def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 	envs = []
 
@@ -334,7 +334,7 @@ class MultiEnvParallel:
 
 	def _get_ids(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
-  
+'''
 
 if __name__ == "__main__":
 	from WrapperAtari import *
