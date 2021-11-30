@@ -179,10 +179,12 @@ class AgentPPORNDGoals():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
+        self.goals_buffer.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
+        self.goals_buffer.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 

@@ -27,7 +27,6 @@ class GoalsBuffer:
 
         self.log_used_goals = 0.0
 
-
     def step(self, states):
         batch_size  = states.shape[0]
         states      = torch.from_numpy(states)
@@ -48,12 +47,14 @@ class GoalsBuffer:
         reached = active_goals*(distances_min < self.reach_threshold)
         rewards = 1.0*(reached > 0.0)
 
-        #flag for active goals
-        current_active = active_goals.unsqueeze(1).unsqueeze(2).unsqueeze(3)
-        current_active = torch.tile(current_active, (1, 1, states.shape[2], states.shape[3]))
-
         #clear reached goal to inactive state
         self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
+
+        #flag for already reached goals
+        size            = int(self.buffer_size**0.5) 
+        current_active  = 1.0 - active_goals.reshape((batch_size, 1, size, size))
+        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[2]//size, dim=2)
+        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[3]//size, dim=3)
         
         #returning goals
         goals_result = torch.zeros((batch_size, self.downsampled_size))
@@ -81,6 +82,13 @@ class GoalsBuffer:
         active = torch.tile(active, (1, self.goal_shape[1], self.goal_shape[2]))
 
         return goals.detach().to("cpu").numpy(), active.detach().to("cpu").numpy()
+
+    def save(self, path):
+        numpy.save(path + "goals.npy", self.goals)
+
+    def load(self, path):
+        numpy.load(path + "goals.npy", self.goals)
+
 
     def _preprocess(self, states):
         batch_size  = states.shape[0]
