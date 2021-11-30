@@ -23,7 +23,7 @@ class GoalsBuffer:
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 3
+        self.goals_ptr      = 1
 
         self.log_used_goals = 0.0
 
