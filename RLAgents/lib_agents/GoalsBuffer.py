@@ -23,7 +23,7 @@ class GoalsBuffer:
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 1
+        self.goals_ptr      = 3
 
         self.log_used_goals = 0.0
 
@@ -52,7 +52,7 @@ class GoalsBuffer:
 
         #flag for already reached goals
         size            = int(self.buffer_size**0.5) 
-        current_active  = 1.0 - active_goals.reshape((batch_size, 1, size, size))
+        current_active  = 1.0 - self.active_goals.reshape((batch_size, 1, size, size))
         current_active  = torch.repeat_interleave(current_active, repeats=states.shape[2]//size, dim=2)
         current_active  = torch.repeat_interleave(current_active, repeats=states.shape[3]//size, dim=3)
         
