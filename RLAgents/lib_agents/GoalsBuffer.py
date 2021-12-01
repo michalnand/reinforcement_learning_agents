@@ -50,7 +50,7 @@ class GoalsBuffer:
         #clear reached goal to inactive state
         self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
 
-        #flag for already reached goals
+        #flags for already reached goals
         size            = int(self.buffer_size**0.5) 
         current_active  = 1.0 - self.active_goals.reshape((batch_size, 1, size, size))
         current_active  = torch.repeat_interleave(current_active, repeats=states.shape[2]//size, dim=2)
@@ -84,10 +84,10 @@ class GoalsBuffer:
         return goals.detach().to("cpu").numpy(), active.detach().to("cpu").numpy()
 
     def save(self, path):
-        numpy.save(path + "goals.npy", self.goals)
+        numpy.save(path + "goals.npy", self.goals.detach().to("cpu").numpy())
 
     def load(self, path):
-        numpy.load(path + "goals.npy", self.goals)
+        self.goals = torch.from_numpy(numpy.load(path + "goals.npy"))
 
 
     def _preprocess(self, states):
