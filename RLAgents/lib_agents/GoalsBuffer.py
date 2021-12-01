@@ -89,7 +89,6 @@ class GoalsBuffer:
     def load(self, path):
         self.goals = torch.from_numpy(numpy.load(path + "goals.npy"))
 
-
     def _preprocess(self, states):
         batch_size  = states.shape[0]
 
