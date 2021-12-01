@@ -39,7 +39,7 @@ class TrainingIterations:
         time_now = time.time()
         dt       = 0.0
 
-        filter_k = 0.3
+        filter_k = 0.1
 
         time_remaining = 0.0
         for iteration in range(self.iterations_count):
