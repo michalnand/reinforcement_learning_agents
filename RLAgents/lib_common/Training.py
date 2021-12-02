@@ -114,7 +114,7 @@ class TrainingIterations:
                 score_per_episode_buffer[raw_episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
                 #save the best (if any), every 10episodes
-                if raw_episodes > 0 and raw_episodes%10 == 0:
+                if raw_episodes >= len(score_per_episode_buffer):
                     raw_score_per_hundred_episode = score_per_episode_buffer.mean()
 
                     if raw_score_per_hundred_episode > raw_score_per_episode_best:

@@ -25,7 +25,7 @@ class GoalsBuffer:
 
         self.goals_ptr      = 1
 
-        self.log_used_goals = 0.0
+        self.log_used_goals = self.goals_ptr
 
     def step(self, states):
         batch_size  = states.shape[0]
