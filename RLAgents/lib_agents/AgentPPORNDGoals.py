@@ -211,7 +211,7 @@ class AgentPPORNDGoals():
         state   = self.states[env_id]
 
 
-        goals   = self.goals_buffer.get_goals_for_render()
+        goals, _   = self.goals_buffer.get_goals_for_render()
 
         goal_height = goals.shape[2]
         goal_width  = goals.shape[3]
@@ -230,14 +230,14 @@ class AgentPPORNDGoals():
 
         goals_result   = cv2.resize(goals_result, (size, size))
 
-        result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
-        result_im   = cv2.resize(result_im, (3*size, size)) 
+        result_im   = numpy.concatenate([state[0], state[4]], axis=1)
+        result_im   = cv2.resize(result_im, (2*size, size)) 
         result_im   = numpy.concatenate([result_im, goals_result], axis=1)
 
         cv2.putText(result_im, "observation", (10 + 0*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
         cv2.putText(result_im, "goal",  (10 + 1*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "reached", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goals buffer", (10 + 3*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        #cv2.putText(result_im, "reached", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goals buffer", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
         cv2.imshow("RND goals agent", result_im)
         cv2.waitKey(1)

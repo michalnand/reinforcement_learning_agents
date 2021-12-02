@@ -23,7 +23,7 @@ class GoalsBuffer:
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 1
+        self.goals_ptr      = 0
 
         self.log_used_goals = self.goals_ptr
 
@@ -32,6 +32,11 @@ class GoalsBuffer:
         states      = torch.from_numpy(states)
 
         states_down, dif   = self._preprocess(states)
+
+        #add initial goal
+        if self.goals_ptr == 0:
+            self.goals[self.goals_ptr] = states_down[0].clone()
+            self.goals_ptr+= 1
         
         #select only used goals from buffer
         goals_used = self.goals[0:self.goals_ptr]
