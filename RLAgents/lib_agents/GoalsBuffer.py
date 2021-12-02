@@ -24,8 +24,7 @@ class GoalsBuffer:
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
         self.goals_ptr      = 0
-
-        self.log_used_goals = self.goals_ptr
+        self.log_used_goals = 0
 
     def step(self, states):
         batch_size  = states.shape[0]
@@ -72,6 +71,8 @@ class GoalsBuffer:
         #add new goal, if add threshold reached
         self._add_goals(states_down, distances_min, dif)
  
+        self.log_used_goals = self.goals_ptr
+
         return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy(), current_active.detach().to("cpu").numpy()
 
 
@@ -117,7 +118,4 @@ class GoalsBuffer:
         for idx in indices:
             if self.goals_ptr < self.buffer_size:
                 self.goals[self.goals_ptr] = goals[idx].clone()
-                self.goals_ptr = self.goals_ptr + 1
-
-                self.log_used_goals = self.goals_ptr
-        
+                self.goals_ptr = self.goals_ptr + 1        
