@@ -34,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -132,8 +132,17 @@ class AgentPPORNDGoals():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
+        #add score information to state
+        #value range from <0, 1>
+        #progress period is 32score points
+        score_progress = (1.0 - numpy.cos(2.0*numpy.pi*self.episode_score_sum/32.0))/2.0
+
+        #tile score information to state
+        score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
+        score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[2], self.state_shape[3]))
+
         #create new state
-        self.states = numpy.concatenate([states, goals], axis=1)
+        self.states = numpy.concatenate([states, goals, score_progress], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -147,7 +156,7 @@ class AgentPPORNDGoals():
                 s       = self.envs.reset(e)
                 zero    = numpy.zeros(self.goal_shape)
 
-                self.states[e] = numpy.concatenate([s, zero], axis=0)
+                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
 
                 self.episode_score_sum[e] = 0.0
 
@@ -230,14 +239,14 @@ class AgentPPORNDGoals():
 
         goals_result   = cv2.resize(goals_result, (size, size))
 
-        result_im   = numpy.concatenate([state[0], state[4]], axis=1)
-        result_im   = cv2.resize(result_im, (2*size, size)) 
+        result_im   = numpy.concatenate([state[0], state[3], state[4]], axis=1)
+        result_im   = cv2.resize(result_im, (3*size, size)) 
         result_im   = numpy.concatenate([result_im, goals_result], axis=1)
 
         cv2.putText(result_im, "observation", (10 + 0*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
         cv2.putText(result_im, "goal",  (10 + 1*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        #cv2.putText(result_im, "reached", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goals buffer", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "progress", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goals buffer", (10 + 3*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
         cv2.imshow("RND goals agent", result_im)
         cv2.waitKey(1)
@@ -413,7 +422,7 @@ class AgentPPORNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros], axis=1)
+            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)

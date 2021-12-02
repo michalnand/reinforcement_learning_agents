@@ -62,7 +62,19 @@ class GoalsBuffer:
         
         #returning goals
         goals_result = torch.zeros((batch_size, self.downsampled_size))
-        goals_result[range(batch_size)] = goals_used[distances_ids].clone()
+        
+        #naive aproach : 
+        #goals_result[range(batch_size)] = goals_used[distances_ids].clone()
+        
+        #add max-distance (some big number) to non-active goals, to avoid using them as goals
+        max_distance  = torch.max(distances)
+        active_goals  = self.active_goals[range(batch_size), 0:self.goals_ptr]
+        distances_tmp = distances + max_distance*(1.0 - active_goals)
+
+
+        _, distances_ids_tmp = torch.min(distances_tmp, dim=1)
+        goals_result[range(batch_size)] = goals_used[distances_ids_tmp].clone()
+        
 
         
         goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
