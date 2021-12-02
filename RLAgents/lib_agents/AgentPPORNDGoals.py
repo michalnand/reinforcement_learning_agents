@@ -139,7 +139,7 @@ class AgentPPORNDGoals():
 
         #tile score information to state
         score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
-        score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[2], self.state_shape[3]))
+        score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
 
         #create new state
         self.states = numpy.concatenate([states, goals, score_progress], axis=1)
