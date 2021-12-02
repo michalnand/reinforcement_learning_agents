@@ -16,8 +16,8 @@ class GoalsBuffer:
         self.downsampled_size   = self.goal_shape[0]*self.goal_shape[1]*self.goal_shape[2]
 
         #init buffers
-        self.goals          = torch.zeros((self.buffer_size, self.downsampled_size))
-        self.active_goals   = torch.ones((envs_count, self.buffer_size))
+        self.goals          = torch.zeros((self.buffer_size, self.downsampled_size), dtype=torch.float32)
+        self.active_goals   = torch.ones((envs_count, self.buffer_size), dtype=torch.float32)
         self.active_goals[range(envs_count), 0] = 0.0
 
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)

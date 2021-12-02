@@ -64,7 +64,8 @@ class AgentPPORNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e][0:self.state_shape[0]-2] = self.envs.reset(e).copy()
+            state = self.envs.reset(e)
+            self.states[e][0:state.shape[1]] = state.copy()
  
  
         self.enable_training()
