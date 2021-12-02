@@ -28,7 +28,7 @@ class GoalsBuffer:
 
     def step(self, states):
         batch_size  = states.shape[0]
-        states      = torch.from_numpy(states)
+        states      = torch.from_numpy(states).float()
 
         states_down, dif   = self._preprocess(states)
 
