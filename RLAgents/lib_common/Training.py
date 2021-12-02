@@ -113,12 +113,12 @@ class TrainingIterations:
                 #log score per episode
                 score_per_episode_buffer[raw_episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
-                #save the best (if any), every 10episodes
+                #save the best (if any)
                 if raw_episodes >= len(score_per_episode_buffer):
-                    raw_score_per_hundred_episode = score_per_episode_buffer.mean()
+                    mean_score = score_per_episode_buffer.mean()
 
-                    if raw_score_per_hundred_episode > raw_score_per_episode_best:
-                        raw_score_per_episode_best = raw_score_per_hundred_episode
+                    if mean_score > raw_score_per_episode_best:
+                        raw_score_per_episode_best = mean_score
                         new_best = True
             
                 if new_best == True:
