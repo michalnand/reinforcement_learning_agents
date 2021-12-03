@@ -106,6 +106,15 @@ class GoalsBuffer:
 
     def load(self, path):
         self.goals = torch.from_numpy(numpy.load(path + "goals.npy"))
+        
+        #move goals pointer to last non-used position
+        self.goals_ptr = 0
+        for i in range(len(self.goals)):
+            v  = self.goals[i].sum()
+            self.goals_ptr+= 1
+            if v < 0.001:
+                break
+
 
     def _preprocess(self, states):
         batch_size  = states.shape[0]

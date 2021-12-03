@@ -123,7 +123,7 @@ class VisitedRoomsEnv(gym.Wrapper):
                 self.rooms.append(obs[0].copy())
             else:
                 distance, room_id = self._distance(obs[0])
-                if distance > 200 and len(self.rooms) < 100:
+                if distance > 0.01 and len(self.rooms) < 100:
                     self.rooms.append(obs[0].copy())
 
                 self.room_id        = room_id
@@ -146,7 +146,7 @@ class VisitedRoomsEnv(gym.Wrapper):
 
         shape       = (distances.shape[0], numpy.prod(distances.shape[1:]))
         distances   = distances.reshape(shape)
-        distances   = distances.sum(axis=1)
+        distances   = distances.mean(axis=1)
 
         return numpy.min(distances), numpy.argmin(distances)
 

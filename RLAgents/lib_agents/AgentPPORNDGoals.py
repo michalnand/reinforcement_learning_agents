@@ -239,7 +239,7 @@ class AgentPPORNDGoals():
 
         goals_result   = cv2.resize(goals_result, (size, size))
 
-        result_im   = numpy.concatenate([state[0], state[3], state[4]], axis=1)
+        result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
         result_im   = cv2.resize(result_im, (3*size, size)) 
         result_im   = numpy.concatenate([result_im, goals_result], axis=1)
 
