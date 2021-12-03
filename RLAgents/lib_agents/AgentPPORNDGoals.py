@@ -34,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 1, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -132,6 +132,7 @@ class AgentPPORNDGoals():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
+        '''
         #add score information to state
         #value range from <0, 1>
         #progress period is 32score points
@@ -140,9 +141,10 @@ class AgentPPORNDGoals():
         #tile score information to state
         score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
         score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
+        '''
 
-        #create new state
-        self.states = numpy.concatenate([states, goals, score_progress], axis=1)
+        #create new state   
+        self.states = numpy.concatenate([states, goals], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -157,7 +159,7 @@ class AgentPPORNDGoals():
                 s       = self.envs.reset(e)
                 zero    = numpy.zeros(self.goal_shape)
 
-                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
+                self.states[e] = numpy.concatenate([s, zero], axis=0)
 
                 self.episode_score_sum[e] = 0.0
 
@@ -324,7 +326,6 @@ class AgentPPORNDGoals():
         '''
         values_ext_new  = values_ext_new.squeeze(1)
         loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
-        print("loss_ext_value =  ", loss_ext_value.shape)
         loss_ext_value  = loss_ext_value.mean()
 
         '''
@@ -333,7 +334,6 @@ class AgentPPORNDGoals():
         '''
         values_int_a_new  = values_int_a_new.squeeze(1)
         loss_int_a_value  = (returns_int_a.detach() - values_int_a_new)**2
-        print("loss_int_a_value =  ", loss_int_a_value.shape)
         loss_int_a_value  = loss_int_a_value.mean()
 
 
@@ -343,7 +343,6 @@ class AgentPPORNDGoals():
         '''
         values_int_b_new  = values_int_b_new.squeeze(1)
         loss_int_b_value  = (returns_int_b.detach() - values_int_b_new)**2
-        print("loss_int_b_value =  ", loss_int_b_value.shape)
         loss_int_b_value  = loss_int_b_value.mean()
         
         loss_critic     = loss_ext_value + loss_int_a_value + loss_int_b_value
@@ -426,7 +425,7 @@ class AgentPPORNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
+            states_     = numpy.concatenate([states, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)
