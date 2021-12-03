@@ -178,8 +178,6 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 	#create envs
 	for i in range(envs_count):
-		print("env_process_main = ", id, i)
-
 		try:
 			env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -188,6 +186,9 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 			env 	= wrapper(env_name)
 
 		envs.append(env)
+
+	print("env_process_main = ", id)
+
 
 	#init buffers
 	observations 	= numpy.zeros((envs_count, ) + envs[0].observation_space.shape, dtype=numpy.float32)
