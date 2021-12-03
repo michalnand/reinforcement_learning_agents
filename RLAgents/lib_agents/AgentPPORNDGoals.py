@@ -141,12 +141,6 @@ class AgentPPORNDGoals():
         score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
         score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
 
-
-        err_goals = (goals - numpy.round(256*goals)/256.0)**2
-        err_score_progress = (score_progress - numpy.round(256*score_progress)/256.0)**2
-
-        print(">>> ", numpy.mean(err_goals), numpy.max(err_goals), numpy.mean(err_score_progress), numpy.max(err_score_progress))
-
         #create new state   
         self.states = numpy.concatenate([states, goals, score_progress], axis=1)
       
