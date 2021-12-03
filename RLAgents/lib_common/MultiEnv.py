@@ -59,7 +59,7 @@ class MultiEnvSeq:
 		return self.envs[env_id]
 
 
-
+'''
 def env_process_main(id, child_conn, env_name, wrapper):
 
 	print("env_process_main = ", id, env_name)
@@ -169,10 +169,10 @@ class MultiEnvParallel:
 	def get(self, env_id):
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
-
-
-
 '''
+
+
+
 def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 	envs = []
 
@@ -204,7 +204,7 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 			for i in range(envs_count):
 				obs, reward, done, info = envs[i].step(actions[i])
-				observations[i] = obs
+				observations[i] = obs.copy()
 				rewards[i] 		= reward
 				dones[i] 		= done
 				infos.append(info)
@@ -232,7 +232,7 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 
 class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, threads_count = 8):
+	def __init__(self, env_name, wrapper, envs_count, threads_count = 4):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -325,7 +325,7 @@ class MultiEnvParallel:
 
 	def _get_ids(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
-'''
+
 
 if __name__ == "__main__":
 	from WrapperAtari import *
