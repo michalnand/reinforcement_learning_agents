@@ -34,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 0, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -142,7 +142,8 @@ class AgentPPORNDGoals():
         score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
 
         #create new state   
-        self.states = numpy.concatenate([states, goals, score_progress], axis=1)
+        #self.states = numpy.concatenate([states, goals, score_progress], axis=1)
+        self.states = states.copy()
       
         #put into policy buffer
         if self.enabled_training:
@@ -155,9 +156,9 @@ class AgentPPORNDGoals():
            
             if dones[e]:
                 s       = self.envs.reset(e)
-                zero    = numpy.zeros(self.goal_shape)
-
-                self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
+                #zero    = numpy.zeros(self.goal_shape)
+                #self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
+                self.states[e] = s.copy()
 
                 self.episode_score_sum[e] = 0.0
 
@@ -422,11 +423,11 @@ class AgentPPORNDGoals():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
+            #zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
+            #states_     = numpy.concatenate([states, zeros, zeros], axis=1)
 
             #update stats
-            self.states_running_stats.update(states_)
+            self.states_running_stats.update(states)
 
             for e in range(self.envs_count): 
                 if dones[e]:
