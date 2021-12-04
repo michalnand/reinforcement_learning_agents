@@ -66,7 +66,7 @@ class PolicyBufferIM:
         self.ptr = 0  
  
 
-    def compute_returns(self, gamma_ext = 0.99, gamma_int = 0.9, lam = 0.95):
+    def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
         
@@ -111,7 +111,7 @@ class PolicyBufferIM:
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
 
-    def _gae(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+    def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         

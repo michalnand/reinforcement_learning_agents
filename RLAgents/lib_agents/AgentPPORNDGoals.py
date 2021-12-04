@@ -34,7 +34,7 @@ class AgentPPORNDGoals():
         self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 0, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
 
         self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
@@ -124,7 +124,7 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals, _ = self.goals_buffer.step(self.states)  
+        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
@@ -132,6 +132,7 @@ class AgentPPORNDGoals():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
+        '''
         #add score information to state
         #value range from <0, 1>
         #progress period is 32score points
@@ -140,10 +141,10 @@ class AgentPPORNDGoals():
         #tile score information to state
         score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
         score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
+        '''
 
         #create new state   
-        #self.states = numpy.concatenate([states, goals, score_progress], axis=1)
-        self.states = states.copy()
+        self.states = numpy.concatenate([states, goals, active], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -156,10 +157,9 @@ class AgentPPORNDGoals():
            
             if dones[e]:
                 s       = self.envs.reset(e)
-                #zero    = numpy.zeros(self.goal_shape)
-                #self.states[e] = numpy.concatenate([s, zero, zero], axis=0)
-                self.states[e] = s.copy()
-
+                zeros   = numpy.zeros(self.goal_shape)
+                self.states[e] = numpy.concatenate([s, zeros, zeros], axis=0)
+                
                 self.episode_score_sum[e] = 0.0
 
                 self.goals_buffer.activate_goals(e)
@@ -423,11 +423,11 @@ class AgentPPORNDGoals():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            #zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            #states_     = numpy.concatenate([states, zeros, zeros], axis=1)
+            zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
+            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
 
             #update stats
-            self.states_running_stats.update(states)
+            self.states_running_stats.update(states_)
 
             for e in range(self.envs_count): 
                 if dones[e]:

@@ -74,7 +74,7 @@ class PolicyBufferIMDual:
         self.returns_ext, self.advantages_ext       = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int_a, self.advantages_int_a   = self._gae(self.reward_int_a, self.values_int_a, self.dones, gamma_int_a, lam)
         self.returns_int_b, self.advantages_int_b   = self._gae(self.reward_int_b, self.values_int_b, self.dones, gamma_int_b, lam)
-        
+
         #reshape buffer for faster batch sampling
         self.states           = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
         self.logits           = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
