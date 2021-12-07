@@ -142,7 +142,6 @@ class GoalsBuffer:
         numpy.save(path + "gb_am.npy", self.am)
 
     def load(self, path):
-        return
         self.goals = torch.from_numpy(numpy.load(path + "goals.npy"))
         self.am    = numpy.load(path + "am.npy")
         
