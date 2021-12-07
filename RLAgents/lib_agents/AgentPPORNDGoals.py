@@ -32,11 +32,12 @@ class AgentPPORNDGoals():
         self.normalise_im_std    = config.normalise_im_std
 
         self.goals_reactivate    = config.goals_reactivate
+        self.input_goals_count   = config.input_goals_count
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + self.input_goals_count, ) + state_shape[1:]
 
-        self.goal_shape     = (1, ) + state_shape[1:]
+        self.goal_shape     = (self.input_goals_count, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
@@ -46,7 +47,7 @@ class AgentPPORNDGoals():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
+        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, self.input_goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
         
         self.episode_score_sum          = numpy.zeros(self.envs_count)
 
@@ -59,6 +60,7 @@ class AgentPPORNDGoals():
         self.states_running_stats       = RunningStats(self.state_shape)
         self.rewards_int_running_stats  = RunningStats((1, ))
 
+        #if self.envs_count > 1:
         self._init_running_stats()
         
         #reset envs and fill initial state
@@ -124,27 +126,17 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
+        rewards_int_b, goals = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
 
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
-        '''
-        #add score information to state
-        #value range from <0, 1>
-        #progress period is 32score points
-        score_progress = (1.0 - numpy.cos(2.0*numpy.pi*self.episode_score_sum/32.0))/2.0
-
-        #tile score information to state
-        score_progress = numpy.expand_dims(score_progress, axis=(1, 2, 3))
-        score_progress = numpy.tile(score_progress, (1, 1, self.state_shape[1], self.state_shape[2]))
-        '''
-
         #create new state   
-        self.states = numpy.concatenate([states, goals, active], axis=1)
+        self.states = numpy.concatenate([states, goals], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -158,7 +150,7 @@ class AgentPPORNDGoals():
             if dones[e]:
                 s       = self.envs.reset(e)
                 zeros   = numpy.zeros(self.goal_shape)
-                self.states[e] = numpy.concatenate([s, zeros, zeros], axis=0)
+                self.states[e] = numpy.concatenate([s, zeros], axis=0)
                 
                 self.episode_score_sum[e] = 0.0
 
@@ -221,34 +213,43 @@ class AgentPPORNDGoals():
         size    = 256
         state   = self.states[env_id]
 
+        goals, graph   = self.goals_buffer.get_for_render()
 
-        goals, _   = self.goals_buffer.get_goals_for_render()
+        state_resized   = cv2.resize(state[0], (size, size))
 
-        goal_height = goals.shape[2]
-        goal_width  = goals.shape[3]
+        goal_resized_0  = cv2.resize(state[4], (size, size))
+        goal_resized_1  = cv2.resize(state[5], (size, size))
+        goal_resized_2  = cv2.resize(state[6], (size, size))
+        goal_resized_3  = cv2.resize(state[7], (size, size))
 
-        count       = goals.shape[0]
-        grid_size   = int(count**0.5) 
+        goals_resized   = cv2.resize(goals, (size, size))
+        graph_resized   = cv2.resize(graph, (size, size))
 
-        goals_result  = numpy.zeros((grid_size*goals.shape[2], grid_size*goals.shape[3]))
+        result_im       = numpy.zeros((2*size, 4*size))
 
+        result_im[0*size:1*size, 0*size:1*size] = state_resized
 
-        for y in range(grid_size):
-            for x in range(grid_size):
-                y_ = y*goal_height
-                x_ = x*goal_width
-                goals_result[y_:y_+goal_height, x_:x_+goal_width]   = goals[y*grid_size + x][0]
+        result_im[0*size:1*size, 1*size:2*size] = goals_resized
+        result_im[0*size:1*size, 2*size:3*size] = graph_resized
 
-        goals_result   = cv2.resize(goals_result, (size, size))
+        result_im[1*size:2*size, 0*size:1*size] = goal_resized_0
+        result_im[1*size:2*size, 1*size:2*size] = goal_resized_1
+        result_im[1*size:2*size, 2*size:3*size] = goal_resized_2
+        result_im[1*size:2*size, 3*size:4*size] = goal_resized_3
+        result_im   = cv2.resize(result_im, (4*size, 2*size)) 
+        
 
-        result_im   = numpy.concatenate([state[0], state[4], state[5]], axis=1)
-        result_im   = cv2.resize(result_im, (3*size, size)) 
-        result_im   = numpy.concatenate([result_im, goals_result], axis=1)
+        text_ofs_x = 10
+        text_ofs_y = size - 20
 
-        cv2.putText(result_im, "observation", (10 + 0*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goal",  (10 + 1*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "progress", (10 + 2*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goals buffer", (10 + 3*size, size - 20), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "observation",       (text_ofs_x + 0*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goals buffer",      (text_ofs_x + 1*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "graph connection",  (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+
+        cv2.putText(result_im, "goal 0",        (text_ofs_x + 0*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goal 1",        (text_ofs_x + 1*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goal 2",        (text_ofs_x + 2*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goal 3",        (text_ofs_x + 3*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
         cv2.imshow("RND goals agent", result_im)
         cv2.waitKey(1)
@@ -424,7 +425,8 @@ class AgentPPORNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
+
+            states_     = numpy.concatenate([states, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)
