@@ -32,12 +32,11 @@ class AgentPPORNDGoals():
         self.normalise_im_std    = config.normalise_im_std
 
         self.goals_reactivate    = config.goals_reactivate
-        self.input_goals_count   = config.input_goals_count
 
         state_shape         = self.envs.observation_space.shape
-        self.state_shape    = (state_shape[0] + self.input_goals_count, ) + state_shape[1:]
+        self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
 
-        self.goal_shape     = (self.input_goals_count, ) + state_shape[1:]
+        self.goal_shape     = (1, ) + state_shape[1:]
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
@@ -47,7 +46,7 @@ class AgentPPORNDGoals():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, self.input_goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
+        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
         
         self.episode_score_sum          = numpy.zeros(self.envs_count)
 
@@ -126,7 +125,7 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-        rewards_int_b, goals = self.goals_buffer.step(self.states)  
+        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
         self.episode_goals_reached+= (rewards_int_b > 0.9)
@@ -136,7 +135,7 @@ class AgentPPORNDGoals():
         self.states_running_stats.update(states_np)
 
         #create new state   
-        self.states = numpy.concatenate([states, goals], axis=1)
+        self.states = numpy.concatenate([states, goals, active], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -150,7 +149,7 @@ class AgentPPORNDGoals():
             if dones[e]:
                 s       = self.envs.reset(e)
                 zeros   = numpy.zeros(self.goal_shape)
-                self.states[e] = numpy.concatenate([s, zeros], axis=0)
+                self.states[e] = numpy.concatenate([s, zeros, zeros], axis=0)
                 
                 self.episode_score_sum[e] = 0.0
 
@@ -213,43 +212,30 @@ class AgentPPORNDGoals():
         size    = 256
         state   = self.states[env_id]
 
-        goals, graph   = self.goals_buffer.get_for_render()
+        goals           = self.goals_buffer.get_goals_for_render()
 
-        state_resized   = cv2.resize(state[0], (size, size))
+        state_resized   = cv2.resize(state[0],  (size, size))
+        goal_resized    = cv2.resize(state[4],  (size, size))
+        active_resized  = cv2.resize(state[5],  (size, size))
+        goals_resized   = cv2.resize(goals,     (size, size))
 
-        goal_resized_0  = cv2.resize(state[4], (size, size))
-        goal_resized_1  = cv2.resize(state[5], (size, size))
-        goal_resized_2  = cv2.resize(state[6], (size, size))
-        goal_resized_3  = cv2.resize(state[7], (size, size))
-
-        goals_resized   = cv2.resize(goals, (size, size))
-        graph_resized   = cv2.resize(graph, (size, size))
-
-        result_im       = numpy.zeros((2*size, 4*size))
+        result_im       = numpy.zeros((size, 4*size))
 
         result_im[0*size:1*size, 0*size:1*size] = state_resized
+        result_im[0*size:1*size, 1*size:2*size] = goal_resized
+        result_im[0*size:1*size, 2*size:3*size] = active_resized
+        result_im[0*size:1*size, 3*size:4*size] = goals_resized
 
-        result_im[0*size:1*size, 1*size:2*size] = goals_resized
-        result_im[0*size:1*size, 2*size:3*size] = graph_resized
-
-        result_im[1*size:2*size, 0*size:1*size] = goal_resized_0
-        result_im[1*size:2*size, 1*size:2*size] = goal_resized_1
-        result_im[1*size:2*size, 2*size:3*size] = goal_resized_2
-        result_im[1*size:2*size, 3*size:4*size] = goal_resized_3
-        result_im   = cv2.resize(result_im, (4*size, 2*size)) 
+        result_im   = cv2.resize(result_im, (4*size, 1*size)) 
         
 
         text_ofs_x = 10
         text_ofs_y = size - 20
 
         cv2.putText(result_im, "observation",       (text_ofs_x + 0*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goals buffer",      (text_ofs_x + 1*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "graph connection",  (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-
-        cv2.putText(result_im, "goal 0",        (text_ofs_x + 0*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goal 1",        (text_ofs_x + 1*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goal 2",        (text_ofs_x + 2*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goal 3",        (text_ofs_x + 3*size, text_ofs_y + 1*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goal",              (text_ofs_x + 1*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "reached goals ",    (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goals buffer  ",    (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
         cv2.imshow("RND goals agent", result_im)
         cv2.waitKey(1)
@@ -426,7 +412,7 @@ class AgentPPORNDGoals():
 
             zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
 
-            states_     = numpy.concatenate([states, zeros], axis=1)
+            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
 
             #update stats
             self.states_running_stats.update(states_)

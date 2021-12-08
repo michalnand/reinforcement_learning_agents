@@ -4,16 +4,15 @@ import numpy
  
 class GoalsBuffer:  
 
-    def __init__(self, envs_count, buffer_size, agent_goals_count, add_threshold, reach_threshold, downsample, state_shape):
+    def __init__(self, envs_count, buffer_size, add_threshold, reach_threshold, downsample, state_shape):
 
         self.buffer_size        = buffer_size
-        self.agent_goals_count  = agent_goals_count
         self.add_threshold      = add_threshold
         self.reach_threshold    = reach_threshold
         self.downsample         = downsample
 
         self.goal_shape         = (1, state_shape[1]//self.downsample, state_shape[2]//self.downsample)
-        self.goals_shape        = (self.agent_goals_count, state_shape[1]//self.downsample, state_shape[2]//self.downsample)
+
         self.downsampled_size   = self.goal_shape[0]*self.goal_shape[1]*self.goal_shape[2]
 
         #init buffers
@@ -21,20 +20,11 @@ class GoalsBuffer:
         self.active_goals   = torch.ones((envs_count, self.buffer_size), dtype=torch.float32)
         self.active_goals[range(envs_count), 0] = 0.0
 
-        #adjacency matrix, with connections counting
-        self.am             = numpy.zeros((self.buffer_size, self.buffer_size), dtype=int)
-
-        self.closest_ids_prev   = numpy.zeros(envs_count, dtype=int)
-        self.closest_ids        = numpy.zeros(envs_count, dtype=int)
-        
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 1
+        self.goals_ptr      = 0
         self.log_used_goals = 0
-
-
-        
 
     def step(self, states):
         batch_size  = states.shape[0]
@@ -43,65 +33,59 @@ class GoalsBuffer:
         states_down, dif   = self._preprocess(states)
 
         #add initial goal
-        if self.goals_ptr == 1:
+        if self.goals_ptr == 0:
             self.goals[self.goals_ptr] = states_down[0].clone()
             self.goals_ptr+= 1
-
-        #first goals (zeros), is always active
-        self.active_goals[:,0] = 1.0
         
         #select only used goals from buffer
-        goals_used  = self.goals[0:self.goals_ptr]
+        goals_used = self.goals[0:self.goals_ptr]
 
         distances   = torch.cdist(states_down, goals_used)
 
-        self.closest_ids_prev           = self.closest_ids.copy()
-        closest_distances, closest_ids  = torch.min(distances, dim=1)
-        self.closest_ids                = closest_ids.detach().to("cpu").numpy()
+        distances_min, distances_ids = torch.min(distances, dim=1)
 
-        #update connections graph matrix
-        for i in range(batch_size):
-            self.am[self.closest_ids_prev[i]][self.closest_ids[i]]+= 1
-
-        #compute reward from active goals
-        #select only active goals
-        active_goals  = self.active_goals[range(batch_size), self.closest_ids]
+        #select only actual goals
+        active_goals  = self.active_goals[range(batch_size), distances_ids]
 
         #reward only if goal is active and reached close distance
-        reached = active_goals*(closest_distances < self.reach_threshold)
+        reached = active_goals*(distances_min < self.reach_threshold)
         rewards = 1.0*(reached > 0.0)
 
         #clear reached goal to inactive state
-        self.active_goals[range(batch_size), self.closest_ids] = active_goals*(1.0 - reached)
+        self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
 
-         
-
-
-
-        #returning goals
-        goals_result = torch.zeros((batch_size, self.agent_goals_count, self.downsampled_size))
-
-        #clear diagonal, to avoid self goals
-        am_cleared = self.am.copy()
-        numpy.fill_diagonal(am_cleared, 0)
-
-        #from graph matrix, select only active goals ids
-        goals_counts_candidates = self.active_goals*am_cleared[self.closest_ids]
-
-        #find indices where the highest counts presents
-        #argsort returs in ascending order, so reoder it, and select N-best
-        goals_ids       = numpy.argsort(goals_counts_candidates, axis=1)[:,-self.agent_goals_count:]
-
-        goals_result    = self.goals[goals_ids, :]
+        #flags for already reached goals
+        size            = int(self.buffer_size**0.5) 
+        current_active  = 1.0 - self.active_goals.reshape((batch_size, 1, size, size))
+        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[2]//size, dim=2)
+        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[3]//size, dim=3)
         
-        goals_result    = goals_result.reshape((batch_size, ) + self.goals_shape)
-        goals_result    = self.upsample(goals_result)
+        #returning goals
+        goals_result = torch.zeros((batch_size, self.downsampled_size))
+        
+        #naive aproach : 
+        #goals_result[range(batch_size)] = goals_used[distances_ids].clone()
+        
+        #add max-distance (some big number) to non-active goals, to avoid using them as goals
+        max_distance  = torch.max(distances)
+        active_goals  = self.active_goals[range(batch_size), 0:self.goals_ptr]
+        distances_tmp = distances + max_distance*(1.0 - active_goals)
+
+
+        _, distances_ids_tmp = torch.min(distances_tmp, dim=1)
+        goals_result[range(batch_size)] = goals_used[distances_ids_tmp].clone()
+        
+
+        
+        goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
+        goals_result = self.upsample(goals_result)
 
         #add new goal, if add threshold reached
-        self._add_goals(states_down, closest_distances, dif)
+        self._add_goals(states_down, distances_min, dif)
  
+        self.log_used_goals = self.goals_ptr
 
-        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy()
+        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy(), current_active.detach().to("cpu").numpy()
 
 
     def activate_goals(self, env_idx):
@@ -109,19 +93,20 @@ class GoalsBuffer:
         self.active_goals[env_idx][0]   = 0.0
 
 
-    def get_for_render(self):
+    def get_goals_for_render(self):
         goals  = self.goals.reshape((self.buffer_size, ) + self.goal_shape)
-        active = self.active_goals[0]
-
-        active = active.reshape((active.shape[0], 1, 1, 1))
-
+ 
         grid_size   = int(self.buffer_size**0.5) 
-        goal_height = self.goals_shape[1]
-        goal_width  = self.goals_shape[2]
+        goal_height = self.goal_shape[1]
+        goal_width  = self.goal_shape[2]
 
-        goals = goals*(1.0 + active)/2.0
+        active  = self.active_goals.unsqueeze(2).unsqueeze(3)
+        active  = torch.tile(active, (1, goal_height, goal_width))
 
-        goals_result  = numpy.zeros((grid_size*goals.shape[2], grid_size*goals.shape[3]))
+        goals   = goals*(1.0 + 100*active)/2.0
+        goals   = goals.detach().to("cpu").numpy()
+
+        goals_result  = numpy.zeros((grid_size*goal_height, grid_size*goal_width))
 
         for y in range(grid_size):
             for x in range(grid_size):
@@ -129,21 +114,23 @@ class GoalsBuffer:
                 x_ = x*goal_width
                 goals_result[y_:y_+goal_height, x_:x_+goal_width]   = goals[y*grid_size + x][0]
 
-        #clear diagonal, to avoid self goals
-        am_cleared = self.am.copy()
-        numpy.fill_diagonal(am_cleared, 0)
+        #flags for already reached goals
+        size            = int(self.buffer_size**0.5) 
+        current_active  = 1.0 - self.active_goals[0].reshape((size, size))
 
-        am_norm = am_cleared/(numpy.max(am_cleared) + 0.0000001)
- 
-        return goals_result, am_norm
+        current_active  = torch.repeat_interleave(current_active, repeats=goals_result.shape[0]//size, dim=0)
+        current_active  = torch.repeat_interleave(current_active, repeats=goals_result.shape[1]//size, dim=1)
+        current_active  = current_active.detach().to("cpu").numpy()
+        
+        goals_result = goals_result*(1.0 + current_active)/2.0
+
+        return goals_result
 
     def save(self, path):
-        numpy.save(path + "gb_goals.npy", self.goals.detach().to("cpu").numpy())
-        numpy.save(path + "gb_am.npy", self.am)
+        numpy.save(path + "goals.npy", self.goals.detach().to("cpu").numpy())
 
     def load(self, path):
         self.goals = torch.from_numpy(numpy.load(path + "goals.npy"))
-        self.am    = numpy.load(path + "am.npy")
         
         #move goals pointer to last non-used position
         self.goals_ptr = 0
@@ -177,6 +164,4 @@ class GoalsBuffer:
         for idx in indices:
             if self.goals_ptr < self.buffer_size:
                 self.goals[self.goals_ptr] = goals[idx].clone()
-                self.goals_ptr = self.goals_ptr + 1 
-
-        self.log_used_goals = self.goals_ptr       
+                self.goals_ptr = self.goals_ptr + 1        
