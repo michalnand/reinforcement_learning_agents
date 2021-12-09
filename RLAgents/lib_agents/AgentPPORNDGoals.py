@@ -235,7 +235,7 @@ class AgentPPORNDGoals():
         cv2.putText(result_im, "observation",       (text_ofs_x + 0*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
         cv2.putText(result_im, "goal",              (text_ofs_x + 1*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
         cv2.putText(result_im, "reached goals ",    (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
-        cv2.putText(result_im, "goals buffer  ",    (text_ofs_x + 2*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
+        cv2.putText(result_im, "goals buffer  ",    (text_ofs_x + 3*size, text_ofs_y + 0*size), cv2.FONT_HERSHEY_SIMPLEX, 1, 255, 2)
 
         cv2.imshow("RND goals agent", result_im)
         cv2.waitKey(1)

@@ -114,6 +114,8 @@ class GoalsBuffer:
                 x_ = x*goal_width
                 goals_result[y_:y_+goal_height, x_:x_+goal_width]   = goals[y*grid_size + x][0]
 
+        goals_result = goals_result/(numpy.max(goals_result) + 0.00001)
+
         #flags for already reached goals
         size            = int(self.buffer_size**0.5) 
         current_active  = 1.0 - self.active_goals[0].reshape((size, size))
@@ -121,7 +123,7 @@ class GoalsBuffer:
         current_active  = torch.repeat_interleave(current_active, repeats=goals_result.shape[0]//size, dim=0)
         current_active  = torch.repeat_interleave(current_active, repeats=goals_result.shape[1]//size, dim=1)
         current_active  = current_active.detach().to("cpu").numpy()
-        
+
         goals_result = goals_result*(1.0 + current_active)/2.0
 
         return goals_result
