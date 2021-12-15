@@ -53,17 +53,15 @@ class TrainingIterations:
                 #compute fps, and remaining time in hours
                 dt              = (time_now - time_prev)/self.log_period_iterations
                 time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
- 
-            if isinstance(self.env, list):
-                env = self.env[0]
-            elif isinstance(self.env, MultiEnvSeq):
-                env = self.env.get(0)
-            elif isinstance(self.env, MultiEnvParallel):
-                env = self.env.get(0)
-            elif isinstance(self.env, MultiEnvParallelOptimised):
-                env = self.env.get(0)
+
+
+            if hasattr(self.agent, "get_raw_score"):
+                res                     = self.env.get_raw_score(0)
+                raw_episodes            = res[0] 
+                raw_score_per_episode   = res[1]
             else:
-                env = self.env
+                raw_episodes            = None
+                raw_score_per_episode   = None
 
             #episode done, update score per episode
             score_per_episode_+= reward
@@ -74,17 +72,13 @@ class TrainingIterations:
                 score_per_episode_= 0.0
                 
             #get raw episodes count if availible
-            if hasattr(env, "raw_episodes"):
-                raw_episodes = env.raw_episodes 
-            else:
+            if raw_episodes is None:
                 raw_episodes = episodes
-
+           
             #get raw score per episode if availible
-            if hasattr(env, "raw_score_per_episode"):
-                raw_score_per_episode = env.raw_score_per_episode
-            else:
+            if raw_score_per_episode is None:
                 raw_score_per_episode = score_per_episode
-
+           
             #get aditional log if present
             log_agent = "" 
             if hasattr(self.agent, "get_log"):

@@ -58,6 +58,19 @@ class MultiEnvSeq:
 	def get(self, env_id):
 		return self.envs[env_id]
 
+	def get_raw_score(self, env_id):
+		if hasattr(self.envs[env_id], "raw_episodes"):
+			raw_episodes = self.envs[env_id].raw_episodes 
+		else:
+			raw_episodes = None
+
+		if hasattr(self.envs[env_id], "raw_score_per_episode"):
+			raw_score_per_episode = self.envs[env_id].raw_score_per_episode 
+		else:
+			raw_score_per_episode = None
+
+		return raw_episodes, raw_score_per_episode
+
 
 
 def env_process_main(id, child_conn, env_name, wrapper):
@@ -93,7 +106,20 @@ def env_process_main(id, child_conn, env_name, wrapper):
 
 		elif val[0] == "get":
 			child_conn.send(env)
-	
+
+		elif val[0] == "get_raw_score":
+			if hasattr(env, "raw_episodes"):
+				raw_episodes = env.raw_episodes 
+			else:
+				raw_episodes = None
+
+			if hasattr(env, "raw_score_per_episode"):
+				raw_score_per_episode = env.raw_score_per_episode 
+			else:
+				raw_score_per_episode = None
+
+			child_conn.send([raw_episodes, raw_score_per_episode])
+
 
 class MultiEnvParallel:
 	def __init__(self, env_name, wrapper, envs_count):
@@ -170,6 +196,16 @@ class MultiEnvParallel:
 		self.parent_conn[env_id].send(["get"])
 		return self.parent_conn[env_id].recv()
 
+	
+	def get_raw_score(self, env_id):
+		self.parent_conn[env_id].send(["get_raw_score"])
+
+		res = self.parent_conn[env_id].recv()
+		return res[0], res[1]
+		
+
+	
+
 
 
 
@@ -229,6 +265,22 @@ def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 		elif val[0] == "get":
 			env_id 	= val[1]
 			child_conn.send(envs[env_id])
+
+		elif val[0] == "get_raw_score":
+			env_id 	= val[1]
+
+			if hasattr(envs[env_id], "raw_episodes"):
+				raw_episodes = envs[env_id].raw_episodes 
+			else:
+				raw_episodes = None
+
+			if hasattr(envs[env_id], "raw_score_per_episode"):
+				raw_score_per_episode = envs[env_id].raw_score_per_episode 
+			else:
+				raw_score_per_episode = None
+
+			child_conn.send([raw_episodes, raw_score_per_episode])
+
 
 
 
@@ -326,6 +378,13 @@ class MultiEnvParallelOptimised:
 		self.parent_conn[thread_id].send(["get", thread_env])
 		return self.parent_conn[thread_id].recv()
 
+	def get_raw_score(self, env_id):
+		thread_id, thread_env = self._get_ids(env_id)
+		self.parent_conn[thread_id].send(["get_raw_score", thread_env])
+
+		res = self.parent_conn[thread_id].recv()
+		return res[0], res[1]
+
 	def _get_ids(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
 
@@ -352,4 +411,4 @@ if __name__ == "__main__":
 
 
 		fps = envs_count*1.0/(te - ts)
-		print("fps = ", fps, infos[0])
+		print("fps = ", fps, envs.get_raw_score(1))
