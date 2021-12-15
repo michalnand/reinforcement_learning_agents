@@ -206,11 +206,14 @@ class AgentPPOFastSlow():
         k    = 0.02
         step = 0
 
+        ae_batch_size = 32
+
+        batch_count = self.steps//ae_batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
 
-                states = self.policy_buffer.sample_states(32, self.model_ppo.device)
-        
+                states = self.policy_buffer.sample_states(ae_batch_size, self.model_ppo.device)
+         
                 if step%self.im_alpha_downsample == 0:
                     #train ae model A, MSE loss
                     noise = self.im_noise_level*torch.randn(states.shape).to(states.device)
