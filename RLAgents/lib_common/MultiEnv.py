@@ -171,9 +171,9 @@ class MultiEnvParallel:
 		return self.parent_conn[env_id].recv()
 
 
-'''
 
-def env_process_main(id, envs_count, child_conn, env_name, wrapper):
+
+def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 	envs = []
 
 	#create envs
@@ -232,8 +232,8 @@ def env_process_main(id, envs_count, child_conn, env_name, wrapper):
 
 
 
-class MultiEnvParallel:
-	def __init__(self, env_name, wrapper, envs_count, threads_count = 8):
+class MultiEnvParallelOptimises:
+	def __init__(self, env_name, wrapper, envs_count, threads_count = 4):
 		try:
 			dummy_env 	= gym.make(env_name)
 			if wrapper is not None:
@@ -265,7 +265,7 @@ class MultiEnvParallel:
 		for i in range(self.threads_count):
 			parent_conn, child_conn = multiprocessing.Pipe()
 
-			worker = multiprocessing.Process(target=env_process_main, args=(i, self.envs_per_thread, child_conn, env_name, wrapper))
+			worker = multiprocessing.Process(target=env_process_main_optimised, args=(i, self.envs_per_thread, child_conn, env_name, wrapper))
 			#worker.daemon = True
 			
 			self.parent_conn.append(parent_conn)
@@ -328,7 +328,7 @@ class MultiEnvParallel:
 
 	def _get_ids(self, env_id):
 		return env_id//self.envs_per_thread, env_id%self.envs_per_thread 
-'''
+
 
 if __name__ == "__main__":
 	from WrapperAtari import *
