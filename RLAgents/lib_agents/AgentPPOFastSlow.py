@@ -190,7 +190,6 @@ class AgentPPOFastSlow():
 
         batch_count = self.steps//self.batch_size
 
-        step = 0
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
@@ -204,8 +203,14 @@ class AgentPPOFastSlow():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                k = 0.02
+        k    = 0.02
+        step = 0
 
+        for e in range(self.training_epochs):
+            for batch_idx in range(batch_count):
+
+                states = self.policy_buffer.sample_states(32, self.model_ppo.device)
+        
                 if step%self.im_alpha_downsample == 0:
                     #train ae model A, MSE loss
                     noise = self.im_noise_level*torch.randn(states.shape).to(states.device)

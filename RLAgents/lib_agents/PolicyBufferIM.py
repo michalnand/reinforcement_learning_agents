@@ -110,6 +110,13 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
+    def sample_states(self, batch_size, device):
+        indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size)
+
+        states          = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
+        
+        return states
+  
 
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
