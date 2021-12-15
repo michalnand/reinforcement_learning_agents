@@ -216,9 +216,7 @@ class AgentPPOFastSlow():
          
                 if step%self.im_alpha_downsample == 0:
                     #train ae model A, MSE loss
-                    noise = self.im_noise_level*torch.randn(states.shape).to(states.device)
-
-                    prediction_a_t, _, = self.model_ae_a(states + noise)
+                    prediction_a_t, _, = self.model_ae_a(states, self.im_noise_level)
                     loss_ae_a = ((states.detach() - prediction_a_t)**2).mean()
                     
                     self.optimizer_ae_a.zero_grad() 
@@ -229,9 +227,7 @@ class AgentPPOFastSlow():
 
                 if step%self.im_beta_downsample == 0:
                     #train ae model B, MSE loss
-                    noise = self.im_noise_level*torch.randn(states.shape).to(states.device)
-
-                    prediction_b_t, _, = self.model_ae_b(states + noise)
+                    prediction_b_t, _, = self.model_ae_b(states, self.im_noise_level)
                     loss_ae_b = ((states.detach() - prediction_b_t)**2).mean()
                     
                     self.optimizer_ae_b.zero_grad() 
@@ -320,11 +316,8 @@ class AgentPPOFastSlow():
     
     #compute internal motivation
     def _curiosity(self, state_t):
-        noise_a     = self.im_noise_level*torch.randn(state_t.shape).to(state_t.device)
-        noise_b     = self.im_noise_level*torch.randn(state_t.shape).to(state_t.device)
-
-        _, im_a_t   = self.model_ae_a(state_t + noise_a)
-        _, im_b_t   = self.model_ae_b(state_t + noise_b)
+        _, im_a_t   = self.model_ae_a(state_t, self.im_noise_level)
+        _, im_b_t   = self.model_ae_b(state_t, self.im_noise_level)
 
         return im_a_t.detach().to("cpu").numpy(), im_b_t.detach().to("cpu").numpy()
 
