@@ -1,5 +1,5 @@
 from .Decay                 import DecayConst, DecayStep, DecayLinear, DecayLinearDelayed, DecayExponential  
-from .MultiEnv              import MultiEnvSeq, MultiEnvParallel
+from .MultiEnv              import MultiEnvSeq, MultiEnvParallel, MultiEnvParallelOptimised
 
 from .RLStats               import RLStats
 from .RLStatsCompute        import RLStatsCompute
