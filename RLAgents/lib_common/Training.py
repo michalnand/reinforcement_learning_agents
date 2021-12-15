@@ -55,7 +55,7 @@ class TrainingIterations:
                 time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
 
 
-            if hasattr(self.agent, "get_raw_score"):
+            if hasattr(self.env, "get_raw_score"):
                 res                     = self.env.get_raw_score(0)
                 raw_episodes            = res[0] 
                 raw_score_per_episode   = res[1]
