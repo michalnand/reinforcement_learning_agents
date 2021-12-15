@@ -59,8 +59,8 @@ class AgentPPORNDGoals():
         self.states_running_stats       = RunningStats(self.state_shape)
         self.rewards_int_running_stats  = RunningStats((1, ))
 
-        #if self.envs_count > 1:
-        self._init_running_stats()
+        if self.envs_count > 1:
+            self._init_running_stats()
         
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)

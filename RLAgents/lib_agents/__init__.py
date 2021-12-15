@@ -34,6 +34,7 @@ from .AgentDDPGCuriosity            import AgentDDPGCuriosity
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPOFastSlow              import AgentPPOFastSlow
 from .AgentPPORNDEntropy            import AgentPPORNDEntropy
 from .AgentPPORNDSiam               import AgentPPORNDSiam
 from .AgentPPORNDMulti              import AgentPPORNDMulti
