@@ -232,7 +232,7 @@ def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 
 
 
-class MultiEnvParallelOptimises:
+class MultiEnvParallelOptimised:
 	def __init__(self, env_name, wrapper, envs_count, threads_count = 4):
 		try:
 			dummy_env 	= gym.make(env_name)
