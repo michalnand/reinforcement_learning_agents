@@ -60,6 +60,8 @@ class TrainingIterations:
                 env = self.env.get(0)
             elif isinstance(self.env, MultiEnvParallel):
                 env = self.env.get(0)
+            elif isinstance(self.env, MultiEnvParallelOptimised):
+                env = self.env.get(0)
             else:
                 env = self.env
 
@@ -73,7 +75,7 @@ class TrainingIterations:
                 
             #get raw episodes count if availible
             if hasattr(env, "raw_episodes"):
-                raw_episodes = env.raw_episodes
+                raw_episodes = env.raw_episodes 
             else:
                 raw_episodes = episodes
 

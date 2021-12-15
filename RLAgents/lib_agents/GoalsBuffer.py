@@ -4,11 +4,10 @@ import numpy
  
 class GoalsBuffer:  
 
-    def __init__(self, envs_count, buffer_size, add_threshold, reach_threshold, downsample, state_shape):
+    def __init__(self, buffer_size, add_threshold, downsample, state_shape):
 
         self.buffer_size        = buffer_size
         self.add_threshold      = add_threshold
-        self.reach_threshold    = reach_threshold
         self.downsample         = downsample
 
         self.goal_shape         = (1, state_shape[1]//self.downsample, state_shape[2]//self.downsample)
@@ -17,80 +16,116 @@ class GoalsBuffer:
 
         #init buffers
         self.goals          = torch.zeros((self.buffer_size, self.downsampled_size), dtype=torch.float32)
-        self.active_goals   = torch.ones((envs_count, self.buffer_size), dtype=torch.float32)
-        self.active_goals[range(envs_count), 0] = 0.0
+        self.steps          = torch.zeros(self.buffer_size, dtype=torch.float32)
+        self.rewards        = torch.zeros(self.buffer_size, dtype=torch.float32)
+        self.rewards_sum    = torch.zeros(self.buffer_size, dtype=torch.float32)
+        self.visited_count  = torch.zeros(self.buffer_size, dtype=torch.float32)
 
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
         self.goals_ptr      = 0
-        self.log_used_goals = 0
 
-    def step(self, states):
+    def step(self, states, current_goals, steps, rewards, rewards_sum):
         batch_size  = states.shape[0]
         states      = torch.from_numpy(states).float()
 
-        states_down, dif   = self._preprocess(states)
+        states_down = self._preprocess(states)
 
         #add initial goal
         if self.goals_ptr == 0:
-            self.goals[self.goals_ptr] = states_down[0].clone()
+            self.goals[self.goals_ptr]          = states_down[0].clone()
+            self.steps[self.goals_ptr]          = steps[0]
+            self.rewards[self.goals_ptr]        = rewards[0]
+            self.rewards_sum[self.goals_ptr]    = rewards_sum[0]
+            self.visited_count[self.goals_ptr]  = 1
+
             self.goals_ptr+= 1
         
         #select only used goals from buffer
-        goals_used = self.goals[0:self.goals_ptr]
+        goals_used  = self.goals[0:self.goals_ptr]
 
         distances   = torch.cdist(states_down, goals_used)
 
+        #select closest
         distances_min, distances_ids = torch.min(distances, dim=1)
 
-        #select only actual goals
-        active_goals  = self.active_goals[range(batch_size), distances_ids]
 
-        #reward only if goal is active and reached close distance
-        reached = active_goals*(distances_min < self.reach_threshold)
-        rewards = 1.0*(reached > 0.0)
+        steps_reward, bigger_reward, bigger_sum_reward, visited_reward = self._update_existing(distances_min, distances_ids, steps, rewards, rewards_sum)
 
-        #clear reached goal to inactive state
-        self.active_goals[range(batch_size), distances_ids] = active_goals*(1.0 - reached)
+        internal_motivation = steps_reward + bigger_reward + bigger_sum_reward + visited_reward
 
-        #flags for already reached goals
-        size            = int(self.buffer_size**0.5) 
-        current_active  = 1.0 - self.active_goals.reshape((batch_size, 1, size, size))
-        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[2]//size, dim=2)
-        current_active  = torch.repeat_interleave(current_active, repeats=states.shape[3]//size, dim=3)
-        
-        #returning goals
-        goals_result = torch.zeros((batch_size, self.downsampled_size))
-        
-        #naive aproach : 
-        #goals_result[range(batch_size)] = goals_used[distances_ids].clone()
-        
-        #add max-distance (some big number) to non-active goals, to avoid using them as goals
-        max_distance  = torch.max(distances)
-        active_goals  = self.active_goals[range(batch_size), 0:self.goals_ptr]
-        distances_tmp = distances + max_distance*(1.0 - active_goals)
-
-
-        _, distances_ids_tmp = torch.min(distances_tmp, dim=1)
-        goals_result[range(batch_size)] = goals_used[distances_ids_tmp].clone()
-        
-
-        
-        goals_result = goals_result.reshape((batch_size, ) + self.goal_shape)
-        goals_result = self.upsample(goals_result)
-
-        #add new goal, if add threshold reached
-        self._add_goals(states_down, distances_min, dif)
+        #add new goals if any
+        self._add_new(distances_min, distances_ids, states_down, steps, rewards, rewards_sum)
  
-        self.log_used_goals = self.goals_ptr
+        new_goals, reached_reward = self._detect_reached(current_goals, internal_motivation)
 
-        return rewards.detach().to("cpu").numpy(), goals_result.detach().to("cpu").numpy(), current_active.detach().to("cpu").numpy()
+        internal_motivation+= reached_reward
+
+        return new_goals, internal_motivation
+
+    def _update_existing(self, distances_min, distances_ids, steps, rewards, rewards_sum, k = 0.1):
+        
+        candidates      = torch.where(distances_min <= self.add_threshold)[0]
+
+        batch_size      = distances_min.shape[0]
+
+        steps_reward        = torch.zeros(batch_size, dtype=torch.float32)
+        bigger_reward       = torch.zeros(batch_size, dtype=torch.float32)
+        bigger_sum_reward   = torch.zeros(batch_size, dtype=torch.float32)
+        visited_reward      = torch.zeros(batch_size, dtype=torch.float32)
+
+        for i in range(len(candidates)):
+            goal_idx    = distances_ids[i]
+            source_idx  = candidates[i]
+
+            #udpate steps count if less 
+            if self.steps[goal_idx] > steps[source_idx]:
+                self.steps[goal_idx] = (1.0 - k)*self.steps[goal_idx] + k*steps[source_idx]
+                steps_reward[source_idx] = 1.0
+
+            #update rewards if bigger
+            if self.rewards[goal_idx] < rewards[source_idx]:
+                self.rewards[goal_idx] = rewards[source_idx]
+                bigger_reward[source_idx] = 1.0
+
+            #update rewards_sum if bigger
+            if self.rewards_sum[goal_idx] < rewards_sum[source_idx]:
+                self.rewards_sum[goal_idx] = rewards_sum[source_idx]
+                bigger_sum_reward[source_idx] = 1.0
+
+            #increment visited
+            self.visited_count[goal_idx]+= 1
+            visited_reward[source_idx] = 1.0/(1.0 + (self.visited_count[goal_idx]**0.5))
+
+        return steps_reward, bigger_reward, bigger_sum_reward, visited_reward
 
 
-    def activate_goals(self, env_idx):
-        self.active_goals[env_idx]      = 1.0
-        self.active_goals[env_idx][0]   = 0.0
+    def _add_new(self, distances_min, states_down, steps, rewards, rewards_sum):
+        candidates = torch.where(distances_min > self.add_threshold)[0]
+
+        for i in range(len(candidates)):
+            if self.goals_ptr < self.buffer_size:
+                idx = candidates[i]
+
+                self.goals[self.goals_ptr]          = states_down[idx].clone()
+                self.steps[self.goals_ptr]          = steps[idx]
+                self.rewards[self.goals_ptr]        = rewards[idx]
+                self.rewards_sum[self.goals_ptr]    = rewards_sum[idx]
+                self.visited_count[self.goals_ptr]  = 1
+                
+                self.goals_ptr+= 1
+
+    def _detect_reached(self, states_down, current_goals, internal_motivation):
+        new_goals = current_goals.clone()
+
+        goals_down = self._preprocess(current_goals)
+
+        reached_reward = torch.zeros(current_goals.shape[0], dtype=torch.float32)
+
+
+
+        return new_goals, reached_reward
 
 
     def get_goals_for_render(self):
@@ -146,24 +181,9 @@ class GoalsBuffer:
     def _preprocess(self, states):
         batch_size  = states.shape[0]
 
-        s0_down = self.downsample(states[range(batch_size), 0].unsqueeze(1))
-        s0_down = torch.flatten(s0_down, start_dim=1)
-
-        s1_down = self.downsample(states[range(batch_size), 1].unsqueeze(1))
-        s1_down = torch.flatten(s1_down, start_dim=1)
-
-        dif     = torch.abs(s0_down - s1_down).mean(dim=1)
+        result = self.downsample(states[range(batch_size), 0].unsqueeze(1))
+        result = torch.flatten(result, start_dim=1)
  
-        return s0_down, dif
+        return result
 
-    def _add_goals(self, goals, distances_min, dif):
-        #add only new goal          : long distance from existing goals
-        #add only interesting goal  : big value change
-        candidates  = (distances_min > self.reach_threshold)*(dif > self.add_threshold)
-        
-        indices     = torch.where(candidates > 0)[0]
-
-        for idx in indices:
-            if self.goals_ptr < self.buffer_size:
-                self.goals[self.goals_ptr] = goals[idx].clone()
-                self.goals_ptr = self.goals_ptr + 1        
+ 

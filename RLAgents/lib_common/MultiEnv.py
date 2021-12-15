@@ -331,10 +331,11 @@ class MultiEnvParallelOptimised:
 
 
 if __name__ == "__main__":
-	from WrapperAtari import *
-	envs_count = 128
-	#envs = MultiEnvSeq("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
-	envs = MultiEnvParallel("MsPacmanNoFrameskip-v4", WrapperAtari, envs_count)
+	from WrapperMontezuma import *
+	envs_count = 32
+	#envs = MultiEnvSeq("MontezumaRevengeNoFrameskip-v4", WrapperMontezuma, envs_count)
+	#envs = MultiEnvParallel("MontezumaRevengeNoFrameskip-v4", WrapperMontezuma, envs_count)
+	envs = MultiEnvParallelOptimised("MontezumaRevengeNoFrameskip-v4", WrapperMontezuma, envs_count)
  
 	for i in range(envs_count):
 		envs.reset(i)
@@ -342,12 +343,13 @@ if __name__ == "__main__":
 	while True:
 		actions = numpy.random.randint(9, size=envs_count)
 		ts = time.time()
-		states, rewards, dones, _ = envs.step(actions)
+		states, rewards, dones, infos = envs.step(actions)
 		te = time.time()
 
 		for i in range(envs_count):
 			if dones[i] == True:
 				envs.reset(i)
 
+
 		fps = envs_count*1.0/(te - ts)
-		print("fps = ", fps)
+		print("fps = ", fps, infos[0])
