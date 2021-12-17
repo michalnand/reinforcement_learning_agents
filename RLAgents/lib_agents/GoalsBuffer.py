@@ -86,7 +86,7 @@ class GoalsBuffer:
         reached = numpy.repeat(reached, self.goal_shape[1]//grid_size, axis=2)
         reached = numpy.repeat(reached, self.goal_shape[2]//grid_size, axis=3)
 
-        return self.current_goals, reached, im
+        return self.current_goals, reached, im, reached_goals
 
     #sample new goal
     def reset(self, env_id):

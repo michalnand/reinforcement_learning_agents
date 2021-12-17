@@ -95,10 +95,7 @@ class AgentPPORNDGoals():
         states_t = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t  = self.model_ppo.forward(states_t)
-
-        #TODO - remove
-        values_int_b_t  = values_int_a_t
+        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
 
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -129,11 +126,10 @@ class AgentPPORNDGoals():
 
         #goal motivation - state transfer reached
 
-        goals, reached, rewards_int_b = self.goals_buffer.step(self.states, self.episode_score_sum)  
+        goals, reached, rewards_int_b, reached_flag = self.goals_buffer.step(self.states, self.episode_score_sum)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
-        #self.episode_goals_reached+= (reached > 0.9)
-
+        self.episode_goals_reached+= (reached_flag > 0.0)
 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
