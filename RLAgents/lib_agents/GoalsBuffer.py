@@ -72,11 +72,6 @@ class GoalsBuffer:
 
         im = bigger_sum_reward + visited_reward  + reached_goals
 
-        print(bigger_sum_reward)
-        print(visited_reward)
-        print(reached_goals)
-        print("\n\n")
-
         '''
         if (reached_goals[0] > 0):
             print("bigger_sum_reward = ", bigger_sum_reward[0])
@@ -157,9 +152,9 @@ class GoalsBuffer:
         for i in range(batch_size):
             if distances_min[i] > self.reach_threshold and dif[i] > self.change_threshold:
                 self._add_goal(states_down[i], rewards_sum[i])
-
-        bigger_sum_reward   = torch.zeros(batch_size, dtype=torch.float32)
-        visited_reward      = torch.zeros(batch_size, dtype=torch.float32)
+ 
+        bigger_sum_reward   = numpy.zeros(batch_size)
+        visited_reward      = numpy.zeros(batch_size)
         for i in range(batch_size):
             goal_idx    = distances_ids[i]
 
