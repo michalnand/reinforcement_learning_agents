@@ -72,6 +72,10 @@ class GoalsBuffer:
 
         im = bigger_sum_reward + visited_reward  + reached_goals
 
+        print(im)
+        print(reached_goals)
+        print("\n\n")
+
         '''
         if (reached_goals[0] > 0):
             print("bigger_sum_reward = ", bigger_sum_reward[0])
