@@ -31,6 +31,7 @@ class AgentPPORNDGoals():
         self.normalise_state_std = config.normalise_state_std
         self.normalise_im_std    = config.normalise_im_std
 
+        self.goals_reactivate    = config.goals_reactivate
 
         state_shape         = self.envs.observation_space.shape
         self.state_shape    = (state_shape[0] + 2, ) + state_shape[1:]
@@ -45,10 +46,9 @@ class AgentPPORNDGoals():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
-
+        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_downsample, state_shape)
+        
         self.episode_score_sum          = numpy.zeros(self.envs_count)
-        self.episode_steps              = numpy.zeros(self.envs_count)
 
         self.log_reached_goals_episode  = numpy.zeros(self.envs_count)
         self.episode_goals_reached      = numpy.zeros(self.envs_count)
@@ -95,10 +95,7 @@ class AgentPPORNDGoals():
         states_t = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t  = self.model_ppo.forward(states_t)
-
-        #TODO - remove
-        values_int_b_t  = values_int_a_t
+        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
 
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -113,8 +110,8 @@ class AgentPPORNDGoals():
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
         #acumulate score per episode
+        episode_score_sum_old = self.episode_score_sum.copy()
         self.episode_score_sum+= rewards_ext
-        self.episode_steps+= 1
 
         #curiosity motivation
         rewards_int_a       = self._curiosity(states_t)
@@ -128,18 +125,17 @@ class AgentPPORNDGoals():
 
 
         #goal motivation - state transfer reached
-
-        goals, reached, rewards_int_b = self.goals_buffer.step(self.states, self.episode_score_sum)  
+        rewards_int_b, goals, active = self.goals_buffer.step(self.states)  
         rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
 
-        #self.episode_goals_reached+= (reached > 0.9)
+        self.episode_goals_reached+= (rewards_int_b > 0.9)
 
 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
         #create new state   
-        self.states = numpy.concatenate([states, goals, reached], axis=1)
+        self.states = numpy.concatenate([states, goals, active], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
@@ -155,14 +151,21 @@ class AgentPPORNDGoals():
                 zeros   = numpy.zeros(self.goal_shape)
                 self.states[e] = numpy.concatenate([s, zeros, zeros], axis=0)
                 
-                self.episode_steps[e]     = 0.0
                 self.episode_score_sum[e] = 0.0
 
-                self.goals_buffer.reset(e)
+                self.goals_buffer.activate_goals(e)
 
                 #log for counting goals reached per episode
                 self.log_reached_goals_episode[e]   = self.episode_goals_reached[e]
                 self.episode_goals_reached[e]       = 0.0
+
+
+        score_int = numpy.floor(self.episode_score_sum).astype(int)
+        for e in range(self.envs_count):
+            #only when score changed
+            if episode_score_sum_old[e] != self.episode_score_sum[e]:
+                if score_int[e]%self.goals_reactivate == self.goals_reactivate-1:
+                    self.goals_buffer.activate_goals(e)            
         
 
         #collect stats
@@ -199,7 +202,7 @@ class AgentPPORNDGoals():
         result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
 
-        result+= str(round(self.goals_buffer.goals_ptr, 7)) + " "
+        result+= str(round(self.goals_buffer.log_used_goals, 7)) + " "
         result+= str(round(self.log_reached_goals_episode.mean(), 7)) + " "
         
         return result 
@@ -209,22 +212,21 @@ class AgentPPORNDGoals():
         size    = 256
         state   = self.states[env_id]
 
-        goals  = self.goals_buffer.get_goals_for_render()
-        
+        goals           = self.goals_buffer.get_goals_for_render()
 
         state_resized   = cv2.resize(state[0],  (size, size))
         goal_resized    = cv2.resize(state[4],  (size, size))
-        reached_resized = cv2.resize(state[5],  (size, size))
+        active_resized  = cv2.resize(state[5],  (size, size))
         goals_resized   = cv2.resize(goals,     (size, size))
 
         result_im       = numpy.zeros((size, 4*size))
 
         result_im[0*size:1*size, 0*size:1*size] = state_resized
         result_im[0*size:1*size, 1*size:2*size] = goal_resized
-        result_im[0*size:1*size, 2*size:3*size] = reached_resized
+        result_im[0*size:1*size, 2*size:3*size] = active_resized
         result_im[0*size:1*size, 3*size:4*size] = goals_resized
 
-        #result_im   = cv2.resize(result_im, (5*size, 1*size)) 
+        result_im   = cv2.resize(result_im, (4*size, 1*size)) 
         
 
         text_ofs_x = 10
