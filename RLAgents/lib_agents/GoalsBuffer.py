@@ -72,7 +72,8 @@ class GoalsBuffer:
 
         im = bigger_sum_reward + visited_reward  + reached_goals
 
-        print(im)
+        print(bigger_sum_reward)
+        print(visited_reward)
         print(reached_goals)
         print("\n\n")
 
