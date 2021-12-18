@@ -47,6 +47,8 @@ class AgentPPORNDGoals():
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
 
+        self.goals_refresh  = config.goals_refresh
+
         self.episode_score_sum          = numpy.zeros(self.envs_count)
         self.episode_steps              = numpy.zeros(self.envs_count)
 
@@ -114,7 +116,7 @@ class AgentPPORNDGoals():
         self.episode_steps+= 1
 
         #curiosity motivation
-        rewards_int_a       = self._curiosity(states_t)
+        rewards_int_a   = self._curiosity(states_t)
         self.rewards_int_running_stats.update(rewards_int_a)
 
         #normalise RND internal motivation
@@ -145,6 +147,9 @@ class AgentPPORNDGoals():
 
 
         for e in range(self.envs_count): 
+            
+            if int(self.episode_score_sum[e])%(self.goals_refresh + 1) == self.goals_refresh:
+                self.goals_buffer.reset(e)
            
             if dones[e]:
                 s       = self.envs.reset(e)
@@ -168,8 +173,8 @@ class AgentPPORNDGoals():
         self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
         self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
         
-
         self.iterations+= 1
+
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):

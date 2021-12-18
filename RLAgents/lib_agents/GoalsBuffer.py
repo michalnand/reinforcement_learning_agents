@@ -191,9 +191,8 @@ class GoalsBuffer:
         numpy.save(path + "gb_visited_count.npy", self.visited_count)
 
 
-    def load(self, path):   
-        return   
-        self.goals   = torch.from_numpy(numpy.load(path + "goals.npy"))
+    def load(self, path):
+        self.goals   = torch.from_numpy(numpy.load(path + "gb_goals.npy"))
 
         self.rewards_sum    = numpy.load(path + "gb_rewards_sum.npy")
         self.visited_count  = numpy.load(path + "gb_visited_count.npy")
