@@ -100,9 +100,6 @@ class AgentGoExploreDet():
 
                 self.current_actions[e]     = []
 
-        if self.iterations == 128:
-            self.save("./")
-
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     

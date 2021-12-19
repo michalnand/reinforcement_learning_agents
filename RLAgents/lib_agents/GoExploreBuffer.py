@@ -131,7 +131,6 @@ class GoExploreBuffer:
             self.goals_ptr+= 1
 
     def save(self, path):
-
         numpy.save(path + "gb_rewards_sum.npy", self.rewards_sum)
         numpy.save(path + "gb_visited_count.npy", self.visited_count)
         numpy.save(path + "gb_goals.npy", self.goals_buffer.detach().to("cpu").numpy())
@@ -143,9 +142,10 @@ class GoExploreBuffer:
                 str_res+= str(int(value)) + " "
             str_res+= "\n"     
         
-        file = open("gb_actions.txt", "w")
+        file = open(path + "gb_actions.txt", "w")
         file.write(str_res)
         file.close()
+
 
     def load(self, path):
         self.rewards_sum    = numpy.load(path + "gb_rewards_sum.npy")
