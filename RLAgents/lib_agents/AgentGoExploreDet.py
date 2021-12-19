@@ -15,6 +15,7 @@ class AgentGoExploreDet():
         self.reach_threshold        = config.reach_threshold
         self.add_threshold          = config.add_threshold
         self.downsample             = config.downsample
+        self.epsilon                = config.epsilon
         
  
         self.envs_count             = config.envs_count 
@@ -56,7 +57,7 @@ class AgentGoExploreDet():
 
         for e in range(self.envs_count):
             #go - take actions from buffers
-            if self.agent_mode[e] == 0:
+            if self.agent_mode[e] == 0 and numpy.rand() > self.eps:
                 actions[e] = self.actions[e][self.actions_idx[e]]
 
                 self.actions_idx[e]+= 1
