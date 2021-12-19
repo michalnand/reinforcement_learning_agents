@@ -98,7 +98,7 @@ class AgentGoExploreDet():
 
 
         if self.iterations%128 == 0:
-            print(self.goals_buffer.current_goals_ids)
+            print(self.agent_mode)
 
         
         self.iterations+= 1
