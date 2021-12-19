@@ -57,7 +57,7 @@ class AgentGoExploreDet():
 
         for e in range(self.envs_count):
             #go - take actions from buffers
-            if self.agent_mode[e] == 0 and numpy.rand() > self.eps:
+            if self.agent_mode[e] == 0 or numpy.random.rand() > self.eps:
                 actions[e] = self.actions[e][self.actions_idx[e]]
 
                 self.actions_idx[e]+= 1
@@ -97,11 +97,6 @@ class AgentGoExploreDet():
 
                 self.current_actions[e]     = []
 
-
-        if self.iterations%128 == 0:
-            print(self.agent_mode)
-
-        
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     
