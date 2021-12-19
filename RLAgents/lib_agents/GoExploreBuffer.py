@@ -68,8 +68,6 @@ class GoExploreBuffer:
 
         reached_goals = (distances_min < self.reached_threshold)
 
-        print(self.actions[self.current_goals_ids[0]])
-
         return reached_goals
 
     def _add_new_goal(self, distances_min, distances_ids, states_down, actions, rewards_sum):
