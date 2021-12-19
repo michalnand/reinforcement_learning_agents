@@ -112,6 +112,7 @@ class AgentPPORNDGoals():
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
         #acumulate score per episode
+        episode_score_sum_old = self.episode_score_sum.copy()
         self.episode_score_sum+= rewards_ext
         self.episode_steps+= 1
 
@@ -145,12 +146,16 @@ class AgentPPORNDGoals():
             if self.policy_buffer.is_full():
                 self.train()
 
+        #reset goals
+        score_int = numpy.floor(self.episode_score_sum).astype(int)
+        for e in range(self.envs_count):
+            #only when score changed
+            if episode_score_sum_old[e] != self.episode_score_sum[e]:
+                if score_int[e]%(self.goals_refresh + 1) == self.goals_refresh:
+                    self.goals_buffer.reset(e)       
 
         for e in range(self.envs_count): 
             
-            if int(self.episode_score_sum[e])%(self.goals_refresh + 1) == self.goals_refresh:
-                self.goals_buffer.reset(e)
-           
             if dones[e]:
                 s       = self.envs.reset(e)
                 zeros   = numpy.zeros(self.goal_shape)
