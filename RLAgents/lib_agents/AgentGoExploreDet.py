@@ -82,8 +82,8 @@ class AgentGoExploreDet():
         reached = self.goals_buffer.step(states, self.current_actions, self.episode_score_sum)
         
         for e in range(self.envs_count): 
-            if reached[e]:
-                self.agent_mode[e] = 1
+            #if reached[e]:
+            #    self.agent_mode[e] = 1
 
             if dones[e]:
                 self.states[e]              = self.envs.reset(e).copy()
