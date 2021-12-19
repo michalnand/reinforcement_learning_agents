@@ -57,17 +57,20 @@ class AgentGoExploreDet():
 
         for e in range(self.envs_count):
             #go - take actions from buffers
-            if self.agent_mode[e] == 0 or numpy.random.rand() > self.epsilon:
+            if self.agent_mode[e] == 0:
                 actions[e] = self.actions[e][self.actions_idx[e]]
 
                 self.actions_idx[e]+= 1 
 
                 #switch agent to explore mode
                 if self.actions_idx[e] >= len(self.actions[e]):
-                    self.actions_idx[e] = 0
+                    self.actions_idx[e] = 0 
                     self.agent_mode[e]  = 1
             else:
                 #explore, random action
+                actions[e] = numpy.random.randint(0, self.actions_count)
+
+            if numpy.random.rand() < self.epsilon:
                 actions[e] = numpy.random.randint(0, self.actions_count)
 
             self.current_actions[e].append(actions[e])
