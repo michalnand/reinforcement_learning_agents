@@ -3,7 +3,7 @@ import torch
 from .PolicyBufferIMDual    import *  
 from .RunningStats          import *  
 from .GoalsBuffer           import *
-
+ 
 import cv2
 
 class AgentPPORNDGoals():    
@@ -47,7 +47,8 @@ class AgentPPORNDGoals():
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
 
-        self.goals_refresh  = config.goals_refresh
+        self.goals_refresh      = config.goals_refresh
+        self.goals_reach_reward = config.goals_reach_reward
 
         self.episode_score_sum          = numpy.zeros(self.envs_count)
         self.episode_steps              = numpy.zeros(self.envs_count)
@@ -96,8 +97,9 @@ class AgentPPORNDGoals():
         #state to tensor
         states_t = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        #compute model output
+        #compute model output 
         logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
+
 
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -129,10 +131,11 @@ class AgentPPORNDGoals():
 
         #goal motivation - state transfer reached
 
-        goals, reached, rewards_int_b, reached_flag = self.goals_buffer.step(self.states, self.episode_score_sum)  
-        rewards_int_b = numpy.clip(rewards_int_b, 0.0, 1.0)
+        goals, reached, reached_active, reached_any = self.goals_buffer.step(self.states) 
 
-        self.episode_goals_reached+= (reached_flag > 0.0)
+        rewards_int_b = self.goals_reach_reward*reached_active + (1.0 - self.goals_reach_reward)*reached_any
+
+        self.episode_goals_reached+= (reached_active > 0.0)
 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
