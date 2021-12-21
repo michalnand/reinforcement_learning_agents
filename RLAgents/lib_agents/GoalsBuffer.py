@@ -86,25 +86,33 @@ class GoalsBuffer:
         distances       = distances.detach().to("cpu").numpy()
 
         #reached can be only active goal
-        reached_any_reward = self.active_goals_flag[range(batch_size), distances_ids]*(distances <= self.reach_threshold)
+        reached_reward     = self.active_goals_flag[range(batch_size), distances_ids]*(distances <= self.reach_threshold)
+
+        #rewards for connections
+        tmp                = self.adjacency_matrix.sum(axis=1)
+        connections_reward = tmp[distances_ids]
+        connections_reward = connections_reward/(numpy.max(tmp) + 0.00000001)
+
+        #final reward, combine target reaching with target importance
+        rewards = reached_reward*connections_reward
 
         #clear flag, goal can't be reached again
         self.active_goals_flag[range(batch_size), distances_ids] = 0
 
         #generate new goal if goal reached
         for i in range(batch_size):
-            if reached_active_reward[i] > 0:
+            if reached_reward[i] > 0:
                 self.active_goals[i], self.active_goals_ids[i] = self._new_goal()
 
         grid_size       = int(self.buffer_size**0.5)
         reached_flag    = 1.0 - self.active_goals_flag 
         
         #reshape to grid
-        reached = numpy.reshape(reached_flag, (batch_size, 1, grid_size, grid_size))
-        reached = numpy.repeat(reached, self.goal_shape[1]//grid_size, axis=2)
-        reached = numpy.repeat(reached, self.goal_shape[2]//grid_size, axis=3)
+        reached_flag = numpy.reshape(reached_flag, (batch_size, 1, grid_size, grid_size))
+        reached_flag = numpy.repeat(reached_flag, self.goal_shape[1]//grid_size, axis=2)
+        reached_flag = numpy.repeat(reached_flag, self.goal_shape[2]//grid_size, axis=3)
 
-        return self.active_goals, reached, 1.0*reached_active_reward, 1.0*reached_any_reward
+        return self.active_goals, reached_flag, rewards
         
 
     def reset(self, env_id):
@@ -125,7 +133,6 @@ class GoalsBuffer:
 
 
     def load(self, path):
-        return
         self.goals_buffer       = torch.from_numpy(numpy.load(path + "gb_goals.npy"))
         self.visited_count      = numpy.load(path + "gb_visited_count.npy")
         self.adjacency_matrix   = numpy.load(path + "gb_adjacency_matrix.npy")

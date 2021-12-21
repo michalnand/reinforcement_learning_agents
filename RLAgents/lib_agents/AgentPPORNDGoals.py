@@ -48,7 +48,6 @@ class AgentPPORNDGoals():
         self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
 
         self.goals_refresh      = config.goals_refresh
-        self.goals_reach_reward = config.goals_reach_reward
 
         self.episode_score_sum          = numpy.zeros(self.envs_count)
         self.episode_steps              = numpy.zeros(self.envs_count)
@@ -128,20 +127,17 @@ class AgentPPORNDGoals():
             
         rewards_int_a = numpy.clip(rewards_int_a, 0.0, 1.0)
 
-
         #goal motivation - state transfer reached
+        goals, reached_flag, rewards_int_b = self.goals_buffer.step(self.states) 
 
-        goals, reached, reached_active, reached_any = self.goals_buffer.step(self.states) 
-
-        rewards_int_b = self.goals_reach_reward*reached_active + (1.0 - self.goals_reach_reward)*reached_any
-
-        self.episode_goals_reached+= (reached_active > 0.0)
+        #store stats how many goals reached
+        self.episode_goals_reached+= (rewards_int_b > 0.0)
 
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
         #create new state   
-        self.states = numpy.concatenate([states, goals, reached], axis=1)
+        self.states = numpy.concatenate([states, goals, reached_flag], axis=1)
       
         #put into policy buffer
         if self.enabled_training:
