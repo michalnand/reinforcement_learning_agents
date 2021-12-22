@@ -72,11 +72,11 @@ class GoalsBuffer:
             if distances_min[i] > self.goals_add_threshold and dif[i] > self.change_threshold:
                 self._add_goal(states_down[i])
 
-                #add connection
-                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ptr-1] = 1.0
+                #add new connection
+                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ptr-1]+= 1.0
             else:
                 #update existing connection
-                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ids_now[i]] = 1.0
+                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ids_now[i]]+= 1.0
 
         #increment visited count
         for i in range(batch_size):
@@ -91,7 +91,7 @@ class GoalsBuffer:
         reached_reward     = self.active_goals_flag[range(batch_size), distances_ids]*(distances <= self.reach_threshold)
 
         #rewards for connections
-        tmp                = self.adjacency_matrix.sum(axis=1)
+        tmp                = (self.adjacency_matrix > 0).sum(axis=1)
         connections_reward = tmp[distances_ids]
         connections_reward = connections_reward/(numpy.max(tmp) + 0.00000001)
 
@@ -180,7 +180,7 @@ class GoalsBuffer:
             self.goals_buffer[self.goals_ptr] = state_down.clone()
 
             self.goals_ptr+= 1
-            
+
 
     #sample new random goal
     #probs depends on connections and visited count
