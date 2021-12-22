@@ -2,8 +2,9 @@ import torch
 import numpy
 
 class GoalsBuffer:
-    def __init__(self, envs_count, buffer_size, reach_threshold, change_threshold, downsample, state_shape):
+    def __init__(self, envs_count, buffer_size, goals_add_threshold, reach_threshold, change_threshold, downsample, state_shape):
         self.buffer_size            = buffer_size
+        self.goals_add_threshold    = goals_add_threshold
         self.reach_threshold        = reach_threshold
         self.change_threshold       = change_threshold
  
@@ -16,11 +17,13 @@ class GoalsBuffer:
 
         #current goals for reach
         self.active_goals       = torch.zeros((envs_count, ) + self.goal_shape,     dtype=torch.float32)
-        #ids of current goals
         self.active_goals_ids   = numpy.zeros(envs_count, dtype=int)
 
         #flags of non reached goals
         self.active_goals_flag  = numpy.ones((envs_count, buffer_size))
+
+        #initial state is always reached, non active
+        self.active_goals_flag[range(envs_count), 0] = 0.0
 
 
         self.visited_count      = numpy.zeros(buffer_size)
@@ -31,14 +34,10 @@ class GoalsBuffer:
 
         self.adjacency_matrix   = numpy.zeros((buffer_size, buffer_size))
 
-
-        #initial state is always reached, non active
-        self.active_goals[range(envs_count), 0] = 0.0
-
         self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
         self.upsample       = torch.nn.Upsample(scale_factor=downsample, mode='nearest')
 
-        self.goals_ptr      = 1
+        self.goals_ptr      = 0
 
     def step(self, states):
         batch_size  = states.shape[0]
@@ -49,7 +48,7 @@ class GoalsBuffer:
         active_goals_down, _    = self._preprocess(self.active_goals)
 
         #initial run, add new goal
-        if self.goals_ptr == 1:
+        if self.goals_ptr == 0:
             self._add_goal(states_down[0])
 
 
@@ -67,7 +66,7 @@ class GoalsBuffer:
         #add new goal if non exist yet
         #goal is big state change
         for i in range(batch_size):
-            if distances_min[i] > self.reach_threshold and dif[i] > self.change_threshold:
+            if distances_min[i] > self.goals_add_threshold and dif[i] > self.change_threshold:
                 self._add_goal(states_down[i])
 
         #increment visited count
@@ -77,11 +76,8 @@ class GoalsBuffer:
         #add connection
         self._update_connections(distances_ids)
 
-        #set reached internal reward if ACTIVE goal reached
-        reached_active_reward = (distances_ids == self.active_goals_ids)
-
-        
-        #check if reached ANY goal
+     
+        #check if reached any goal
         distances       = ((active_goals_down - states_down)**2).mean(dim=1)
         distances       = distances.detach().to("cpu").numpy()
 
@@ -99,9 +95,9 @@ class GoalsBuffer:
         #clear flag, goal can't be reached again
         self.active_goals_flag[range(batch_size), distances_ids] = 0
 
-        #generate new goal if goal reached
+        #generate new goal if ACTIVE goal reached
         for i in range(batch_size):
-            if reached_reward[i] > 0:
+            if distances[i] <= self.reach_threshold  and self.active_goals_ids[i] == distances_ids[i]:
                 self.active_goals[i], self.active_goals_ids[i] = self._new_goal()
 
         grid_size       = int(self.buffer_size**0.5)
@@ -125,12 +121,10 @@ class GoalsBuffer:
         self.goals_ids_prev[env_id]     = 0
         self.goals_ids_now[env_id]      = 0
 
-    
     def save(self, path):
         numpy.save(path + "gb_goals.npy", self.goals_buffer.detach().to("cpu").numpy())
         numpy.save(path + "gb_visited_count.npy", self.visited_count)
         numpy.save(path + "gb_adjacency_matrix.npy", self.adjacency_matrix)
-
 
     def load(self, path):
         self.goals_buffer       = torch.from_numpy(numpy.load(path + "gb_goals.npy"))
@@ -140,10 +134,19 @@ class GoalsBuffer:
         #move goals pointer to last non-used position
         self.goals_ptr = 0
         for i in range(len(self.goals_buffer)):
-            v  = self.goals_buffer[i].sum()
+            v  = self.goals_buffer[self.goals_ptr].sum()
             self.goals_ptr+= 1
             if v < 0.001:
                 break
+        
+        '''
+        for j in range(self.goals_ptr):
+            for i in range(self.goals_ptr):
+                print(self.adjacency_matrix[j][i], end=" ")
+            print()
+        print("\n\n")
+        print(self.adjacency_matrix.sum(axis=1))
+        '''
 
     def get_goals_for_render(self):
         goals       = self.goals_buffer.reshape((self.buffer_size, ) + self.goal_downsampled_shape)
@@ -179,8 +182,6 @@ class GoalsBuffer:
         for i in range(distances_ids.shape[0]):
             self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ids_now[i]] = 1
 
-        self.adjacency_matrix[:, 0] = 0
-        self.adjacency_matrix[0, :] = 0
 
     #sample new random goal
     #probs depends on connections and visited count

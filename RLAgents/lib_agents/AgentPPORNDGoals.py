@@ -45,7 +45,7 @@ class AgentPPORNDGoals():
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
+        self.goals_buffer   = GoalsBuffer(self.envs_count, config.goals_count, config.goals_add_threshold, config.goals_reach_threshold, config.goals_change_threshold, config.goals_downsample, state_shape)
 
         self.goals_refresh      = config.goals_refresh
 
