@@ -96,8 +96,9 @@ class GoalsBuffer:
         self.active_goals_flag[range(batch_size), distances_ids] = 0
 
         #generate new goal if ACTIVE goal reached
+        reached_active = numpy.logical_and(distances <= self.reach_threshold, self.active_goals_ids == distances_ids)
         for i in range(batch_size):
-            if distances[i] <= self.reach_threshold  and self.active_goals_ids[i] == distances_ids[i]:
+            if reached_active[i]:
                 self.active_goals[i], self.active_goals_ids[i] = self._new_goal()
 
         grid_size       = int(self.buffer_size**0.5)
