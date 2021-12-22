@@ -62,6 +62,9 @@ class GoalsBuffer:
         distances_min, distances_ids = torch.min(distances, dim=1)
 
         distances_ids = distances_ids.detach().to("cpu").numpy()
+
+        self.goals_ids_prev     = self.goals_ids_now.copy()
+        self.goals_ids_now      = distances_ids.copy()
       
         #add new goal if non exist yet
         #goal is big state change
@@ -69,12 +72,15 @@ class GoalsBuffer:
             if distances_min[i] > self.goals_add_threshold and dif[i] > self.change_threshold:
                 self._add_goal(states_down[i])
 
+                #add connection
+                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ptr-1] = 1.0
+            else:
+                #update existing connection
+                self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ids_now[i]] = 1.0
+
         #increment visited count
         for i in range(batch_size):
             self.visited_count[distances_ids[i]]+= 1
-
-        #add connection
-        self._update_connections(distances_ids)
 
      
         #check if reached any goal
@@ -140,14 +146,13 @@ class GoalsBuffer:
             if v < 0.001:
                 break
         
-        '''
         for j in range(self.goals_ptr):
             for i in range(self.goals_ptr):
                 print(self.adjacency_matrix[j][i], end=" ")
             print()
         print("\n\n")
         print(self.adjacency_matrix.sum(axis=1))
-        '''
+
 
     def get_goals_for_render(self):
         goals       = self.goals_buffer.reshape((self.buffer_size, ) + self.goal_downsampled_shape)
@@ -175,14 +180,7 @@ class GoalsBuffer:
             self.goals_buffer[self.goals_ptr] = state_down.clone()
 
             self.goals_ptr+= 1
-
-    def _update_connections(self, distances_ids):
-        self.goals_ids_prev     = self.goals_ids_now.copy()
-        self.goals_ids_now      = distances_ids.copy()
-
-        for i in range(distances_ids.shape[0]):
-            self.adjacency_matrix[self.goals_ids_prev[i]][self.goals_ids_now[i]] = 1
-
+            
 
     #sample new random goal
     #probs depends on connections and visited count
