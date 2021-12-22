@@ -97,8 +97,6 @@ class GoalsBuffer:
 
         #generate new goal if ACTIVE goal reached
         reached_active = numpy.logical_and(distances <= self.reach_threshold, self.active_goals_ids == distances_ids)
-
-        print(reached_active.shape)
         for i in range(batch_size):
             if reached_active[i]:
                 self.active_goals[i], self.active_goals_ids[i] = self._new_goal()
