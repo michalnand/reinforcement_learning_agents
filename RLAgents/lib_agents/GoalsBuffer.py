@@ -188,10 +188,10 @@ class GoalsBuffer:
 
         visited_reward = 1.0/(1.0 + (self.visited_count**0.5))
 
-        connections_reward = (self.adjacency_matrix > 0).sum(axis=1)
+        connections_reward = (self.adjacency_matrix > 10).sum(axis=1)
 
         #goal with higher connections and fever visitings have higher prob to be goal
-        probs = connections_reward*visited_reward
+        probs = connections_reward*visited_reward 
         probs = probs[0:self.goals_ptr]
         probs = self._softmax(probs)
 
