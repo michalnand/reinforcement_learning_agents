@@ -187,7 +187,7 @@ class GoalsBuffer:
 
         am_norm             = self.adjacency_matrix/(self.adjacency_matrix.sum(axis=1, keepdims=True) + 0.0000001)
 
-        connections_reward  = (am_norm > 0.001).sum(axis=1)
+        connections_reward  = (am_norm > 0.0001).sum(axis=1)
  
         #goal with higher connections and fever visitings have higher prob to be goal
         probs = connections_reward*visited_reward 
