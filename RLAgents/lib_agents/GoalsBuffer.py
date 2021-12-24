@@ -145,13 +145,10 @@ class GoalsBuffer:
             self.goals_ptr+= 1
             if v < 0.001:
                 break
-        
-        for j in range(self.goals_ptr):
-            for i in range(self.goals_ptr):
-                print(self.adjacency_matrix[j][i], end=" ")
-            print()
-        print("\n\n")
-        print(self.adjacency_matrix.sum(axis=1))
+
+
+   
+
 
 
     def get_goals_for_render(self):
@@ -186,9 +183,11 @@ class GoalsBuffer:
     #probs depends on connections and visited count
     def _new_goal(self):
 
-        visited_reward = 1.0/(1.0 + (self.visited_count**0.5))
+        visited_reward      = 1.0/(1.0 + (self.visited_count**0.5))
 
-        connections_reward = (self.adjacency_matrix > 10).sum(axis=1)
+        am_norm             = self.adjacency_matrix/(self.adjacency_matrix.sum(axis=1) + 0.0000001)
+
+        connections_reward  = (am_norm > 0.002).sum(axis=1)
 
         #goal with higher connections and fever visitings have higher prob to be goal
         probs = connections_reward*visited_reward 
