@@ -175,7 +175,7 @@ class GoalsBuffer:
     def _add_goal(self, state_down):
         if self.goals_ptr < self.buffer_size:
             self.goals_buffer[self.goals_ptr] = state_down.clone()
-
+ 
             self.goals_ptr+= 1
 
 
