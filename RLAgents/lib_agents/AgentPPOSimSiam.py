@@ -249,7 +249,7 @@ class AgentPPOSimSiam():
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
-        curiosity_t = self.model_sim_siam(state_norm_t)
+        curiosity_t = 1.0 - self.model_sim_siam(state_norm_t)
 
         return curiosity_t.detach().to("cpu").numpy()
 
