@@ -160,7 +160,7 @@ class AgentPPOSimSiam():
 
                 #train SimSiam model, contrastive loss
                 states_norm_t   = self._norm_state(states).detach()
-                loss_sim_siam   = self.model_sim_siam(states_norm_t, True)
+                loss_sim_siam   = self.model_sim_siam(states_norm_t)
                 loss_sim_siam   = (-1.0*loss_sim_siam).mean()
 
                 self.optimizer_sim_siam.zero_grad() 
