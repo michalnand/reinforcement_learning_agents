@@ -142,9 +142,10 @@ class GoalsBuffer:
         self.goals_ptr = 0
         for i in range(len(self.goals_buffer)):
             v  = self.goals_buffer[self.goals_ptr].sum()
-            self.goals_ptr+= 1
             if v < 0.001:
                 break
+            self.goals_ptr+= 1
+           
 
 
    
