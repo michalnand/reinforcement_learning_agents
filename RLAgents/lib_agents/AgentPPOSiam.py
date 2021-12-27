@@ -260,8 +260,6 @@ class AgentPPOSiam():
 
         l1 = (1.0 - target_t)*predicted_t
         l2 = target_t*torch.max(alpha - predicted_t, zeros)
-
-        print(">>> ", l1.shape, l2.shape)
  
         loss_siam  = (l1 + l2).mean()
 
