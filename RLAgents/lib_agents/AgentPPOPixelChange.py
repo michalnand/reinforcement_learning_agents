@@ -237,11 +237,10 @@ class AgentPPOPixelChange():
     
     #compute internal motivation
     def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
+        state_norm_t = self._norm_state(state_t)
 
-        dif = state_norm_t[:,0] - state_norm_t[:,1]
-        dif = (dif**2)
-
+        dif = (state_norm_t**2)[:,0]
+    
         curiosity_t = torch.mean(dif, dim=(1, 2))
 
         return curiosity_t.detach().to("cpu").numpy()
