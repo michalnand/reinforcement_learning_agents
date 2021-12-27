@@ -113,9 +113,9 @@ class PolicyBufferIM:
     def sample_states(self, batch_size, device):
         count = self.envs_count*self.buffer_size
 
-        indices_a       = numpy.random.randint(0, count, size=batch_size)
+        indices_a       = numpy.random.randint(0, count, size=count)
         indices_near    = numpy.clip(indices_a + 1, 0, count)
-        indices_far     = numpy.random.randint(0, count, size=batch_size)
+        indices_far     = numpy.random.randint(0, count, size=count)
 
         labels          = (numpy.random.rand(count) > 0.5)
 
