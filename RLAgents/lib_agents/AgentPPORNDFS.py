@@ -304,7 +304,7 @@ class AgentPPORNDFS():
         loss_rnd        = (features_target_t - features_predicted_t)**2
         
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
-        prob            = (32.0/self.envs_count)*(1.0/scale)
+        prob            = (32.0/self.envs_count)*(1.0/(scale*scale))
         random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
         random_mask     = 1.0*(random_mask < prob)
         loss_rnd        = (loss_rnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
