@@ -318,6 +318,8 @@ class AgentPPORND():
             loss_t        = tmp
             curiosity_t   = tmp.sum(dim=1)/2.0
 
+            print("MSE")
+
         elif self.rnd_metrics == "cos":
             dot     = (target_t*predicted_t)
             norm    = ((target_t**2).sum(dim=1))*((predicted_t**2).sum(dim=1))
@@ -328,6 +330,8 @@ class AgentPPORND():
 
             loss_t      = -tmp
             curiosity_t = 1.0 - tmp.sum(dim=1)
+
+            print("COS")
 
         return loss_t, curiosity_t
 

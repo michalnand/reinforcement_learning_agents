@@ -23,7 +23,6 @@ from .AgentDDPG                     import AgentDDPG
 
 
 from .AgentPPO                      import AgentPPO
-from .AgentPPOPixelChange           import AgentPPOPixelChange
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSiam                  import AgentPPOSiam
 from .AgentPPORNDGoals              import AgentPPORNDGoals
