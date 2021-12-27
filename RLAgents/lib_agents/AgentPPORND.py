@@ -318,22 +318,18 @@ class AgentPPORND():
             loss_t        = tmp
             curiosity_t   = tmp.sum(dim=1)/2.0
 
-            print("MSE")
-
         elif self.rnd_metrics == "cos":
             dot     = (target_t*predicted_t)
             norm    = ((target_t**2).sum(dim=1))*((predicted_t**2).sum(dim=1))
             norm    = norm.unsqueeze(1)
             eps     = 0.00000001*torch.ones(norm.shape, device=norm.device)
             
-            tmp     = dot/torch.max(norm.unsqueeze(1), eps)
+            tmp     = dot/torch.max(norm, eps)
 
             print(">>> ", dot.shape, norm.shape, tmp.shape)
 
             loss_t      = -tmp
             curiosity_t = 1.0 - tmp.sum(dim=1)
-
-            print("COS")
 
         return loss_t, curiosity_t
 
