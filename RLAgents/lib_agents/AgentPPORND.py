@@ -22,6 +22,12 @@ class AgentPPORND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        if hasattr(config, "rnd_metrics"):
+            self.rnd_metrics        = "cos"
+        else:
+            self.rnd_metrics        = "mse"
+
+        print("using metrics RND = ", self.rnd_metrics)
 
         self.normalise_state_std = config.normalise_state_std
         self.normalise_im_std    = config.normalise_im_std
@@ -276,6 +282,7 @@ class AgentPPORND():
 
         return loss_policy, loss_entropy
 
+
     #MSE loss for RND model
     def _compute_loss_rnd(self, states):
         
@@ -283,8 +290,8 @@ class AgentPPORND():
  
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-        loss_rnd        = (features_target_t - features_predicted_t)**2
-        
+        loss_rnd, _ = self._rnd_metrics(features_target_t, features_predicted_t)
+
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 32.0/self.envs_count
         random_mask     = torch.rand(loss_rnd.shape).to(loss_rnd.device)
@@ -299,11 +306,30 @@ class AgentPPORND():
 
         features_predicted_t, features_target_t  = self.model_rnd(state_norm_t)
 
-        curiosity_t = (features_target_t - features_predicted_t)**2
-        
-        curiosity_t = curiosity_t.sum(dim=1)/2.0
-
+        _, curiosity_t = self._rnd_metrics(features_target_t, features_predicted_t)
+     
         return curiosity_t.detach().to("cpu").numpy()
+
+    
+    def _rnd_metrics(self, target_t, predicted_t):
+        if self.rnd_metrics == "mse":
+            tmp = (target_t - predicted_t)**2
+            
+            loss_t        = tmp
+            curiosity_t   = tmp.sum(dim=1)/2.0
+
+        elif self.rnd_metrics == "cos":
+            dot     = (target_t*predicted_t)
+            norm    = ((target_t**2).sum(dim=1))*((predicted_t**2).sum(dim=1))
+            norm    = norm.unsqueeze(1)
+            eps     = 0.00000001*torch.ones(norm.shape, device=norm.device)
+            
+            tmp     = dot/torch.max(norm.unsqueeze(1), eps)
+
+            loss_t      = -tmp
+            curiosity_t = 1.0 - tmp.sum(dim=1)
+
+        return loss_t, curiosity_t
 
     #normalise mean and std for state
     def _norm_state(self, state_t):
