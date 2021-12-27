@@ -31,7 +31,7 @@ class AgentPPOSiam():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
         self.model_siam      = ModelSimSiam.Model(self.state_shape)
-        self.optimizer_sim_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_sim_siam)
+        self.optimizer_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_siam)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
@@ -168,9 +168,9 @@ class AgentPPOSiam():
                 distance        = self.model_siam(states_a_norm_t, states_b_norm_t)
                 loss_siam       = ((labels - distance)**2).mean()
 
-                self.optimizer_sim_siam.zero_grad() 
+                self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
-                self.optimizer_sim_siam.step()
+                self.optimizer_siam.step()
 
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
