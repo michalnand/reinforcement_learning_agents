@@ -160,13 +160,14 @@ class AgentPPOSiam():
 
                 #train SimSiam model, contrastive loss
 
-                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(self.batch_size, self.model_siam.device)
+                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128, self.model_siam.device)
 
                 states_a_norm_t = self._norm_state(states_a_t).detach()
                 states_b_norm_t = self._norm_state(states_b_t).detach()
             
-                distance        = self.model_siam(states_a_norm_t, states_b_norm_t)
-                loss_siam       = ((labels - distance)**2).mean()
+                similarity      = self.model_siam(states_a_norm_t, states_b_norm_t)
+                print(labels.shape, similarity.shape)
+                loss_siam       = ((labels - similarity)**2).mean()
 
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
