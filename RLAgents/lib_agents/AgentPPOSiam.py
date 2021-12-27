@@ -160,7 +160,7 @@ class AgentPPOSiam():
 
                 #train SimSiam model, contrastive loss
 
-                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(self, self.batch_size)
+                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(self.batch_size, self.model_siam.device)
 
                 states_a_norm_t = self._norm_state(states_a_t).detach()
                 states_b_norm_t = self._norm_state(states_b_t).detach()
