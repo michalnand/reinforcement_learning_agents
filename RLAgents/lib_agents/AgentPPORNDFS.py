@@ -341,12 +341,8 @@ class AgentPPORNDFS():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
-            zeros       = numpy.zeros((self.envs_count, ) + self.goal_shape)
-
-            states_     = numpy.concatenate([states, zeros, zeros], axis=1)
-
             #update stats
-            self.states_running_stats.update(states_)
+            self.states_running_stats.update(states)
 
             for e in range(self.envs_count): 
                 if dones[e]:
