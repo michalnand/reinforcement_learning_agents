@@ -255,6 +255,8 @@ class AgentPPOSiam():
 
         predicted_t  = self.model_siam(states_a_norm_t, states_b_norm_t)
 
+        print(target_t)
+
 
         zeros = torch.zeros(target_t.shape).to(target_t.device)
 
