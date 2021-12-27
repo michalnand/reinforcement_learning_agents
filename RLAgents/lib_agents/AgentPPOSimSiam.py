@@ -161,8 +161,8 @@ class AgentPPOSimSiam():
                 #train SimSiam model, contrastive loss
                 states_norm_t   = self._norm_state(states).detach()
                 
-                s1 = self._aug(states_norm_t[:, 0])
-                s2 = self._aug(states_norm_t[:, 0])
+                s1 = self._aug(states_norm_t[:, 0]).unsqueeze(1)
+                s2 = self._aug(states_norm_t[:, 0]).unsqueeze(1)
 
                 loss_sim_siam   = self.model_sim_siam(s1, s2)
                 loss_sim_siam   = (-1.0*loss_sim_siam).mean()
@@ -253,7 +253,10 @@ class AgentPPOSimSiam():
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
-        curiosity_t = 1.0 - self.model_sim_siam(state_norm_t[:,0], state_norm_t[:,1])
+        s1 = state_norm_t[:,0].unsqueeze(1)
+        s2 = state_norm_t[:,1].unsqueeze(1)
+
+        curiosity_t = 1.0 - self.model_sim_siam(s1, s2)
 
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -269,7 +272,7 @@ class AgentPPOSimSiam():
 
         return state_norm_t 
 
-    def _aug(self, x, k = 0.2):
+    def _aug(self, x, k = 0.1):
         result  = self._aug_random_flip(x,      dim=1)
         result  = self._aug_random_flip(result, dim=2)
         result  = self._aug_random_noise(result, k)
@@ -285,7 +288,7 @@ class AgentPPOSimSiam():
 
         return (1.0 - apply)*x + apply*x_flip
 
-    def _aug_random_noise(self, x, k = 0.2):
+    def _aug_random_noise(self, x, k = 0.1):
         shape = (x.shape[0], 1, 1)
 
         noise   = k*torch.randn(x.shape).to(x.device)
@@ -293,7 +296,7 @@ class AgentPPOSimSiam():
 
         return x + apply*noise
 
-    def _aug_random_offset(self, x, k = 0.2):
+    def _aug_random_offset(self, x, k = 0.1):
         shape = (x.shape[0], 1, 1)
 
         noise   = k*torch.randn(shape).to(x.device)
