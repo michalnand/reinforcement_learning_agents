@@ -46,6 +46,7 @@ class AgentPPORNDFS():
         self.model_rnd_slow      = ModelRNDSlow.Model(self.state_shape, self.rnd_scale)
         self.optimizer_rnd_slow  = torch.optim.Adam(self.model_rnd_slow.parameters(), lr=config.learning_rate_rnd)
  
+        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
