@@ -114,7 +114,7 @@ class PolicyBufferIM:
         count = self.envs_count*self.buffer_size
  
         indices_a       = numpy.random.randint(0, count, size=batch_size*self.envs_count)
-        indices_near    = numpy.clip(indices_a + 1, 0, count) 
+        indices_near    = numpy.clip(indices_a + 1, 0, count-1) 
         indices_far     = numpy.random.randint(0, count, size=batch_size*self.envs_count)
 
         labels          = (numpy.random.rand(batch_size*self.envs_count) > 0.5)
