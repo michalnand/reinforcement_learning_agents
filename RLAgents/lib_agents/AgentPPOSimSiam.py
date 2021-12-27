@@ -283,8 +283,8 @@ class AgentPPOSimSiam():
     def _aug_random_flip(self, x, dim = 1):
         shape = (x.shape[0], 1, 1)
 
-        x_flip  = torch.flip(x, [dim])
-        apply   = (torch.rand(shape) > 0.5).to(x.device)
+        x_flip  = torch.flip(x, [dim]) 
+        apply   = 1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return (1.0 - apply)*x + apply*x_flip
 
@@ -292,7 +292,7 @@ class AgentPPOSimSiam():
         shape = (x.shape[0], 1, 1)
 
         noise   = k*torch.randn(x.shape).to(x.device)
-        apply   = (torch.rand(shape) > 0.5).to(x.device)
+        apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return x + apply*noise
 
@@ -300,7 +300,7 @@ class AgentPPOSimSiam():
         shape = (x.shape[0], 1, 1)
 
         noise   = k*torch.randn(shape).to(x.device)
-        apply   = (torch.rand(shape) > 0.5).to(x.device)
+        apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return x + apply*noise
 
