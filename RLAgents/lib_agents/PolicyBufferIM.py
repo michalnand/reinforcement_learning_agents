@@ -117,7 +117,7 @@ class PolicyBufferIM:
         indices_near    = numpy.clip(indices_a + 1, 0, count)
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
-        labels          = (numpy.rand(count) > 0.5)
+        labels          = (numpy.random.rand(count) > 0.5)
 
         indices_b       = labels*indices_near + (1 - labels)*indices_far
 
