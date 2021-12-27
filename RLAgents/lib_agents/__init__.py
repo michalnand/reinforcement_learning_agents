@@ -24,6 +24,7 @@ from .AgentDDPG                     import AgentDDPG
 
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
+from .AgentPPORNDFS                 import AgentPPORNDFS
 from .AgentPPOSiam                  import AgentPPOSiam
 from .AgentPPORNDGoals              import AgentPPORNDGoals
 
