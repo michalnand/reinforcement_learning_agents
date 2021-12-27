@@ -119,6 +119,8 @@ class PolicyBufferIM:
 
         labels          = (numpy.random.rand(count) > 0.5)
 
+        print(labels.shape, indices_near.shape, indices_far.shape)
+
         indices_b       = labels*indices_near + (1 - labels)*indices_far
 
         states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)).to(device).float()/self.scale
