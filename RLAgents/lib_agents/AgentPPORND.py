@@ -326,8 +326,6 @@ class AgentPPORND():
             
             tmp     = dot/torch.max(norm, eps)
 
-            print(">>> ", dot.shape, norm.shape, tmp.shape)
-
             loss_t      = -tmp
             curiosity_t = 1.0 - tmp.sum(dim=1)
 
