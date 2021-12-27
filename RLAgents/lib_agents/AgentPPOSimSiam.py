@@ -160,7 +160,11 @@ class AgentPPOSimSiam():
 
                 #train SimSiam model, contrastive loss
                 states_norm_t   = self._norm_state(states).detach()
-                loss_sim_siam   = self.model_sim_siam(states_norm_t)
+                
+                s1 = self._aug(states_norm_t[:, 0])
+                s2 = self._aug(states_norm_t[:, 0])
+
+                loss_sim_siam   = self.model_sim_siam(s1, s2)
                 loss_sim_siam   = (-1.0*loss_sim_siam).mean()
 
                 self.optimizer_sim_siam.zero_grad() 
@@ -249,7 +253,7 @@ class AgentPPOSimSiam():
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
-        curiosity_t = 1.0 - self.model_sim_siam(state_norm_t)
+        curiosity_t = 1.0 - self.model_sim_siam(state_norm_t[:,0], state_norm_t[:,1])
 
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -264,6 +268,38 @@ class AgentPPOSimSiam():
             state_norm_t = state_t
 
         return state_norm_t 
+
+    def _aug(self, x, k = 0.2):
+        result  = self._aug_random_flip(x,      dim=1)
+        result  = self._aug_random_flip(result, dim=2)
+        result  = self._aug_random_noise(result, k)
+        result  = self._aug_random_offset(result, k)
+
+        return result.detach()
+
+    def _aug_random_flip(self, x, dim = 1):
+        shape = (x.shape[0], 1, 1)
+
+        x_flip  = torch.flip(x, [dim])
+        apply   = (torch.rand(shape) > 0.5).to(x.device)
+
+        return (1.0 - apply)*x + apply*x_flip
+
+    def _aug_random_noise(self, x, k = 0.2):
+        shape = (x.shape[0], 1, 1)
+
+        noise   = k*torch.randn(x.shape).to(x.device)
+        apply   = (torch.rand(shape) > 0.5).to(x.device)
+
+        return x + apply*noise
+
+    def _aug_random_offset(self, x, k = 0.2):
+        shape = (x.shape[0], 1, 1)
+
+        noise   = k*torch.randn(shape).to(x.device)
+        apply   = (torch.rand(shape) > 0.5).to(x.device)
+
+        return x + apply*noise
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
