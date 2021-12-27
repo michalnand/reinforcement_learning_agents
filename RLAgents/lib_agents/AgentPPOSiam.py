@@ -162,12 +162,7 @@ class AgentPPOSiam():
 
                 states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128, self.model_siam.device)
 
-                states_a_norm_t = self._norm_state(states_a_t).detach()
-                states_b_norm_t = self._norm_state(states_b_t).detach()
-            
-                similarity      = self.model_siam(states_a_norm_t, states_b_norm_t)
-
-                loss_siam       = ((labels - similarity)**2).mean()
+                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels )                
 
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
@@ -251,6 +246,26 @@ class AgentPPOSiam():
 
         return loss_policy, loss_entropy
 
+    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, alpha = 1.0):
+        states_a_norm_t = self._norm_state(states_a_t)
+        states_b_norm_t = self._norm_state(states_b_t)
+
+        states_a_norm_t = states_a_norm_t[:,0].unsqueeze(1).detach()
+        states_b_norm_t = states_b_norm_t[:,0].unsqueeze(1).detach()
+
+        predicted_t  = self.model_siam(states_a_norm_t, states_b_norm_t)
+
+
+        zeros = torch.zeros(target_t.shape).to(target_t.device)
+
+        l1 = (1.0 - target_t)*predicted_t
+        l2 = target_t*torch.max(alpha - predicted_t, zeros)
+ 
+        loss_siam  = (l1 + l2).mean()
+
+        return loss_siam
+
+
     #compute internal motivation
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
@@ -321,4 +336,6 @@ class AgentPPOSiam():
             for e in range(self.envs_count): 
                 if dones[e]:
                     self.envs.reset(e)
+
+    
 
