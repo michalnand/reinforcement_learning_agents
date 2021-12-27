@@ -3,7 +3,7 @@ import torch
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
       
-class AgentPPOSimSiam():   
+class AgentPPOSiam():   
     def __init__(self, envs, ModelPPO, ModelSimSiam, config):
         self.envs = envs  
     
@@ -30,8 +30,8 @@ class AgentPPOSimSiam():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_sim_siam      = ModelSimSiam.Model(self.state_shape)
-        self.optimizer_sim_siam  = torch.optim.Adam(self.model_sim_siam.parameters(), lr=config.learning_rate_sim_siam)
+        self.model_siam      = ModelSimSiam.Model(self.state_shape)
+        self.optimizer_sim_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_sim_siam)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
@@ -51,7 +51,7 @@ class AgentPPOSimSiam():
         self.enable_training()
         self.iterations                     = 0 
 
-        self.log_loss_sim_siam              = 0.0
+        self.log_loss_siam              = 0.0
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
@@ -91,7 +91,7 @@ class AgentPPOSimSiam():
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
             
-        rewards_int    = numpy.clip(rewards_int, -1.0, 1.0)
+        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -114,16 +114,16 @@ class AgentPPOSimSiam():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_sim_siam.save(save_path + "trained/")
+        self.model_siam.save(save_path + "trained/")
  
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_sim_siam.load(load_path + "trained/")
+        self.model_siam.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
 
-        result+= str(round(self.log_loss_sim_siam, 7)) + " "
+        result+= str(round(self.log_loss_siam, 7)) + " "
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
@@ -159,20 +159,21 @@ class AgentPPOSimSiam():
                 self.optimizer_ppo.step()
 
                 #train SimSiam model, contrastive loss
-                states_norm_t   = self._norm_state(states).detach()
-                
-                s1 = self._aug(states_norm_t[:, 0]).unsqueeze(1)
-                s2 = self._aug(states_norm_t[:, 0]).unsqueeze(1)
 
-                loss_sim_siam   = self.model_sim_siam(s1, s2)
-                loss_sim_siam   = (-1.0*loss_sim_siam).mean()
+                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(self, self.batch_size)
+
+                states_a_norm_t = self._norm_state(states_a_t).detach()
+                states_b_norm_t = self._norm_state(states_b_t).detach()
+            
+                distance        = self.model_siam(states_a_norm_t, states_b_norm_t)
+                loss_siam       = ((labels - distance)**2).mean()
 
                 self.optimizer_sim_siam.zero_grad() 
-                loss_sim_siam.backward()
+                loss_siam.backward()
                 self.optimizer_sim_siam.step()
 
                 k = 0.02
-                self.log_loss_sim_siam  = (1.0 - k)*self.log_loss_sim_siam + k*loss_sim_siam.detach().to("cpu").numpy()
+                self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
 
         self.policy_buffer.clear() 
 
@@ -256,7 +257,7 @@ class AgentPPOSimSiam():
         s1 = state_norm_t[:,0].unsqueeze(1)
         s2 = state_norm_t[:,1].unsqueeze(1)
 
-        curiosity_t = 1.0 - self.model_sim_siam(s1, s2)
+        curiosity_t = 1.0 - self.model_siam(s1, s2)
 
         return curiosity_t.detach().to("cpu").numpy()
 
@@ -272,6 +273,7 @@ class AgentPPOSimSiam():
 
         return state_norm_t 
 
+    '''
     def _aug(self, x, k = 0.1):
         result  = self._aug_random_flip(x,      dim=1)
         result  = self._aug_random_flip(result, dim=2)
@@ -303,6 +305,7 @@ class AgentPPOSimSiam():
         apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return x + apply*noise
+    '''
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
