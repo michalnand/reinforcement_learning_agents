@@ -166,7 +166,7 @@ class AgentPPOSiam():
                 states_b_norm_t = self._norm_state(states_b_t).detach()
             
                 similarity      = self.model_siam(states_a_norm_t, states_b_norm_t)
-                print(labels.shape, similarity.shape)
+
                 loss_siam       = ((labels - similarity)**2).mean()
 
                 self.optimizer_siam.zero_grad() 
