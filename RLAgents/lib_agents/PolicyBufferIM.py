@@ -122,10 +122,10 @@ class PolicyBufferIM:
         #label 1 = distant states
         indices_b       = (1 - labels)*indices_a + labels*indices_far
 
-        states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)).float()/self.scale
-        states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)).float()/self.scale
+        states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)/self.scale).float()
+        states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)/self.scale).float()
         labels_t        = torch.from_numpy(1.0*labels).float()
-
+        
         return states_a, states_b, labels_t
   
 

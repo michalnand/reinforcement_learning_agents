@@ -158,11 +158,11 @@ class AgentPPOSiam():
                 self.optimizer_ppo.step()
 
                 #train Siam model, contrastive loss
-                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(64)
+                states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
                 
                 self.model_siam.train()
 
-                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels)                
+                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
 
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
@@ -249,7 +249,8 @@ class AgentPPOSiam():
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
 
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
-        x = self._aug(x).detach().to(self.model_siam.device)
+        
+        #x = self._aug(x).detach().to(self.model_siam.device)
 
         z = self.model_siam(x) 
  
@@ -279,28 +280,28 @@ class AgentPPOSiam():
         result  = self._aug_random_noise(result, k)
         result  = self._aug_random_offset(result, k)
 
-        return result.detach()
+        return result
 
     def _aug_random_flip(self, x, dim = 1):
         shape = (x.shape[0], 1, 1)
 
         x_flip  = torch.flip(x, [dim]) 
-        apply   = 1.0*(torch.rand(shape) > 0.5).to(x.device)
+        apply   = 1.0*(torch.rand(shape) > 0.5)
 
         return (1.0 - apply)*x + apply*x_flip
 
     def _aug_random_noise(self, x, k = 0.1):
         shape = (x.shape[0], 1, 1)
 
-        noise   = k*torch.randn(x.shape).to(x.device)
-        apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
+        noise   = k*(2.0*torch.rand(x.shape) - 1.0)
+        apply   =  1.0*(torch.rand(shape) > 0.5)
 
         return x + apply*noise
 
     def _aug_random_offset(self, x, k = 0.1):
         shape = (x.shape[0], 1, 1)
 
-        noise   = k*torch.randn(shape).to(x.device)
+        noise   = k*(2.0*torch.rand(shape) - 1.0)
         apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return x + apply*noise
