@@ -21,8 +21,8 @@ class FeaturesBuffer:
             self.buffer[i][idx] = values_t[i].clone()
 
         self.current_idx[i] = (self.current_idx[i] + 1)%self.buffer.shape[1]
-
-    def distances(self, values_t):
+ 
+    def compute(self, values_t):
         #difference
         dif = self.buffer - values_t.unsqueeze(1)
 
