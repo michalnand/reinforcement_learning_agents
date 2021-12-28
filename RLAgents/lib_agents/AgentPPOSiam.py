@@ -255,11 +255,6 @@ class AgentPPOSiam():
  
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
  
-        za  = z[0]
-        zb  = z[1] 
-
-        print(">>> ", x.shape, z.shape, za.shape, zb.shape)
-
         distance_t = ((z[0] - z[1])**2).mean(dim=1)         
   
         loss_siam = ((target_t.to(self.model_siam.device) - distance_t)**2).mean()
