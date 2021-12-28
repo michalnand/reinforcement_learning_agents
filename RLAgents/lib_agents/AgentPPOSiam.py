@@ -171,7 +171,7 @@ class AgentPPOSiam():
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
                 '''
-                
+
         self.policy_buffer.clear() 
 
     
@@ -265,6 +265,7 @@ class AgentPPOSiam():
 
     #compute internal motivation
     def _outlier_motivation(self, state_t):
+        return numpy.zeros(self.envs_count)
 
         features_t = self.model_siam(state_t).detach().to("cpu")
 
