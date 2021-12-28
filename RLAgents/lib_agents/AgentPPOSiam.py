@@ -24,8 +24,6 @@ class AgentPPOSiam():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.normalise_state_mean = config.normalise_state_mean
-
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
