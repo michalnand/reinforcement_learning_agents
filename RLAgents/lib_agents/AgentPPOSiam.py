@@ -241,6 +241,8 @@ class AgentPPOSiam():
 
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
 
+        target_t = target_t.to(self.model_siam.device)
+
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
         
         x = self._aug(x).detach().to(self.model_siam.device)
