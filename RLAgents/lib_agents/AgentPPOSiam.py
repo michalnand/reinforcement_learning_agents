@@ -274,11 +274,9 @@ class AgentPPOSiam():
         return x
 
     def _aug_random_flip(self, x, dim = 1):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1, 1)) > 0.5)
+        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
 
         flipped = torch.flip(x, [dim]) 
-
-        print(">>> ", x.shape, flipped.shape, apply.shape)
 
         return (1 - apply)*x + apply*flipped
 
