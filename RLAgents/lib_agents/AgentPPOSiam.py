@@ -252,7 +252,10 @@ class AgentPPOSiam():
         states_a_t = self._aug(states_a_t)
         states_b_t = self._aug(states_b_t)
 
-        predicted_t  = self.model_siam(states_a_t, states_b_t)
+        za  = self.model_siam(states_a_t)
+        zb  = self.model_siam(states_b_t)
+
+        predicted_t = ((za - zb)**2).mean(dim=1)        
 
         loss_siam = ((target_t - predicted_t)**2).mean()
 
