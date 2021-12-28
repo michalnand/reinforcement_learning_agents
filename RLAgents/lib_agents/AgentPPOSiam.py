@@ -3,7 +3,6 @@ import numpy
 import torch 
 from .PolicyBufferIM    import *  
 from .FeaturesBuffer    import *
-from .RunningStats      import *  
       
 class AgentPPOSiam():   
     def __init__(self, envs, ModelPPO, ModelSimSiam, config):
@@ -245,8 +244,10 @@ class AgentPPOSiam():
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_siam.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_siam.device)
 
-        za = self.model_siam(xa) 
+        za = self.model_siam(xa)  
         zb = self.model_siam(xb) 
+
+        print("Z mean ", (za**2).mean(), (zb**2).mean())
 
         distance = ((za - zb)**2).mean(dim=1)
 

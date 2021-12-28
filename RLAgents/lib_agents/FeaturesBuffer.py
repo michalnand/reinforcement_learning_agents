@@ -31,7 +31,7 @@ class FeaturesBuffer:
 
         #mean distance, shape = (envs_count, buffer_size)
         distances = (dif**2).mean(dim=dims)
-
+ 
         mean = distances.mean(dim=1)
         std  = distances.std(dim=1)
         max  = distances.max(dim=1)[0]
