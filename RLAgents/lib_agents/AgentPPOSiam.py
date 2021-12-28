@@ -82,7 +82,7 @@ class AgentPPOSiam():
         self.states = states.copy()
 
         #outlier motivation
-        rewards_int    = self._outlier_motivation(states_t)
+        rewards_int, features    = self._outlier_motivation(states_t)
             
         rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
@@ -97,11 +97,15 @@ class AgentPPOSiam():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
+                self.features_buffer.reset(e, features[e])
+
+                '''
                 state = torch.from_numpy(self.states[e]).to(self.model_siam.device).unsqueeze(0)
 
                 features = self.model_siam(state).squeeze(0).to("cpu")
  
                 self.features_buffer.reset(e, features)
+                '''
 
         #collect stats
         k = 0.02
@@ -271,7 +275,7 @@ class AgentPPOSiam():
 
         self.features_buffer.add(features_t) 
 
-        return mean.detach().to("cpu").numpy()
+        return mean.detach().to("cpu").numpy(), features_t
 
 
     def _aug(self, x, k = 0.2):
