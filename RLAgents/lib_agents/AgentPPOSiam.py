@@ -84,7 +84,7 @@ class AgentPPOSiam():
         #outlier motivation
         rewards_int    = self._outlier_motivation(states_t)
             
-        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        #rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -259,34 +259,9 @@ class AgentPPOSiam():
 
         loss = (la + lb).mean() 
 
-        #loss = ((target_t - distance)**2).mean()
-
         return loss
 
-        '''
-        x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
-        
-        x = self._aug(x).detach().to(self.model_siam.device)
-
-        z = self.model_siam(x) 
- 
-        z = z.reshape(2, states_a_t.shape[0], self.features_count)
-
-
-        za = z[0]
-        zb = z[1]
-        '''
-
-        distance = ((za - zb)**2).mean(dim=1)
-
-        zeros = torch.zeros(target_t.shape).to(x.device)
-
-        l0 = (1.0 - target_t)*distance
-        l1 = target_t*torch.max(1.0 - distance, zeros)
-
-        loss_siam = (l0 + l1).mean()
-        
-        return loss_siam
+      
 
     #compute internal motivation
     def _outlier_motivation(self, state_t):
