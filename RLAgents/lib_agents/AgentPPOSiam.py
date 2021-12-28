@@ -258,7 +258,7 @@ class AgentPPOSiam():
 
         z = self.model_siam(x)
 
-        z = z.reshape(2, states_a_t.shape[0], self.features_count))
+        z = z.reshape(2, states_a_t.shape[0], self.features_count)
  
         za  = z[0]
         zb  = z[1]
