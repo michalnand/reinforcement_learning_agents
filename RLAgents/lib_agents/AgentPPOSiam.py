@@ -278,6 +278,8 @@ class AgentPPOSiam():
 
         flipped = torch.flip(x, [dim]) 
 
+        print(">>> ", x.shape, flipped.shape, apply.shape)
+
         return (1 - apply)*x + apply*flipped
 
         
