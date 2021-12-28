@@ -254,11 +254,20 @@ class AgentPPOSiam():
         states_b_t = self._aug(states_b_t).detach().to(self.model_siam.device)
 
         za  = self.model_siam(states_a_t)
-        zb  = self.model_siam(states_b_t)
+        x = torch.cat([states_a_t, states_b_t], dim=1)
+
+        z = self.model_siam(x)
+
+        z = z.reshape(2, (states_a_t.shape[0], 256))
+
+        za  = z[0]
+        zb  = z[1]
+
+        print(">>> ", x.shape, z.shape, za.shape, zb.shape)
 
         predicted_t = ((za - zb)**2).mean(dim=1)        
 
-        loss_siam = ((target_t - predicted_t)**2).mean()
+        loss_siam = ((target_t.to(self.model_siam.device) - predicted_t)**2).mean()
 
         return loss_siam
 
