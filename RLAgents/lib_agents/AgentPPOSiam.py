@@ -265,8 +265,6 @@ class AgentPPOSiam():
 
     #compute internal motivation
     def _outlier_motivation(self, state_t):
-        return numpy.zeros(self.envs_count)
-
         features_t = self.model_siam(state_t).detach().to("cpu")
 
         mean, std, max, min = self.features_buffer.compute(features_t)
