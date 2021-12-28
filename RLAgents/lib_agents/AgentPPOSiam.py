@@ -242,11 +242,17 @@ class AgentPPOSiam():
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
         
         target_t = target_t.to(self.model_siam.device)
-        xa = self._aug(states_a_t).detach().to(self.model_siam.device)
-        xb = self._aug(states_b_t).detach().to(self.model_siam.device)
+        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_siam.device)
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_siam.device)
 
         za = self.model_siam(xa) 
         zb = self.model_siam(xb) 
+
+        distance = ((za - zb)**2).mean(dim=1)
+
+        loss = ((target_t - distance)**2).mean()
+
+        return loss
 
         '''
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
