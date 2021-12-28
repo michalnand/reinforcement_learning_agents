@@ -1,6 +1,8 @@
+from RLAgents.lib_agents.FeaturesBuffer import FeaturesBuffer
 import numpy
 import torch 
 from .PolicyBufferIM    import *  
+from .FeaturesBuffer    import *
 from .RunningStats      import *  
       
 class AgentPPOSiam():   
@@ -29,29 +31,26 @@ class AgentPPOSiam():
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
- 
-        self.model_siam      = ModelSimSiam.Model(self.state_shape)
+
+        features_count       = config.features_count
+        
+        self.model_siam      = ModelSimSiam.Model(self.state_shape, features_count)
         self.optimizer_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_siam)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer      = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.features_buffer    = FeaturesBuffer(config.buffer_size, (features_count, ), self.envs_count, "cpu")
 
-        for e in range(self.envs_count):
-            self.envs.reset(e)
-        
-        self.states_running_stats       = RunningStats(self.state_shape)
-
-        self._init_running_stats()
 
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
-
+            self.features_buffer.reset(e, torch.from_numpy(self.states[e]))
  
         self.enable_training()
         self.iterations                     = 0 
 
-        self.log_loss_siam              = 0.0
+        self.log_loss_siam                  = 0.0
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
@@ -88,8 +87,8 @@ class AgentPPOSiam():
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
-        #curiosity motivation
-        rewards_int    = self._curiosity(states_t)
+        #outlier motivation
+        rewards_int    = self._outlier_motivation(states_t)
             
         rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
         
@@ -103,6 +102,8 @@ class AgentPPOSiam():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+
+                self.features_buffer.reset(e, torch.from_numpy(self.states[e]))
 
         #collect stats
         k = 0.02
@@ -162,7 +163,7 @@ class AgentPPOSiam():
 
                 states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128, self.model_siam.device)
 
-                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels )                
+                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels)                
 
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
@@ -246,52 +247,31 @@ class AgentPPOSiam():
 
         return loss_policy, loss_entropy
 
-    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, alpha = 1.0):
-        states_a_norm_t = self._norm_state(states_a_t)
-        states_b_norm_t = self._norm_state(states_b_t)
+    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
+        states_a_t = states_a_t[:,0].unsqueeze(1)
+        states_b_t = states_b_t[:,0].unsqueeze(1)
 
-        states_a_norm_t = states_a_norm_t[:,0].unsqueeze(1).detach()
-        states_b_norm_t = states_b_norm_t[:,0].unsqueeze(1).detach()
+        states_a_t = self._aug(states_a_t)
+        states_b_t = self._aug(states_b_t)
 
-        predicted_t  = self.model_siam(states_a_norm_t, states_b_norm_t)
+        predicted_t  = self.model_siam(states_a_t, states_b_t)
 
-        loss_siam    = ((target_t - predicted_t)**2).mean()
-        '''
-        zeros = torch.zeros(target_t.shape).to(target_t.device)
-
-        l1 = (1.0 - target_t)*predicted_t
-        l2 = target_t*torch.max(alpha - predicted_t, zeros)
- 
-        loss_siam  = (l1 + l2).mean()
-        '''
+        loss_siam = ((target_t - predicted_t)**2).mean()
 
         return loss_siam
 
-
     #compute internal motivation
-    def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
+    def _outlier_motivation(self, state_t):
 
-        s1 = state_norm_t[:,0].unsqueeze(1)
-        s2 = state_norm_t[:,1].unsqueeze(1)
+        features_t = self.model_siam(state_t).detach().to("cpu")
 
-        curiosity_t = 1.0 - self.model_siam(s1, s2)
+        mean, std, max, min = self.compute(features_t)
 
-        return curiosity_t.detach().to("cpu").numpy()
+        self.features_buffer.add(features_t)
 
-    #normalise mean and std for state
-    def _norm_state(self, state_t):
-        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        #std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-        
-        if self.normalise_state_mean:
-            state_norm_t = state_t - mean
-        else:
-            state_norm_t = state_t
+        return mean.detach().to("cpu").numpy()
 
-        return state_norm_t 
 
-    '''
     def _aug(self, x, k = 0.1):
         result  = self._aug_random_flip(x,      dim=1)
         result  = self._aug_random_flip(result, dim=2)
@@ -323,21 +303,4 @@ class AgentPPOSiam():
         apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
 
         return x + apply*noise
-    '''
-
-    #random policy for stats init
-    def _init_running_stats(self, steps = 256):
-        for _ in range(steps):
-            #random action
-            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
-            states, _, dones, _ = self.envs.step(actions)
-
-            #update stats
-            self.states_running_stats.update(states)
-
-            for e in range(self.envs_count): 
-                if dones[e]:
-                    self.envs.reset(e)
-
-    
 
