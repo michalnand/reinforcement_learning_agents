@@ -248,10 +248,19 @@ class AgentPPOSiam():
         z = self.model_siam(x) 
  
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
- 
-        distance_t = ((z[0] - z[1])**2).mean(dim=1)         
-  
-        loss_siam = ((target_t.to(self.model_siam.device) - distance_t)**2).mean()
+
+
+        za = z[0]
+        zb = z[1]
+
+        distance = ((za - zb)**2).mean(dim=1)
+
+        zeros = torch.zeros(target_t.shape).to(x.device)
+
+        l0 = (1.0 - target_t)*distance
+        l1 = target_t*torch.max(1.0 - distance, zeros)
+
+        loss_siam = (l0 + l1).mean()
 
         return loss_siam
 
