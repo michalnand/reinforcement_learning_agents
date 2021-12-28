@@ -263,7 +263,7 @@ class AgentPPOSiam():
 
         features_t = self.model_siam(state_t).detach().to("cpu")
 
-        mean, std, max, min = self.compute(features_t)
+        mean, std, max, min = self.features_buffer.compute(features_t)
 
         self.features_buffer.add(features_t) 
 
