@@ -267,8 +267,8 @@ class AgentPPOSiam():
 
 
     def _aug(self, x, k = 0.1):
+        x  = self._aug_random_flip(x,   dim=1)
         x  = self._aug_random_flip(x,   dim=2)
-        x  = self._aug_random_flip(x,   dim=3)
         x  = self._aug_random_noise(x,  k)
   
         return x
@@ -278,7 +278,6 @@ class AgentPPOSiam():
 
         flipped = torch.flip(x, [dim]) 
 
-        print(">>> ", x.shape, flipped.shape, apply.shape)
  
         return (1 - apply)*x + apply*flipped
 
