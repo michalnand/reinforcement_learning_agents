@@ -251,7 +251,8 @@ class AgentPPOSiam():
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
         
         #x = self._aug(x).detach().to(self.model_siam.device)
-
+        x = x.to(self.model_siam.device)
+        
         z = self.model_siam(x) 
  
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
