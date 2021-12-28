@@ -250,9 +250,8 @@ class AgentPPOSiam():
 
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
         
-        #x = self._aug(x).detach().to(self.model_siam.device)
-        x = x.to(self.model_siam.device)
-        
+        x = self._aug(x).detach().to(self.model_siam.device)
+
         z = self.model_siam(x) 
  
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
@@ -275,13 +274,12 @@ class AgentPPOSiam():
         return mean.detach().to("cpu").numpy()
 
 
-    def _aug(self, x, k = 0.1):
-        result  = self._aug_random_flip(x,      dim=1)
-        result  = self._aug_random_flip(result, dim=2)
-        result  = self._aug_random_noise(result, k)
-        result  = self._aug_random_offset(result, k)
-
-        return result
+    def _aug(self, x, k = 0.2):
+        #result  = self._aug_random_flip(x,      dim=1)
+        #result  = self._aug_random_flip(result, dim=2)
+        x  = self._aug_random_noise(x, k)
+ 
+        return x
 
     def _aug_random_flip(self, x, dim = 1):
         shape = (x.shape[0], 1, 1)
@@ -291,19 +289,12 @@ class AgentPPOSiam():
 
         return (1.0 - apply)*x + apply*x_flip
 
-    def _aug_random_noise(self, x, k = 0.1):
-        shape = (x.shape[0], 1, 1)
+    def _aug_random_noise(self, x, k): 
 
-        noise   = k*(2.0*torch.rand(x.shape) - 1.0)
-        apply   =  1.0*(torch.rand(shape) > 0.5)
+        pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
+        offset_noise      = k*(2.0*torch.rand((x.shape[0], 1, 1)) - 1.0)
 
-        return x + apply*noise
+        return x + pointwise_noise + offset_noise
 
-    def _aug_random_offset(self, x, k = 0.1):
-        shape = (x.shape[0], 1, 1)
 
-        noise   = k*(2.0*torch.rand(shape) - 1.0)
-        apply   =  1.0*(torch.rand(shape) > 0.5).to(x.device)
-
-        return x + apply*noise
 
