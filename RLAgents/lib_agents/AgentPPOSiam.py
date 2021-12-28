@@ -30,13 +30,13 @@ class AgentPPOSiam():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        features_count       = config.features_count
+        self.features_count       = config.features_count
         
-        self.model_siam      = ModelSimSiam.Model(self.state_shape, features_count)
+        self.model_siam      = ModelSimSiam.Model(self.state_shape, self.features_count)
         self.optimizer_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_siam)
  
         self.policy_buffer      = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.features_buffer    = FeaturesBuffer(config.buffer_size, (features_count, ), self.envs_count, "cpu")
+        self.features_buffer    = FeaturesBuffer(config.buffer_size, (self.features_count, ), self.envs_count, "cpu")
 
 
         #reset envs and fill initial state
@@ -258,8 +258,8 @@ class AgentPPOSiam():
 
         z = self.model_siam(x)
 
-        z = z.reshape(2, (states_a_t.shape[0], 256))
-
+        z = z.reshape(2, states_a_t.shape[0], self.features_count))
+ 
         za  = z[0]
         zb  = z[1]
 
