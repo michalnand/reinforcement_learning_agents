@@ -158,9 +158,8 @@ class AgentPPOSiam():
                 self.optimizer_ppo.step()
 
                 #train Siam model, contrastive loss
-                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128)
+                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(64)
                 
-
                 self.model_siam.train()
 
                 loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels)                
@@ -248,27 +247,22 @@ class AgentPPOSiam():
         return loss_policy, loss_entropy
 
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
-        states_a_t = states_a_t[:,0].unsqueeze(1)
-        states_b_t = states_b_t[:,0].unsqueeze(1)
- 
-        states_a_t = self._aug(states_a_t).detach().to(self.model_siam.device)
-        states_b_t = self._aug(states_b_t).detach().to(self.model_siam.device)
 
-        x = torch.cat([states_a_t, states_b_t], dim=0)
+        x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
+        x = self._aug(x).detach().to(self.model_siam.device)
+
         z = self.model_siam(x) 
- 
-        print(">>> z = ", x.shape, z.shape)
  
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
  
         za  = z[0]
-        zb  = z[1]
+        zb  = z[1] 
 
         print(">>> ", x.shape, z.shape, za.shape, zb.shape)
 
-        predicted_t = ((za - zb)**2).mean(dim=1)        
-
-        loss_siam = ((target_t.to(self.model_siam.device) - predicted_t)**2).mean()
+        distance_t = ((z[0] - z[1])**2).mean(dim=1)         
+  
+        loss_siam = ((target_t.to(self.model_siam.device) - distance_t)**2).mean()
 
         return loss_siam
 
