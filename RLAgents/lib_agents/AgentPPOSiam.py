@@ -158,7 +158,6 @@ class AgentPPOSiam():
                 self.optimizer_ppo.step()
 
                 #train Siam model, contrastive loss
-                '''
                 states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128)
                 
 
@@ -172,8 +171,7 @@ class AgentPPOSiam():
 
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-                '''
-                
+
         self.policy_buffer.clear() 
 
     
@@ -260,6 +258,8 @@ class AgentPPOSiam():
         x = torch.cat([states_a_t, states_b_t], dim=1)
 
         z = self.model_siam(x)
+
+        print(">>> z = ", z.shape)
 
         z = z.reshape(2, states_a_t.shape[0], self.features_count)
  
