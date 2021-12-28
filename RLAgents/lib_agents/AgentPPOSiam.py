@@ -96,7 +96,7 @@ class AgentPPOSiam():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                self.features_buffer.reset(e)
+                #self.features_buffer.reset(e) 
 
         #collect stats
         k = 0.02
