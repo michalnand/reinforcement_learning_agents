@@ -43,7 +43,6 @@ class AgentPPOSiam():
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
-            self.features_buffer.reset(e, torch.from_numpy(self.states[e]))
  
         self.enable_training()
         self.iterations                     = 0 
@@ -101,7 +100,11 @@ class AgentPPOSiam():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-                self.features_buffer.reset(e, torch.from_numpy(self.states[e]))
+                state = torch.from_numpy(self.states[e]).to(self.model_siam.device).unsqueeze(0)
+
+                features = self.model_siam(state).squeeze(0).to("cpu")
+ 
+                self.features_buffer.reset(e, features)
 
         #collect stats
         k = 0.02
@@ -265,7 +268,7 @@ class AgentPPOSiam():
 
         mean, std, max, min = self.compute(features_t)
 
-        self.features_buffer.add(features_t)
+        self.features_buffer.add(features_t) 
 
         return mean.detach().to("cpu").numpy()
 
