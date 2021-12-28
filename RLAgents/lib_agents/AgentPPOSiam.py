@@ -155,10 +155,8 @@ class AgentPPOSiam():
                 #train Siam model, contrastive loss
                 states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
                 
-                self.model_siam.train()
-
                 loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
-
+ 
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
                 self.optimizer_siam.step()
@@ -259,7 +257,6 @@ class AgentPPOSiam():
 
     #compute internal motivation
     def _outlier_motivation(self, state_t):
-        self.model_siam.eval()
         features_t = self.model_siam(state_t).detach().to("cpu")
 
         mean, std, max, min = self.features_buffer.compute(features_t)
