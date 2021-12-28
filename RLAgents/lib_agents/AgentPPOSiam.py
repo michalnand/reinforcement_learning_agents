@@ -157,10 +157,12 @@ class AgentPPOSiam():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train SimSiam model, contrastive loss
-
+                #train Siam model, contrastive loss
+                '''
                 states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128)
                 
+
+                self.model_siam.train()
 
                 loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels)                
 
@@ -170,7 +172,8 @@ class AgentPPOSiam():
 
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-
+                '''
+                
         self.policy_buffer.clear() 
 
     
@@ -273,6 +276,7 @@ class AgentPPOSiam():
 
     #compute internal motivation
     def _outlier_motivation(self, state_t):
+        self.model_siam.eval()
         features_t = self.model_siam(state_t).detach().to("cpu")
 
         mean, std, max, min = self.features_buffer.compute(features_t)
