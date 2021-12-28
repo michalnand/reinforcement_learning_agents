@@ -251,6 +251,7 @@ class AgentPPOSiam():
 
         distance = ((za - zb)**2).mean(dim=1)
 
+        '''
         #minimize distance for close states (target = 0)
         la = (1 - target_t)*distance
  
@@ -259,6 +260,9 @@ class AgentPPOSiam():
         lb = target_t*torch.max(1.0 - distance, zeros)
 
         loss = (la + lb).mean() 
+        '''
+
+        loss = ((target_t - distance)**2).mean()
 
         return loss
 
