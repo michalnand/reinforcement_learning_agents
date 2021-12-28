@@ -240,9 +240,15 @@ class AgentPPOSiam():
         return loss_policy, loss_entropy
 
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
-
+        
         target_t = target_t.to(self.model_siam.device)
+        xa = self._aug(states_a_t).detach().to(self.model_siam.device)
+        xb = self._aug(states_b_t).detach().to(self.model_siam.device)
 
+        za = self.model_siam(xa) 
+        zb = self.model_siam(xb) 
+
+        '''
         x = torch.cat([states_a_t, states_b_t], dim=0)[:, 0].unsqueeze(1)
         
         x = self._aug(x).detach().to(self.model_siam.device)
@@ -254,6 +260,7 @@ class AgentPPOSiam():
 
         za = z[0]
         zb = z[1]
+        '''
 
         distance = ((za - zb)**2).mean(dim=1)
 
@@ -263,7 +270,7 @@ class AgentPPOSiam():
         l1 = target_t*torch.max(1.0 - distance, zeros)
 
         loss_siam = (l0 + l1).mean()
-
+        
         return loss_siam
 
     #compute internal motivation
