@@ -275,19 +275,20 @@ class AgentPPOSiam():
 
 
     def _aug(self, x, k = 0.2):
-        #result  = self._aug_random_flip(x,      dim=1)
-        #result  = self._aug_random_flip(result, dim=2)
-        x  = self._aug_random_noise(x, k)
+        x  = self._aug_random_flip(x,   dim=1)
+        x  = self._aug_random_flip(x,   dim=2)
+        x  = self._aug_random_noise(x,  k)
  
         return x
 
     def _aug_random_flip(self, x, dim = 1):
-        shape = (x.shape[0], 1, 1)
+        result = x.clone()
 
-        x_flip  = torch.flip(x, [dim]) 
-        apply   = 1.0*(torch.rand(shape) > 0.5)
-
-        return (1.0 - apply)*x + apply*x_flip
+        for i in range(x.shape[0]):
+            if numpy.random.rand() > 0.5:
+                result[i]  = torch.flip(x[i], [dim]) 
+ 
+        return result
 
     def _aug_random_noise(self, x, k): 
 
