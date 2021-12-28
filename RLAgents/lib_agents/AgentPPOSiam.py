@@ -159,9 +159,9 @@ class AgentPPOSiam():
 
                 #train SimSiam model, contrastive loss
 
-                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128, self.model_siam.device)
+                states_a_t, states_b_t, labels = self.policy_buffer.sample_states(128)
                 
-                '''
+
                 loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels)                
 
                 self.optimizer_siam.zero_grad() 
@@ -170,7 +170,6 @@ class AgentPPOSiam():
 
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-                '''
 
         self.policy_buffer.clear() 
 
@@ -250,9 +249,9 @@ class AgentPPOSiam():
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
         states_a_t = states_a_t[:,0].unsqueeze(1)
         states_b_t = states_b_t[:,0].unsqueeze(1)
-
-        states_a_t = self._aug(states_a_t)
-        states_b_t = self._aug(states_b_t)
+ 
+        states_a_t = self._aug(states_a_t).detach().to(self.model_siam.device)
+        states_b_t = self._aug(states_b_t).detach().to(self.model_siam.device)
 
         za  = self.model_siam(states_a_t)
         zb  = self.model_siam(states_b_t)
