@@ -34,4 +34,6 @@ class FeaturesBuffer:
         max  = distances.max(dim=1)[0]
         min  = distances.std(dim=1)[0]
 
-        return mean, std, max, min
+        b_std = self.buffer.std(dim=1).mean(dim=1)
+
+        return mean, std, max, min, b_std

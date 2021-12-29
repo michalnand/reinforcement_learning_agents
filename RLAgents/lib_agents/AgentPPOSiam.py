@@ -264,11 +264,11 @@ class AgentPPOSiam():
     def _outlier_motivation(self, state_t):
         features_t = self.model_siam(state_t).detach().to("cpu")
 
-        mean, std, max, min = self.features_buffer.compute(features_t)
+        mean, std, max, min, b_std = self.features_buffer.compute(features_t)
 
         self.features_buffer.add(features_t) 
 
-        return mean.detach().to("cpu").numpy()
+        return b_std.detach().to("cpu").numpy()
 
 
     def _aug(self, x, k = 0.1):
@@ -293,6 +293,15 @@ class AgentPPOSiam():
         offset_noise      = k*(2.0*torch.rand((x.shape[0], 1, 1)) - 1.0)
 
         return x + pointwise_noise + offset_noise
+
+    def _aug_resize(self, x, scale = 2):
+        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
+
+        ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
+        us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
+        scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+
+        return (1 - apply)*x + apply*scaled
 
 
 
