@@ -1,3 +1,4 @@
+from math import dist
 from RLAgents.lib_agents.FeaturesBuffer import FeaturesBuffer
 import numpy
 import torch 
@@ -52,7 +53,7 @@ class AgentPPOSiam():
 
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
-      
+        self.log_acc_siam                   = 0.0
 
     def enable_training(self):
         self.enabled_training = True
@@ -127,6 +128,7 @@ class AgentPPOSiam():
 
         result+= str(round(self.log_internal_motivation_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
+        result+= str(round(self.log_acc_siam, 7)) + " "
 
         return result     
 
@@ -159,7 +161,7 @@ class AgentPPOSiam():
                 #train Siam model, contrastive loss
                 states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
                 
-                loss_siam = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
+                loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
  
                 self.optimizer_siam.zero_grad() 
                 loss_siam.backward()
@@ -167,6 +169,7 @@ class AgentPPOSiam():
 
                 k = 0.02
                 self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
+                self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
 
         self.policy_buffer.clear() 
 
@@ -243,7 +246,7 @@ class AgentPPOSiam():
 
         return loss_policy, loss_entropy
 
-    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t):
+    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.95):
         
         target_t = target_t.to(self.model_siam.device)
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_siam.device)
@@ -252,11 +255,18 @@ class AgentPPOSiam():
         za = self.model_siam(xa)  
         zb = self.model_siam(xb) 
 
-        distance = ((za - zb)**2).mean(dim=1)
+        predicted = ((za - zb)**2).mean(dim=1)
 
-        loss = ((target_t - distance)**2).mean()
+        loss = ((target_t - predicted)**2).mean()
 
-        return loss
+        target      = target_t.detach().to("cpu").numpy()
+        predicted   = predicted.detach().to("cpu").numpy()
+
+        true_positive = numpy.sum(1.0*(target > confidence)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < (1.0-confidence))*(predicted < (1.0-confidence)))
+        acc = 100.0*(true_positive + true_negative)/target.shape[0]
+
+        return loss, acc
 
       
 
