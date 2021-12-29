@@ -282,8 +282,9 @@ class AgentPPOSiam():
 
 
     def _aug(self, x, k = 0.1):
-        x  = self._aug_random_flip(x, dim=1)
-        x  = self._aug_random_flip(x, dim=2)
+        #x  = self._aug_random_flip(x, dim=1)
+        #x  = self._aug_random_flip(x, dim=2)
+        x  = self._aug_resize(x, dim=2)
         x  = self._aug_random_noise(x,  k)
   
         return x
