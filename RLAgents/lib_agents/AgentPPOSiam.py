@@ -284,7 +284,7 @@ class AgentPPOSiam():
     def _aug(self, x, k = 0.1):
         #x  = self._aug_random_flip(x,   dim=1)
         #x  = self._aug_random_flip(x,   dim=2)
-        #x  = self._aug_random_noise(x,  k)
+        x  = self._aug_random_noise(x,  k)
   
         return x
 
@@ -298,11 +298,8 @@ class AgentPPOSiam():
 
         
     def _aug_random_noise(self, x, k): 
-
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
-        offset_noise      = k*(2.0*torch.rand((x.shape[0], 1, 1)) - 1.0)
-
-        return x + pointwise_noise + offset_noise
+        return x + pointwise_noise
 
     def _aug_resize(self, x, scale = 2):
         apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
