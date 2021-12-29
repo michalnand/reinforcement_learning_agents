@@ -20,7 +20,7 @@ class FeaturesBuffer:
 
             self.buffer[i][idx] = values_t[i].clone()
 
-        self.current_idx[i] = (self.current_idx[i] + 1)%self.buffer.shape[1]
+        self.current_idx = (self.current_idx + 1)%self.buffer.shape[1]
  
     def compute(self, values_t):
         #difference
