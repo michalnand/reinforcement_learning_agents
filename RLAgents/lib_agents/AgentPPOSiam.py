@@ -95,7 +95,12 @@ class AgentPPOSiam():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                #self.features_buffer.reset(e) 
+
+                state_t = torch.from_numpy(self.states[e]).to(self.model_siam.device).float().unsqueeze(0)
+                features = self.model_siam(state_t)
+                features = features.squeeze(0).detach().to("cpu").numpy()
+
+                self.features_buffer.reset(e, features) 
 
         #collect stats
         k = 0.02
