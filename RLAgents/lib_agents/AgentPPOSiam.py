@@ -278,14 +278,14 @@ class AgentPPOSiam():
 
         self.features_buffer.add(features_t) 
 
-        return b_std.detach().to("cpu").numpy()
+        return mean.detach().to("cpu").numpy()
 
 
-    def _aug(self, x, k = 0.1):
+    def _aug(self, x):
         #x  = self._aug_random_flip(x, dim=1)
         #x  = self._aug_random_flip(x, dim=2)
-        x  = self._aug_resize(x, scale = 2) 
-        x  = self._aug_random_noise(x,  k)
+        x  = self._aug_resize(x, scale = 4) 
+        x  = self._aug_random_noise(x, k = 0.2)
   
         return x
 
@@ -293,8 +293,6 @@ class AgentPPOSiam():
         apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
 
         flipped = torch.flip(x, [dim]) 
-
- 
         return (1 - apply)*x + apply*flipped
 
         
