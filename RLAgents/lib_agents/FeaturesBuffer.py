@@ -5,20 +5,17 @@ class FeaturesBuffer:
 
     def __init__(self, buffer_size, shape, envs_count, device):
         self.buffer         = torch.zeros((envs_count, buffer_size ) + shape).to(device)
-        self.current_idx    = numpy.zeros(envs_count, dtype=int)
+        self.current_idx    = 0
 
     def reset(self, env_id, initial_value = None):
         self.buffer[env_id]         = 0
-        self.current_idx[env_id]    = 0
 
         if initial_value is not None:
             self.buffer[env_id] = initial_value.clone()
 
     def add(self, values_t):
         for i in range(values_t.shape[0]):
-            idx = self.current_idx[i]
-
-            self.buffer[i][idx] = values_t[i].clone()
+            self.buffer[i][self.current_idx] = values_t[i].clone()
 
         self.current_idx = (self.current_idx + 1)%self.buffer.shape[1]
  
