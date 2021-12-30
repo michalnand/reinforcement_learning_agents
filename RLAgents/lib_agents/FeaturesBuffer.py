@@ -42,7 +42,7 @@ class FeaturesBuffer:
 class FeaturesBufferGlobal:  
 
     def __init__(self, buffer_size, shape, envs_count, device):
-        self.buffer         = torch.zeros((envs_count*buffer_size ) + shape).to(device)
+        self.buffer         = torch.zeros((envs_count*buffer_size, ) + shape).to(device)
         self.current_idx    = 0
 
     def reset(self, env_id, initial_value = None):
