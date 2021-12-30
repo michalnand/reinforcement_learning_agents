@@ -5,7 +5,7 @@ import torch
 from .PolicyBufferIM    import *  
 from .FeaturesBuffer    import *
       
-class AgentPPOSiam():   
+class AgentPPOSiam():    
     def __init__(self, envs, ModelPPO, ModelSimSiam, config):
         self.envs = envs  
     
@@ -36,7 +36,10 @@ class AgentPPOSiam():
         self.optimizer_siam  = torch.optim.Adam(self.model_siam.parameters(), lr=config.learning_rate_siam)
  
         self.policy_buffer      = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.features_buffer    = FeaturesBuffer(config.buffer_size, (self.features_count, ), self.envs_count, "cpu")
+        
+        #self.features_buffer    = FeaturesBuffer(config.buffer_size, (self.features_count, ), self.envs_count, "cpu")
+
+        self.features_buffer    = FeaturesBufferGlobal(config.buffer_size, (self.features_count, ), self.envs_count, "cpu")
 
 
         #reset envs and fill initial state
@@ -274,7 +277,7 @@ class AgentPPOSiam():
     def _outlier_motivation(self, state_t):
         features_t = self.model_siam(state_t).detach().to("cpu")
 
-        mean, std, max, min, b_std = self.features_buffer.compute(features_t)
+        mean, std, max, min = self.features_buffer.compute(features_t)
 
         self.features_buffer.add(features_t) 
 
