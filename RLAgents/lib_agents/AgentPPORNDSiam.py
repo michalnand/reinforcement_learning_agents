@@ -32,7 +32,7 @@ class AgentPPORNDSiam():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_rnd_targret     = ModelRNDTarget.Model(self.state_shape)
+        self.model_rnd_target      = ModelRNDTarget.Model(self.state_shape)
         self.optimizer_rnd_target  = torch.optim.Adam(self.model_rnd_target.parameters(), lr=config.learning_rate_rnd_target)
 
         self.model_rnd      = ModelRND.Model(self.state_shape)
