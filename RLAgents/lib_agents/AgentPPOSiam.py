@@ -285,15 +285,15 @@ class AgentPPOSiam():
 
 
     def _aug(self, x):
-        #x  = self._aug_random_flip(x, dim=1)
-        #x  = self._aug_random_flip(x, dim=2)
-        x  = self._aug_resize(x, scale = 2) 
+        x  = self._aug_random_flip(x, p = 0.25, dim=1)
+        x  = self._aug_random_flip(x, p = 0.25, dim=2)
+        x  = self._aug_resize(x, p = 0.5, scale = 2) 
         x  = self._aug_random_noise(x, k = 0.2)
   
         return x
 
-    def _aug_random_flip(self, x, dim = 1):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
+    def _aug_random_flip(self, x, p = 0.5, dim = 1):
+        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > p)
 
         flipped = torch.flip(x, [dim]) 
         return (1 - apply)*x + apply*flipped
@@ -303,8 +303,8 @@ class AgentPPOSiam():
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
-    def _aug_resize(self, x, scale = 2):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > 0.5)
+    def _aug_resize(self, x, p = 0.5, scale = 2):
+        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > p)
 
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)

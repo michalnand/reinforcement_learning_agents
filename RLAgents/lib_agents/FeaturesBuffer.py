@@ -33,7 +33,7 @@ class FeaturesBuffer:
         mean = distances.mean(dim=1)
         std  = distances.std(dim=1)
         max  = distances.max(dim=1)[0]
-        min  = distances.std(dim=1)[0]
+        min  = distances.min(dim=1)[0]
 
         return mean, std, max, min
 
@@ -60,6 +60,6 @@ class FeaturesBufferGlobal:
         mean = distances.mean(dim=1)
         std  = distances.std(dim=1)
         max  = distances.max(dim=1)[0]
-        min  = distances.std(dim=1)[0]
+        min  = distances.min(dim=1)[0]
 
         return mean, std, max, min
