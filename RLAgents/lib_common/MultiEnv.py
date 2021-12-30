@@ -6,17 +6,6 @@ import gym
 
 class MultiEnvSeq:
 	def __init__(self, env_name, wrapper, envs_count):
-
-		try:
-			dummy_env 	= gym.make(env_name)
-			if wrapper is not None:
-				dummy_env 	= wrapper(dummy_env)
-		except:
-			dummy_env 	= wrapper(env_name)
-
-		self.observation_space 	= dummy_env.observation_space
-		self.action_space 		= dummy_env.action_space
-
 		self.envs	= [] 
 
 		for i in range(envs_count):
@@ -29,6 +18,9 @@ class MultiEnvSeq:
 				env = wrapper(env_name)
 
 			self.envs.append(env)
+
+		self.observation_space 	= self.envs[0].observation_space
+		self.action_space 		= self.envs[0].action_space
 
 	def close(self):
 		pass
