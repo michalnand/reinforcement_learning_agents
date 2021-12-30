@@ -295,6 +295,10 @@ class AgentPPORNDSiam():
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
+
+        states_a_t = self._norm_state(states_a_t)
+        states_b_t = self._norm_state(states_b_t)
+
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
