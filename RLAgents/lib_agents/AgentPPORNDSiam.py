@@ -128,12 +128,12 @@ class AgentPPORNDSiam():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_rnd.save(save_path + "trained/")
-        self.model_rnd_targret.save(save_path + "trained/")
+        self.model_rnd_target.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
-        self.model_rnd_targret.load(load_path + "trained/")
+        self.model_rnd_target.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 
@@ -280,7 +280,7 @@ class AgentPPORNDSiam():
         state_norm_t    = self._norm_state(states).detach()
  
         features_predicted_t  = self.model_rnd(state_norm_t)
-        features_target_t     = self.model_rnd_targret(state_norm_t).detach()
+        features_target_t     = self.model_rnd_target(state_norm_t).detach()
 
         loss_rnd = (features_target_t - features_predicted_t)**2
 
@@ -294,12 +294,12 @@ class AgentPPORNDSiam():
 
     def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
-        target_t = target_t.to(self.model_rnd_targret.device)
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_targret.device)
-        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_targret.device)
+        target_t = target_t.to(self.model_rnd_target.device)
+        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
-        za = self.model_rnd_targret(xa)  
-        zb = self.model_rnd_targret(xb) 
+        za = self.model_rnd_target(xa)  
+        zb = self.model_rnd_target(xb) 
 
         predicted = ((za - zb)**2).mean(dim=1)
 
@@ -319,8 +319,8 @@ class AgentPPORNDSiam():
         state_norm_t    = self._norm_state(state_t)
 
         features_predicted_t  = self.model_rnd(state_norm_t)
-        features_target_t     = self.model_rnd_targret(state_norm_t)
-
+        features_target_t     = self.model_rnd_target(state_norm_t)
+ 
         curiosity_t = (features_target_t - features_predicted_t)**2
         curiosity_t = curiosity_t.sum(dim=1)/2.0
      
