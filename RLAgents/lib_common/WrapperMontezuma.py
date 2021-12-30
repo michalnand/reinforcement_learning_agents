@@ -207,13 +207,3 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
 
     return env
 
-
-def WrapperMontezumaDeterministic(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-    #env = VideoRecorder(env)    
-
-    env = RepeatActionEnv(env) 
-    env = ResizeEnv(env, height, width, frame_stacking)
-    env = VisitedRoomsEnv(env)
-    env = RawScoreEnv(env, max_steps)
-
-    return env

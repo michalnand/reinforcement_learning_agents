@@ -86,11 +86,10 @@ class PolicyBufferContinuous:
        
         return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages 
 
-    def _gae_fast(self, rewards, values, dones, gamma = 0.99, lam = 0.9):
+    def _gae_fast(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
-
         returns     = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
 

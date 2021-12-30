@@ -7,10 +7,8 @@ from torch.distributions import Categorical
 from .PolicyBufferContinuous import *
 
 class AgentPPOContinuous():
-    def __init__(self, envs, Model, Config):
+    def __init__(self, envs, Model, config):
         self.envs = envs
-
-        config = Config.Config()
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
@@ -20,7 +18,7 @@ class AgentPPOContinuous():
         self.batch_size         = config.batch_size        
         
         self.training_epochs    = config.training_epochs
-        self.actors             = config.actors
+        self.envs_count         = config.envs_count
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.shape[0]
@@ -28,10 +26,10 @@ class AgentPPOContinuous():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer  = PolicyBufferContinuous(self.steps, self.state_shape, self.actions_count, self.actors, self.model.device)
+        self.policy_buffer  = PolicyBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
 
-        self.states = numpy.zeros((self.actors, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.actors):
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
         self.enable_training()
@@ -56,7 +54,7 @@ class AgentPPOContinuous():
         var_np  = var_t.detach().to("cpu").numpy()
 
         actions = []
-        for e in range(self.actors):
+        for e in range(self.envs_count):
             action = self._sample_action(mu_np[e], var_np[e])
             actions.append(action)
 
@@ -68,7 +66,7 @@ class AgentPPOContinuous():
                 self.train()
 
         self.states = states.copy()
-        for e in range(self.actors):
+        for e in range(self.envs_count):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
          
@@ -151,8 +149,6 @@ class AgentPPOContinuous():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
         loss = loss_value + loss_policy + loss_entropy
-
-        #print(actions_mu.mean(dim=0), actions_var.mean(dim=0), values_new.mean(dim=0))
         
         return loss
 
