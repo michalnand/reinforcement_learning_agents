@@ -11,7 +11,7 @@ class VideoRecorder(gym.Wrapper):
         self.width   = 2*env.observation_space.shape[1]
 
         fourcc = cv2.VideoWriter_fourcc(*'XVID') 
-        self.writer = cv2.VideoWriter(file_name, fourcc, 50.0, (self.width, self.height)) 
+        self.writer = cv2.VideoWriter(file_name, fourcc, 25.0, (self.width, self.height)) 
         self.frame_counter = 0
 
     def step(self, action):
@@ -197,13 +197,20 @@ class RawScoreEnv(gym.Wrapper):
  
  
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-    #env = VideoRecorder(env)    
 
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
     env = RawScoreEnv(env, max_steps)
+
+    return env
+
+
+def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    env = VideoRecorder(env)    
+
+    env = WrapperMontezuma(env, height, width, frame_stacking, max_steps)
 
     return env
 

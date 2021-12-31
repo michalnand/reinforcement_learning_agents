@@ -3,7 +3,7 @@ import pybullet
 
 from pybullet_envs.bullet import minitaur_gym_env
 from pybullet_envs.bullet import minitaur_env_randomizer
-#rom pybullet_envs.minitaur.envs import minitaur_alternating_legs_env_example
+#from pybullet_envs.minitaur.envs import minitaur_randomize_terrain_gym_env
  
 
 from pybullet_envs.bullet import racecarGymEnv
