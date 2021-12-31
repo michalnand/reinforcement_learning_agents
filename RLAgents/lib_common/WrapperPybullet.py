@@ -10,9 +10,7 @@ from pybullet_envs.bullet import racecarGymEnv
 
 from pybullet_envs.bullet import KukaGymEnv
  
-def WrapperMinitaurBulletEnv(name = "none"): 
-
-    render = False
+def WrapperMinitaurBulletEnv(name = "none", render = False): 
     randomizer = minitaur_env_randomizer.MinitaurEnvRandomizer()
 
     env = minitaur_gym_env.MinitaurBulletEnv(
@@ -32,6 +30,9 @@ def WrapperMinitaurBulletEnv(name = "none"):
 
 
     return env
+
+def WrapperMinitaurBulletEnvGUI(name = "none"): 
+    return WrapperMinitaurBulletEnv(name, True)
 
 
 def WrapperMinitaurRandomizeTerrainGymEnv(name = "none"): 

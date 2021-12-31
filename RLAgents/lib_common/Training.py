@@ -4,7 +4,7 @@ import time
 
 
 class TrainingIterations:
-    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000):
+    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
         self.env = env
         self.agent = agent
 
@@ -12,15 +12,13 @@ class TrainingIterations:
         
         self.saving_path            = saving_path
         self.log_period_iterations  = log_period_iterations
+        self.averaging_episodes     = averaging_episodes
 
     def run(self):
 
         log_file_name   = self.saving_path + "result/result.log"
         log_f           = open(log_file_name, "w+")
         log_f.close()
-
- 
-        averaging_episodes = 50
 
         new_best = False
 
@@ -34,7 +32,7 @@ class TrainingIterations:
         raw_score_per_episode_best      = -100000.0
 
 
-        score_per_episode_buffer = numpy.zeros(averaging_episodes)
+        score_per_episode_buffer = numpy.zeros(self.averaging_episodes)
 
         time_now = time.time()
         dt       = 0.0
