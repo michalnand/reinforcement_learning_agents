@@ -12,7 +12,7 @@ from pybullet_envs.bullet import KukaGymEnv
  
 def WrapperMinitaurBulletEnv(name = "none"): 
 
-    render = True
+    render = False
     randomizer = minitaur_env_randomizer.MinitaurEnvRandomizer()
 
     env = minitaur_gym_env.MinitaurBulletEnv(
