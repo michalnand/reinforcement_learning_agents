@@ -122,8 +122,8 @@ class AgentPPOContinuous():
         ''' 
          
         advantages  = advantages.detach()
-        advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
-        advantages  = advantages.unsqueeze(1)
+        #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        advantages  = advantages.unsqueeze(1) 
         
         ratio       = torch.exp(log_probs_new - log_probs_old)
 
