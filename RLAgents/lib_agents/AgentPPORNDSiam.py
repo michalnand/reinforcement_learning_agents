@@ -340,7 +340,7 @@ class AgentPPORNDSiam():
         zb = self.model_rnd_target(xb) 
 
 
-        distance = (((za - zb)**2).sum(dim = 1))**0.5
+        distance = (((za - zb)**2).mean(dim = 1))**0.5
 
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
@@ -350,7 +350,7 @@ class AgentPPORNDSiam():
         l1 = (target_t - distance)**2
        
         #keep vector length = 1
-        l3 = (1.0 - norm_za)**2
+        l3 = (1.0 - norm_za)**2 
         l3+= (1.0 - norm_zb)**2 
 
         loss = (l1).mean()
