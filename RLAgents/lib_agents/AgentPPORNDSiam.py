@@ -352,7 +352,7 @@ class AgentPPORNDSiam():
 
         l3 = (1.0 - norm_za)**2  
         l3+= (1.0 - norm_zb)**2
-        l3 = 0.5*l3 
+        l3 = 0.5*l3  
 
         loss = (l1 + l2 + 0.001*l3).mean()
 
@@ -362,8 +362,6 @@ class AgentPPORNDSiam():
         true_positive = numpy.sum(1.0*(target_np > 0.5)*(distance_np  > confidence))
         true_negative = numpy.sum(1.0*(target_np < 0.5)*(distance_np < (1.0 - confidence)))
         acc = 100.0*(true_positive + true_negative)/target_np.shape[0]
-
-        print(target_t[0], distance[0])
 
         return loss, acc
 
