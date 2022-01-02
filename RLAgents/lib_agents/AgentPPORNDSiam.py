@@ -372,7 +372,7 @@ class AgentPPORNDSiam():
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
         tp = numpy.sum(1.0*(target > 0.5)*(predicted < -confidence))/numpy.sum(1.0*(target > 0.5))
-        tn = numpy.sum(1.0*(target < 0.5)*(predicted >  confidence))/numpy.sum(1.0*(target > 0.5))
+        tn = numpy.sum(1.0*(target < 0.5)*(predicted >  confidence))/numpy.sum(1.0*(target < 0.5))
 
         print(tp, tn)
 
