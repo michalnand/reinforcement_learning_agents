@@ -362,7 +362,11 @@ class AgentPPORNDSiam():
         #when target = 1, the cos_similarity should be minimal (-1.0)
         l2 = target_t*cos_similarity
 
-        loss = (l1 + l2).mean()
+        #keep vector length = 1
+        l3 = (1.0 - (za**2).sum(dim=1))**2
+        l3+= (1.0 - (zb**2).sum(dim=1))**2
+
+        loss = (l1 + l2 + 0.1*l3).mean()
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = cos_similarity.detach().to("cpu").numpy()
