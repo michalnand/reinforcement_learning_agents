@@ -350,10 +350,10 @@ class AgentPPORNDSiam():
         l2 = target_t*torch.max(1.0 - distance, torch.zeros_like(distance))
         
         #keep vector length = 1
-        norm_za = (za**2).sum(dim = 1)
-        norm_zb = (zb**2).sum(dim = 1)
+        norm_za = (za**2).mean(dim = 1)
+        norm_zb = (zb**2).mean(dim = 1)
 
-        l3 = (1.0 - norm_za)**2 
+        l3 = (1.0 - norm_za)**2  
         l3+= (1.0 - norm_zb)**2
         l3 = 0.5*l3 
 
