@@ -347,13 +347,14 @@ class AgentPPORNDSiam():
 
         #when target = 0 (similar inputs), distance should be small, 0.0
         #when target = 1 (non similar inputs), distance should be big, 1.0
-        l1 = (target_t - distance)**2
-       
+        l1 = (1 - target_t)*distance
+        l2 = target_t*torch.max(1.0 - distance, torch.zeros_like(distance))
+        
         #keep vector length = 1
         l3 = (1.0 - norm_za)**2 
         l3+= (1.0 - norm_zb)**2 
 
-        loss = (l1).mean()
+        loss = (l1 + l2).mean()
 
         target_np      = target_t.detach().to("cpu").numpy()
         distance_np    = distance.detach().to("cpu").numpy()
