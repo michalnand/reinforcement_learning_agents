@@ -371,7 +371,7 @@ class AgentPPORNDSiam():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
-        norm = ((za**2).sim(dim=1))**0.5
+        norm = ((za**2).sum(dim=1))**0.5
         print(loss, norm.mean())
 
         return loss, acc
