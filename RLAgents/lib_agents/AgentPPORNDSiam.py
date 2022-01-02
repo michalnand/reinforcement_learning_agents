@@ -344,7 +344,9 @@ class AgentPPORNDSiam():
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
 
-        cos_similarity = dot/(norm_za*norm_zb + 0.00000001)
+        eps     = 0.00000001*torch.ones(norm_za.shape).tp(norm_za.device)
+ 
+        cos_similarity = dot/torch.max(norm_za*norm_zb, eps)
 
         #when target = 0, the cos_similarity should be maximal (+1.0)
         l1 = (1 - target_t)*(-cos_similarity)
