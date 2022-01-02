@@ -340,16 +340,16 @@ class AgentPPORNDSiam():
         zb = self.model_rnd_target(xb) 
 
 
-        distance = ((za - zb)**2).sum(dim = 1)
+        distance = (((za - zb)**2).sum(dim = 1))**0.5
 
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
 
         #when target = 0 (similar inputs), distance should be small
-        l1 = (1 - target_t)*distance
+        l1 = (1 - target_t)*((0.0 - distance)**2)
 
         #when target = 1 (non similar inputs), distance should be big
-        l2 = target_t*(1 - distance)
+        l2 = target_t*((1.0 - distance)**2)
        
         #keep vector length = 1
         l3 = (1.0 - norm_za)**2
