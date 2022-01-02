@@ -361,6 +361,8 @@ class AgentPPORNDSiam():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
+        print(norm_za.mean(), norm_zb.mean())
+
         return loss, acc
     
     #compute internal motivation
