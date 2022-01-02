@@ -339,11 +339,8 @@ class AgentPPORNDSiam():
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
-
-        distance = (((za - zb)**2).mean(dim = 1))**0.5
-
-      
-
+        distance = ((za - zb)**2).mean(dim = 1) 
+ 
         #when target = 0 (similar inputs), distance should be small, 0.0
         #when target = 1 (non similar inputs), distance should be big, 1.0
         l1 = (1 - target_t)*distance
