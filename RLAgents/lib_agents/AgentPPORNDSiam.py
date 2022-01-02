@@ -339,13 +339,13 @@ class AgentPPORNDSiam():
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
-        distance = ((za - zb)**2).mean(dim = 1) 
+        distance = ((za - zb)**2).mean(dim = 1)**0.5
  
         #when target = 0 (similar inputs), distance should be small, 0.0
         #when target = 1 (non similar inputs), distance should be big, 1.0
         l1 = (1 - target_t)*distance
         l2 = target_t*torch.max(1.0 - distance, torch.zeros_like(distance))
-        
+         
         #keep vector length = 1
         norm_za = (za**2).mean(dim = 1)
         norm_zb = (zb**2).mean(dim = 1)
@@ -365,9 +365,9 @@ class AgentPPORNDSiam():
 
         print(norm_za.mean(), norm_zb.mean())
 
-
         return loss, acc
-    
+
+
     #compute internal motivation
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
@@ -413,7 +413,7 @@ class AgentPPORNDSiam():
     def _aug(self, x):
         x  = self._aug_random_flip(x, p = 0.25, dim=1)
         x  = self._aug_random_flip(x, p = 0.25, dim=2)
-        
+
         x  = self._aug_resize(x, p = 0.5, scale = 2) 
         x  = self._aug_resize(x, p = 0.25, scale = 4) 
         x  = self._aug_random_noise(x, k = 0.2)
