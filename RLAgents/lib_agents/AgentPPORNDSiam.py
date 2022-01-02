@@ -411,8 +411,9 @@ class AgentPPORNDSiam():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        #x  = self._aug_random_flip(x, p = 0.25, dim=1)
-        #x  = self._aug_random_flip(x, p = 0.25, dim=2)
+        x  = self._aug_random_flip(x, p = 0.25, dim=1)
+        x  = self._aug_random_flip(x, p = 0.25, dim=2)
+        
         x  = self._aug_resize(x, p = 0.5, scale = 2) 
         x  = self._aug_resize(x, p = 0.25, scale = 4) 
         x  = self._aug_random_noise(x, k = 0.2)
