@@ -367,12 +367,9 @@ class AgentPPORNDSiam():
         target      = target_t.detach().to("cpu").numpy()
         predicted   = cos_similarity.detach().to("cpu").numpy()
 
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted < -confidence))
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted <= -confidence))
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
-
-        tp = numpy.sum(1.0*(target > 0.5)*(predicted <= -confidence))/numpy.sum(1.0*(target > 0.5))
-        tn = numpy.sum(1.0*(target < 0.5)*(predicted >  confidence))/numpy.sum(1.0*(target < 0.5))
 
 
         return loss, acc
