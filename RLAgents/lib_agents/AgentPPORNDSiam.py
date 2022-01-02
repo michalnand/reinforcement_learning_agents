@@ -321,8 +321,8 @@ class AgentPPORNDSiam():
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
 
-        true_positive = numpy.sum(1.0*(target > confidence)*(predicted > confidence))
-        true_negative = numpy.sum(1.0*(target < (1.0-confidence))*(predicted < (1.0-confidence)))
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
         return loss, acc
@@ -339,6 +339,12 @@ class AgentPPORNDSiam():
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
+
+        cosine_similarity = torch.nn.CosineSimilarity()
+
+        cos_similarity = cosine_similarity(za, zb)
+
+        '''
         dot     = (za*zb).sum(dim = 1)
 
         norm_za = ((za**2).sum(dim = 1))**0.5
@@ -347,6 +353,8 @@ class AgentPPORNDSiam():
         eps     = 0.00000001*torch.ones(norm_za.shape).to(norm_za.device)
   
         cos_similarity = dot/torch.max(norm_za*norm_zb, eps)
+        '''
+ 
 
         #when target = 0, the cos_similarity should be maximal (+1.0)
         l1 = (1 - target_t)*(-cos_similarity)
@@ -363,7 +371,7 @@ class AgentPPORNDSiam():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
-        print(norm_za.mean(), norm_zb.mean())
+        print((za**2).mean(), (zb**2).mean())
 
         return loss, acc
     
