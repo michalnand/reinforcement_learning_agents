@@ -340,20 +340,16 @@ class AgentPPORNDSiam():
         zb = self.model_rnd_target(xb) 
 
 
-        cosine_similarity = torch.nn.CosineSimilarity()
+        #cosine_similarity = torch.nn.CosineSimilarity()
+        #cos_similarity = cosine_similarity(za, zb)
 
-        cos_similarity = cosine_similarity(za, zb)
-
-        '''
         dot     = (za*zb).sum(dim = 1)
 
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
-
         eps     = 0.00000001*torch.ones(norm_za.shape).to(norm_za.device)
   
         cos_similarity = dot/torch.max(norm_za*norm_zb, eps)
-        '''
  
 
         #when target = 0, the cos_similarity should be maximal (+1.0)
@@ -363,8 +359,8 @@ class AgentPPORNDSiam():
         l2 = target_t*cos_similarity
 
         #keep vector length = 1
-        l3 = (1.0 - (za**2).sum(dim=1))**2
-        l3+= (1.0 - (zb**2).sum(dim=1))**2
+        l3 = (1.0 - norm_za)**2
+        l3+= (1.0 - norm_zb)**2 
 
         loss = (l1 + l2 + 0.1*l3).mean()
 
