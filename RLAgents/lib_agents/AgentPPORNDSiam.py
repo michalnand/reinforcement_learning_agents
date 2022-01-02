@@ -328,7 +328,6 @@ class AgentPPORNDSiam():
         return loss, acc
 
     def _compute_contrastive_loss_cos(self, states_a_t, states_b_t, target_t, confidence = 0.0):
-        print("USING cosine loss")
         target_t = target_t.to(self.model_rnd_target.device)
 
         states_a_t = self._norm_state(states_a_t)
