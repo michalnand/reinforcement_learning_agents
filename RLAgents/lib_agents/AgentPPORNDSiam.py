@@ -25,8 +25,8 @@ class AgentPPORNDSiam():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "cos":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_cos
+        elif config.contrastive_metrics == "contrastive":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_basic
         else:
             self._compute_contrastive_loss = None
 
@@ -327,7 +327,7 @@ class AgentPPORNDSiam():
 
         return loss, acc
 
-    def _compute_contrastive_loss_cos(self, states_a_t, states_b_t, target_t, confidence = 0.0):
+    def _compute_contrastive_loss_basic(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         target_t = target_t.to(self.model_rnd_target.device)
 
         states_a_t = self._norm_state(states_a_t)
@@ -340,36 +340,31 @@ class AgentPPORNDSiam():
         zb = self.model_rnd_target(xb) 
 
 
-        #cosine_similarity = torch.nn.CosineSimilarity()
-        #cos_similarity = cosine_similarity(za, zb)
-
-        dot     = (za*zb).sum(dim = 1)
+        distance = ((za - zb)**2).sum(dim = 1)
 
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
-        eps     = 0.00000001*torch.ones(norm_za.shape).to(norm_za.device)
-  
-        cos_similarity = dot/torch.max(norm_za*norm_zb, eps)
- 
 
-        #when target = 0, the cos_similarity should be maximal (+1.0)
-        l1 = (1 - target_t)*(-cos_similarity)
+        #when target = 0 (similar inputs), distance should be small
+        l1 = (1 - target_t)*distance
 
-        #when target = 1, the cos_similarity should be minimal (-1.0)
-        l2 = target_t*cos_similarity
-
+        #when target = 1 (non similar inputs), distance should be big
+        l2 = target_t*(1 - distance)
+       
         #keep vector length = 1
         l3 = (1.0 - norm_za)**2
         l3+= (1.0 - norm_zb)**2 
 
         loss = (l1 + l2 + 0.001*l3).mean()
 
-        target      = target_t.detach().to("cpu").numpy()
-        predicted   = cos_similarity.detach().to("cpu").numpy()
+        target_np      = target_t.detach().to("cpu").numpy()
+        distance_np    = distance.detach().to("cpu").numpy()
 
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted <= -confidence))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
-        acc = 100.0*(true_positive + true_negative)/target.shape[0]
+        true_positive = numpy.sum(1.0*(target_np > 0.5)*(distance_np  > confidence))
+        true_negative = numpy.sum(1.0*(target_np < 0.5)*(distance_np < confidence))
+        acc = 100.0*(true_positive + true_negative)/target_np.shape[0]
+
+        print(norm_za, norm_zb)
 
 
         return loss, acc
