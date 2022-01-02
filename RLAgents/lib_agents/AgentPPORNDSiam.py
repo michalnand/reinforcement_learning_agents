@@ -23,6 +23,13 @@ class AgentPPORNDSiam():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        if config.contrastive_metrics == "mse":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse
+        elif config.contrastive_metrics == "cos":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_cos
+        else:
+            self._compute_contrastive_loss = None
+
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -67,7 +74,7 @@ class AgentPPORNDSiam():
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
         self.log_acc_siam                   = 0.0
-      
+
 
     def enable_training(self):
         self.enabled_training = True
@@ -104,7 +111,7 @@ class AgentPPORNDSiam():
 
      
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
-        
+
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -115,6 +122,8 @@ class AgentPPORNDSiam():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+
+                
 
         #collect stats
         k = 0.02
@@ -185,17 +194,18 @@ class AgentPPORNDSiam():
 
 
                 #train RND target model for regularisation
-                states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
-                
-                loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
- 
-                self.optimizer_rnd_target.zero_grad() 
-                loss_siam.backward()
-                self.optimizer_rnd_target.step()
+                if self._compute_contrastive_loss is not None:
+                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
+                    
+                    loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
+    
+                    self.optimizer_rnd_target.zero_grad() 
+                    loss_siam.backward()
+                    self.optimizer_rnd_target.step()
 
-                k = 0.02
-                self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-                self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
+                    k = 0.02
+                    self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
+                    self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
 
         self.policy_buffer.clear() 
 
@@ -291,7 +301,7 @@ class AgentPPORNDSiam():
 
         return loss_rnd
 
-    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _compute_contrastive_loss_mse(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
 
@@ -316,6 +326,43 @@ class AgentPPORNDSiam():
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
         return loss, acc
+
+    def _compute_contrastive_loss_cos(self, states_a_t, states_b_t, target_t, confidence = 0.0):
+        
+        target_t = target_t.to(self.model_rnd_target.device)
+
+        states_a_t = self._norm_state(states_a_t)
+        states_b_t = self._norm_state(states_b_t)
+
+        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+
+        za = self.model_rnd_target(xa)  
+        zb = self.model_rnd_target(xb) 
+
+        dot     = (za*zb).sum(dim = 1)
+
+        norm_za = ((za**2).sum(dim = 1))**0.5
+        norm_zb = ((zb**2).sum(dim = 1))**0.5
+
+        cos_similarity = dot/(norm_za*norm_zb + 0.00000001)
+
+        #when target = 0, the cos_similarity should be maximal (+1.0)
+        l1 = (1 - target_t)*(-cos_similarity)
+
+        #when target = 1, the cos_similarity should be minimal (-1.0)
+        l2 = target_t*cos_similarity
+
+        loss = (l1 + l2).mean()
+
+        target      = target_t.detach().to("cpu").numpy()
+        predicted   = cos_similarity.detach().to("cpu").numpy()
+
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted < -confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted > confidence))
+        acc = 100.0*(true_positive + true_negative)/target.shape[0]
+
+        return loss, acc
     
     #compute internal motivation
     def _curiosity(self, state_t):
@@ -326,7 +373,7 @@ class AgentPPORNDSiam():
  
         curiosity_t = (features_target_t - features_predicted_t)**2
         curiosity_t = curiosity_t.sum(dim=1)/2.0
-     
+
         return curiosity_t.detach().to("cpu").numpy()
 
 
