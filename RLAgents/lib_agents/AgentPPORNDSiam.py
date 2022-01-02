@@ -353,7 +353,7 @@ class AgentPPORNDSiam():
         l3 = (1.0 - norm_za)**2
         l3+= (1.0 - norm_zb)**2 
 
-        loss = (l1 + 0.1*l3).mean()
+        loss = (l1).mean()
 
         target_np      = target_t.detach().to("cpu").numpy()
         distance_np    = distance.detach().to("cpu").numpy()
