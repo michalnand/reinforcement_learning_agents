@@ -345,17 +345,15 @@ class AgentPPORNDSiam():
         norm_za = ((za**2).sum(dim = 1))**0.5
         norm_zb = ((zb**2).sum(dim = 1))**0.5
 
-        #when target = 0 (similar inputs), distance should be small
-        l1 = (1 - target_t)*((0.0 - distance)**2)
-
-        #when target = 1 (non similar inputs), distance should be big
-        l2 = target_t*((1.0 - distance)**2)
+        #when target = 0 (similar inputs), distance should be small, 0.0
+        #when target = 1 (non similar inputs), distance should be big, 1.0
+        l1 = (target_t - distance)**2
        
         #keep vector length = 1
-        l3 = (1.0 - norm_za)**2
-        l3+= (1.0 - norm_zb)**2 
+        l2 = (1.0 - norm_za)**2
+        l2+= (1.0 - norm_zb)**2 
 
-        loss = (l1 + l2 + 0.1*l3).mean()
+        loss = (l1 + 0.1*l2).mean()
 
         target_np      = target_t.detach().to("cpu").numpy()
         distance_np    = distance.detach().to("cpu").numpy()
