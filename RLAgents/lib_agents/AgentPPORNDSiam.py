@@ -29,7 +29,7 @@ class AgentPPORNDSiam():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "mse_spreading":
+        elif config.contrastive_metrics == "mse_spread":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
         else:
             self._compute_contrastive_loss = None
