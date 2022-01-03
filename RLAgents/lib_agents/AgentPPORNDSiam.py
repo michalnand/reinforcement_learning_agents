@@ -385,7 +385,6 @@ class AgentPPORNDSiam():
 
         target_t = target_t*(1.0 + torch.tanh(10.0*states_dif))
 
-        print(target_t)
 
         loss = ((target_t - predicted)**2).mean()
 
