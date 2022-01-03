@@ -120,14 +120,6 @@ class AgentPPORNDSiam():
      
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
 
-
-        states_norm_t   = self._norm_state(states_t)
-        features        = self.model_rnd_target(states_norm_t)
-        features        = features.detach().to("cpu").numpy()
-
-        #self.vis_features.append(features[0])
-        #self.vis_labels.append(infos[0]["room_id"])
-
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -140,6 +132,13 @@ class AgentPPORNDSiam():
                 self.states[e] = self.envs.reset(e).copy()
 
         '''
+        states_norm_t   = self._norm_state(states_t)
+        features        = self.model_rnd_target(states_norm_t)
+        features        = features.detach().to("cpu").numpy()
+
+        self.vis_features.append(features[0])
+        self.vis_labels.append(infos[0]["room_id"])
+
         if dones[0]:
             print("training t-sne")
 
