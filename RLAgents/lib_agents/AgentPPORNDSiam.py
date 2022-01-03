@@ -369,6 +369,7 @@ class AgentPPORNDSiam():
         target_t = target_t.to(self.model_rnd_target.device)
 
         states_dif = ((states_a_t[:, 0] - states_b_t[:, 0])**2).mean(dim=(1, 2))
+        states_dif = states_dif.to(self.model_rnd_target.device)
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
