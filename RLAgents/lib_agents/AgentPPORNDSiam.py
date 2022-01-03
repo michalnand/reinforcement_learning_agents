@@ -2,6 +2,10 @@ import numpy
 import torch 
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
+
+import sklearn.manifold
+import matplotlib.pyplot as plt
+
       
 class AgentPPORNDSiam():   
     def __init__(self, envs, ModelPPO, ModelRNDTarget, ModelRND, config):
@@ -25,8 +29,8 @@ class AgentPPORNDSiam():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "contrastive":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_basic
+        elif config.contrastive_metrics == "mse_spreading":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
         else:
             self._compute_contrastive_loss = None
 
@@ -76,6 +80,10 @@ class AgentPPORNDSiam():
         self.log_acc_siam                   = 0.0
 
 
+        self.vis_features = []
+        self.vis_labels   = []
+
+
     def enable_training(self):
         self.enabled_training = True
  
@@ -112,6 +120,14 @@ class AgentPPORNDSiam():
      
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
 
+
+        states_norm_t   = self._norm_state(states_t)
+        features        = self.model_rnd_target(states_norm_t)
+        features        = features.detach().to("cpu").numpy()
+
+        #self.vis_features.append(features[0])
+        #self.vis_labels.append(infos[0]["room_id"])
+
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -122,6 +138,26 @@ class AgentPPORNDSiam():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+
+        '''
+        if dones[0]:
+            print("training t-sne")
+
+            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
+
+            print(features_embedded.shape)
+
+            plt.clf()
+            plt.scat ter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", 10))
+            plt.colorbar(ticks=range(10))
+            #plt.clim(-0.5, 9.5)
+            plt.tight_layout()
+            plt.show()
+
+
+            self.vis_features   = []
+            self.vis_labels     = []
+        '''
 
                 
 
@@ -142,7 +178,7 @@ class AgentPPORNDSiam():
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
         self.model_rnd_target.load(load_path + "trained/")
-
+ 
     def get_log(self): 
         result = "" 
 
@@ -327,8 +363,12 @@ class AgentPPORNDSiam():
 
         return loss, acc
 
-    def _compute_contrastive_loss_basic(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+
+    def _compute_contrastive_loss_mse_spreading(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+        
         target_t = target_t.to(self.model_rnd_target.device)
+
+        states_dif = ((states_a_t[:, 0] - states_b_t[:, 0])**2).mean(dim=(1, 2))
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
@@ -336,32 +376,24 @@ class AgentPPORNDSiam():
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
+
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
-        distance = ((za - zb)**2).mean(dim = 1)**0.5
- 
-        #when target = 0 (similar inputs), distance should be small, 0.0
-        #when target = 1 (non similar inputs), distance should be big, 1.0
-        l1 = (1 - target_t)*distance
-        l2 = target_t*torch.max(1.0 - distance, torch.zeros_like(distance))
-         
-        #keep vector length = 1
-        norm_za = (za**2).mean(dim = 1)
-        norm_zb = (zb**2).mean(dim = 1)
+        predicted = ((za - zb)**2).mean(dim=1)
 
-        l3 = (1.0 - norm_za)**2  
-        l3+= (1.0 - norm_zb)**2
-        l3 = 0.5*l3  
+        target_t = target_t*(1.0 + torch.tanh(states_dif))
 
-        loss = (l1 + l2 + 0.001*l3).mean()
+        print(">>> target = ", target_t) 
 
-        target_np      = target_t.detach().to("cpu").numpy()
-        distance_np    = distance.detach().to("cpu").numpy()
+        loss = ((target_t - predicted)**2).mean()
 
-        true_positive = numpy.sum(1.0*(target_np > 0.5)*(distance_np  > confidence))
-        true_negative = numpy.sum(1.0*(target_np < 0.5)*(distance_np < (1.0 - confidence)))
-        acc = 100.0*(true_positive + true_negative)/target_np.shape[0]
+        target      = target_t.detach().to("cpu").numpy()
+        predicted   = predicted.detach().to("cpu").numpy()
+
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
+        acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
         return loss, acc
 
