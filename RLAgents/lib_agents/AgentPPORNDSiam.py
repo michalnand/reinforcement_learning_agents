@@ -383,7 +383,7 @@ class AgentPPORNDSiam():
 
         predicted = ((za - zb)**2).mean(dim=1)
 
-        target_t = target_t*(1.0 + torch.tanh(states_dif))
+        target_t = target_t*(1.0 + torch.tanh(10.0*states_dif))
 
         print(">>> target = ", target_t) 
 
