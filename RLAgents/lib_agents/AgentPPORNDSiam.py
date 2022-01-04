@@ -131,34 +131,38 @@ class AgentPPORNDSiam():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-        '''
+        
         states_norm_t   = self._norm_state(states_t)
         features        = self.model_rnd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
 
+        '''
         self.vis_features.append(features[0])
         self.vis_labels.append(infos[0]["room_id"])
+
+        if self.iterations%32 == 0:
+            print("std = ", numpy.std(self.vis_features, axis=0).mean())
 
         if dones[0]:
             print("training t-sne")
 
             features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
 
-            print(features_embedded.shape)
+            print("result shape = ", features_embedded.shape)
 
             plt.clf()
-            plt.scat ter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", 10))
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
             plt.colorbar(ticks=range(10))
             #plt.clim(-0.5, 9.5)
             plt.tight_layout()
             plt.show()
 
-
             self.vis_features   = []
             self.vis_labels     = []
-        '''
 
-                
+        '''
+        
+        
 
         #collect stats
         k = 0.02
@@ -176,7 +180,7 @@ class AgentPPORNDSiam():
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
-        self.model_rnd_target.load(load_path + "trained/")
+        #self.model_rnd_target.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
