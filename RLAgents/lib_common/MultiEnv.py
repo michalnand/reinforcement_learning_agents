@@ -407,6 +407,6 @@ if __name__ == "__main__":
 		fps = 0.9*fps + 0.1*fps_
 
 		if j%100 == 0:
-			print("fps = ", i, fps)
+			print("fps = ", j, fps)
 
 	print("program done")
