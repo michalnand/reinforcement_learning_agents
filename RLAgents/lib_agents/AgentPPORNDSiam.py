@@ -159,7 +159,6 @@ class AgentPPORNDSiam():
 
             self.vis_features   = []
             self.vis_labels     = []
-
         '''
         
         
@@ -180,7 +179,7 @@ class AgentPPORNDSiam():
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_rnd.load(load_path + "trained/")
-        #self.model_rnd_target.load(load_path + "trained/")
+        self.model_rnd_target.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
