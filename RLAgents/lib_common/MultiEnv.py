@@ -243,6 +243,7 @@ def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 		elif val[0] == "end":
 			for i in range(envs_count):
 				envs[i].close()
+			print("terminating ", id)
 			break
 
 		elif val[0] == "reset":
