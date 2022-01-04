@@ -390,10 +390,10 @@ if __name__ == "__main__":
 	
 	fps = 0.0
 
-	for i in range(envs_count):
-		envs.reset(i)
+	for j in range(envs_count):
+		envs.reset(j)
 
-	for i in range(10000):
+	for j in range(10000):
 		actions = numpy.random.randint(18, size=envs_count)
 		ts = time.time()
 		states, rewards, dones, infos = envs.step(actions)
@@ -406,7 +406,7 @@ if __name__ == "__main__":
 		fps_ = envs_count*1.0/(te - ts)
 		fps = 0.9*fps + 0.1*fps_
 
-		if i%100 == 0:
+		if j%100 == 0:
 			print("fps = ", i, fps)
 
 	print("program done")
