@@ -389,7 +389,7 @@ if __name__ == "__main__":
 	envs = MultiEnvParallelOptimised("MontezumaRevengeNoFrameskip-v4", WrapperMontezuma, envs_count)
 	
 	fps = 0.0
-	
+
 	for i in range(envs_count):
 		envs.reset(i)
 
@@ -408,3 +408,5 @@ if __name__ == "__main__":
 
 		if i%100 == 0:
 			print("fps = ", i, fps)
+
+	print("program done")
