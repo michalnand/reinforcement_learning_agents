@@ -393,7 +393,7 @@ if __name__ == "__main__":
 	for j in range(envs_count):
 		envs.reset(j)
 
-	for j in range(10000):
+	for j in range(2000):
 		actions = numpy.random.randint(18, size=envs_count)
 		ts = time.time()
 		states, rewards, dones, infos = envs.step(actions)
