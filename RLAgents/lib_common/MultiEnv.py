@@ -243,7 +243,6 @@ def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 		elif val[0] == "end":
 			for i in range(envs_count):
 				envs[i].close()
-			print("terminating ", id)
 			break
 
 		elif val[0] == "reset":
@@ -311,7 +310,7 @@ class MultiEnvParallelOptimised:
 			parent_conn, child_conn = multiprocessing.Pipe()
 
 			worker = multiprocessing.Process(target=env_process_main_optimised, args=(i, self.envs_per_thread, child_conn, env_name, wrapper))
-			#worker.daemon = True
+			worker.daemon = True
 			
 			self.parent_conn.append(parent_conn)
 			self.child_conn.append(child_conn)
