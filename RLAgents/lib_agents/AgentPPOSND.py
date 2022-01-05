@@ -383,11 +383,9 @@ class AgentPPOSND():
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
-        predicted = ((za - zb)**2).mean(dim=1)
-
+        predicted = ((za - zb)**2).mean(dim=1) 
+ 
         target_t = target_t*(1.0 + torch.tanh(10.0*states_dif))
-
-        print("target = ", target_t.shape, states_dif.shape, predicted.shape)
 
         loss = ((target_t - predicted)**2).mean()
 
