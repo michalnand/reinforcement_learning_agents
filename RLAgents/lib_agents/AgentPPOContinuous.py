@@ -142,9 +142,9 @@ class AgentPPOContinuous():
 
  
         if kl_div_mean > (self.kl_target * 1.5):
-            self.kl_beta *= 2
-        elif kl_div_mean < (self.kl_target / 1.5):
             self.kl_beta *= 0.5
+        elif kl_div_mean < (self.kl_target / 1.5):
+            self.kl_beta *= 2.0
 
         self.kl_beta = numpy.clip(self.kl_beta, 0.0001, 10)
 
