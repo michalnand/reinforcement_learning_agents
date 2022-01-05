@@ -12,7 +12,8 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_beta            = config.kl_beta
+        self.kl_beta            = 1.0
+        self.kl_target          = config.kl_target
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -131,8 +132,20 @@ class AgentPPOContinuous():
         loss_policy = loss_policy.mean()
 
         
-        kl_div      = torch.exp(log_ratio) # - 1.0 - log_ratio
+        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
         loss_kl     = self.kl_beta*kl_div.mean()
+
+        kl_div_mean = torch.mean(kl_div).detach().to("cpu").numpy()
+
+
+        if kl_div_mean > self.kl_target * 1.5:
+            self.kl_beta *= 2
+        elif kl_div_mean < (self.kl_target / 1.5):
+            self.kl_beta *= 0.5
+
+        self.kl_beta = numpy.clip(self.kl_beta, 0.0001, 10)
+
+        print("KL = ", kl_div_mean, self.kl_beta)
 
          
         '''
