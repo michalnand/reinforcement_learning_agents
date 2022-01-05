@@ -133,9 +133,10 @@ class AgentPPOContinuous():
         loss_policy = loss_policy.mean()
         '''
 
-
+ 
         ''' 
-        compute actor loss, KL divergence loss
+        compute actor loss, KL divergence loss to prevent policy collapse
+        see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
         ''' 
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
@@ -144,7 +145,6 @@ class AgentPPOContinuous():
 
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
 
-        print(">>> ", policy, kl_div) 
 
         loss_policy = policy + self.kl_beta*kl_div
         loss_policy = loss_policy.mean()
