@@ -385,7 +385,9 @@ class AgentPPOSND():
 
         predicted = ((za - zb)**2).mean(dim=1)
 
-        target_t = target_t*(1.0 + torch.tanh(states_dif))
+        target_t = target_t*(1.0 + torch.tanh(100.0*states_dif))
+
+        print(">>> ", torch.tanh(10.0*states_dif).mean(), torch.tanh(100.0*states_dif).mean())
 
 
         loss = ((target_t - predicted)**2).mean()
