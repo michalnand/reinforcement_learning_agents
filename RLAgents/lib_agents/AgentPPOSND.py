@@ -136,6 +136,7 @@ class AgentPPOSND():
         features        = self.model_rnd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
 
+
         '''
         self.vis_features.append(features[0])
         self.vis_labels.append(infos[0]["room_id"])
@@ -370,12 +371,11 @@ class AgentPPOSND():
         
         target_t = target_t.to(self.model_rnd_target.device)
 
-        states_dif = ((states_a_t[:, 0] - states_b_t[:, 0])**2).mean(dim=(1, 2))
-        states_dif = states_dif.to(self.model_rnd_target.device) 
+        states_dif =  self._states_dif(states_a_t[:, 0], states_b_t[:, 0])
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
-
+ 
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
@@ -470,3 +470,16 @@ class AgentPPOSND():
         scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
 
         return (1 - apply)*x + apply*scaled
+
+
+    def _states_dif(self, xa, xb, scale = 4):
+        ds  = torch.nn.AvgPool2d(scale, scale).to(xa.device)
+
+        xad = ds(xa)
+        xbd = ds(xb)
+
+        dif = (xad - xbd)**2
+        dif = dif.mean(dim=(1, 2))
+
+        return dif
+
