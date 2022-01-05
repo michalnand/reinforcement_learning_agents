@@ -371,7 +371,7 @@ class AgentPPOSND():
         
         target_t = target_t.to(self.model_rnd_target.device)
 
-        states_dif =  self._states_dif(states_a_t[:, 0], states_b_t[:, 0])
+        states_dif =  self._states_dif(states_a_t[:, 0], states_b_t[:, 0]).to(self.model_rnd_target.device)
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
