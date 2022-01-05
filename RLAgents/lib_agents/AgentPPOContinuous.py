@@ -142,13 +142,15 @@ class AgentPPOContinuous():
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
         
-        loss_policy = -torch.exp(log_probs_new - log_probs_old)*advantages
+        log_ratio   = log_probs_new - log_probs_old
+        loss_policy = -torch.exp(log_ratio)*advantages
         loss_policy = loss_policy.mean()
 
-        kl_div      = torch.sum(torch.exp(log_probs_old)*(log_probs_old - log_probs_new), dim=1)
+        
+        kl_div      = torch.exp(log_ratio) - 1.0 - log_ratio
         loss_kl     = self.kl_beta*kl_div.mean()
 
- 
+     
          
         '''
         compute entropy loss, to avoid greedy strategy
@@ -166,3 +168,4 @@ class AgentPPOContinuous():
         p2 = -torch.log(torch.sqrt(2.0*numpy.pi*var)) 
 
         return p1 + p2
+
