@@ -122,7 +122,9 @@ class AgentPPOContinuous():
         ''' 
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
-        https://github.com/DLR-RM/stable-baselines3/blob/d9e198e04fab39600781093ec9925aafdb9589f9/stable_baselines3/ppo/ppo.py#L242
+
+        adaptive KL beta coefficient
+        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
         ''' 
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
@@ -135,10 +137,10 @@ class AgentPPOContinuous():
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
         loss_kl     = self.kl_beta*kl_div.mean()
 
-        kl_div_mean = torch.mean(kl_div).detach().to("cpu").numpy()
+        kl_div_mean = torch.mean(torch.abs(kl_div)).detach().to("cpu").numpy()
 
-
-        if kl_div_mean > self.kl_target * 1.5:
+ 
+        if kl_div_mean > (self.kl_target * 1.5):
             self.kl_beta *= 2
         elif kl_div_mean < (self.kl_target / 1.5):
             self.kl_beta *= 0.5
