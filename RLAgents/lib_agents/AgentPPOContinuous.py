@@ -140,11 +140,13 @@ class AgentPPOContinuous():
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
         
-        ratio       = torch.exp(log_probs_new - log_probs_old)
+        policy      = -torch.exp(log_probs_new - log_probs_old)*advantages
 
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
 
-        loss_policy = -ratio*advantages + self.kl_beta*kl_div
+        print(">>> ", policy, kl_div) 
+
+        loss_policy = policy + self.kl_beta*kl_div
         loss_policy = loss_policy.mean()
          
         '''
