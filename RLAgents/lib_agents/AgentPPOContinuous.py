@@ -134,10 +134,11 @@ class AgentPPOContinuous():
         loss_policy = loss_policy.mean()
 
         
-        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
+        #kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
+        kl_div      = (log_probs_old - log_probs_new)**2
         loss_kl     = self.kl_beta*kl_div.mean()
 
-        kl_div_mean = torch.mean(torch.abs(kl_div)).detach().to("cpu").numpy()
+        kl_div_mean = kl_div.mean().detach().to("cpu").numpy()
 
  
         if kl_div_mean > (self.kl_target * 1.5):
