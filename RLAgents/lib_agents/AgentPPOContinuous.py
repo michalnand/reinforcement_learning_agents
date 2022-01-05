@@ -12,7 +12,7 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_beta            = config.kl_beta
+        self.kl_target          = config.kl_target
         self.eps_clip           = config.eps_clip
 
         self.steps              = config.steps
@@ -144,7 +144,7 @@ class AgentPPOContinuous():
         policy      = -torch.exp(log_probs_new - log_probs_old)*advantages
 
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
-        kl_loss     = (0.004 - kl_div)**2
+        kl_loss     = (self.kl_target - kl_div)**2
  
         loss_policy = policy + kl_loss
         loss_policy = loss_policy.mean()
