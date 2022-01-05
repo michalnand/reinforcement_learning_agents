@@ -12,9 +12,7 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_target          = config.kl_target
         self.kl_beta            = config.kl_beta
-        self.eps_clip           = config.eps_clip
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -119,25 +117,11 @@ class AgentPPOContinuous():
         loss_value = (returns.detach() - values_new)**2
         loss_value = loss_value.mean()
         
-        ''' 
-        compute actor loss, surrogate loss
-        ''' 
-        '''
-        advantages  = advantages.detach()
-        advantages  = advantages.unsqueeze(1) 
-        
-        ratio       = torch.exp(log_probs_new - log_probs_old)
-
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
-        loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean()
-        '''
-
  
         ''' 
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
+        https://github.com/DLR-RM/stable-baselines3/blob/d9e198e04fab39600781093ec9925aafdb9589f9/stable_baselines3/ppo/ppo.py#L242
         ''' 
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
@@ -147,10 +131,9 @@ class AgentPPOContinuous():
         loss_policy = loss_policy.mean()
 
         
-        kl_div      = torch.exp(log_ratio) - 1.0 - log_ratio
+        kl_div      = torch.exp(log_ratio) # - 1.0 - log_ratio
         loss_kl     = self.kl_beta*kl_div.mean()
 
-     
          
         '''
         compute entropy loss, to avoid greedy strategy
