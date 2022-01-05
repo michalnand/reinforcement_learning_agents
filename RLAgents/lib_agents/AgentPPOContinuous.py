@@ -148,10 +148,8 @@ class AgentPPOContinuous():
 
         self.kl_beta = numpy.clip(self.kl_beta, 0.0001, 10)
 
-        print(">>> ", loss_kl, kl_div_mean, self.kl_beta)
+        #print(">>> ", loss_kl, kl_div_mean, self.kl_beta)
 
-
-         
         '''
         compute entropy loss, to avoid greedy strategy
         H = ln(sqrt(2*pi*var))
