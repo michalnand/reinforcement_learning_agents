@@ -148,7 +148,6 @@ class AgentPPOContinuous():
 
         self.kl_beta = numpy.clip(self.kl_beta, 0.0001, 10)
 
-        print("KL = ", kl_div_mean, self.kl_beta)
 
          
         '''
