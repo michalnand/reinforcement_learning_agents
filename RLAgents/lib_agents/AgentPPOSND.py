@@ -387,9 +387,6 @@ class AgentPPOSND():
  
         target_t = target_t*(1.0 + torch.tanh(10.0*states_dif))
 
-
-        print(">>> ", states_dif[0], torch.tanh(10.0*states_dif)[0])
-
         loss = ((target_t - predicted)**2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
