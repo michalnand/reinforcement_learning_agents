@@ -379,7 +379,6 @@ class AgentPPOSND():
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
-
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
@@ -470,7 +469,6 @@ class AgentPPOSND():
         scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
 
         return (1 - apply)*x + apply*scaled
-
 
     def _states_dif(self, xa, xb, scale = 4):
         ds  = torch.nn.AvgPool2d(scale, scale).to(xa.device)

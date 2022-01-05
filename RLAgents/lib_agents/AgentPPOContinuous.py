@@ -12,6 +12,7 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
+        self.kl_beta            = config.kl_beta
         self.eps_clip           = config.eps_clip
 
         self.steps              = config.steps
@@ -120,9 +121,8 @@ class AgentPPOContinuous():
         ''' 
         compute actor loss, surrogate loss
         ''' 
-         
+        '''
         advantages  = advantages.detach()
-        #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
         advantages  = advantages.unsqueeze(1) 
         
         ratio       = torch.exp(log_probs_new - log_probs_old)
@@ -131,7 +131,21 @@ class AgentPPOContinuous():
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
         loss_policy = loss_policy.mean()
+        '''
 
+
+        ''' 
+        compute actor loss, KL divergence loss
+        ''' 
+        advantages  = advantages.detach()
+        advantages  = advantages.unsqueeze(1) 
+        
+        ratio       = torch.exp(log_probs_new - log_probs_old)
+
+        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
+
+        loss_policy = -ratio*advantages + self.kl_beta*kl_div
+        loss_policy = loss_policy.mean()
          
         '''
         compute entropy loss, to avoid greedy strategy
