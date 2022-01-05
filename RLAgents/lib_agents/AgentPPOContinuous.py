@@ -143,12 +143,11 @@ class AgentPPOContinuous():
         
         policy      = -torch.exp(log_probs_new - log_probs_old)*advantages
 
-        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
+        kl_div      = self.kl_beta*torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
 
-        print(">>> ", kl_div) 
         kl_div      = torch.clip(kl_div, -0.1, 0.1)
 
-        loss_policy = policy + self.kl_beta*kl_div
+        loss_policy = policy + kl_div
         loss_policy = loss_policy.mean()
          
         '''
