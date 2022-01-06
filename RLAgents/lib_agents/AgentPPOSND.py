@@ -470,7 +470,7 @@ class AgentPPOSND():
 
         return (1 - apply)*x + apply*scaled
 
-    def _states_dif(self, xa, xb, scale = 4):
+    def _states_dif(self, xa, xb, scale = 2):
         ds  = torch.nn.AvgPool2d(scale, scale).to(xa.device)
 
         xad = ds(xa)
