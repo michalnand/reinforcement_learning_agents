@@ -131,13 +131,11 @@ class AgentPPOSND():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-        
+        '''
         states_norm_t   = self._norm_state(states_t)
         features        = self.model_rnd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
 
-
-        '''
         self.vis_features.append(features[0])
         self.vis_labels.append(infos[0]["room_id"])
 
@@ -471,7 +469,7 @@ class AgentPPOSND():
         return (1 - apply)*x + apply*scaled
 
     def _states_dif(self, xa, xb):
-        dif = (xa - xb)**2
+        dif = (xa - xb)**2 
         dif = dif.mean(dim=(1, 2))
 
         return dif
