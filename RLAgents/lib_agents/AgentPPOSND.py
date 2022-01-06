@@ -56,7 +56,6 @@ class AgentPPOSND():
             self.envs.reset(e)
         
         self.states_running_stats       = RunningStats(self.state_shape)
-        self.rewards_int_running_stats  = RunningStats((1, ))
 
         if self.envs_count > 1:
             self._init_running_stats()
@@ -115,8 +114,6 @@ class AgentPPOSND():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
-        self.rewards_int_running_stats.update(rewards_int)
-
      
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
 
@@ -417,14 +414,10 @@ class AgentPPOSND():
         if self.normalise_state_mean:
             mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
             state_norm_t = state_norm_t - mean
-        else:
-            print("no mean normalisation")
 
         if self.normalise_state_std:
             std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
             state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
-        else:
-            print("no std normalisation")
 
         return state_norm_t 
 
