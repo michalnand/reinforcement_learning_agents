@@ -31,8 +31,8 @@ class AgentPPOSND():
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
         elif config.contrastive_metrics == "mse_spread":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
-        if config.contrastive_metrics == "cosine":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_cosine
+        if config.contrastive_metrics == "mse_predictor":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_predictor
         else:
             self._compute_contrastive_loss = None
 
@@ -395,7 +395,7 @@ class AgentPPOSND():
         return loss, acc
 
 
-    def _compute_contrastive_loss_cosine(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _compute_contrastive_loss_mse_predictor(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
 
@@ -405,25 +405,15 @@ class AgentPPOSND():
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
-        za = self.model_rnd_target(xa)  
-        zb = self.model_rnd_target(xb)
+        za, pa = self.model_rnd_target.forward_training(xa)  
+        zb, pb = self.model_rnd_target.forward_training(xb) 
 
-        norm_a  = ((za**2).sum(dim=1))**0.5
-        norm_b  = ((zb**2).sum(dim=1))**0.5
-        dot     = (za*zb).sum(dim=1)
+        predicted_a = ((za.detach() - pb)**2).mean(dim=1)
+        predicted_b = ((zb.detach() - pa)**2).mean(dim=1) 
 
-        eps     = 0.0000001*torch.ones_like(norm_a)
-
-        similarity = dot/torch.max(norm_a*norm_b, eps)
-        predicted  = 1.0 - similarity
-
+        predicted = 0.5*(predicted_a + predicted_b)
 
         loss = ((target_t - predicted)**2).mean()
-        loss+= 0.001*norm_a.mean()
-        loss+= 0.001*norm_b.mean()
-
-        print(">>> ", norm_a.mean(), norm_b.mean())
-
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
