@@ -419,8 +419,8 @@ class AgentPPOSND():
 
 
         loss = ((target_t - predicted)**2).mean()
-        loss+= ((1.0 - norm_a)**2).mean()
-        loss+= ((1.0 - norm_b)**2).mean()
+        loss+= 0.001*((1.0 - norm_a)**2).mean()
+        loss+= 0.001*((1.0 - norm_b)**2).mean()
 
         print(">>> ", norm_a.mean(), norm_b.mean())
 
