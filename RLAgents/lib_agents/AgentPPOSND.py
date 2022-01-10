@@ -416,8 +416,6 @@ class AgentPPOSND():
         zeros = torch.zeros_like(predicted)
         l2 = target_t*torch.max(1.0 - predicted, zeros)
 
-        print(">>> generic loss ", l1.mean(), l2.mean())
-
  
         loss = (l1 + l2).mean()
 
