@@ -29,10 +29,11 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "mse_spread":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
         if config.contrastive_metrics == "mse_predictor":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_predictor
+        elif config.contrastive_metrics == "generic":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_generic
+        
         else:
             self._compute_contrastive_loss = None
 
@@ -364,37 +365,6 @@ class AgentPPOSND():
         return loss, acc
 
 
-    def _compute_contrastive_loss_mse_spreading(self, states_a_t, states_b_t, target_t, confidence = 0.5):
-        
-        target_t = target_t.to(self.model_rnd_target.device)
-
-        states_dif =  self._states_dif(states_a_t[:, 0], states_b_t[:, 0]).to(self.model_rnd_target.device)
-
-        states_a_t = self._norm_state(states_a_t)
-        states_b_t = self._norm_state(states_b_t)
- 
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
-        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
-
-        za = self.model_rnd_target(xa)  
-        zb = self.model_rnd_target(xb) 
-
-        predicted = ((za - zb)**2).mean(dim=1) 
- 
-        target_t = target_t*(1.0 + torch.tanh(10.0*states_dif))
-
-        loss = ((target_t - predicted)**2).mean()
-
-        target      = target_t.detach().to("cpu").numpy()
-        predicted   = predicted.detach().to("cpu").numpy()
-
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
-        acc = 100.0*(true_positive + true_negative)/target.shape[0]
-
-        return loss, acc
-
-
     def _compute_contrastive_loss_mse_predictor(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
@@ -424,6 +394,41 @@ class AgentPPOSND():
 
         return loss, acc
 
+    def _compute_contrastive_loss_generic(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+        
+        target_t = target_t.to(self.model_rnd_target.device)
+
+        states_a_t = self._norm_state(states_a_t)
+        states_b_t = self._norm_state(states_b_t)
+ 
+        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+
+        za = self.model_rnd_target(xa)  
+        zb = self.model_rnd_target(xb) 
+
+        predicted = ((za - zb)**2).mean(dim=1)
+
+        #similar inputs (target = 0), minimize predicted distance
+        l1 = (1.0 - target_t)*predicted
+
+        #distant inputs (target = 1), maximize predicted distance to margin 1
+        zeros = torch.zeros_like(predicted)
+        l2 = target_t*torch.max(1.0 - predicted, zeros)
+
+        print(">>> generic loss ", l1.mean(), l2.mean())
+
+ 
+        loss = (l1 + l2).mean()
+
+        target      = target_t.detach().to("cpu").numpy()
+        predicted   = predicted.detach().to("cpu").numpy()
+
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
+        acc = 100.0*(true_positive + true_negative)/target.shape[0]
+
+        return loss, acc
 
 
     #compute internal motivation
@@ -497,10 +502,3 @@ class AgentPPOSND():
         scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
 
         return (1 - apply)*x + apply*scaled
-
-    def _states_dif(self, xa, xb):
-        dif = (xa - xb)**2 
-        dif = dif.mean(dim=(1, 2))
-
-        return dif
-
