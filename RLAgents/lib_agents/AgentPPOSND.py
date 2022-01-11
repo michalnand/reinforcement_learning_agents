@@ -33,7 +33,7 @@ class AgentPPOSND():
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_predictor
         elif config.contrastive_metrics == "mse_spreading":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
-            
+
         else:
             self._compute_contrastive_loss = None
 
@@ -504,6 +504,10 @@ class AgentPPOSND():
 
 
     def _dif(self, sa, sb):
-        result = ((sa - sb)**2).mean(dim=(1, 2))
+        result = ((sa - sb)**2)
+
+        print(">>> ", result.shape)
+
+        result = result.mean(dim=(1, 2))
 
         return result
