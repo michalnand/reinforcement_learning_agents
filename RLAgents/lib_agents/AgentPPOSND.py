@@ -369,8 +369,8 @@ class AgentPPOSND():
         
         target_t = target_t.to(self.model_rnd_target.device)
 
-        dif = self._dif(states_a_t, states_b_t).to(self.model_rnd_target.device)
-
+        dif = self._dif(states_a_t[:, 0], states_b_t[:, 0]).to(self.model_rnd_target.device)
+ 
         print(">>> ", dif.shape, torch.tanh(100.0*dif).mean())
 
         states_a_t = self._norm_state(states_a_t)
@@ -505,9 +505,6 @@ class AgentPPOSND():
 
     def _dif(self, sa, sb):
         result = ((sa - sb)**2)
-
-        print(">>> ", result.shape)
-
         result = result.mean(dim=(1, 2))
 
         return result
