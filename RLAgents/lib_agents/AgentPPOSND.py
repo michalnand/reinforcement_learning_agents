@@ -37,7 +37,7 @@ class AgentPPOSND():
         else: 
             self._compute_contrastive_loss = None
 
-        print(">>> ", self._compute_contrastive_loss)
+        print(">>> ", config.contrastive_metrics, self._compute_contrastive_loss)
 
 
         self.normalise_state_mean = config.normalise_state_mean
