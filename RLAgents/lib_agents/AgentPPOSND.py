@@ -29,15 +29,12 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        if config.contrastive_metrics == "mse_predictor":
+        elif config.contrastive_metrics == "mse_predictor":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_predictor
         elif config.contrastive_metrics == "mse_spreading":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
-
         else: 
             self._compute_contrastive_loss = None
-
-        print(">>> ", config.contrastive_metrics, self._compute_contrastive_loss)
 
 
         self.normalise_state_mean = config.normalise_state_mean
@@ -364,7 +361,6 @@ class AgentPPOSND():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
-        print(">>> _compute_contrastive_loss_mse ", acc, loss)
 
         return loss, acc
 
@@ -475,9 +471,9 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        #x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
-        #x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
-        #x = self._aug_random_apply(x, 0.5, self._aug_invert)
+        x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
+        x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
+        x = self._aug_random_apply(x, 0.5, self._aug_invert)
  
         x = self._aug_random_apply(x, 0.5,  self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
