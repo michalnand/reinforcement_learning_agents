@@ -471,35 +471,47 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        #x  = self._aug_random_flip(x, p = 0.25, dim=1)
-        #x  = self._aug_random_flip(x, p = 0.25, dim=2)
+        x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
+        x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
+        x = self._aug_random_apply(x, 0.5, self._aug_invert)
 
-        x  = self._aug_resize(x, p = 0.5, scale = 2) 
-        x  = self._aug_resize(x, p = 0.25, scale = 4) 
-        x  = self._aug_random_noise(x, k = 0.2)
-  
+        x = self._aug_random_apply(x, 0.5,  self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+
+        x = self._aug_noise(x, k=0.2)
+
         return x
 
-    def _aug_random_flip(self, x, p = 0.5, dim = 1):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > p)
+    def _aug_random_apply(self, x, p, aug_func):
+        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) < p)
 
-        flipped = torch.flip(x, [dim]) 
-        return (1 - apply)*x + apply*flipped
+        return (1 - apply)*x + apply*aug_func(x) 
 
-        
-    def _aug_random_noise(self, x, k): 
+    def _aug_flip_vertical(self, x):
+        return torch.flip(x, [1])
+
+    def _aug_flip_horizontal(self, x):
+        return torch.flip(x, [2])
+
+    def _aug_invert(self, x):
+        return 1.0 - x
+
+    def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
-    def _aug_resize(self, x, p = 0.5, scale = 2):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > p)
-
+    def _aug_resize(self, x, scale = 2):
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
         scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
 
-        return (1 - apply)*x + apply*scaled
+        return scaled
 
+    def _aug_resize2(self, x):
+        return self._aug_resize(x, 2)
+
+    def _aug_resize4(self, x):
+        return self._aug_resize(x, 4)
 
     def _dif(self, sa, sb):
         result = ((sa - sb)**2)
