@@ -362,6 +362,8 @@ class AgentPPOSND():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
+        print(">>> _compute_contrastive_loss_mse ", acc, loss)
+
         return loss, acc
 
 
