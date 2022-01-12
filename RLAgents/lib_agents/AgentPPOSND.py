@@ -34,8 +34,10 @@ class AgentPPOSND():
         elif config.contrastive_metrics == "mse_spreading":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
 
-        else:
+        else: 
             self._compute_contrastive_loss = None
+
+        print(">>> ", self._compute_contrastive_loss)
 
 
         self.normalise_state_mean = config.normalise_state_mean
