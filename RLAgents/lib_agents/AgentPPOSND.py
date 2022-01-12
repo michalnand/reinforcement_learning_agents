@@ -29,10 +29,8 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "mse_predictor":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_predictor
-        elif config.contrastive_metrics == "mse_spreading":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
+        elif config.contrastive_metrics == "mse_ortho":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_ortho
         else: 
             self._compute_contrastive_loss = None
 
@@ -365,12 +363,10 @@ class AgentPPOSND():
         return loss, acc
 
 
-    def _compute_contrastive_loss_mse_spreading(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _compute_contrastive_loss_mse_ortho(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
 
-        dif = self._dif(states_a_t[:, 0], states_b_t[:, 0]).to(self.model_rnd_target.device)
- 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
 
@@ -382,39 +378,15 @@ class AgentPPOSND():
 
         predicted = ((za - zb)**2).mean(dim=1)
 
-        target_t  = target_t*(1.0 + torch.tanh(100.0*dif))
+        #mse loss 
+        #close target (target = 0), should produce close distance
+        #distant target (target = 1), should produce distant distance
+        l1 = ((target_t - predicted)**2)
 
-        loss = ((target_t - predicted)**2).mean()
+        #distant inputs (target = 1) should be also orthogonal (zero dot product)
+        l2 = (target_t == 1)*(((za*zb).mean(dim=1))**2)
 
-        target      = target_t.detach().to("cpu").numpy()
-        predicted   = predicted.detach().to("cpu").numpy()
-
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
-        acc = 100.0*(true_positive + true_negative)/target.shape[0]
-
-        return loss, acc
-
-
-    def _compute_contrastive_loss_mse_predictor(self, states_a_t, states_b_t, target_t, confidence = 0.5):
-        
-        target_t = target_t.to(self.model_rnd_target.device)
-
-        states_a_t = self._norm_state(states_a_t)
-        states_b_t = self._norm_state(states_b_t)
-
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
-        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
-
-        za, pa = self.model_rnd_target.forward_training(xa)  
-        zb, pb = self.model_rnd_target.forward_training(xb) 
-
-        predicted_a = ((za.detach() - pb)**2).mean(dim=1)
-        predicted_b = ((zb.detach() - pa)**2).mean(dim=1) 
-
-        predicted = 0.5*(predicted_a + predicted_b)
-
-        loss = ((target_t - predicted)**2).mean()
+        loss = (l1 + l2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
@@ -423,7 +395,10 @@ class AgentPPOSND():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
+
         return loss, acc
+
+
 
    
 
@@ -509,8 +484,4 @@ class AgentPPOSND():
     def _aug_resize4(self, x):
         return self._aug_resize(x, 4)
 
-    def _dif(self, sa, sb):
-        result = ((sa - sb)**2)
-        result = result.mean(dim=(1, 2))
-
-        return result
+   
