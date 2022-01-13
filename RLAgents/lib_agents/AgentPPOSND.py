@@ -155,9 +155,8 @@ class AgentPPOSND():
 
             self.vis_features   = []
             self.vis_labels     = []
+        
         '''
-        
-        
 
         #collect stats
         k = 0.02
@@ -376,17 +375,23 @@ class AgentPPOSND():
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
+        dot = (za*zb).mean(dim=1)
+
         predicted = ((za - zb)**2).mean(dim=1)
 
         #mse loss 
-        #close target (target = 0), should produce close distance
-        #distant target (target = 1), should produce distant distance
+        #close inputs (target = 0), should produce close distance
+        #distant inputs (target = 1), should produce distant distance
         l1 = ((target_t - predicted)**2)
 
-        #distant inputs (target = 1) should be also orthogonal (zero dot product)
-        l2 = (target_t == 1)*(((za*zb).mean(dim=1))**2)
+        #for distant inputs vectors angle should be orhogonal, zero dot product
+        l2 = (target_t == 1)*(dot**2)
 
-        loss = (l1 + l2).mean()
+        #for close inputs vectors angle should be minimal, maximal dot product
+        #note : case for oposite vectors is handled by MSE loss
+        l3 = (target_t == 0)*(-(dot**2))
+
+        loss = (l1 + l2 + l3).mean()
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
@@ -446,8 +451,8 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
-        x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
+        #x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
+        #x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
  
         x = self._aug_random_apply(x, 0.5,  self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
