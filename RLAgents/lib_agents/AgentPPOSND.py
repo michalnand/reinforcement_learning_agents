@@ -393,6 +393,8 @@ class AgentPPOSND():
 
         loss = (l1 + l2 + l3).mean()
 
+        print(">>> ", l1.mean(), l2.mean(), l3.mean())
+
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
 
