@@ -385,15 +385,11 @@ class AgentPPOSND():
         l1 = ((target_t - predicted)**2)
 
         #for distant inputs vectors angle should be orhogonal, zero dot product
-        l2 = (target_t == 1)*(dot**2)
+        l2 = (target_t == 1)*(dot**2) 
 
-        #for close inputs vectors angle should be minimal, maximal dot product
-        #note : case for oposite vectors is handled by MSE loss
-        l3 = (target_t == 0)*(-(dot**2))
+        loss = (l1 + l2).mean()
 
-        loss = (l1 + l2 + l3).mean()
-
-        print(">>> ", l1.mean(), l2.mean(), l3.mean())
+        print(">>> ", l1.mean(), l2.mean())
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
