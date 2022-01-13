@@ -449,8 +449,8 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        #x = self._aug_random_apply(x, 0.25, self._aug_flip_vertical)
-        #x = self._aug_random_apply(x, 0.25, self._aug_flip_horizontal)
+        x = self._aug_random_apply(x, 0.1, self._aug_flip_vertical) 
+        x = self._aug_random_apply(x, 0.1, self._aug_flip_horizontal)
  
         x = self._aug_random_apply(x, 0.5,  self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
