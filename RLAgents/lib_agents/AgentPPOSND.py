@@ -29,8 +29,8 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "mse_ortho":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_ortho
+        elif config.contrastive_metrics == "mse_spreading":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
         else: 
             self._compute_contrastive_loss = None
 
@@ -139,6 +139,11 @@ class AgentPPOSND():
         if self.iterations%32 == 0:
             print("std = ", numpy.std(self.vis_features, axis=0).mean())
 
+        dif = self._dif(states_t[:, 0], states_t[:, 1])
+
+        if dif[0] > 0.015:
+            print("new room dif = ", dif[0], "\n\n")
+
         if dones[0]:
             print("training t-sne")
 
@@ -155,8 +160,8 @@ class AgentPPOSND():
 
             self.vis_features   = []
             self.vis_labels     = []
-        
         '''
+        
 
         #collect stats
         k = 0.02
@@ -341,14 +346,17 @@ class AgentPPOSND():
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
 
+        #states augmentation
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
+        #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
 
+        #common MSE loss
         loss = ((target_t - predicted)**2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
@@ -361,35 +369,33 @@ class AgentPPOSND():
 
         return loss, acc
 
-
-    def _compute_contrastive_loss_mse_ortho(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _compute_contrastive_loss_mse_spreading(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_rnd_target.device)
+
+        dif = self._dif(states_a_t[:, 0], states_b_t[:, 0])
+        dif = dif.to(self.model_rnd_target.device)
+
+        print(">>> ", dif)
+        
+        #add +1 distance for different rooms
+        target_t = target_t*(1 + (dif > 0.015))
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
 
+        #states augmentation
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
 
         za = self.model_rnd_target(xa)  
         zb = self.model_rnd_target(xb) 
 
-        dot = (za*zb).mean(dim=1)
-
+        #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
 
-        #mse loss 
-        #close inputs (target = 0), should produce close distance
-        #distant inputs (target = 1), should produce distant distance
-        l1 = ((target_t - predicted)**2)
-
-        #for distant inputs vectors angle should be orhogonal, zero dot product
-        l2 = (target_t == 1)*(dot**2) 
-
-        loss = (l1 + l2).mean()
-
-        #print(">>> ", l1.mean(), l2.mean())
+        #common MSE loss
+        loss = ((target_t - predicted)**2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
@@ -400,10 +406,6 @@ class AgentPPOSND():
 
 
         return loss, acc
-
-
-
-   
 
 
     #compute internal motivation
@@ -449,8 +451,8 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        x = self._aug_random_apply(x, 0.1, self._aug_flip_vertical) 
-        x = self._aug_random_apply(x, 0.1, self._aug_flip_horizontal)
+        #x = self._aug_random_apply(x, 0.1, self._aug_flip_vertical) 
+        #x = self._aug_random_apply(x, 0.1, self._aug_flip_horizontal)
  
         x = self._aug_random_apply(x, 0.5,  self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
@@ -486,5 +488,11 @@ class AgentPPOSND():
 
     def _aug_resize4(self, x):
         return self._aug_resize(x, 4)
+
+    def _dif(self, xa, xb):
+        result = (xa - xb)**2
+        result = result.mean(dim=(1, 2))
+
+        return result
 
    
