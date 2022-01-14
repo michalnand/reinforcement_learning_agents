@@ -375,10 +375,8 @@ class AgentPPOSND():
 
         dif = self._dif(states_a_t[:, 0], states_b_t[:, 0])
         dif = dif.to(self.model_rnd_target.device)
-
-        print(">>> ", dif)
         
-        #add +1 distance for different rooms
+        #add +1 distance for different rooms (big dif value)
         target_t = target_t*(1 + (dif > 0.015))
 
         states_a_t = self._norm_state(states_a_t)
