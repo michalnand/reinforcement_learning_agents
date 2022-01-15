@@ -471,7 +471,7 @@ class AgentPPOSND():
     def _aug_flip_horizontal(self, x):
         return torch.flip(x, [2])
 
-    def _aug_mask(self, x, p = 0.1):
+    def _aug_mask(self, x, p = 0.2):
         mask = 1.0*(torch.rand_like(x) < (1.0 -p))
         return x*mask
 
