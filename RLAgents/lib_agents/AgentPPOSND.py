@@ -473,7 +473,6 @@ class AgentPPOSND():
 
     def _aug_mask(self, x, p = 0.1):
         mask = 1.0*(torch.rand_like(x) < (1.0 -p))
-        print(">>> ", mask.mean())
         return x*mask
 
     def _aug_noise(self, x, k = 0.2): 
