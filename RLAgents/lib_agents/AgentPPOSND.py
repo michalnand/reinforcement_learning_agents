@@ -472,9 +472,9 @@ class AgentPPOSND():
  
     def _aug_mask(self, x, p = 0.1):
         mask = 1.0*(torch.rand_like(x) < (1.0 -p))
-        return x*mask
+        return x*mask 
 
-    def _aug_noise(self, x, k = 0.1): 
+    def _aug_noise(self, x, k = 0.05): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
