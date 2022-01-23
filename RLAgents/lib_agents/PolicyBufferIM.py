@@ -114,13 +114,17 @@ class PolicyBufferIM:
         count = self.envs_count*self.buffer_size
  
         indices_a       = numpy.random.randint(0, count, size=batch_size)
+        
+        indices_close   = indices_a + numpy.random.randint(0, 2, size=batch_size)
+        indices_close   = numpy.clip(indices_close, 0, count-1)
+
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
         labels          = (numpy.random.rand(batch_size) > 0.5)
         
         #label 0 = close states
         #label 1 = distant states
-        indices_b       = (1 - labels)*indices_a + labels*indices_far
+        indices_b       = (1 - labels)*indices_close + labels*indices_far
 
         states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)/self.scale).float()
         states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)/self.scale).float()
