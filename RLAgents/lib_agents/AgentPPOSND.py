@@ -449,12 +449,9 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        #x = self._aug_random_apply(x, 0.1, self._aug_flip_vertical) 
-        #x = self._aug_random_apply(x, 0.1, self._aug_flip_horizontal)
- 
         x = self._aug_random_apply(x, 0.25, self._aug_mask)
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
-        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize2)
+        #x = self._aug_random_apply(x, 0.25, self._aug_resize4)
         x = self._aug_noise(x, k = 0.2)
 
         return x
@@ -463,12 +460,6 @@ class AgentPPOSND():
         apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) < p)
 
         return (1 - apply)*x + apply*aug_func(x) 
-
-    def _aug_flip_vertical(self, x):
-        return torch.flip(x, [1])
-
-    def _aug_flip_horizontal(self, x):
-        return torch.flip(x, [2])
  
     def _aug_mask(self, x, p = 0.1):
         mask = 1.0*(torch.rand_like(x) < (1.0 - p))
