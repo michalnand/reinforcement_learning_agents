@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 
       
-class AgentPPOSND():   
+class AgentPPOSNDC():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
     
@@ -30,8 +30,8 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-        elif config.contrastive_metrics == "info_nce":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_info_nce
+        elif config.contrastive_metrics == "mse_spreading":
+            self._compute_contrastive_loss = self._compute_contrastive_loss_mse_spreading
         else: 
             self._compute_contrastive_loss = None
 
@@ -45,8 +45,9 @@ class AgentPPOSND():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
+
         self.model_snd_target      = ModelSNDTarget.Model(self.state_shape)
-        self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_snd_target)
+        self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_rnd_target)
 
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
@@ -80,8 +81,8 @@ class AgentPPOSND():
         self.log_acc_siam                   = 0.0
 
 
-        #self.vis_features = []
-        #self.vis_labels   = []
+        self.vis_features = []
+        self.vis_labels   = []
 
 
     def enable_training(self):
@@ -95,7 +96,7 @@ class AgentPPOSND():
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_t, _. _  = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -129,7 +130,7 @@ class AgentPPOSND():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-        '''
+        
         states_norm_t   = self._norm_state(states_t)
         features        = self.model_snd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
@@ -161,7 +162,7 @@ class AgentPPOSND():
 
             self.vis_features   = []
             self.vis_labels     = []
-        '''
+        
         
 
         #collect stats
@@ -220,7 +221,26 @@ class AgentPPOSND():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train snd model, MSE loss
+
+                states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
+
+
+                #contrastive loss for better features space (optional)
+                xa = self._aug(states_a_t).detach().to(self.model_ppo.device)
+                xb = self._aug(states_a_t).detach().to(self.model_ppo.device)
+ 
+                za, zb = self.model_ppo.forward_constrastive(xa, xb)
+
+                logits_ab           = torch.matmul(za, zb.t())
+                loss_contrastive    = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+
+                self.optimizer_ppo.zero_grad()        
+                loss_contrastive.backward()
+                self.optimizer_ppo.step()
+
+
+
+                #train RND model, MSE loss
                 loss_snd = self._compute_loss_snd(states)
 
                 self.optimizer_snd.zero_grad() 
@@ -232,10 +252,8 @@ class AgentPPOSND():
                 self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
 
 
-                #train snd target model for regularisation
-                if self._compute_contrastive_loss is not None:
-                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
-                    
+                #train RND target model for regularisation
+                if self._compute_contrastive_loss is not None:                    
                     loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
     
                     self.optimizer_snd_target.zero_grad() 
@@ -250,7 +268,7 @@ class AgentPPOSND():
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+        logits_new, values_ext_new, values_int_new, za, zb  = self.model_ppo.forward(states)
 
         #critic loss
         loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
@@ -262,7 +280,7 @@ class AgentPPOSND():
 
         loss_actor = loss_policy + loss_entropy
 
-     
+      
         #total loss
         loss = 0.5*loss_critic + loss_actor
 
@@ -323,7 +341,7 @@ class AgentPPOSND():
         return loss_policy, loss_entropy
 
 
-    #MSE loss for snd model
+    #MSE loss for SND model
     def _compute_loss_snd(self, states):
         
         state_norm_t    = self._norm_state(states).detach()
@@ -368,40 +386,45 @@ class AgentPPOSND():
         true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
+
         return loss, acc
 
+    def _compute_contrastive_loss_mse_spreading(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+        
+        target_t = target_t.to(self.model_snd_target.device)
 
+        dif = self._dif(states_a_t[:, 0], states_b_t[:, 0])
+        dif = dif.to(self.model_snd_target.device)
+        
+        #add +1 distance for different rooms (big dif value)
+        target_t = target_t*(1 + (dif > 0.015))
 
-    def _compute_contrastive_loss_info_nce(self, states_a_t, states_b_t, target_t):
+        states_a_t = self._norm_state(states_a_t)
+        states_b_t = self._norm_state(states_b_t)
+
         #states augmentation
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        xb = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
+
         za = self.model_snd_target(xa)  
-        zb = self.model_snd_target.forward_predictor(xb) 
+        zb = self.model_snd_target(xb) 
 
-        #contrastive loss
-        logits_ab   = torch.matmul(za, zb.t())
-        loss        = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+        #predict close distance for similar, far distance for different states
+        predicted = ((za - zb)**2).mean(dim=1)
 
-        #only for computing accuracy
-        #states similarity calculation for stats
-        xc = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        zc = self.model_snd_target(xc) 
-
-        dist        = ((za - zc)**2).mean(dim=1)
-        threshold   = dist.mean().detach().to("cpu").numpy()
-        predicted   = dist.detach().to("cpu").numpy()
+        #common MSE loss
+        loss = ((target_t - predicted)**2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
+        predicted   = predicted.detach().to("cpu").numpy()
 
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > threshold))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted <= threshold))
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
+
 
         return loss, acc
 
-       
 
     #compute internal motivation
     def _curiosity(self, state_t):
@@ -469,7 +492,11 @@ class AgentPPOSND():
     def _aug_resize(self, x, scale = 2):
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
-        scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+
+        if len(x.shape) == 3:
+            scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+        else:
+            scaled  = us(ds(x))
 
         return scaled
 
