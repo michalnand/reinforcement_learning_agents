@@ -357,6 +357,7 @@ class AgentPPOSND():
 
         if hasattr(self.model_snd_target, "forward_predictor"):
             zb = self.model_snd_target.forward_predictor(xb) 
+            print("using predictor")
         else:
             zb = self.model_snd_target(xb) 
 
