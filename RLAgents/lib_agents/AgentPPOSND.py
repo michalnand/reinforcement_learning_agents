@@ -352,8 +352,14 @@ class AgentPPOSND():
         xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
         xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
 
+
         za = self.model_snd_target(xa)  
-        zb = self.model_snd_target(xb) 
+
+        if hasattr(self.model_snd_target, "forward_predictor"):
+            zb = self.model_snd_target.forward_predictor(xb) 
+        else:
+            zb = self.model_snd_target(xb) 
+
 
         #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
@@ -378,7 +384,11 @@ class AgentPPOSND():
         xb = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
         
         za = self.model_snd_target(xa)  
-        zb = self.model_snd_target.forward_predictor(xb) 
+
+        if hasattr(self.model_snd_target, "forward_predictor"):
+            zb = self.model_snd_target.forward_predictor(xb) 
+        else:
+            zb = self.model_snd_target(xb) 
 
         #contrastive loss
         logits_ab   = torch.matmul(za, zb.t())
@@ -446,10 +456,17 @@ class AgentPPOSND():
                     self.envs.reset(e)
 
     def _aug(self, x):
+
+        '''
         x = self._aug_random_apply(x, 0.5, self._aug_mask)
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_noise(x, k = 0.2)
-        #x = self._aug_random_apply(x, 0.25, self._aug_noise)
+        '''
+
+        x = self._aug_random_apply(x, 0.25, self._aug_mask)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.25, self._aug_noise)
 
         return x
 
@@ -462,7 +479,7 @@ class AgentPPOSND():
         mask = 1.0*(torch.rand_like(x) < (1.0 - p))
         return x*mask  
 
-    def _aug_noise(self, x, k = 0.1): 
+    def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
