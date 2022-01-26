@@ -464,7 +464,8 @@ class AgentPPOSND():
         '''
 
         x = self._aug_random_apply(x, 0.5, self._aug_mask)
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize)
+        x = self._aug_random_apply(x, 0.5, self._blur)
         x = self._aug_noise(x, k = 0.2)
  
         return x
@@ -489,11 +490,11 @@ class AgentPPOSND():
 
         return scaled
 
-    def _aug_resize2(self, x):
-        return self._aug_resize(x, 2)
+    def _aug_blur(self, x, scale = 5):
+        ds      = torch.nn.AvgPool2d(scale, 1, padding=scale//2).to(x.device)
+        scaled  = ds(x.unsqueeze(1)).squeeze(1)
 
-    def _aug_resize4(self, x):
-        return self._aug_resize(x, 4)
+        return scaled
 
     def _dif(self, xa, xb):
         result = (xa - xb)**2
