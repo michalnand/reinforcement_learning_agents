@@ -466,7 +466,7 @@ class AgentPPOSND():
         x = self._aug_random_apply(x, 0.25, self._aug_mask)
         x = self._aug_random_apply(x, 0.25, self._aug_resize)
         x = self._aug_random_apply(x, 0.25, self._aug_blur)
-        x = self._aug_random_apply(x, 0.25, self._aug_noise)
+        x = self._aug_noise(x, k = 0.2)
         
         return x
 
