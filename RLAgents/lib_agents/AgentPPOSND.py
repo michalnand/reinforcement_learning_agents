@@ -457,17 +457,18 @@ class AgentPPOSND():
 
     def _aug(self, x):
 
-        '''
+        
         x = self._aug_random_apply(x, 0.5, self._aug_mask)
         x = self._aug_random_apply(x, 0.5, self._aug_resize)
         x = self._aug_noise(x, k = 0.2)
-        '''
+        
 
+        '''
         x = self._aug_random_apply(x, 0.25, self._aug_mask)
         x = self._aug_random_apply(x, 0.25, self._aug_resize)
         x = self._aug_random_apply(x, 0.25, self._aug_blur)
         x = self._aug_random_apply(x, 0.25, self._aug_noise)
-  
+        '''
         return x
 
     def _aug_random_apply(self, x, p, aug_func):
