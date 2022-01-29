@@ -459,13 +459,13 @@ class AgentPPOSND():
 
         '''
         x = self._aug_random_apply(x, 0.5, self._aug_mask)
-        x = self._aug_random_apply(x, 0.5, self._aug_resize)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_noise(x, k = 0.2)
         '''
 
-        x = self._aug_random_apply(x, 0.25, self._aug_mask)
-        x = self._aug_random_apply(x, 0.25, self._aug_resize)
-        x = self._aug_random_apply(x, 0.25, self._aug_blur)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.125, self._aug_mask)
         x = self._aug_noise(x, k = 0.2)
         
         return x
@@ -475,13 +475,6 @@ class AgentPPOSND():
 
         return (1 - apply)*x + apply*aug_func(x) 
  
-    def _aug_mask(self, x, p = 0.1):
-        mask = 1.0*(torch.rand_like(x) < (1.0 - p))
-        return x*mask  
-
-    def _aug_noise(self, x, k = 0.2): 
-        pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
-        return x + pointwise_noise
 
     def _aug_resize(self, x, scale = 2):
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
@@ -490,11 +483,22 @@ class AgentPPOSND():
 
         return scaled
 
-    def _aug_blur(self, x, scale = 5):
-        ds      = torch.nn.AvgPool2d(scale, 1, padding=scale//2).to(x.device)
-        scaled  = ds(x.unsqueeze(1)).squeeze(1)
+    def _aug_resize2(self, x):
+        return self._aug_resize(x, 2)
 
-        return scaled
+    def _aug_resize4(self, x):
+        return self._aug_resize(x, 4)
+
+    def _aug_mask(self, x, p = 0.1):
+        mask = 1.0*(torch.rand_like(x) < (1.0 - p))
+        return x*mask  
+
+    def _aug_noise(self, x, k = 0.2): 
+        pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
+        return x + pointwise_noise
+
+
+   
 
     def _dif(self, xa, xb):
         result = (xa - xb)**2
