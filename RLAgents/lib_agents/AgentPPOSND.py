@@ -137,14 +137,6 @@ class AgentPPOSND():
         self.vis_features.append(features[0])
         self.vis_labels.append(infos[0]["room_id"])
 
-        if self.iterations%32 == 0:
-            print("std = ", numpy.std(self.vis_features, axis=0).mean())
-
-        dif = self._dif(states_t[:, 0], states_t[:, 1])
-
-        if dif[0] > 0.015:
-            print("new room dif = ", dif[0], "\n\n")
-
         if dones[0]:
             print("training t-sne")
 
@@ -357,6 +349,7 @@ class AgentPPOSND():
 
         if hasattr(self.model_snd_target, "forward_predictor"):
             zb = self.model_snd_target.forward_predictor(xb) 
+            print("predictor forward")
         else:
             zb = self.model_snd_target(xb) 
 
