@@ -28,20 +28,19 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        if config.contrastive_metrics == "mse":
+        self.contrastive_metrics        = config.contrastive_metrics
+        self.features_regularization    = config.features_regularization
+
+        if self.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
             print("using mse contrastive loss")
-        elif config.contrastive_metrics == "info_nce":
+        elif self.contrastive_metrics == "info_nce":
             self._compute_contrastive_loss = self._compute_contrastive_loss_info_nce
             print("using info_nce contrastive loss")
         else: 
             self._compute_contrastive_loss = None
 
- 
-        self.features_regularization = config.features_regularization
-
         print("ppo features regularisation ", self.features_regularization)
-
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
