@@ -37,8 +37,10 @@ class AgentPPOSND():
         else: 
             self._compute_contrastive_loss = None
 
-
+ 
         self.features_regularization = config.features_regularization
+
+        print("ppo features regularisation ", self.features_regularization)
 
 
         self.normalise_state_mean = config.normalise_state_mean
