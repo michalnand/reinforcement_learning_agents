@@ -246,13 +246,13 @@ class AgentPPOSND():
 
                     #contrastive loss for better features space (optional)
                     if self.features_regularization:
-                        states_a_t, states_b_t, _ = self.policy_buffer.sample_states(64)
+                        states_a_t, _, _ = self.policy_buffer.sample_states(64)
                         
                         xa = self._aug(states_a_t).detach().to(self.model_ppo.device)
                         xb = self._aug(states_a_t).detach().to(self.model_ppo.device)
 
                         za, zb = self.model_ppo.forward_constrastive(xa, xb)
-
+ 
                         if self.contrastive_metrics == "mse":
                             loss_contrastive = ((za - zb)**2).mean()
 
