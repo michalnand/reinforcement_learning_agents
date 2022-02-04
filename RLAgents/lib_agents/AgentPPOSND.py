@@ -491,7 +491,11 @@ class AgentPPOSND():
         return x
 
     def _aug_random_apply(self, x, p, aug_func):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) < p)
+        shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
+
+        print(shape)
+
+        apply  = 1.0*(torch.rand(shape) < p)
 
         return (1 - apply)*x + apply*aug_func(x) 
  
