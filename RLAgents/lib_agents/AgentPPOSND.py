@@ -30,10 +30,15 @@ class AgentPPOSND():
 
         if config.contrastive_metrics == "mse":
             self._compute_contrastive_loss = self._compute_contrastive_loss_mse
+            print("using mse contrastive loss")
         elif config.contrastive_metrics == "info_nce":
             self._compute_contrastive_loss = self._compute_contrastive_loss_info_nce
+            print("using info_nce contrastive loss")
         else: 
             self._compute_contrastive_loss = None
+
+
+        self.features_regularization = config.features_regularization
 
 
         self.normalise_state_mean = config.normalise_state_mean
@@ -237,6 +242,26 @@ class AgentPPOSND():
                     k = 0.02
                     self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
                     self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
+
+                    #contrastive loss for better features space (optional)
+                    if self.features_regularization:
+                        states_a_t, states_b_t, _ = self.policy_buffer.sample_states(64)
+                        
+                        xa = self._aug(states_a_t).detach().to(self.model_ppo.device)
+                        xb = self._aug(states_a_t).detach().to(self.model_ppo.device)
+
+                        za, zb = self.model_ppo.forward_constrastive(xa, xb)
+
+                        if self.contrastive_metrics == "mse":
+                            loss_contrastive = ((za - zb)**2).mean()
+
+                        if self.contrastive_metrics == "info_nce":
+                            logits_ab           = torch.matmul(za, zb.t())
+                            loss_contrastive    = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+
+                        self.optimizer_ppo.zero_grad()        
+                        loss_contrastive.backward()
+                        self.optimizer_ppo.step()
 
         self.policy_buffer.clear() 
 
