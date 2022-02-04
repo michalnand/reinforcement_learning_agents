@@ -499,7 +499,11 @@ class AgentPPOSND():
     def _aug_resize(self, x, scale = 2):
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
-        scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+
+        if (len(x.shape) == 3):
+            scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+        else:
+            scaled  = us(ds(x))  
 
         return scaled
 
