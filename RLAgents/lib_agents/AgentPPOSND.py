@@ -489,7 +489,7 @@ class AgentPPOSND():
 
     def _aug_random_apply(self, x, p, aug_func):
         shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
-        apply  = 1.0*(torch.rand(shape) < p)
+        apply  = 1.0*(torch.rand(shape, device=x.device) < p)
 
         return (1 - apply)*x + apply*aug_func(x) 
  
@@ -516,6 +516,6 @@ class AgentPPOSND():
         return x*mask  
 
     def _aug_noise(self, x, k = 0.2): 
-        pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
+        pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
