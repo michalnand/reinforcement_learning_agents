@@ -5,7 +5,7 @@ from .PolicyBufferIMDual    import *
 from .RunningStats          import *  
 from .GoalsBuffer           import *
 
-import cv2
+import cv2 
 
 class AgentPPOSNDGoals():   
     def __init__(self, envs, ModelPPO, ModelRNDTarget, ModelRND, config):
@@ -149,8 +149,6 @@ class AgentPPOSNDGoals():
             if self.policy_buffer.is_full():
                 self.train()
         
-      
-        
         for e in range(self.envs_count): 
             if dones[e]:
                 s       = self.envs.reset(e)
@@ -275,19 +273,19 @@ class AgentPPOSNDGoals():
                 k = 0.02
                 self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
 
+                #train snd target model for regularisation
+                if self._compute_contrastive_loss is not None:
+                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
+                    
+                    loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
+    
+                    self.optimizer_snd_target.zero_grad() 
+                    loss_siam.backward()
+                    self.optimizer_snd_target.step()
 
-                #train RND target model for regularisation
-                states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
-                
-                loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
- 
-                self.optimizer_rnd_target.zero_grad() 
-                loss_siam.backward()
-                self.optimizer_rnd_target.step()
-
-                k = 0.02
-                self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-                self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
+                    k = 0.02
+                    self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
+                    self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
 
         self.policy_buffer.clear() 
 
@@ -391,28 +389,38 @@ class AgentPPOSNDGoals():
 
         return loss_rnd
 
-    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    
+    def _compute_contrastive_loss_mse(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
-        target_t = target_t.to(self.model_rnd_target.device)
+        target_t = target_t.to(self.model_snd_target.device)
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
 
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
-        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_rnd_target.device)
+        #states augmentation
+        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
+        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
 
-        za = self.model_rnd_target(xa)  
-        zb = self.model_rnd_target(xb) 
 
+        za = self.model_snd_target(xa)  
+
+        if hasattr(self.model_snd_target, "forward_predictor"):
+            zb = self.model_snd_target.forward_predictor(xb) 
+        else:
+            zb = self.model_snd_target(xb) 
+
+
+        #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
 
+        #common MSE loss
         loss = ((target_t - predicted)**2).mean()
 
         target      = target_t.detach().to("cpu").numpy()
         predicted   = predicted.detach().to("cpu").numpy()
 
-        true_positive = numpy.sum(1.0*(target > confidence)*(predicted > confidence))
-        true_negative = numpy.sum(1.0*(target < (1.0-confidence))*(predicted < (1.0-confidence)))
+        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
+        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
         acc = 100.0*(true_positive + true_negative)/target.shape[0]
 
         return loss, acc
@@ -464,21 +472,55 @@ class AgentPPOSNDGoals():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        x  = self._aug_resize(x, p = 0.5, scale = 2) 
-        x  = self._aug_resize(x, p = 0.25, scale = 4) 
+        '''
+        x  = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x  = self._aug_random_apply(x, 0.25, self._aug_resize4)
         x  = self._aug_random_noise(x, k = 0.2)
-  
+        '''
+
+        '''
+        x = self._aug_random_apply(x, 0.5, self._aug_mask)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_noise(x, k = 0.2)
+        '''
+
+        #this works perfect
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.125, self._aug_mask)
+        x = self._aug_noise(x, k = 0.2)
+       
         return x
-        
-    def _aug_random_noise(self, x, k): 
+
+    def _aug_random_apply(self, x, p, aug_func):
+        shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
+        apply  = 1.0*(torch.rand(shape) < p)
+
+        return (1 - apply)*x + apply*aug_func(x) 
+ 
+
+    def _aug_resize(self, x, scale = 2):
+        ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
+        us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
+
+        if (len(x.shape) == 3):
+            scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
+        else:
+            scaled  = us(ds(x))  
+
+        return scaled
+
+    def _aug_resize2(self, x):
+        return self._aug_resize(x, 2)
+
+    def _aug_resize4(self, x):
+        return self._aug_resize(x, 4)
+
+    def _aug_mask(self, x, p = 0.1):
+        mask = 1.0*(torch.rand_like(x) < (1.0 - p))
+        return x*mask  
+
+    def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
-    def _aug_resize(self, x, p = 0.5, scale = 2):
-        apply  = 1.0*(torch.rand((x.shape[0], 1, 1)) > p)
-
-        ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
-        us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
-        scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
-
-        return (1 - apply)*x + apply*scaled

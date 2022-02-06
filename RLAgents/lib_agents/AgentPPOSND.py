@@ -247,18 +247,16 @@ class AgentPPOSND():
                     #contrastive loss for better features space (optional)
                     if self.features_regularization:
                         states_a_t, _, _ = self.policy_buffer.sample_states(64)
+
+                        states_a_t = states_a_t.to(self.model_ppo.device)
                         
-                        xa = self._aug(states_a_t).detach().to(self.model_ppo.device)
-                        xb = self._aug(states_a_t).detach().to(self.model_ppo.device)
+                        xa = self._aug(states_a_t).detach()
+                        xb = self._aug(states_a_t).detach()
 
                         za, zb = self.model_ppo.forward_constrastive(xa, xb)
- 
-                        if self.contrastive_metrics == "mse":
-                            loss_contrastive = ((za - zb)**2).mean()
 
-                        if self.contrastive_metrics == "info_nce":
-                            logits_ab           = torch.matmul(za, zb.t())
-                            loss_contrastive    = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+                        logits_ab           = torch.matmul(za, zb.t())
+                        loss_contrastive    = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
 
                         self.optimizer_ppo.zero_grad()        
                         loss_contrastive.backward()
@@ -521,13 +519,3 @@ class AgentPPOSND():
         pointwise_noise   = k*(2.0*torch.rand(x.shape) - 1.0)
         return x + pointwise_noise
 
-
-   
-
-    def _dif(self, xa, xb):
-        result = (xa - xb)**2
-        result = result.mean(dim=(1, 2))
-
-        return result
-
-   
