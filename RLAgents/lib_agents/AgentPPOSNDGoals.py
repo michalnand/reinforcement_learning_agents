@@ -390,7 +390,7 @@ class AgentPPOSNDGoals():
         return loss_rnd
 
     
-    def _compute_contrastive_loss_mse(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _compute_contrastive_loss(self, states_a_t, states_b_t, target_t, confidence = 0.5):
         
         target_t = target_t.to(self.model_snd_target.device)
 
