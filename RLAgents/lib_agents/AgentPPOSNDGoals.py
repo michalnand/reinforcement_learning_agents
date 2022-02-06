@@ -8,7 +8,7 @@ from .GoalsBuffer           import *
 import cv2 
 
 class AgentPPOSNDGoals():   
-    def __init__(self, envs, ModelPPO, ModelRNDTarget, ModelRND, config):
+    def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
     
         self.gamma_ext          = config.gamma_ext 
@@ -46,11 +46,11 @@ class AgentPPOSNDGoals():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
  
-        self.model_rnd_target      = ModelRNDTarget.Model(self.state_shape)
-        self.optimizer_rnd_target  = torch.optim.Adam(self.model_rnd_target.parameters(), lr=config.learning_rate_rnd_target)
+        self.model_snd_target      = ModelSNDTarget.Model(self.state_shape)
+        self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_snd_target)
 
-        self.model_rnd      = ModelRND.Model(self.state_shape)
-        self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
+        self.model_snd      = ModelSND.Model(self.state_shape)
+        self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
  
         self.policy_buffer = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
@@ -173,15 +173,15 @@ class AgentPPOSNDGoals():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_rnd.save(save_path + "trained/")
-        self.model_rnd_target.save(save_path + "trained/")
+        self.model_snd.save(save_path + "trained/")
+        self.model_snd_target.save(save_path + "trained/")
         self.goals_buffer.save(save_path + "trained/")
 
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_rnd.load(load_path + "trained/")
-        self.model_rnd_target.load(load_path + "trained/")
+        self.model_snd.load(load_path + "trained/")
+        self.model_snd_target.load(load_path + "trained/")
         self.goals_buffer.load(save_path + "trained/")
 
     def get_log(self): 
@@ -265,9 +265,9 @@ class AgentPPOSNDGoals():
                 #train RND model, MSE loss
                 loss_rnd = self._compute_loss_rnd(states)
 
-                self.optimizer_rnd.zero_grad() 
+                self.optimizer_snd.zero_grad() 
                 loss_rnd.backward()
-                self.optimizer_rnd.step()
+                self.optimizer_snd.step()
 
                 #log results
                 k = 0.02
@@ -376,8 +376,8 @@ class AgentPPOSNDGoals():
         
         state_norm_t    = self._norm_state(states).detach()
  
-        features_predicted_t  = self.model_rnd(state_norm_t)
-        features_target_t     = self.model_rnd_target(state_norm_t).detach()
+        features_predicted_t  = self.model_snd(state_norm_t)
+        features_target_t     = self.model_snd_target(state_norm_t).detach()
 
         loss_rnd = (features_target_t - features_predicted_t)**2
 
@@ -429,8 +429,8 @@ class AgentPPOSNDGoals():
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
 
-        features_predicted_t  = self.model_rnd(state_norm_t)
-        features_target_t     = self.model_rnd_target(state_norm_t)
+        features_predicted_t  = self.model_snd(state_norm_t)
+        features_target_t     = self.model_snd_target(state_norm_t)
  
         curiosity_t = (features_target_t - features_predicted_t)**2
         curiosity_t = curiosity_t.sum(dim=1)/2.0
