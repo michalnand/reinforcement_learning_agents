@@ -28,8 +28,6 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.contrastive_metrics        = config.contrastive_metrics
-        self.features_regularization    = config.features_regularization
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
