@@ -110,7 +110,7 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
-    def sample_states(self, batch_size): 
+    def sample_states(self, batch_size, close_states_ratio = 0.5): 
         count = self.envs_count*self.buffer_size
  
         indices_a       = numpy.random.randint(0, count, size=batch_size)
@@ -118,11 +118,11 @@ class PolicyBufferIM:
         #indices_close   = indices_a + numpy.random.randint(0, 2, size=batch_size)
         #indices_close   = numpy.clip(indices_close, 0, count-1)
 
-        indices_close   = indices_a
+        indices_close   = indices_a 
 
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
-        labels          = (numpy.random.rand(batch_size) > 0.5)
+        labels          = (numpy.random.rand(batch_size) > close_states_ratio)
         
         #label 0 = close states
         #label 1 = distant states

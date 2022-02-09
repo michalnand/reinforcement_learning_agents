@@ -182,7 +182,7 @@ class AgentPPOSNDGoals():
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
-        self.goals_buffer.load(save_path + "trained/")
+        self.goals_buffer.load(load_path + "trained/")
 
     def get_log(self): 
         result = "" 

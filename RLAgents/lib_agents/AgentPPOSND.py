@@ -31,16 +31,22 @@ class AgentPPOSND():
         self.contrastive_metrics        = config.contrastive_metrics
         self.features_regularization    = config.features_regularization
 
-        if self.contrastive_metrics == "mse":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_mse
-            print("using mse contrastive loss")
-        elif self.contrastive_metrics == "info_nce":
-            self._compute_contrastive_loss = self._compute_contrastive_loss_info_nce
-            print("using info_nce contrastive loss")
-        else: 
-            self._compute_contrastive_loss = None
+        if config.snd_regularisation_loss == "mse":
+            self._snd_regularisation_loss = self._contrastive_loss_mse
+        elif config.snd_regularisation_loss == "info_nce":
+            self._snd_regularisation_loss = self._compute_contrastive_loss_info_nce
+        else:
+            self._snd_regularisation_loss = None
 
-        print("ppo features regularisation ", self.features_regularization)
+        if config.ppo_regularisation_loss == "mse":
+            self._ppo_regularisation_loss = self._contrastive_loss_mse
+        elif config.ppo_regularisation_loss == "info_nce":
+            self._ppo_regularisation_loss = self._compute_contrastive_loss_info_nce
+        else:
+            self._ppo_regularisation_loss = None
+
+        print("snd_regularisation_loss = ", self._snd_regularisation_loss)
+        print("ppo_regularisation_loss = ", self._ppo_regularisation_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -77,7 +83,8 @@ class AgentPPOSND():
         self.iterations                     = 0 
 
         self.log_loss_snd                   = 0.0
-        self.log_loss_siam                  = 0.0
+        self.loss_snd_regularization        = 0.0
+        self.loss_ppo_regularization        = 0.0
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
@@ -184,7 +191,8 @@ class AgentPPOSND():
         result = "" 
 
         result+= str(round(self.log_loss_snd, 7)) + " "
-        result+= str(round(self.log_loss_siam, 7)) + " "
+        result+= str(round(self.loss_snd_regularization, 7)) + " "
+        result+= str(round(self.loss_ppo_regularization, 7)) + " "
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
@@ -231,36 +239,30 @@ class AgentPPOSND():
 
 
                 #train snd target model for regularisation
-                if self._compute_contrastive_loss is not None:
-                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64)
+                if self._snd_regularisation_loss is not None:
+                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 0.5)
                     
-                    loss_siam, acc = self._compute_contrastive_loss(states_a_t, states_b_t, labels_t)                
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a_t, states_b_t, labels_t)                
     
                     self.optimizer_snd_target.zero_grad() 
-                    loss_siam.backward()
+                    loss.backward()
                     self.optimizer_snd_target.step()
 
                     k = 0.02
-                    self.log_loss_siam  = (1.0 - k)*self.log_loss_siam + k*loss_siam.detach().to("cpu").numpy()
-                    self.log_acc_siam   = (1.0 - k)*self.log_acc_siam  + k*acc
+                    self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
-                    #contrastive loss for better features space (optional)
-                    if self.features_regularization:
-                        states_a_t, _, _ = self.policy_buffer.sample_states(64)
+                #contrastive loss for better features space (optional)
+                if self.features_regularization_loss is not None:
+                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 1.0)
 
-                        states_a_t = states_a_t.to(self.model_ppo.device)
-                        
-                        xa = self._aug(states_a_t).detach()
-                        xb = self._aug(states_a_t).detach()
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
 
-                        za, zb = self.model_ppo.forward_constrastive(xa, xb)
+                    self.optimizer_ppo.zero_grad()        
+                    loss.backward()
+                    self.optimizer_ppo.step()
 
-                        logits_ab           = torch.matmul(za, zb.t())
-                        loss_contrastive    = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+                    self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
 
-                        self.optimizer_ppo.zero_grad()        
-                        loss_contrastive.backward()
-                        self.optimizer_ppo.step()
 
         self.policy_buffer.clear() 
 
@@ -357,77 +359,60 @@ class AgentPPOSND():
 
         return loss_snd
 
-    def _compute_contrastive_loss_mse(self, states_a_t, states_b_t, target_t, confidence = 0.5):
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t):
         
-        target_t = target_t.to(self.model_snd_target.device)
+        states_a_t  = states_a_t.to(model.device)
+        states_b_t  = states_b_t.to(model.device)
+        target_t    = target_t.to(model.device)
 
         states_a_t = self._norm_state(states_a_t)
         states_b_t = self._norm_state(states_b_t)
 
         #states augmentation
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        xb = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
+        xa = self._aug(states_a_t)
+        xb = self._aug(states_b_t)
 
+        xa = xa.detach()
+        xb = xb.detach()
 
-        za = self.model_snd_target(xa)  
-
-        if hasattr(self.model_snd_target, "forward_predictor"):
-            zb = self.model_snd_target.forward_predictor(xb) 
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
         else:
-            zb = self.model_snd_target(xb) 
-
+            za = model(xa)  
+            zb = model(xb) 
 
         #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
 
-        #common MSE loss
+        #MSE loss
         loss = ((target_t - predicted)**2).mean()
 
-        target      = target_t.detach().to("cpu").numpy()
-        predicted   = predicted.detach().to("cpu").numpy()
-
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > confidence))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted < (1.0-confidence)))
-        acc = 100.0*(true_positive + true_negative)/target.shape[0]
-
-        return loss, acc
+        return loss
 
 
 
-    def _compute_contrastive_loss_info_nce(self, states_a_t, states_b_t, target_t):
-        #states augmentation
-        xa = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        xb = self._aug(states_a_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        
-        za = self.model_snd_target(xa)  
+    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t):
 
-        if hasattr(self.model_snd_target, "forward_predictor"):
-            zb = self.model_snd_target.forward_predictor(xb) 
+        states_a_t = states_a_t.to(model.device)
+        states_b_t = states_b_t.to(model.device)
+
+        xa = self._aug(states_a_t)
+        xb = self._aug(states_b_t)
+
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
         else:
-            zb = self.model_snd_target(xb) 
+            za = model(xa)  
+            zb = model(xb) 
 
-        #contrastive loss
+        #info NCE loss
         logits_ab   = torch.matmul(za, zb.t())
         loss        = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
 
-        #only for computing accuracy
-        #states similarity calculation for stats
-        xc = self._aug(states_b_t[:, 0]).unsqueeze(1).detach().to(self.model_snd_target.device)
-        zc = self.model_snd_target(xc) 
+        return loss
 
-        dist        = ((za - zc)**2).mean(dim=1)
-        threshold   = dist.mean().detach().to("cpu").numpy()
-        predicted   = dist.detach().to("cpu").numpy()
-
-        target      = target_t.detach().to("cpu").numpy()
-
-        true_positive = numpy.sum(1.0*(target > 0.5)*(predicted > threshold))
-        true_negative = numpy.sum(1.0*(target < 0.5)*(predicted <= threshold))
-        acc = 100.0*(true_positive + true_negative)/target.shape[0]
-
-        return loss, acc
-
-       
 
     #compute internal motivation
     def _curiosity(self, state_t):
