@@ -88,7 +88,6 @@ class AgentPPOSND():
 
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
-        self.log_acc_siam                   = 0.0
 
 
         #self.vis_features = []
@@ -196,7 +195,6 @@ class AgentPPOSND():
 
         result+= str(round(self.log_internal_motivation_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
-        result+= str(round(self.log_acc_siam, 7)) + " "
 
         return result 
 
