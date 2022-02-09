@@ -250,7 +250,7 @@ class AgentPPOSND():
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
                 #contrastive loss for better features space (optional)
-                if self.features_regularization_loss is not None:
+                if self._ppo_regularisation_loss is not None:
                     states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 1.0)
 
                     loss = self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
