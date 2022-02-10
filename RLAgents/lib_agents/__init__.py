@@ -26,6 +26,7 @@ from .AgentDDPG                     import AgentDDPG
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
+from .AgentPPOSNDEntropy            import AgentPPOSNDEntropy
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 
 from .AgentPPOContinuous            import AgentPPOContinuous

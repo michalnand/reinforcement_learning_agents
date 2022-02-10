@@ -7,11 +7,11 @@ import sklearn.manifold
 import matplotlib.pyplot as plt
 
 
-      
+       
 class AgentPPOSND():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
-    
+     
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
             
@@ -249,7 +249,7 @@ class AgentPPOSND():
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
-                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 1.0)
+                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 0.5)
 
                     loss = self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
 
