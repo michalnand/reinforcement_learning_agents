@@ -122,17 +122,23 @@ class PolicyBufferIMDual:
 
         return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
     
-    def sample_states(self, batch_size): 
+    def sample_states(self, batch_size, close_states_ratio = 0.5): 
         count = self.envs_count*self.buffer_size
  
         indices_a       = numpy.random.randint(0, count, size=batch_size)
+        
+        #indices_close   = indices_a + numpy.random.randint(0, 2, size=batch_size)
+        #indices_close   = numpy.clip(indices_close, 0, count-1)
+
+        indices_close   = indices_a 
+
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
-        labels          = (numpy.random.rand(batch_size) > 0.5)
+        labels          = (numpy.random.rand(batch_size) > close_states_ratio)
         
         #label 0 = close states
         #label 1 = distant states
-        indices_b       = (1 - labels)*indices_a + labels*indices_far
+        indices_b       = (1 - labels)*indices_close + labels*indices_far
 
         states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)/self.scale).float()
         states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)/self.scale).float()

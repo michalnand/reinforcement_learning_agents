@@ -4,12 +4,12 @@ import numpy
 
 class FeaturesBuffer:  
 
-    def __init__(self, buffer_size, shape, envs_count, device):
+    def __init__(self, buffer_size, envs_count, shape, device = "cpu"):
         self.buffer         = torch.zeros((envs_count, buffer_size ) + shape).to(device)
         self.current_idx    = 0
 
     def reset(self, env_id, initial_value = None):
-        self.buffer[env_id]         = 0
+        self.buffer[env_id] = 0
 
         if initial_value is not None:
             self.buffer[env_id] = initial_value.clone()
@@ -37,29 +37,3 @@ class FeaturesBuffer:
         
         return mean, std, max, min
 
-
-
-class FeaturesBufferGlobal:  
-
-    def __init__(self, buffer_size, shape, envs_count, device):
-        self.buffer         = torch.zeros((envs_count*buffer_size, ) + shape).to(device)
-        self.current_idx    = 0
-
-    def reset(self, env_id, initial_value = None):
-        return
-        
-    def add(self, values_t):
-        for i in range(values_t.shape[0]):
-            self.buffer[self.current_idx] = values_t[i].clone()
-            self.current_idx = (self.current_idx + 1)%self.buffer.shape[0]
- 
-    def compute(self, values_t):
-        #difference
-        distances   = torch.cdist(values_t, self.buffer)
-
-        mean = distances.mean(dim=1)
-        std  = distances.std(dim=1)
-        max  = distances.max(dim=1)[0]
-        min  = distances.min(dim=1)[0]
-
-        return mean, std, max, min

@@ -20,8 +20,6 @@ class TrainingIterations:
         log_f           = open(log_file_name, "w+")
         log_f.close()
 
-        new_best = False
-
         episodes                        = 0
         raw_episodes                    = 0
         
@@ -110,13 +108,10 @@ class TrainingIterations:
                 if raw_episodes >= len(score_per_episode_buffer):
                     mean_score = score_per_episode_buffer.mean()
 
-                    if mean_score > raw_score_per_episode_best and raw_score_per_episode >= raw_score_per_episode_best:
+                    if mean_score > raw_score_per_episode_best:
                         raw_score_per_episode_best = mean_score
-                        new_best = True 
-            
-                if new_best == True:
-                    new_best = False 
-                    print("\n\n")
-                    print("saving new best with score = ", raw_score_per_episode_best)
-                    self.agent.save(self.saving_path)
-                    print("\n\n")
+                
+                        print("\n\n")
+                        print("saving new best with score = ", raw_score_per_episode_best)
+                        self.agent.save(self.saving_path)
+                        print("\n\n")

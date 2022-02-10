@@ -6,8 +6,9 @@ from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
+from .FeaturesBuffer                 import FeaturesBuffer
+
 from .GoalsBuffer                   import GoalsBuffer
-from .GoExploreBuffer               import GoExploreBuffer
  
 
 from .PolicyBufferContinuous        import PolicyBufferContinuous
@@ -29,6 +30,5 @@ from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
-from .AgentGoExploreDet             import AgentGoExploreDet
 
   
