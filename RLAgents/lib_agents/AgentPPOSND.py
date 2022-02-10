@@ -391,10 +391,10 @@ class AgentPPOSND():
     def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t):
 
         states_a_t = states_a_t.to(model.device)
-        states_b_t = states_b_t.to(model.device)
+        #states_b_t = states_b_t.to(model.device)
 
         xa = self._aug(states_a_t)
-        xb = self._aug(states_b_t)
+        xb = self._aug(states_a_t)
 
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
@@ -460,12 +460,14 @@ class AgentPPOSND():
         x = self._aug_noise(x, k = 0.2)
         '''
 
+        '''
         #this works perfect
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
         x = self._aug_random_apply(x, 0.125, self._aug_mask)
         x = self._aug_noise(x, k = 0.2)
-       
+        '''
+        
         return x
 
     def _aug_random_apply(self, x, p, aug_func):
