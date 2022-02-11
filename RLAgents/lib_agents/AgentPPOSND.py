@@ -251,7 +251,7 @@ class AgentPPOSND():
                 if self._ppo_regularisation_loss is not None:
                     states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 0.5)
 
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
+                    loss = 0.1*self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
 
                     self.optimizer_ppo.zero_grad()        
                     loss.backward()
