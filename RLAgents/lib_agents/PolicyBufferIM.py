@@ -115,10 +115,10 @@ class PolicyBufferIM:
  
         indices_a       = numpy.random.randint(0, count, size=batch_size)
         
-        #indices_close   = indices_a + numpy.random.randint(0, 2, size=batch_size)
-        #indices_close   = numpy.clip(indices_close, 0, count-1)
+        indices_close   = indices_a + numpy.random.randint(0, 2, size=batch_size)
+        indices_close   = numpy.clip(indices_close, 0, count-1)
 
-        indices_close   = indices_a 
+        #indices_close   = indices_a 
 
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
