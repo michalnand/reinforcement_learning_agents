@@ -110,6 +110,7 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
+    '''
     def sample_states(self, batch_size, close_states_ratio = 0.5): 
         count = self.envs_count*self.buffer_size
  
@@ -133,7 +134,7 @@ class PolicyBufferIM:
         labels_t        = torch.from_numpy(1.0*labels).float()
         
         return states_a, states_b, labels_t
-  
+    '''
 
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
