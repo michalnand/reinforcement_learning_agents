@@ -157,7 +157,6 @@ class AgentPPOSND():
             plt.clf()
             plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
             plt.colorbar(ticks=range(10))
-            #plt.clim(-0.5, 9.5)
             plt.tight_layout()
             plt.show()
 
@@ -235,22 +234,11 @@ class AgentPPOSND():
 
                 #smaller batch for regularisation
                 states      = states[0:64]
-                states_next = states_next[0:64]
-
-                #train snd target model for regularisation
-                if self._snd_regularisation_loss is not None:                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states, states_next, normalise=True)                
-    
-                    self.optimizer_snd_target.zero_grad() 
-                    loss.backward()
-                    self.optimizer_snd_target.step()
-
-                    k = 0.02
-                    self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
+                #states_next = states_next[0:64]
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states, states_next, normalise=False)
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states, states, normalise=False, augmentation=True)
 
                     self.optimizer_ppo.zero_grad()        
                     loss.backward()
@@ -259,6 +247,18 @@ class AgentPPOSND():
                     k = 0.02
                     self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
 
+                #train snd target model for regularisation (optional)
+                if self._snd_regularisation_loss is not None:                    
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states, states, normalise=True, augmentation=True)                
+    
+                    self.optimizer_snd_target.zero_grad() 
+                    loss.backward()
+                    self.optimizer_snd_target.step()
+
+                    k = 0.02
+                    self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
+
+               
 
         self.policy_buffer.clear() 
 
@@ -391,18 +391,19 @@ class AgentPPOSND():
 
     def _contrastive_loss_mse(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
         
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
         #normalsie states
         if normalise:
-            states_a_t = self._norm_state(states_a_t)
-            states_b_t = self._norm_state(states_b_t)
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
 
         #states augmentation
         if augmentation:
-            states_a_t = self._aug(states_a_t)
-            states_b_t = self._aug(states_b_t)
+            xa = self._aug(xa)
+            xb = self._aug(xb)
 
-        xa = states_a_t.detach()
-        xb = states_b_t.detach()
 
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
@@ -425,18 +426,18 @@ class AgentPPOSND():
 
     def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
 
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
         #normalsie states
         if normalise:
-            states_a_t = self._norm_state(states_a_t)
-            states_b_t = self._norm_state(states_b_t)
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
 
         #states augmentation
         if augmentation:
-            states_a_t = self._aug(states_a_t)
-            states_b_t = self._aug(states_b_t)
-
-        xa = states_a_t.detach()
-        xb = states_b_t.detach()
+            xa = self._aug(xa)
+            xb = self._aug(xb)
 
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
