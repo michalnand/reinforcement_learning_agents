@@ -397,11 +397,13 @@ class AgentPPOSND():
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
+            print("NORM")
 
         #states augmentation
         if augmentation:
             xa = self._aug(xa)
             xb = self._aug(xb)
+            print("AUG")
 
 
         if hasattr(model, "forward_features"):
