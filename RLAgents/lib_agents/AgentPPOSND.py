@@ -397,19 +397,25 @@ class AgentPPOSND():
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
+            print("NORM")
 
         #states augmentation
         if augmentation:
             xa = self._aug(xa)
             xb = self._aug(xb)
+            print("AUG")
 
 
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
+            print("forward_features")
         else:
             za = model(xa)  
             zb = model(xb) 
+            print("forward")
+
+        print("\n\n")
 
         #distances, each from each
         distances = (torch.cdist(za, zb)**2.0)/za.shape[1]
