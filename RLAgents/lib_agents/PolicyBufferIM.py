@@ -110,6 +110,16 @@ class PolicyBufferIM:
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
+    def sample_states(self, batch_size, device):
+        indices         = numpy.random.randint(0, self.envs_count*self.buffer_size, size=batch_size*self.envs_count)
+        indices_next    = numpy.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
+
+        states          = torch.from_numpy(numpy.take(self.states, indices, axis=0)).to(device).float()/self.scale
+        states_next     = torch.from_numpy(numpy.take(self.states, indices_next, axis=0)).to(device).float()/self.scale
+      
+        return states, states_next
+   
+
     '''
     def sample_states(self, batch_size, close_states_ratio = 0.5): 
         count = self.envs_count*self.buffer_size
