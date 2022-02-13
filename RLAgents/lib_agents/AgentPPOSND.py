@@ -257,8 +257,6 @@ class AgentPPOSND():
                     k = 0.02
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
-               
-
         self.policy_buffer.clear() 
 
     
@@ -275,7 +273,6 @@ class AgentPPOSND():
 
         loss_actor = loss_policy + loss_entropy
 
-     
         #total loss
         loss = 0.5*loss_critic + loss_actor
 
@@ -403,7 +400,7 @@ class AgentPPOSND():
             xa = self._aug(xa)
             xb = self._aug(xb)
  
-
+        #obtain features from model
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
