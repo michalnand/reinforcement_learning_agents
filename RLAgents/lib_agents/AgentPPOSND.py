@@ -413,10 +413,16 @@ class AgentPPOSND():
         distances = (torch.cdist(za, zb)**2.0)/za.shape[1]
 
         #close states are on diagonal
-        labels    = 1.0 - torch.eye(distances.shape[0], device=distances.device)
+        n = distances.shape[0]
+        labels  = 1.0 - torch.eye(n, device=distances.device)
+
+        #balacne classes
+        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
 
         #MSE loss
-        loss = ((labels - distances)**2).mean()
+        loss = ((labels - distances)**2)
+        loss = loss*scale
+        loss = loss.mean()
 
         return loss
 
