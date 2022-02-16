@@ -417,11 +417,11 @@ class AgentPPOSND():
         labels  = 1.0 - torch.eye(n, device=distances.device)
 
         #balacne classes
-        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
+        #scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
 
         #MSE loss
         loss = ((labels - distances)**2)
-        loss = loss*scale
+        #loss = loss*scale
         loss = loss.mean()
 
         return loss
