@@ -421,7 +421,6 @@ class AgentPPOSND():
         scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
         scale   = 0.5*scale
 
-        print(">>>> ", labels.shape, distances.shape, scale.shape)
         
         #MSE loss
         loss = ((labels - distances)**2)
