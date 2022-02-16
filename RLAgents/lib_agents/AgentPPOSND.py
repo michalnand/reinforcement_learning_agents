@@ -407,8 +407,29 @@ class AgentPPOSND():
         else:
             za = model(xa)  
             zb = model(xb) 
-         
 
+        
+        #distances, each from each 
+        distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
+
+        #close states are on diagonal, set 0 on diagonal, 1 else
+        n = distances.shape[0]
+        labels  = 1.0 - torch.eye(n, device=distances.device)
+
+        
+        #balacne classes loss scaling
+        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
+        scale   = 0.5*scale
+
+        print(">>>> ", labels.shape, distances.shape, scale.shape)
+        
+        #MSE loss
+        loss = ((labels - distances)**2)
+        loss = loss*scale
+        loss = loss.mean()
+        
+         
+        '''
         #distances, each from each
         distances = (torch.cdist(za, zb)**2.0)/za.shape[1]
 
@@ -418,11 +439,12 @@ class AgentPPOSND():
 
         #balacne classes
         #scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
-
+        
         #MSE loss
         loss = ((labels - distances)**2)
         #loss = loss*scale
         loss = loss.mean()
+        '''
 
         return loss
 
