@@ -233,11 +233,11 @@ class AgentPPOSND():
                 self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
 
                 #smaller batch for regularisation
-                states, states_next = self.policy_buffer.sample_states(64, self.model_ppo.device)
+                states_a, states_b, labels = self.policy_buffer.sample_states(64, self.model_ppo.device)
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states, states, normalise=False, augmentation=True)
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)
 
                     self.optimizer_ppo.zero_grad()        
                     loss.backward()
@@ -248,7 +248,7 @@ class AgentPPOSND():
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states, states, normalise=True, augmentation=True)                
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_snd_target.zero_grad() 
                     loss.backward()
@@ -351,23 +351,22 @@ class AgentPPOSND():
 
         return loss_snd
 
-    '''
-    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t):
-        
-        states_a_t  = states_a_t.to(model.device)
-        states_b_t  = states_b_t.to(model.device)
-        target_t    = target_t.to(model.device)
+    
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise = False, augmentation = False):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
 
-        states_a_t = self._norm_state(states_a_t)
-        states_b_t = self._norm_state(states_b_t)
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
 
         #states augmentation
-        xa = self._aug(states_a_t)
-        xb = self._aug(states_b_t)
-
-        xa = xa.detach()
-        xb = xb.detach()
-
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
@@ -382,9 +381,9 @@ class AgentPPOSND():
         loss = ((target_t - predicted)**2).mean()
 
         return loss
+    
+
     '''
-
-
     def _contrastive_loss_mse(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
         
         xa = states_a_t.clone()
@@ -421,31 +420,14 @@ class AgentPPOSND():
         scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
         scale   = 0.5*scale
 
-        
+
         #MSE loss
         loss = ((labels - distances)**2)
         loss = loss*scale
         loss = loss.mean()
-        
-         
-        '''
-        #distances, each from each
-        distances = (torch.cdist(za, zb)**2.0)/za.shape[1]
-
-        #close states are on diagonal
-        n = distances.shape[0]
-        labels  = 1.0 - torch.eye(n, device=distances.device)
-
-        #balacne classes
-        #scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
-        
-        #MSE loss
-        loss = ((labels - distances)**2)
-        #loss = loss*scale
-        loss = loss.mean()
-        '''
 
         return loss
+    '''
 
 
     def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
