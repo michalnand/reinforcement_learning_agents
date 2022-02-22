@@ -352,7 +352,7 @@ class AgentPPOSND():
         return loss_snd
 
     
-    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise = False, augmentation = False):
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
@@ -382,6 +382,33 @@ class AgentPPOSND():
 
         return loss
     
+    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb)
+
+        #info NCE loss
+        logits      = (za*zb).mean(dim=1)
+        loss        = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
+
+        return loss
 
     '''
     def _contrastive_loss_mse(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
@@ -427,8 +454,6 @@ class AgentPPOSND():
         loss = loss.mean()
 
         return loss
-    '''
-
 
     def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
 
@@ -457,7 +482,7 @@ class AgentPPOSND():
         loss        = torch.nn.functional.cross_entropy(logits, torch.arange(za.shape[0]).to(za.device))
 
         return loss
-
+    '''
 
     #compute internal motivation
     def _curiosity(self, state_t):
