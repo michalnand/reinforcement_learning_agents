@@ -383,7 +383,6 @@ class AgentPPOSND():
         return loss
     
     def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
-
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
@@ -396,7 +395,8 @@ class AgentPPOSND():
         if augmentation:
             xa = self._aug(xa)
             xb = self._aug(xb)
-
+ 
+        #obtain features from model
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
@@ -405,8 +405,9 @@ class AgentPPOSND():
             zb = model(xb)
 
         #info NCE loss
-        logits      = (za*zb).mean(dim=1)
-        loss        = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
+        logits  = (za*zb).mean(dim=1)
+        print(">>>> ", logits.shape, target_t.shape, (logits*target_t).shape)
+        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
 
         return loss
 
