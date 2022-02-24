@@ -356,15 +356,21 @@ class AgentPPOSND():
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
-        #normalsie states
+        print("_contrastive_loss_mse")
+
+        #normalise states
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
+
+            print("normalise")
 
         #states augmentation
         if augmentation:
             xa = self._aug(xa)
             xb = self._aug(xb)
+
+            print("augmentation")
  
         #obtain features from model
         if hasattr(model, "forward_features"):
@@ -373,6 +379,10 @@ class AgentPPOSND():
         else:
             za = model(xa)  
             zb = model(xb) 
+
+            print("forward")
+
+        print("\n\n")
 
         #predict close distance for similar, far distance for different states
         predicted = ((za - zb)**2).mean(dim=1)
@@ -386,7 +396,7 @@ class AgentPPOSND():
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
-        #normalsie states
+        #normalise states
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
@@ -552,11 +562,7 @@ class AgentPPOSND():
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
 
-        if (len(x.shape) == 3):
-            scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
-        else:
-            scaled  = us(ds(x))  
-
+        scaled  = us(ds(x))  
         return scaled
 
     def _aug_resize2(self, x):

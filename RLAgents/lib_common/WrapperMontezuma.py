@@ -32,6 +32,27 @@ class VideoRecorder(gym.Wrapper):
         return self.env.reset()
 
 
+class NopOpsEnv(gym.Wrapper):
+    def __init__(self, env=None, max_count=30):
+        super(NopOpsEnv, self).__init__(env)
+        self.max_count = max_count
+
+    def reset(self):
+        self.env.reset()
+
+        noops = numpy.random.randint(1, self.max_count + 1)
+         
+        for _ in range(noops):
+            obs, _, done, _ = self.env.step(0)
+
+            if done:
+                obs = self.env.reset()
+           
+        return obs
+
+    def step(self, action):
+        return self.env.step(action)
+
 class StickyActionEnv(gym.Wrapper):
     def __init__(self, env, p=0.25):
         super(StickyActionEnv, self).__init__(env)
@@ -92,10 +113,6 @@ class ResizeEnv(gym.ObservationWrapper):
         img = img.convert('L')
         img = img.resize((self.height, self.width))
 
-        '''
-        for i in reversed(range(self.frame_stacking-1)):
-            self.state[i+1] = self.state[i].copy()
-        '''
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
 
@@ -172,7 +189,7 @@ class RawScoreEnv(gym.Wrapper):
         self.steps+= 1
         if self.steps >= self.max_steps:
             self.steps = 0
-            done = True
+            done = True 
 
         self.raw_score+= reward
         self.raw_score_total+= reward
@@ -195,9 +212,10 @@ class RawScoreEnv(gym.Wrapper):
         self.steps = 0
         return self.env.reset()
  
- 
+  
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
+    env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)

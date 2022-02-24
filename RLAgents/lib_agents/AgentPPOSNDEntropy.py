@@ -52,6 +52,7 @@ class AgentPPOSNDEntropy():
         print("snd_regularisation_loss = ", self._snd_regularisation_loss)
         print("ppo_regularisation_loss = ", self._ppo_regularisation_loss)
 
+
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
@@ -376,22 +377,23 @@ class AgentPPOSNDEntropy():
 
         return loss_snd
 
-    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t):
-        
-        states_a_t  = states_a_t.to(model.device)
-        states_b_t  = states_b_t.to(model.device)
-        target_t    = target_t.to(model.device)
+    
 
-        states_a_t = self._norm_state(states_a_t)
-        states_b_t = self._norm_state(states_b_t)
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
 
         #states augmentation
-        xa = self._aug(states_a_t)
-        xb = self._aug(states_b_t)
-
-        xa = xa.detach()
-        xb = xb.detach()
-
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
@@ -406,29 +408,36 @@ class AgentPPOSNDEntropy():
         loss = ((target_t - predicted)**2).mean()
 
         return loss
+    
+    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
 
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
 
-
-    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t):
-
-        states_a_t = states_a_t.to(model.device)
-        states_b_t = states_b_t.to(model.device)
-
-        xa = self._aug(states_a_t)
-        xb = self._aug(states_b_t)
-
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
         if hasattr(model, "forward_features"):
             za = model.forward_features(xa)  
             zb = model.forward_features(xb) 
         else:
             za = model(xa)  
-            zb = model(xb) 
+            zb = model(xb)
 
         #info NCE loss
-        logits_ab   = torch.matmul(za, zb.t())
-        loss        = torch.nn.functional.cross_entropy(logits_ab, torch.arange(za.shape[0]).to(za.device))
+        logits  = (za*zb).mean(dim=1)
+        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
 
         return loss
+
+
 
 
     #compute internal motivation
@@ -448,7 +457,7 @@ class AgentPPOSNDEntropy():
     def _entropy(self, state_t):
         state_norm_t    = self._norm_state(state_t)
         features_t      = self.model_snd_target(state_norm_t)
-        features_t      = features_t.detach().to("cpu").numpy()
+        features_t      = features_t.detach().to("cpu")
 
         mean, std = self.entropy_buffer.compute(features_t)
 
@@ -487,19 +496,11 @@ class AgentPPOSNDEntropy():
                     self.envs.reset(e)
 
     def _aug(self, x):
-
-        '''
-        x = self._aug_random_apply(x, 0.5, self._aug_mask)
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
-        x = self._aug_noise(x, k = 0.2)
-        '''
-
-        #this works perfect
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
         x = self._aug_random_apply(x, 0.125, self._aug_mask)
         x = self._aug_noise(x, k = 0.2)
-       
+        
         return x
 
     def _aug_random_apply(self, x, p, aug_func):
