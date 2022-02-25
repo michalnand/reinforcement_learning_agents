@@ -6,12 +6,12 @@ from .RunningStats      import *
 import sklearn.manifold
 import matplotlib.pyplot as plt
 
-
+ 
        
 class AgentPPOSND():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
-     
+      
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
             
