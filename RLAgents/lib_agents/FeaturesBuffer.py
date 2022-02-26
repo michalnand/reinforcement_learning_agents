@@ -18,6 +18,18 @@ class FeaturesBuffer:
         self.buffer[self.current_idx] = values_t.clone()
 
         self.current_idx = (self.current_idx + 1)%self.buffer.shape[1]
+
+
+    def compute_entropy(self):
+        std = torch.std(self.buffer, dim=0)
+
+        print(">>> ", std.shape)
+        std = std.mean(dim=0)
+        print(">>> ", std.shape)
+
+        print("\n\n")
+
+        return std
  
     def compute(self, values_t, top_n = 32):
         #difference

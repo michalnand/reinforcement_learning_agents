@@ -464,11 +464,14 @@ class AgentPPOSNDEntropy():
         features_t      = self.model_snd_target(state_norm_t)
         features_t      = features_t.detach().to("cpu")
 
-        mean, std = self.entropy_buffer.compute(features_t)
+        #res, _ = self.entropy_buffer.compute(features_t)
+        #self.entropy_buffer.add(features_t)
 
         self.entropy_buffer.add(features_t)
 
-        return mean
+        res = self.entropy_buffer.compute_entropy()
+
+        return res
  
 
     #normalise mean and std for state
