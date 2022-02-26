@@ -29,7 +29,7 @@ class FeaturesBuffer:
 
         print("\n\n")
 
-        return std
+        return std.detach().to("cpu").numpy()
  
     def compute(self, values_t, top_n = 32):
         #difference
