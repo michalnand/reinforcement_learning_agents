@@ -144,7 +144,7 @@ class PolicyBufferIMDual:
         states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)/self.scale).float().to(device)
         states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)/self.scale).float().to(device)
         labels_t        = torch.from_numpy(1.0*labels).float().to(device)
-        
+
         return states_a, states_b, labels_t
 
     def _gae(self, rewards, values, dones, gamma, lam):

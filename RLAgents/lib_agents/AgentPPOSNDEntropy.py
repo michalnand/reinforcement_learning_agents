@@ -8,7 +8,7 @@ import sklearn.manifold
 import matplotlib.pyplot as plt
 
 
-      
+       
 class AgentPPOSNDEntropy():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
@@ -24,7 +24,7 @@ class AgentPPOSNDEntropy():
         self.int_a_reward_coeff = config.int_a_reward_coeff
         self.int_b_reward_coeff = config.int_b_reward_coeff
         
-    
+     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -34,7 +34,7 @@ class AgentPPOSNDEntropy():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-
+        
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
         elif config.snd_regularisation_loss == "info_nce":
@@ -58,6 +58,7 @@ class AgentPPOSNDEntropy():
 
 
         self.entropy_buffer_size  = config.entropy_buffer_size
+        self.entropy_buffer_top_n = config.entropy_buffer_top_n
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -118,7 +119,7 @@ class AgentPPOSNDEntropy():
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_a_t, values_int_b_t = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -228,7 +229,7 @@ class AgentPPOSNDEntropy():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
@@ -255,12 +256,24 @@ class AgentPPOSNDEntropy():
                 k = 0.02
                 self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
 
+                
+                #smaller batch for regularisation
+                states_a, states_b, labels = self.policy_buffer.sample_states(64, self.model_ppo.device)
 
-                #train snd target model for regularisation
-                if self._snd_regularisation_loss is not None:
-                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 0.5)
-                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a_t, states_b_t, labels_t)                
+                #contrastive loss for better features space (optional)
+                if self._ppo_regularisation_loss is not None:
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)
+
+                    self.optimizer_ppo.zero_grad()        
+                    loss.backward()
+                    self.optimizer_ppo.step()
+
+                    k = 0.02
+                    self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
+
+                #train snd target model for regularisation (optional)
+                if self._snd_regularisation_loss is not None:                    
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_snd_target.zero_grad() 
                     loss.backward()
@@ -269,30 +282,17 @@ class AgentPPOSNDEntropy():
                     k = 0.02
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
-                #contrastive loss for better features space (optional)
-                if self._ppo_regularisation_loss is not None:
-                    states_a_t, states_b_t, labels_t = self.policy_buffer.sample_states(64, 1.0)
-
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a_t, states_b_t, labels_t)
-
-                    self.optimizer_ppo.zero_grad()        
-                    loss.backward()
-                    self.optimizer_ppo.step()
-
-                    self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
-
-
         self.policy_buffer.clear() 
 
     
-    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
+        logits_new, values_ext_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states)
 
         #critic loss
-        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
+        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b)
 
         #actor loss        
-        advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages  = self.ext_adv_coeff*advantages_ext + self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
 
@@ -310,7 +310,7 @@ class AgentPPOSNDEntropy():
         return loss 
 
     #MSE critic loss
-    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
+    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
@@ -323,11 +323,16 @@ class AgentPPOSNDEntropy():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
-        loss_int_value  = (returns_int.detach() - values_int_new)**2
-        loss_int_value  = loss_int_value.mean()
-        
-        loss_critic     = loss_ext_value + loss_int_value
+        values_int_a_new  = values_int_a_new.squeeze(1)
+        loss_int_a_value  = (returns_int_a.detach() - values_int_a_new)**2
+        loss_int_a_value  = loss_int_a_value.mean()
+
+        values_int_b_new  = values_int_b_new.squeeze(1)
+        loss_int_b_value  = (returns_int_b.detach() - values_int_b_new)**2
+        loss_int_b_value  = loss_int_b_value.mean()
+
+        loss_critic = loss_ext_value + loss_int_a_value + loss_int_b_value
+
         return loss_critic
 
     #PPO actor loss
