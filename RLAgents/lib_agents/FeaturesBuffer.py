@@ -29,9 +29,15 @@ class FeaturesBuffer:
         #mean distance, shape = (buffer_size, envs_count)
         distances = (dif**2).mean(dim=dims)
 
+        print("all distances ", distances.shape)
         if top_n is not None:
             distances = torch.sort(distances, dim=0)[0]
             distances = distances[0:top_n,:]
+
+
+        print("top distances ", distances.shape)
+
+        print("\n\n")
  
         mean = distances.mean(dim=0)
         std  = distances.std(dim=0)
