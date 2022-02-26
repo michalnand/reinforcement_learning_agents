@@ -9,21 +9,21 @@ class FeaturesBuffer:
         self.current_idx    = 0
 
     def reset(self, env_id, initial_value = None):
-        self.buffer[env_id] = 0
-
+        self.buffer[:,env_id] = 0
+ 
         if initial_value is not None:
             self.buffer[:,env_id] = initial_value.clone()
 
     def add(self, values_t):
         self.buffer[self.current_idx] = values_t.clone()
 
-        self.current_idx = (self.current_idx + 1)%self.buffer.shape[1]
+        self.current_idx = (self.current_idx + 1)%self.buffer.shape[0]
 
 
     def compute_entropy(self):
         std = torch.std(self.buffer, dim=0)
         std = std.mean(dim=1)
-        
+
         return std.detach().to("cpu").numpy()
  
     def compute(self, values_t, top_n = 32):
