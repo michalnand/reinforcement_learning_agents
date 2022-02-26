@@ -24,7 +24,7 @@ class FeaturesBuffer:
         std = torch.std(self.buffer, dim=0)
 
         print(">>> ", std.shape)
-        std = std.mean(dim=0)
+        std = std.mean(dim=1)
         print(">>> ", std.shape)
 
         print("\n\n")
