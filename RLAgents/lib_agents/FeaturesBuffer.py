@@ -22,13 +22,8 @@ class FeaturesBuffer:
 
     def compute_entropy(self):
         std = torch.std(self.buffer, dim=0)
-
-        print(">>> ", std.shape)
         std = std.mean(dim=1)
-        print(">>> ", std.shape)
-
-        print("\n\n")
-
+        
         return std.detach().to("cpu").numpy()
  
     def compute(self, values_t, top_n = 32):
