@@ -160,8 +160,8 @@ class PolicyBufferIMModes:
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
+            delta           = rewards[n] + gamma[n]*values[n+1]*(1.0 - dones[n]) - values[n]
+            last_gae        = delta + gamma[n]*lam*last_gae*(1.0 - dones[n])
             
             returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
