@@ -2,6 +2,7 @@ import numpy
 import torch 
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
+import cv2
       
 class AgentPPORND():   
     def __init__(self, envs, ModelPPO, ModelRND, config):
@@ -140,29 +141,20 @@ class AgentPPORND():
 
         return result 
 
-    '''
-    def render(self, env_id, alpha = 0.5):
+    
+    def render(self, env_id):
         size            = 256
-        state_im        = cv2.resize(self.states[env_id][0], (size, size))
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-        attention       = self.model_ppo.forward_features(states_t).detach().to("cpu").numpy()[0]
-        attention_im    = cv2.resize(attention, (size, size)) 
- 
-        result_im       = numpy.zeros((3, size, size))
-        result_im[0]    = state_im
-        result_im[1]    = state_im
-        result_im[2]    = state_im + 2*attention_im
-        result_im       = numpy.clip(result_im, 0.0, 1.0)
 
-        result_im = numpy.moveaxis(result_im, 0, 2)        
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
 
-        #result_vid = (255*result_im).astype(numpy.uint8)
-        #self.writer.write(result_vid)
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
 
-        cv2.imshow("RND agent", result_im)
+        cv2.imshow("RND agent", state_im)
         cv2.waitKey(1)
-    '''
+    
         
 
 
@@ -314,7 +306,7 @@ class AgentPPORND():
         state_norm_t = state_t - mean
 
         if self.normalise_state_std:
-            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
+            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
 
         return state_norm_t 
 

@@ -5,7 +5,7 @@ from .RunningStats      import *
 
 import sklearn.manifold
 import matplotlib.pyplot as plt
-
+import cv2
  
        
 class AgentPPOSND():   
@@ -76,7 +76,6 @@ class AgentPPOSND():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
- 
         self.enable_training()
         self.iterations                     = 0 
 
@@ -88,7 +87,6 @@ class AgentPPOSND():
 
         self.log_internal_motivation_mean   = 0.0
         self.log_internal_motivation_std    = 0.0
-
 
         #self.vis_features = []
         #self.vis_labels   = []
@@ -125,7 +123,7 @@ class AgentPPOSND():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
-     
+
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
 
         #put into policy buffer
@@ -196,6 +194,20 @@ class AgentPPOSND():
         result+= str(round(self.log_internal_motivation_std, 7)) + " "
 
         return result 
+
+    def render(self, env_id):
+        size            = 256
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
+
+        cv2.imshow("RND agent", state_im)
+        cv2.waitKey(1)
+    
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)

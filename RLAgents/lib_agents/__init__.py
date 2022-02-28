@@ -4,6 +4,7 @@ from .ExperienceBufferContinuous        import ExperienceBufferContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
+from .PolicyBufferIMModes           import PolicyBufferIMModes
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
 from .FeaturesBuffer                 import FeaturesBuffer
@@ -26,6 +27,7 @@ from .AgentDDPG                     import AgentDDPG
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
+from .AgentPPOSNDEE                 import AgentPPOSNDEE
 from .AgentPPOSNDEntropy            import AgentPPOSNDEntropy
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 
