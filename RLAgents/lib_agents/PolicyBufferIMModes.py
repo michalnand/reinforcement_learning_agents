@@ -70,15 +70,8 @@ class PolicyBufferIMModes:
  
 
     def compute_returns(self, gammas_ext, gammas_int, lam = 0.95):
-
-
         gamma_ext = numpy.take(gammas_ext, self.modes)
         gamma_int = numpy.take(gammas_int, self.modes)
-
-        print(">>> ", self.dones.shape, self.modes.shape)
-        print(gammas_ext, gammas_int)
-        print(gamma_ext.shape, gamma_int.shape)
-        print("\n\n")
 
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
