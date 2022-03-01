@@ -8,16 +8,25 @@ class FeaturesBuffer:
         self.buffer         = torch.zeros((buffer_size, envs_count ) + shape).to(device)
         self.current_idx    = 0
 
+        self.initialising   = torch.zeros(envs_count, dtype=bool).to(device)
+
     def reset(self, env_id, initial_value = None):
         self.buffer[:,env_id] = 0
  
         if initial_value is not None:
             self.buffer[:,env_id] = initial_value.clone()
+        else:
+            self.initialising[env_id] = True
 
     def add(self, values_t):
         self.buffer[self.current_idx] = values_t.clone()
 
         self.current_idx = (self.current_idx + 1)%self.buffer.shape[0]
+
+        indices = torch.nonzero(self.initialising).squeeze(1)
+
+        self.buffer[:,indices] = values_t[indices]
+        self.initialising[:] = False
 
 
     def compute_entropy(self):

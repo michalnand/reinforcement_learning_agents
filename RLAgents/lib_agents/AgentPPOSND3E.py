@@ -1,21 +1,21 @@
 import numpy
 import torch 
-from .PolicyBufferIMDual    import *  
-from .FeaturesBuffer        import *
-from .RunningStats          import *  
+from .PolicyBufferIMDualModes   import *  
+from .FeaturesBuffer            import *
+from .RunningStats              import *  
 
 import sklearn.manifold
 import matplotlib.pyplot as plt
 
 
        
-class AgentPPOSNDEntropy():   
+class AgentPPOSND3E():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
     
         self.gamma_ext          = config.gamma_ext 
-        self.gamma_int_a        = config.gamma_int_a
-        self.gamma_int_b        = config.gamma_int_b
+        self.gammas_int_a       = config.gammas_int_a
+        self.gammas_int_b       = config.gammas_int_b
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_a_adv_coeff    = config.int_a_adv_coeff
@@ -72,8 +72,13 @@ class AgentPPOSNDEntropy():
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
  
-        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMDualModes(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         self.entropy_buffer = FeaturesBuffer(self.entropy_buffer_size, self.envs_count, (512, ))
+
+        self.modes          = numpy.zeros(self.envs_count, dtype=int)
+ 
+        self.episode_score_sum = numpy.zeros(self.envs_count)
+        self.episode_score_max = -10**6
 
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -103,6 +108,7 @@ class AgentPPOSNDEntropy():
         self.log_internal_motivation_b_mean   = 0.0
         self.log_internal_motivation_b_std    = 0.0
 
+        self.log_modes                      = 0.0
 
         #self.vis_features = []
         #self.vis_labels   = []
@@ -143,13 +149,27 @@ class AgentPPOSNDEntropy():
         rewards_int_a    = numpy.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
 
         #entropy motivation
-        rewards_int_b    = self._entropy(states_t)
+        rewards_int_b, features_np = self._entropy(states_t)
 
         rewards_int_b    = numpy.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
 
+
+        #accumulate rewards
+        self.episode_score_sum+= rewards_ext
+
+        #find new max score
+        score_max = numpy.max(self.episode_score_sum)
+        if score_max > self.episode_score_max:
+            self.episode_score_max = score_max
+
+        #switch agent to explore mode if max score reached
+        for e in range(self.envs_count): 
+            if self.episode_score_sum[e] >= self.episode_score_max:
+                self.modes[e] = 1
+
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones, self.modes)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -157,7 +177,10 @@ class AgentPPOSNDEntropy():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                self.entropy_buffer.reset(e)
+                self.entropy_buffer.reset(e, features_np[e])
+
+                self.modes[e]  = 0
+                self.episode_score_sum[e] = 0
 
         '''
         states_norm_t   = self._norm_state(states_t)
@@ -193,6 +216,8 @@ class AgentPPOSNDEntropy():
         self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
         self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
 
+        self.log_modes                        = (1.0 - k)*self.log_modes  + k*self.modes.mean()
+
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     
@@ -204,7 +229,7 @@ class AgentPPOSNDEntropy():
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
-        #self.model_snd_target.load(load_path + "trained/")
+        self.model_snd_target.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
@@ -230,7 +255,7 @@ class AgentPPOSNDEntropy():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gammas_int_a, self.gammas_int_b)
 
         batch_count = self.steps//self.batch_size
 
@@ -470,7 +495,7 @@ class AgentPPOSNDEntropy():
         self.entropy_buffer.add(features_t)
         res = self.entropy_buffer.compute_entropy()
 
-        return res
+        return res, features_t
  
 
     #normalise mean and std for state
