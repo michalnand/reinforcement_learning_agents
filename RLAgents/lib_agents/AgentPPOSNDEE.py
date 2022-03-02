@@ -133,10 +133,12 @@ class AgentPPOSNDEE():
         int_reward_coeff = numpy.take(self.int_reward_coeffs, self.modes)
 
 
-        print(">>> ", int_reward_coeff.shape)
-
         rewards_int    = numpy.clip(int_reward_coeff*rewards_int, 0.0, 1.0)
 
+        print(self.int_reward_coeff)
+        print(self.modes)
+        print(">>> ", int_reward_coeff.shape, rewards_int.shape)
+        
 
         #accumulate rewards
         self.episode_score_sum+= rewards_ext
