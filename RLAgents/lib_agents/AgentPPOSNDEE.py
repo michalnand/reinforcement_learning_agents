@@ -130,12 +130,12 @@ class AgentPPOSNDEE():
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
 
-        int_reward_coeff = numpy.take(self.int_reward_coeffs, self.modes)
+        int_reward_coeffs = numpy.take(self.int_reward_coeffs, self.modes)
 
 
-        rewards_int    = numpy.clip(int_reward_coeff*rewards_int, 0.0, 1.0)
+        rewards_int    = numpy.clip(int_reward_coeffs*rewards_int, 0.0, 1.0)
 
-        print(self.int_reward_coeffs)
+        print(int_reward_coeffs)
         print(self.modes)
         print(">>> ", int_reward_coeff.shape, rewards_int.shape)
         
