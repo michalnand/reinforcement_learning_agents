@@ -17,7 +17,7 @@ class AgentPPOSNDEE():
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.int_reward_coeff   = config.int_reward_coeff
+        self.int_reward_coeffs  = config.int_reward_coeffs
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -130,7 +130,12 @@ class AgentPPOSNDEE():
         #curiosity motivation
         rewards_int    = self._curiosity(states_t)
 
-        rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
+        int_reward_coeff = numpy.take(self.int_reward_coeffs, self.modes)
+
+
+        print(">>> ", int_reward_coeff.shape)
+
+        rewards_int    = numpy.clip(int_reward_coeff*rewards_int, 0.0, 1.0)
 
 
         #accumulate rewards
