@@ -137,7 +137,7 @@ class AgentPPOSNDEE():
 
         print(int_reward_coeffs)
         print(self.modes)
-        print(">>> ", int_reward_coeff.shape, rewards_int.shape)
+        print(">>> ", int_reward_coeffs.shape, rewards_int.shape)
         
 
         #accumulate rewards
