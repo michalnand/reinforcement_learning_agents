@@ -76,7 +76,8 @@ class AgentPPOSNDEntropy():
         self.entropy_buffer = FeaturesBuffer(self.entropy_buffer_size, self.envs_count, (512, ))
 
         for e in range(self.envs_count):
-            self.envs.reset(e)
+            self.envs.reset(e) 
+            self.entropy_buffer.reset(e)
         
         self.states_running_stats       = RunningStats(self.state_shape)
 
