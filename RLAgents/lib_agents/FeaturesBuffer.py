@@ -28,6 +28,9 @@ class FeaturesBuffer:
         self.buffer[:,indices] = values_t[indices]
         self.initialising[:] = False
 
+        if indices.shape[0] > 0:
+            print("initialising ", indices)
+
 
     def compute_entropy(self):
         std = torch.std(self.buffer, dim=0)
