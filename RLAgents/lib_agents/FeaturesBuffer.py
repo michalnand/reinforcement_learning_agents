@@ -28,15 +28,10 @@ class FeaturesBuffer:
         self.buffer[:,indices] = values_t[indices].clone()
         self.initialising[:] = False
 
-        if indices.shape[0] > 0:
-            print("initialising ", indices)
-
 
     def compute_entropy(self):
         std = torch.std(self.buffer, dim=0)
         std = std.mean(dim=1)
-
-        print(">>> entropy = ", std.shape, std[0])
 
         return std.detach().to("cpu").numpy()
  
