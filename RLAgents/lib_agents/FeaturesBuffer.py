@@ -25,7 +25,7 @@ class FeaturesBuffer:
 
         indices = torch.nonzero(self.initialising).squeeze(1)
 
-        self.buffer[:,indices] = values_t[indices]
+        self.buffer[:,indices] = values_t[indices].clone()
         self.initialising[:] = False
 
         if indices.shape[0] > 0:
