@@ -144,7 +144,6 @@ class AgentPPOSNDEntropy():
 
         #entropy motivation
         rewards_int_b    = self._entropy(states_t)
-
         rewards_int_b    = numpy.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
 
         #put into policy buffer
@@ -204,7 +203,7 @@ class AgentPPOSNDEntropy():
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
-        #self.model_snd_target.load(load_path + "trained/")
+        self.model_snd_target.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
