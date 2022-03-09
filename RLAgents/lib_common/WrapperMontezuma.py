@@ -168,7 +168,25 @@ class VisitedRoomsEnv(gym.Wrapper):
         return numpy.min(distances), numpy.argmin(distances)
 
 
+class LifeLostEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.lives          = 0
 
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action) 
+
+        lives = self.env.unwrapped.ale.lives()
+        if lives < self.lives:
+            reward+= -0.1
+        
+        self.lives = lives
+        return obs, reward, done, info
+
+    def reset(self):
+        obs         = self.env.reset()
+        self.lives  = self.env.unwrapped.ale.lives()
+        return obs
 
 
 class RawScoreEnv(gym.Wrapper):
@@ -201,11 +219,9 @@ class RawScoreEnv(gym.Wrapper):
             self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
             self.raw_score = 0.0
         
-        reward = float(numpy.sign(reward))
+        if reward > 0:
+            reward = float(numpy.sign(reward))
 
-        if reward < 0:
-            reward*= 0.01
- 
         return obs, reward, done, info
 
     def reset(self):
@@ -220,6 +236,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
+    env = LifeLostEnv(env)
     env = RawScoreEnv(env, max_steps)
 
     return env
