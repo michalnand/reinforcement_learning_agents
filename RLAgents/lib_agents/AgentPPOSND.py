@@ -519,10 +519,7 @@ class AgentPPOSND():
             state_norm_t = state_norm_t - mean
 
         if self.normalise_state_std:
-            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-
-            print(">>> std norm ", torch.std(state_norm_t[0]).mean())
-            
+            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()            
             state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
 
         return state_norm_t 
