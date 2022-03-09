@@ -521,6 +521,7 @@ class AgentPPOSND():
         if self.normalise_state_std:
             std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
             state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
+            print(">>> std norm ", torch.std(state_norm_t))
 
         return state_norm_t 
 
