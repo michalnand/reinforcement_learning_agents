@@ -125,7 +125,7 @@ class AgentPPOSND():
         rewards_int    = self._curiosity(states_t)
 
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
-
+        
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -520,7 +520,7 @@ class AgentPPOSND():
 
         if self.normalise_state_std:
             std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
+            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
 
         return state_norm_t 
 
