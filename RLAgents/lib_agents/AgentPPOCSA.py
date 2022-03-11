@@ -311,9 +311,9 @@ class AgentPPOCSA():
     def _get_room_ids(self, states):
 
         if self.room_downsample > 1:
-            states_ds = torch.nn.functional.avg_pool2d(states[:,0], self.room_downsample, self.room_downsample)
+            states_ds = torch.nn.functional.avg_pool2d(states[:,0].to("cpu"), self.room_downsample, self.room_downsample)
         else:
-            states_ds = states[:,0]
+            states_ds = states[:,0].to("cpu")
 
         states_ds = states_ds.reshape((states_ds.shape[0], states_ds.shape[1]*states_ds.shape[2]))
 
