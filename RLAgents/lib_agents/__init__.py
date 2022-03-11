@@ -32,6 +32,8 @@ from .AgentPPOSNDEE                 import AgentPPOSNDEE
 from .AgentPPOSNDEntropy            import AgentPPOSNDEntropy
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 
+from .AgentPPOCSA                   import AgentPPOCSA
+
 from .AgentPPOContinuous            import AgentPPOContinuous
 
 

@@ -126,6 +126,7 @@ class AgentPPOSND():
 
         rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
+
         #put into policy buffer
         if self.enabled_training:
             self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
@@ -581,3 +582,5 @@ class AgentPPOSND():
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
+
+   
