@@ -132,11 +132,14 @@ class AgentPPOCSA():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_adm.save(save_path + "trained/")
+        numpy.save(save_path + "trained/" + "visitation_count.npy", self.visitation_count)
+
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_adm.load(load_path + "trained/")
-        self.visitation_count.save(load_path + "trained/" + "visitation_count.np")
+        self.visitation_count = numpy.load(load_path + "trained/" + "visitation_count.npy")
+
  
     def get_log(self):  
         result = "" 
@@ -350,6 +353,6 @@ class AgentPPOCSA():
 
             self.visitation_count[room_idx][pos_idx]+= 1
 
-            motivation[i] = 1.0/(self.visitation_count[room_idx, pos_idx] + 1.0)
+            motivation[i] = 1.0/self.visitation_count[room_idx][pos_idx]
 
         return motivation
