@@ -312,7 +312,7 @@ class AgentPPOSNDSA():
 
 
                 #train adm model
-                states, states_next, _, actions, _, _, _, _, _, _ = self.policy_buffer.sample_batch(64, self.model_ppo.device)
+                states, states_next, _, actions, _, _, _, _, _, _ = self.policy_buffer.sample_batch(1, self.model_ppo.device)
 
                 loss_adm, acc_adm = self._compute_loss_adm(states, states_next, actions)
 
