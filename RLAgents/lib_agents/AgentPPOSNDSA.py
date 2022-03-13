@@ -1,21 +1,21 @@
 import numpy
 import torch 
-from .PolicyBufferIMDualModes   import *  
-from .FeaturesBuffer            import *
-from .RunningStats              import *  
+from .PolicyBufferIMDual    import *  
+from .FeaturesBuffer        import *
+from .RunningStats          import *  
 
 import sklearn.manifold
 import matplotlib.pyplot as plt
-
-
+import cv2
+ 
        
-class AgentPPOSND3E():   
-    def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
+class AgentPPOSNDSA():   
+    def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, ModelADM, config):
         self.envs = envs  
-    
+      
         self.gamma_ext          = config.gamma_ext 
-        self.gammas_int_a       = config.gammas_int_a
-        self.gammas_int_b       = config.gammas_int_b
+        self.gamma_int_a        = config.gamma_int_a
+        self.gamma_int_b        = config.gamma_int_b
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_a_adv_coeff    = config.int_a_adv_coeff
@@ -23,9 +23,8 @@ class AgentPPOSND3E():
 
         self.int_a_reward_coeff = config.int_a_reward_coeff
         self.int_b_reward_coeff = config.int_b_reward_coeff
-        
-     
-        self.entropy_beta       = config.entropy_beta
+    
+        self.entropy_beta       = config.entropy_beta 
         self.eps_clip           = config.eps_clip 
     
         self.steps              = config.steps
@@ -34,7 +33,10 @@ class AgentPPOSND3E():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        
+        self.entropy_buffer_size= config.entropy_buffer_size
+        self.entropy_top_n      = config.entropy_top_n
+
+
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
         elif config.snd_regularisation_loss == "info_nce":
@@ -52,13 +54,8 @@ class AgentPPOSND3E():
         print("snd_regularisation_loss = ", self._snd_regularisation_loss)
         print("ppo_regularisation_loss = ", self._ppo_regularisation_loss)
 
-
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
-
-
-        self.entropy_buffer_size  = config.entropy_buffer_size
-        self.entropy_buffer_top_n = config.entropy_buffer_top_n
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -71,17 +68,18 @@ class AgentPPOSND3E():
 
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
- 
-        self.policy_buffer  = PolicyBufferIMDualModes(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.entropy_buffer = FeaturesBuffer(self.entropy_buffer_size, self.envs_count, (512, ))
 
-        self.modes          = numpy.zeros(self.envs_count, dtype=int)
+        self.model_adm      = ModelADM.Model(self.state_shape, self.actions_count)
+        self.optimizer_adm  = torch.optim.Adam(self.model_adm.parameters(), lr=config.learning_rate_adm)
  
-        self.episode_score_sum = numpy.zeros(self.envs_count)
-        self.episode_score_max = -10**6
+        self.policy_buffer = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.entropy_buffer = FeaturesBuffer(self.entropy_buffer_size, self.envs_count, (64*12*12, ))
+
 
         for e in range(self.envs_count):
-            self.envs.reset(e)
+            self.envs.reset(e) 
+            self.entropy_buffer.reset(e)
+
         
         self.states_running_stats       = RunningStats(self.state_shape)
 
@@ -93,7 +91,6 @@ class AgentPPOSND3E():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
- 
         self.enable_training()
         self.iterations                     = 0 
 
@@ -103,12 +100,18 @@ class AgentPPOSND3E():
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
-        self.log_internal_motivation_a_mean   = 0.0
-        self.log_internal_motivation_a_std    = 0.0
-        self.log_internal_motivation_b_mean   = 0.0
-        self.log_internal_motivation_b_std    = 0.0
+        self.log_loss_adm                   = 0.0
+        self.log_acc_adm                    = 0.0
 
-        self.log_modes                      = 0.0
+        self.log_internal_motivation_a_mean = 0.0
+        self.log_internal_motivation_a_std  = 0.0
+
+        self.log_internal_motivation_b_mean = 0.0
+        self.log_internal_motivation_b_std  = 0.0
+
+        
+
+
 
         #self.vis_features = []
         #self.vis_labels   = []
@@ -125,7 +128,7 @@ class AgentPPOSND3E():
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t, values_int_b_t = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
         logits_np       = logits_t.detach().to("cpu").numpy()
@@ -149,27 +152,13 @@ class AgentPPOSND3E():
         rewards_int_a    = numpy.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
 
         #entropy motivation
-        rewards_int_b, features_np = self._entropy(states_t)
-
+        rewards_int_b    = self._entropy(states_t)
         rewards_int_b    = numpy.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
-
-
-        #accumulate rewards
-        self.episode_score_sum+= rewards_ext
-
-        #find new max score
-        score_max = numpy.max(self.episode_score_sum)
-        if score_max > self.episode_score_max:
-            self.episode_score_max = score_max
-
-        #switch agent to explore mode if max score reached
-        for e in range(self.envs_count): 
-            if self.episode_score_sum[e] >= self.episode_score_max:
-                self.modes[e] = 1
+        
 
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones, self.modes)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -177,10 +166,6 @@ class AgentPPOSND3E():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                self.entropy_buffer.reset(e, features_np[e])
-
-                self.modes[e]  = 0
-                self.episode_score_sum[e] = 0
 
         '''
         states_norm_t   = self._norm_state(states_t)
@@ -200,7 +185,6 @@ class AgentPPOSND3E():
             plt.clf()
             plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
             plt.colorbar(ticks=range(10))
-            #plt.clim(-0.5, 9.5)
             plt.tight_layout()
             plt.show()
 
@@ -213,10 +197,9 @@ class AgentPPOSND3E():
         k = 0.02
         self.log_internal_motivation_a_mean   = (1.0 - k)*self.log_internal_motivation_a_mean + k*rewards_int_a.mean()
         self.log_internal_motivation_a_std    = (1.0 - k)*self.log_internal_motivation_a_std  + k*rewards_int_a.std()
+
         self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
         self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
-
-        self.log_modes                        = (1.0 - k)*self.log_modes  + k*self.modes.mean()
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -240,12 +223,30 @@ class AgentPPOSND3E():
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
+        result+= str(round(self.log_loss_adm, 7)) + " "
+        result+= str(round(self.log_acc_adm,  7)) + " "
+
         result+= str(round(self.log_internal_motivation_a_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_a_std, 7)) + " "
+
         result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
         result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
 
-        return result  
+        return result 
+
+    def render(self, env_id):
+        size            = 256
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
+
+        cv2.imshow("RND agent", state_im)
+        cv2.waitKey(1)
+    
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -255,23 +256,24 @@ class AgentPPOSND3E():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gammas_int_a, self.gammas_int_b)
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
+
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train snd model, MSE loss
+                #train snd model
                 loss_snd = self._compute_loss_snd(states)
 
                 self.optimizer_snd.zero_grad() 
@@ -282,8 +284,8 @@ class AgentPPOSND3E():
                 k = 0.02
                 self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
 
-                
-                #smaller batch for regularisation
+
+                #smaller batch for SND regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(64, self.model_ppo.device)
 
                 #contrastive loss for better features space (optional)
@@ -308,6 +310,23 @@ class AgentPPOSND3E():
                     k = 0.02
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
+
+                #train adm model
+                states, states_next, _, actions, _, _, _, _, _, _ = self.policy_buffer.sample_batch(64, self.model_ppo.device)
+
+                loss_adm, acc_adm = self._compute_loss_adm(states, states_next, actions)
+
+                self.optimizer_adm.zero_grad() 
+                loss_adm.backward()
+                self.optimizer_adm.step()
+
+                #log results 
+                k = 0.02
+                self.log_loss_adm  = (1.0 - k)*self.log_loss_adm    + k*loss_adm.detach().to("cpu").numpy()
+                self.log_acc_adm   = (1.0 - k)*self.log_acc_adm     + k*acc_adm.detach().to("cpu").numpy()
+
+
+
         self.policy_buffer.clear() 
 
     
@@ -323,7 +342,6 @@ class AgentPPOSND3E():
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
 
         loss_actor = loss_policy + loss_entropy
-
      
         #total loss
         loss = 0.5*loss_critic + loss_actor
@@ -389,6 +407,25 @@ class AgentPPOSND3E():
 
         return loss_policy, loss_entropy
 
+    
+    #MSE loss for adm model
+    def _compute_loss_adm(self, states, states_next, actions):
+
+        #actions one hot encodings
+        actions_one_hot = torch.zeros((states.shape[0], self.actions_count))
+        actions_one_hot[range(states.shape[0]), actions] = 1.0
+        actions_one_hot = actions_one_hot.to(actions.device)
+
+        actions_predicted = self.model_adm(states, states_next)
+
+        #action prediction loss, MSE or logsoftmax ?
+        loss_prediction = ((actions_one_hot - actions_predicted)**2).mean()
+
+        #prediction accuracy 
+        a_max = torch.argmax(actions_predicted, dim=1)
+        accuracy = 100.0*(a_max == actions).sum()/actions.shape[0]
+
+        return loss_prediction, accuracy
 
     #MSE loss for snd model
     def _compute_loss_snd(self, states):
@@ -409,12 +446,11 @@ class AgentPPOSND3E():
         return loss_snd
 
     
-
     def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
-        #normalsie states
+        #normalise states
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
@@ -444,7 +480,7 @@ class AgentPPOSND3E():
         xa = states_a_t.clone()
         xb = states_b_t.clone()
 
-        #normalsie states
+        #normalise states
         if normalise:
             xa = self._norm_state(xa)
             xb = self._norm_state(xb)
@@ -468,9 +504,6 @@ class AgentPPOSND3E():
 
         return loss
 
-
-
-
     #compute internal motivation
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
@@ -483,19 +516,17 @@ class AgentPPOSND3E():
 
         return curiosity_t.detach().to("cpu").numpy()
 
-
     #compute internal motivation
     def _entropy(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
-        features_t      = self.model_snd_target(state_norm_t)
+        features_t      = self.model_adm.forward_features(state_t)
         features_t      = features_t.detach().to("cpu")
+        features_t      = features_t.reshape((features_t.shape[0], features_t.shape[1]*features_t.shape[2]*features_t.shape[3]))
 
-        #res, _ = self.entropy_buffer.compute(features_t)
-
+        res, _ = self.entropy_buffer.compute(features_t, self.entropy_top_n)
+        
         self.entropy_buffer.add(features_t)
-        res = self.entropy_buffer.compute_entropy()
-
-        return res, features_t
+        
+        return res
  
 
     #normalise mean and std for state
@@ -508,8 +539,8 @@ class AgentPPOSND3E():
             state_norm_t = state_norm_t - mean
 
         if self.normalise_state_std:
-            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-            state_norm_t = torch.clamp(state_norm_t/std, -5.0, 5.0)
+            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()            
+            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
 
         return state_norm_t 
 
@@ -528,6 +559,13 @@ class AgentPPOSND3E():
                     self.envs.reset(e)
 
     def _aug(self, x):
+        '''
+        x = self._aug_random_apply(x, 0.5, self._aug_mask)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_noise(x, k = 0.2)
+        '''
+
+        #this works perfect
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
         x = self._aug_random_apply(x, 0.125, self._aug_mask)
@@ -546,11 +584,7 @@ class AgentPPOSND3E():
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
 
-        if (len(x.shape) == 3):
-            scaled  = us(ds(x.unsqueeze(1))).squeeze(1)
-        else:
-            scaled  = us(ds(x))  
-
+        scaled  = us(ds(x))  
         return scaled
 
     def _aug_resize2(self, x):
@@ -567,3 +601,5 @@ class AgentPPOSND3E():
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
+
+   

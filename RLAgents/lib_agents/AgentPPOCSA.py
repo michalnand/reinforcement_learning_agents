@@ -193,7 +193,7 @@ class AgentPPOCSA():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train snd model, MSE loss
+                #train adm model, MSE loss
                 loss_adm, acc_adm = self._compute_loss_adm(states, states_next, actions)
 
                 self.optimizer_adm.zero_grad() 
