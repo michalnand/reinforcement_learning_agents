@@ -214,7 +214,11 @@ class AgentPPOContrastive():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train snd model, MSE loss
+
+                #train contrastive model, MSE loss
+
+                states, _, _ = self.policy_buffer.sample_states(64)
+
                 loss_contrastive = self._compute_loss_contrastive(states)
 
                 self.optimizer_contrastive.zero_grad() 
@@ -320,7 +324,7 @@ class AgentPPOContrastive():
         #close states are on diagonal, set 0 on diagonal, 1 else
         n = distances.shape[0]
         labels  = 1.0 - torch.eye(n, device=distances.device)
-        
+
         #MSE loss
         loss = ((labels - distances)**2)
         loss = loss.mean()
