@@ -301,13 +301,21 @@ class AgentPPOContrastive():
         return loss_policy, loss_entropy
 
 
-    '''
+    
     def _compute_loss_contrastive(self, state):
-        x = self._norm_state(state)
-        z = self.model_contrastive(x)  
+        
+
+        state_norm = self._norm_state(state)
+        
+        #states augmentation
+        xa = self._aug(state_norm)
+        xb = self._aug(state_norm)
+ 
+        za = model(xa)  
+        zb = model(xb) 
 
         #distances, each from each 
-        distances = ((z.unsqueeze(1) - z)**2).mean(dim=2)
+        distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
 
         #close states are on diagonal, set 0 on diagonal, 1 else
         n = distances.shape[0]
@@ -323,8 +331,8 @@ class AgentPPOContrastive():
         loss = loss.mean()
 
         return loss
-    '''
     
+    '''
     def _compute_loss_contrastive(self, state):
         x = self._norm_state(state)
         z = self.model_contrastive(x)  
@@ -334,7 +342,7 @@ class AgentPPOContrastive():
         loss        = torch.nn.functional.cross_entropy(logits, torch.arange(z.shape[0]).to(z.device))
 
         return loss
-    
+    '''
 
     #compute internal motivation
     def _curiosity(self, state_t):
@@ -378,3 +386,50 @@ class AgentPPOContrastive():
             for e in range(self.envs_count): 
                 if dones[e]:
                     self.envs.reset(e)
+
+     def _aug(self, x):
+        '''
+        x = self._aug_random_apply(x, 0.5, self._aug_mask)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_noise(x, k = 0.2)
+        '''
+
+        #this works perfect
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.125, self._aug_mask)
+        x = self._aug_noise(x, k = 0.2)
+        
+        return x
+
+
+    def _aug_random_apply(self, x, p, aug_func):
+        shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
+        apply  = 1.0*(torch.rand(shape, device=x.device) < p)
+
+        return (1 - apply)*x + apply*aug_func(x) 
+ 
+
+    def _aug_resize(self, x, scale = 2):
+        ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
+        us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
+
+        scaled  = us(ds(x))  
+        return scaled
+
+    def _aug_resize2(self, x):
+        return self._aug_resize(x, 2)
+
+    def _aug_resize4(self, x):
+        return self._aug_resize(x, 4)
+
+    def _aug_mask(self, x, p = 0.1):
+        mask = 1.0*(torch.rand_like(x) < (1.0 - p))
+        return x*mask  
+
+    def _aug_noise(self, x, k = 0.2): 
+        pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
+        return x + pointwise_noise
+
+
+   
