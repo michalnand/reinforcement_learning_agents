@@ -387,7 +387,7 @@ class AgentPPOContrastive():
                 if dones[e]:
                     self.envs.reset(e)
 
-     def _aug(self, x):
+    def _aug(self, x):
         '''
         x = self._aug_random_apply(x, 0.5, self._aug_mask)
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
