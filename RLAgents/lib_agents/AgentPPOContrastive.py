@@ -217,7 +217,7 @@ class AgentPPOContrastive():
 
                 #train contrastive model, MSE loss
 
-                states, _, _ = self.policy_buffer.sample_states(64)
+                states, _, _ = self.policy_buffer.sample_states(64, self.model_contrastive.device)
 
                 loss_contrastive = self._compute_loss_contrastive(states)
 
