@@ -311,8 +311,8 @@ class AgentPPOContrastive():
         xa = self._aug(state_norm)
         xb = self._aug(state_norm)
  
-        za = model(xa)  
-        zb = model(xb) 
+        za = self.model_contrastive(xa)   
+        zb = self.model_contrastive(xb) 
 
         #distances, each from each 
         distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
