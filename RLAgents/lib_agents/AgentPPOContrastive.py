@@ -323,8 +323,8 @@ class AgentPPOContrastive():
         loss = loss.mean()
 
         return loss
-    
     '''
+    
     def _compute_loss_contrastive(self, state):
         x = self._norm_state(state)
         z = self.model_contrastive(x)  
