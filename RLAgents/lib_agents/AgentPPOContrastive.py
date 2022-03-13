@@ -320,14 +320,9 @@ class AgentPPOContrastive():
         #close states are on diagonal, set 0 on diagonal, 1 else
         n = distances.shape[0]
         labels  = 1.0 - torch.eye(n, device=distances.device)
-
-        #balacne classes loss scaling
-        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
-        scale   = 0.5*scale
-
+        
         #MSE loss
         loss = ((labels - distances)**2)
-        loss = loss*scale
         loss = loss.mean()
 
         return loss
