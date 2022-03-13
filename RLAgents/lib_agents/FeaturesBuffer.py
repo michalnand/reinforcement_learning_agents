@@ -53,9 +53,8 @@ class FeaturesBuffer:
         std  = distances.std(dim=0)
 
         mean = mean.detach().to("cpu").numpy()
-        std  = std.detach().to("cpu").numpy()
        
-        return mean, std
+        return mean
 
 '''
 class FeaturesBuffer:  

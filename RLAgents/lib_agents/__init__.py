@@ -28,6 +28,7 @@ from .AgentDDPG                     import AgentDDPG
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
+from .AgentPPOContrastive           import AgentPPOContrastive
 from .AgentPPOSNDSA                 import AgentPPOSNDSA
 from .AgentPPOSNDEntropy            import AgentPPOSNDEntropy
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
