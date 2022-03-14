@@ -348,9 +348,11 @@ class AgentPPOContrastive():
         features_t      = self.model_contrastive(state_norm_t)
         features_t      = features_t.detach().to("cpu")
 
-        curiosity = self.features_buffer.compute(features_t, 32)
-
+        #curiosity = self.features_buffer.compute(features_t, 32)
+        
         self.features_buffer.add(features_t)
+
+        curiosuty = self.features_buffer.compute_entropy()
 
         return curiosity
 
