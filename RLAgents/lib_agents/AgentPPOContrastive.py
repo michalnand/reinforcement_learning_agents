@@ -305,10 +305,8 @@ class AgentPPOContrastive():
         return loss_policy, loss_entropy
 
 
-    
+    '''
     def _compute_loss_contrastive(self, state):
-        
-
         state_norm = self._norm_state(state)
         
         #states augmentation
@@ -330,8 +328,8 @@ class AgentPPOContrastive():
         loss = loss.mean()
 
         return loss
-    
     '''
+
     def _compute_loss_contrastive(self, state):
         x = self._norm_state(state)
         z = self.model_contrastive(x)  
@@ -341,7 +339,7 @@ class AgentPPOContrastive():
         loss        = torch.nn.functional.cross_entropy(logits, torch.arange(z.shape[0]).to(z.device))
 
         return loss
-    '''
+    
 
     #compute internal motivation
     def _curiosity(self, state_t):
