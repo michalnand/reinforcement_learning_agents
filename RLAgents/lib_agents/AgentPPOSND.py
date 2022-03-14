@@ -246,7 +246,7 @@ class AgentPPOSND():
                 self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
 
                 #smaller batch for regularisation
-                states_a, states_b, labels = self.policy_buffer.sample_states(64, self.model_ppo.device)
+                states_a, states_b, labels = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
