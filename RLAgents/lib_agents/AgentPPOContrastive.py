@@ -218,7 +218,7 @@ class AgentPPOContrastive():
                 #train contrastive model, MSE loss
                 states_a_t, states_b_t, target_t = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
 
-                loss_contrastive = _contrastive_loss_mse(self.model_contrastive, states_a_t, states_b_t, target_t, True, True)
+                loss_contrastive = self._contrastive_loss_mse(self.model_contrastive, states_a_t, states_b_t, target_t, True, True)
 
                 self.optimizer_contrastive.zero_grad() 
                 loss_contrastive.backward()
