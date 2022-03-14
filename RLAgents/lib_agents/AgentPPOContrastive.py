@@ -218,7 +218,7 @@ class AgentPPOContrastive():
                 #train contrastive model, MSE loss
                 states_a_t, states_b_t, target_t = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
 
-                loss_contrastive = self._contrastive_loss_mse(self.model_contrastive, states_a_t, states_b_t, target_t, True, True)
+                loss_contrastive = self._contrastive_loss_info_nce(self.model_contrastive, states_a_t, states_b_t, target_t, True, True)
 
                 self.optimizer_contrastive.zero_grad() 
                 loss_contrastive.backward()
@@ -334,43 +334,34 @@ class AgentPPOContrastive():
 
         return loss
 
-    '''
-    def _compute_loss_contrastive(self, state):
-        state_norm = self._norm_state(state)
-        
+    
+    def _contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
+
         #states augmentation
-        xa = self._aug(state_norm)
-        xb = self._aug(state_norm)
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
  
-        za = self.model_contrastive(xa)   
-        zb = self.model_contrastive(xb) 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb)
 
-        #distances, each from each 
-        distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
-
-        #close states are on diagonal, set 0 on diagonal, 1 else
-        n = distances.shape[0]
-        labels  = 1.0 - torch.eye(n, device=distances.device)
-
-        #MSE loss
-        loss = ((labels - distances)**2)
-        loss = loss.mean()
+        #info NCE loss 
+        logits  = (za*zb).mean(dim=1)
+        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
 
         return loss
-
-    def _compute_loss_contrastive(self, states_now, states_next):
-        xa = self._norm_state(states_now)
-        xb = self._norm_state(states_next)
- 
-        za = self.model_contrastive(xa)   
-        zb = self.model_contrastive(xb) 
-
-        #info NCE loss
-        logits      = torch.matmul(za, zb.t())
-        loss        = torch.nn.functional.cross_entropy(logits, torch.arange(logits.shape[0]).to(logits.device))
-
-        return loss
-    '''
 
     #compute internal motivation
     def _curiosity(self, state_t):
