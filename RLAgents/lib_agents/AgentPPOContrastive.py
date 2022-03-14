@@ -352,7 +352,7 @@ class AgentPPOContrastive():
         
         self.features_buffer.add(features_t)
 
-        curiosuty = self.features_buffer.compute_entropy()
+        curiosity = self.features_buffer.compute_entropy()
 
         return curiosity
 
