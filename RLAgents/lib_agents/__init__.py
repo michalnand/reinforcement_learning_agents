@@ -28,8 +28,7 @@ from .AgentDDPG                     import AgentDDPG
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
-
-from .AgentPPOEntropy               import AgentPPOEntropy
+from .AgentPPOCSA                   import AgentPPOCSA
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous

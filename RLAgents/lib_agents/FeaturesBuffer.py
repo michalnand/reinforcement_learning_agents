@@ -5,7 +5,7 @@ import numpy
 class FeaturesBuffer:  
 
     def __init__(self, buffer_size, envs_count, shape, device = "cpu"):
-        self.buffer         = torch.zeros((buffer_size, envs_count ) + shape).float().to(device)
+        self.buffer         = torch.zeros((buffer_size, envs_count ) + shape).to(device)
         self.current_idx    = 0
 
         self.initialising   = torch.zeros(envs_count, dtype=bool).to(device)

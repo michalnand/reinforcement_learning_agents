@@ -353,6 +353,6 @@ class AgentPPOCSA():
 
             self.visitation_count[room_idx][pos_idx]+= 1
 
-            motivation[i] = 1.0/self.visitation_count[room_idx][pos_idx]
+            motivation[i] = 1.0/(self.visitation_count[room_idx][pos_idx]**0.5)
 
         return motivation
