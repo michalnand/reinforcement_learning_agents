@@ -79,7 +79,7 @@ class AgentPPOSNDEEE():
         self.optimizer_cont      = torch.optim.Adam(self.model_cont.parameters(), lr=config.learning_rate_cont)
 
         self.policy_buffer   = PolicyBufferIMDualModes(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.features_buffer = FeaturesBuffer(config.buffer_size, self.envs_count, (256, ))
+        self.features_buffer = FeaturesBuffer(config.buffer_size, self.envs_count, (256, ), device=self.model_ppo.device)
 
         self.modes          = numpy.zeros(self.envs_count, dtype=int)
  
