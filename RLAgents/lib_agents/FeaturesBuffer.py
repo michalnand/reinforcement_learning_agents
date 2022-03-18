@@ -49,6 +49,10 @@ class FeaturesBuffer:
         if top_n is not None:
             distances = torch.sort(distances, dim=0)[0]
             distances = distances[0:top_n,:]
+
+        print(distances)
+        print(distances.shape)
+        print("\n\n\n")
  
         mean = distances.mean(dim=0)
        
