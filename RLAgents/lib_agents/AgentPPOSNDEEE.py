@@ -599,9 +599,7 @@ class AgentPPOSNDEEE():
 
     #compute internal motivation
     def _entropy(self, state_t):
-        features_t  = self.model_cont(state_t)
-
-        features_t  = features_t.detach().to("cpu")
+        features_t  = self.model_cont(state_t).detach()
         
         entropy_t = self.features_buffer.compute(features_t)
 

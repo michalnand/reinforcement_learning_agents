@@ -38,7 +38,7 @@ class FeaturesBuffer:
  
     def compute(self, values_t, top_n = 32):
         #difference
-        dif = self.buffer - values_t
+        dif = self.buffer - values_t.to(self.buffer.device)
 
         #take last dims
         dims = tuple(range(2, len(self.buffer.shape)))
