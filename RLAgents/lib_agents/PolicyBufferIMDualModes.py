@@ -21,7 +21,7 @@ class PolicyBufferIMDualModes:
       
         self.clear()   
  
-    def add(self, state, logits, value_ext, value_int_a, value_int_b, action, reward_ext, reward_int_a, reward_int_b, done):
+    def add(self, state, logits, value_ext, value_int_a, value_int_b, action, reward_ext, reward_int_a, reward_int_b, done, modes):
         
         self.states[self.ptr]    = state.copy()*self.scale
         self.logits[self.ptr]    = logits.copy()
@@ -37,6 +37,7 @@ class PolicyBufferIMDualModes:
         self.reward_int_b[self.ptr] = reward_int_b.copy()
 
         self.dones[self.ptr]       = (1.0*done).copy()
+        self.modes[self.ptr]       = modes.copy()
         
         self.ptr = self.ptr + 1 
 
@@ -126,7 +127,6 @@ class PolicyBufferIMDualModes:
         advantages_int_a= torch.from_numpy(numpy.take(self.advantages_int_a, indices, axis=0)).to(device)
         advantages_int_b= torch.from_numpy(numpy.take(self.advantages_int_b, indices, axis=0)).to(device)
 
-
         return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
 
 
@@ -163,10 +163,10 @@ class PolicyBufferIMDualModes:
         advantages  = numpy.zeros((buffer_size, envs_count), dtype=numpy.float32)
 
         last_gae    = numpy.zeros((envs_count), dtype=numpy.float32)
-        
+         
         for n in reversed(range(buffer_size-1)):
-            delta           = rewards[n] + gamma*values[n+1]*(1.0 - dones[n]) - values[n]
-            last_gae        = delta + gamma*lam*last_gae*(1.0 - dones[n])
+            delta           = rewards[n] + gamma[n]*values[n+1]*(1.0 - dones[n]) - values[n]
+            last_gae        = delta + gamma[n]*lam*last_gae*(1.0 - dones[n])
             
             returns[n]      = last_gae + values[n]
             advantages[n]   = last_gae
