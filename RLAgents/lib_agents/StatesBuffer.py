@@ -42,7 +42,7 @@ class StatesBuffer:
         #find closest distances and indices
         closest_val, closest_ids = torch.min(distances, dim=1)
 
-        print(">>>> ", distances.shape, closest_ids.shape)
+        #print(">>>> ", distances.shape, closest_ids.shape)
 
 
         #add new states if threshold reached
