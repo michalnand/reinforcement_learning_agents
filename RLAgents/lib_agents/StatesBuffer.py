@@ -77,14 +77,14 @@ class StatesBuffer:
         return self.current_idx
  
     def save(self, path):
-        numpy.save(self.states_b,       path + "buffer_states.pt")
-        numpy.save(self.steps_b,        path + "buffer_steps.pt")
-        numpy.save(self.visitings_b,    path + "buffer_visitings.pt")
-
+        torch.save(path + "buffer_states.pt", self.states_b)
+        torch.save(path + "buffer_steps.pt",  self.steps_b)
+        torch.save(path + "buffer_visitings.pt", self.visitings_b)
+ 
     def load(self, path):
-        self.states_b   = numpy.load(path + "buffer_states.pt")
-        self.steps_b    = numpy.load(path + "buffer_steps.pt")
-        self.visitings_b= numpy.load(path + "buffer_visitings.pt")
+        self.states_b   = torch.load(path + "buffer_states.pt")
+        self.steps_b    = torch.load(path + "buffer_steps.pt")
+        self.visitings_b= torch.load(path + "buffer_visitings.pt")
 
 
     def _add_new_state(self, state, steps):
