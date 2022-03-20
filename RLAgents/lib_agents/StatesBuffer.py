@@ -25,8 +25,13 @@ class StatesBuffer:
         steps_t  = torch.from_numpy(steps_np).float()
 
         #downsample and flatten
+        print(">>>> ", states_t.shape)
         states_down     = self.downsample(states_t)
         states_down     = states_down.reshape((states_down.shape[0], self.featues_count))
+
+        print(">>>> ", states_down.shape)
+
+        print("\n\n")
  
         #add initial state
         if self.current_idx == 0:
