@@ -38,12 +38,8 @@ class StatesBuffer:
         #mean distances
         distances       = torch.cdist(states_down, used_states)/self.featues_count
 
-
         #find closest distances and indices
         closest_val, closest_ids = torch.min(distances, dim=1)
-
-        #print(">>>> ", distances.shape, closest_ids.shape)
-
 
         #add new states if threshold reached
         for i in range(closest_val.shape[0]):
@@ -72,13 +68,13 @@ class StatesBuffer:
         visitings_reward  = 1.0/(1.0 + (visitings**0.5))
 
         #update counts
-        for i in range(closest_val.shape[0]):
+        for i in range(closest_ids.shape[0]):
             self.visitings_b[closest_ids[i]]+= 1
             
         return less_steps_reward.numpy(), visitings_reward.numpy()
 
     def get_usage(self):
-        return self.current_idx/self.states_b.shape[0]
+        return self.current_idx
  
     def save(self, path):
         numpy.save(self.states_b,       path + "buffer_states.pt")
