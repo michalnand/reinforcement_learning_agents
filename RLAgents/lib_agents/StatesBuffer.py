@@ -25,13 +25,9 @@ class StatesBuffer:
         steps_t  = torch.from_numpy(steps_np).float()
 
         #downsample and flatten
-        print(">>>> ", states_t.shape)
         states_down     = self.downsample(states_t)
         states_down     = states_down.reshape((states_down.shape[0], self.featues_count))
 
-        print(">>>> ", states_down.shape)
-
-        print("\n\n")
  
         #add initial state
         if self.current_idx == 0:
@@ -42,8 +38,12 @@ class StatesBuffer:
         #mean distances
         distances       = torch.cdist(states_down, used_states)/self.featues_count
 
+
         #find closest distances and indices
         closest_val, closest_ids = torch.min(distances, dim=1)
+
+        print(">>>> ", distances.shape, closest_ids.shape)
+
 
         #add new states if threshold reached
         for i in range(closest_val.shape[0]):
