@@ -8,7 +8,8 @@ from .PolicyBufferIMModes           import PolicyBufferIMModes
 from .PolicyBufferIMDualModes       import PolicyBufferIMDualModes
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
-from .FeaturesBuffer                 import FeaturesBuffer
+from .FeaturesBuffer                import FeaturesBuffer
+from .StatesBuffer                  import StatesBuffer
 
 from .GoalsBuffer                   import GoalsBuffer
  
@@ -29,7 +30,7 @@ from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDEE                 import AgentPPOSNDEE
-from .AgentPPOSNDEEE                import AgentPPOSNDEEE
+from .AgentPPOSNDEEB                import AgentPPOSNDEEB
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
