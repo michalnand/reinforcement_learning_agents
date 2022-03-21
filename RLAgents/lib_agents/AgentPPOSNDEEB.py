@@ -114,6 +114,8 @@ class AgentPPOSNDEEB():
         #self.vis_features = []
         #self.vis_labels   = []
 
+        self.save("./test/")
+
 
     def enable_training(self):
         self.enabled_training = True
