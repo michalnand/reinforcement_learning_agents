@@ -114,8 +114,6 @@ class AgentPPOSNDEEB():
         #self.vis_features = []
         #self.vis_labels   = []
 
-        self.save("./test/")
-
 
     def enable_training(self):
         self.enabled_training = True
@@ -247,7 +245,7 @@ class AgentPPOSNDEEB():
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
-        #self.states_buffer.load(save_path + "trained/")
+        self.states_buffer.load(save_path + "trained/")
  
     def get_log(self): 
         result = "" 
