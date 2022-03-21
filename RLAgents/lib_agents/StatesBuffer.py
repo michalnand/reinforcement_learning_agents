@@ -77,15 +77,14 @@ class StatesBuffer:
         return self.current_idx
  
     def save(self, path):
-        torch.save(path + "buffer_states.pt", self.states_b)
-        torch.save(path + "buffer_steps.pt",  self.steps_b)
-        torch.save(path + "buffer_visitings.pt", self.visitings_b)
- 
-    def load(self, path):
-        self.states_b   = torch.load(path + "buffer_states.pt")
-        self.steps_b    = torch.load(path + "buffer_steps.pt")
-        self.visitings_b= torch.load(path + "buffer_visitings.pt")
+        torch.save(self.states_b.state_dict(),      path + "buffer_states.pt")
+        torch.save(self.steps_b.state_dict(),       path + "buffer_steps.pt")
+        torch.save(self.visitings_b.state_dict(),   path + "visitings_b.pt")
 
+    def load(self, path):
+        self.states_b.load_state_dict(torch.load(path + "buffer_states.pt", map_location = self.device))
+        self.steps_b.load_state_dict(torch.load(path + "buffer_steps.pt", map_location = self.device))
+        self.visitings_b.load_state_dict(torch.load(path + "visitings_b.pt", map_location = self.device))
 
     def _add_new_state(self, state, steps):
         if self.current_idx < self.states_b.shape[0]:
