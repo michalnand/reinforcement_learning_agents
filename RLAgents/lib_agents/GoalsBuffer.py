@@ -88,7 +88,7 @@ class GoalsBuffer:
         
         
         #mastered target decay  
-        self.mastered_b*= 0.9999
+        self.mastered_b*= 0.999
         self.mastered_b[0] = 1.0 
 
         '''
