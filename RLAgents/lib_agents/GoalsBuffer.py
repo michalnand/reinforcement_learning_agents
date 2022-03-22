@@ -80,7 +80,7 @@ class GoalsBuffer:
         dones = torch.logical_and(reached, self.mastered_b[closest_ids] < self.mastering_threshold)
 
         #update mastered counter, for any reached target
-        k = 0.2
+        k = 0.1
         for i in range(batch_size):
             if reached_any[i]:
                 target_id = closest_ids[i]
@@ -91,7 +91,7 @@ class GoalsBuffer:
         self.mastered_b*= 0.9999
         self.mastered_b[0] = 1.0 
 
-        '''    
+        '''
         #print debug
         print("mastered          : ", self.mastered_b)
         print("rewards           : ", reached_reward, less_steps_reward)
