@@ -40,7 +40,7 @@ class GoalsBuffer:
         states_fltn     = states_down.reshape((states_down.shape[0], self.features_count))
 
         if self.current_idx == 0:
-            self._add_new_state(states_fltn[0], steps_t[0], 0)
+            self._add_new_state(states_fltn[0], 0, -10**6)
             self.mastered_b[0]  = 1.0
 
         used_states = self.states_b[0:self.current_idx]
