@@ -91,13 +91,13 @@ class GoalsBuffer:
         self.mastered_b*= 0.9999
         self.mastered_b[0] = 1.0 
 
-        '''
+        
         #print debug
         print("mastered          : ", self.mastered_b)
         print("rewards           : ", reached_reward, less_steps_reward)
         print("current_target_id : ", current_target_id)
         print("\n\n")
-        '''
+        
 
         return reached_reward.detach().numpy(), less_steps_reward.detach().numpy(), dones.detach().numpy()
 
@@ -119,7 +119,6 @@ class GoalsBuffer:
             self.current_idx+= 1
             
     def _get_non_mastered_target(self):
-        
         target_id = 0
         for i in range(self.current_idx):
             if self.mastered_b[i] < self.mastering_threshold:

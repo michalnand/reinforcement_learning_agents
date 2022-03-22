@@ -191,7 +191,7 @@ class AgentPPOSNDEEC():
 
 
         for e in range(self.envs_count): 
-            if dones[e] or goals_dones[e]:
+            if dones[e] or (goals_dones[e] and self.enabled_training == False):
                 self.states[e] = self.envs.reset(e).copy()
                 self.modes[e]  = 0
                 self.episode_score_sum[e] = 0
@@ -236,6 +236,8 @@ class AgentPPOSNDEEC():
 
         self.log_mastered                     = (1.0 - k)*self.log_mastered  + k*self.goals_buffer.mastered()
         self.log_modes                        = (1.0 - k)*self.log_modes  + k*self.modes.mean()
+
+        print(rewards_int_b.mean(), self.log_internal_motivation_b_mean, rewards_int_c.mean(), self.log_internal_motivation_c_mean)
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
