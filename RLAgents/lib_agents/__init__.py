@@ -30,8 +30,7 @@ from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDEE                 import AgentPPOSNDEE
-from .AgentPPOSNDEEB                import AgentPPOSNDEEB
-from .AgentPPOSNDEEC                import AgentPPOSNDEEC
+from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous

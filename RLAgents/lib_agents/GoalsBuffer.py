@@ -1,129 +1,85 @@
 import torch
+import numpy
+import cv2
 
 class GoalsBuffer:  
 
-    def __init__(self, buffer_size, shape, reach_threshold, mastering_threshold):
+    def __init__(self, buffer_size, shape, add_threshold, device = "cpu"):
 
-        downsample           = 2
+        self.shape                  = shape
+        self.add_threshold          = add_threshold
 
-        shape_down           = (shape[0], shape[1]//downsample, shape[2]//downsample)
-        self.features_count  = shape_down[0]*shape_down[1]*shape_down[2]
-
-        self.reach_threshold     = reach_threshold
-        self.mastering_threshold  = mastering_threshold
-
-
-        self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
-
-        self.states_b       = torch.zeros((buffer_size, self.features_count))
-        self.score_b        = torch.zeros((buffer_size, )) 
-        self.steps_b        = torch.zeros((buffer_size, )) 
-        self.mastered_b     = torch.zeros((buffer_size, ))
-
-        self.current_target = torch.zeros((buffer_size, ))
-
-        self.mastered_b[0]  = 1.0
-
-        self.current_idx    = 0
-
-
-    
-
-    def update(self, states, steps, score_sum):
-        batch_size  = states.shape[0]
-        states_t    = torch.from_numpy(states).float()
-        steps_t     = torch.from_numpy(steps).float()
-        score_sum_t = torch.from_numpy(score_sum).float()
-
-        #flatten
-        states_down     = self.downsample(states_t)
-        states_fltn     = states_down.reshape((states_down.shape[0], self.features_count))
-
-        if self.current_idx == 0:
-            self._add_new_state(states_fltn[0], 0, -10**6)
-            self.mastered_b[0]  = 1.0
-
-        used_states = self.states_b[0:self.current_idx]
-
-        #mean distances
-        distances = torch.cdist(states_fltn, used_states)/self.features_count
-
-        #find closest distances and indices
-        closest_val, closest_ids = torch.min(distances, dim=1)
-
-
-        #add new states if threshold reached and worth to add
-        for i in range(batch_size):
-            if score_sum_t[i] > torch.max(self.score_b):
-                self._add_new_state(states_fltn[i], steps_t[i], score_sum_t[i])
-                break
-
-        reached_any = closest_val <= self.reach_threshold
+        self.states                 = torch.zeros((buffer_size, ) + shape).to(device)
+        self.score                  = torch.zeros((buffer_size, )).to(device)
         
-        current_target_id   = self._get_non_mastered_target()
-        reached             = torch.logical_and(torch.logical_and(reached_any, current_target_id == closest_ids), score_sum_t == self.score_b[current_target_id])
-
-        #reward +1 for reaching target
-        reached_reward = 1.0*reached
-
-        #reward +1 for less steps
-        steps_tmp           = self.steps_b[closest_ids]
-        less_steps_reward   = torch.round(steps_t) < torch.round(steps_tmp)
-
-        #update with better count
-        self.steps_b[closest_ids] = less_steps_reward*steps_t + torch.logical_not(less_steps_reward)*steps_tmp
-
-        less_steps_reward = 1.0*less_steps_reward
+        self.current_idx            = 1
 
 
-        #if target reached, but NOT mastered yet, reset episode to train better skill
-        dones = torch.logical_and(reached, self.mastered_b[closest_ids] < self.mastering_threshold)
+    def update(self, states, score_sum, rewards):
 
-        #update mastered counter, for any reached target
-        k = 0.1
-        for i in range(batch_size):
-            if reached_any[i]:
-                target_id = closest_ids[i]
-                self.mastered_b[target_id] = (1.0 - k)*self.mastered_b[target_id] + k*1.0
+        states_t        = torch.from_numpy(states).float().to(self.states.device)
+        score_sum_t     = torch.from_numpy(score_sum).float().to(self.states.device)
+        rewards_t       = torch.from_numpy(rewards).float().to(self.states.device)
+
+        size         = self.shape[0]*self.shape[1]*self.shape[2]
         
-        
-        #mastered target decay  
-        self.mastered_b*= 0.999
-        self.mastered_b[0] = 1.0 
+        current      = self.states[0:self.current_idx]
+        current_fltn = current.reshape((current.shape[0], size))
 
-        '''
-        #print debug
-        print("mastered          : ", self.mastered_b)
-        print("rewards           : ", reached_reward, less_steps_reward)
-        print("current_target_id : ", current_target_id)
-        print("\n\n")
-        '''
+        states_fltn  = states_t.reshape((states_t.shape[0], size))
 
-        return reached_reward.detach().numpy(), less_steps_reward.detach().numpy(), dones.detach().numpy()
+        distances    = torch.cdist(states_fltn, current_fltn)/size
 
-    def mastered(self):
+        #closest distances
+        min_dist, min_idx = torch.min(distances, dim=1)
 
-        result = (self.mastered_b[0:self.current_idx]).mean()
-        
-        return result.numpy()
+        for i in range(min_dist.shape[0]):
+            #add new rewarded state
+            if min_dist[i] > 0.2*self.add_threshold and rewards_t > 0.0:
+                self._add_new(states_t[i], score_sum_t[i])
+
+            #add new interesting state
+            elif min_dist[i] > self.add_threshold:
+                self._add_new(states_t[i], score_sum_t[i])
+
+        #update score sum
+        for i in range(min_idx.shape[0]):
+            idx = min_idx[i] 
+            if self.score[idx] > score_sum_t[i]:
+                self.score[idx] = score_sum_t[i]
 
 
-    def _add_new_state(self, state, steps, score_sum):
-        if self.current_idx < self.states_b.shape[0]:
+    def render(self, save = False):
+        goals  = self.states.to("cpu").numpy()
 
-            self.states_b[self.current_idx]     = state.clone()
-            self.steps_b[self.current_idx]      = steps
-            self.score_b[self.current_idx]      = score_sum
-            self.mastered_b[self.current_idx]   = 0.0
+        height_y = self.shape[1]
+        height_x = self.shape[1]
+
+        size_y = 8
+        size_x = 8
+
+        size_im = 1024
+
+        result = numpy.zeros((size_y*height_y, size_x*height_x))
+
+        for y in range(size_y):
+            for x in range(size_x):
+                idx = y*size_x + x
+                result[y*height_y:(y+1)*height_y, x*height_x:(x+1)*height_x] = goals[idx][0]
+
+        result  = cv2.resize(result, (size_im, size_im))
+        result  = numpy.clip(result, 0.0, 1.0)
+
+        cv2.imshow("goals buffer", result)
+        cv2.waitKey(1)
+
+        if save:
+            cv2.imwrite("goals.png", result*255)
+
+
+    def _add_new(self, state, score_sum):
+        if self.current_idx < self.states.shape[0]:
+            self.states[self.current_idx] = state.clone()
+            self.score[self.current_idx]  = score_sum
 
             self.current_idx+= 1
-            
-    def _get_non_mastered_target(self):
-        target_id = 0
-        for i in range(self.current_idx):
-            if self.mastered_b[i] < self.mastering_threshold:
-                target_id = i
-                break
-
-        return target_id
- 
