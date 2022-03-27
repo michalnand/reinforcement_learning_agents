@@ -78,7 +78,10 @@ class GoalsBuffer:
 
     def reset(self, env_id):
         self.reached_goals[env_id]      = 0.0
+        
         self.reached_goals[env_id, 0]   = 1.0
+        self.reached_goals[env_id, 1]   = 1.0
+
         self.goal_idx[env_id]           = self._get_goal(env_id)
 
 
