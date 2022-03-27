@@ -18,7 +18,8 @@ class AgentPPOSNDGoals():
             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.int_reward_coeff   = config.int_reward_coeff
+        self.int_reward_coeff_a = config.int_reward_coeff_a
+        self.int_reward_coeff_b = config.int_reward_coeff_b
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -50,7 +51,9 @@ class AgentPPOSNDGoals():
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
-        self.state_shape    = self.envs.observation_space.shape
+        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = (state_shape[0] + 2, state_shape[1], state_shape[2])
+
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
@@ -65,7 +68,7 @@ class AgentPPOSNDGoals():
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
         _shape = (1, self.state_shape[1], self.state_shape[2])
-        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, _shape, config.goals_add_threshold)
+        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, self.envs_count, _shape, config.goals_add_threshold)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -78,7 +81,7 @@ class AgentPPOSNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+            self.states[e][0:state_shape[0]] = self.envs.reset(e).copy()
 
         self.episode_score_sum = numpy.zeros(self.envs_count)
 
@@ -91,8 +94,11 @@ class AgentPPOSNDGoals():
         self.log_loss_actor                 = 0.0
         self.log_loss_critic                = 0.0
 
-        self.log_internal_motivation_mean   = 0.0
-        self.log_internal_motivation_std    = 0.0
+        self.log_internal_motivation_a_mean   = 0.0
+        self.log_internal_motivation_a_std    = 0.0
+
+        self.log_internal_motivation_b_mean   = 0.0
+        self.log_internal_motivation_b_std    = 0.0
 
         #self.vis_features = []
         #self.vis_labels   = []
@@ -125,22 +131,26 @@ class AgentPPOSNDGoals():
         self.episode_score_sum+= rewards_ext
 
         states_ = numpy.expand_dims(states[:,0,:,:], 1)
+        goals, reached_goals, goal_rewards = self.goals_buffer.update(states_)
 
-        self.goals_buffer.update(states_, self.episode_score_sum, rewards_ext)
-        self.goals_buffer.render(dones[0])
-        
 
-        self.states = states.copy()
- 
+        self.states = self._obtain_states(states, goals.detach().to("cpu").numpy(), reached_goals.detach().to("cpu").numpy())
+
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        rewards_int    = self._curiosity(states_t)
+        rewards_int_a    = self._curiosity(states_t)
+        rewards_int_a    = numpy.clip(self.int_reward_coeff_a*rewards_int_a, 0.0, 1.0)
 
-        rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
+
+        #goal reached motivation
+        rewards_int_b    = goal_rewards
+        rewards_int_b    = numpy.clip(self.int_reward_coeff_b*rewards_int_b, 0.0, 1.0)
+
+
+        rewards_int      = rewards_int_a + rewards_int_b
         
-
         
 
         #put into policy buffer
@@ -154,6 +164,8 @@ class AgentPPOSNDGoals():
             if dones[e]:
                 self.states[e]              = self.envs.reset(e).copy()
                 self.episode_score_sum[e]   = 0.0
+
+                self.goals_buffer.reset(e)
 
         '''
         states_norm_t   = self._norm_state(states_t)
@@ -183,8 +195,11 @@ class AgentPPOSNDGoals():
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
-        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
+        self.log_internal_motivation_a_mean   = (1.0 - k)*self.log_internal_motivation_a_mean + k*rewards_int_a.mean()
+        self.log_internal_motivation_a_std    = (1.0 - k)*self.log_internal_motivation_a_std  + k*rewards_int_a.std()
+
+        self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
+        self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -208,24 +223,33 @@ class AgentPPOSNDGoals():
         result+= str(round(self.log_loss_actor, 7)) + " "
         result+= str(round(self.log_loss_critic, 7)) + " "
 
-        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_std, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_a_std, 7)) + " "
+
+        result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
+        result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
+
+        result+= str(round(self.goals_buffer.current_idx)) + " "
 
         return result 
 
     def render(self, env_id):
-        size            = 256
+        size    = 256
 
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        state   = self.states[env_id][0]
+        goal    = self.states[env_id][4]
+        active  = self.states[env_id][5]
 
-        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
-
-        state_im        = cv2.resize(state, (size, size))
-        state_im        = numpy.clip(state_im, 0.0, 1.0)
-
-        cv2.imshow("RND agent", state_im)
+        result      = numpy.concatenate([state, goal, active], axis=1)     
+        result_im   = cv2.resize(result, (3*size, size))
+        result_im   = numpy.clip(result_im, 0.0, 1.0)
+        
+        cv2.imshow("SND goals agent", result_im)
         cv2.waitKey(1)
-    
+
+        self.goals_buffer.render()
+
+        
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -549,8 +573,13 @@ class AgentPPOSNDGoals():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
+            goals        = numpy.zeros((states.shape[0], 1, states.shape[2], states.shape[3]))
+            active_goals = numpy.zeros((states.shape[0], 1, states.shape[2], states.shape[3]))
+
+            states_ = self._obtain_states(states, goals, active_goals)
+
             #update stats
-            self.states_running_stats.update(states)
+            self.states_running_stats.update(states_)
 
             for e in range(self.envs_count): 
                 if dones[e]:
@@ -599,5 +628,8 @@ class AgentPPOSNDGoals():
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
+
+    def _obtain_states(self, states, goals, active_goals):
+        return numpy.concatenate([states, goals, active_goals], axis=1)
 
    

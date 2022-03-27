@@ -4,49 +4,81 @@ import cv2
 
 class GoalsBuffer:  
 
-    def __init__(self, buffer_size, shape, add_threshold, device = "cpu"):
+    def __init__(self, buffer_size, envs_count, shape, add_threshold, device = "cpu"):
 
         self.shape                  = shape
         self.add_threshold          = add_threshold
 
         self.states                 = torch.zeros((buffer_size, ) + shape).to(device)
-        self.score                  = torch.zeros((buffer_size, )).to(device)
-        
+        self.reached_goals          = torch.zeros((envs_count, buffer_size)).to(device)
+        self.reached_goals[:, 0]    = 1.0
+
+        self.goal_idx               = torch.zeros((envs_count), dtype=int).to(device)
+
         self.current_idx            = 1
 
+        downsample                  = 2
+        self.downsample             = torch.nn.AvgPool2d(downsample, downsample)
 
-    def update(self, states, score_sum, rewards):
+        self.size                   = (shape[0]*shape[1]*shape[2])//(downsample**2)
 
+    def update(self, states):
         states_t        = torch.from_numpy(states).float().to(self.states.device)
-        score_sum_t     = torch.from_numpy(score_sum).float().to(self.states.device)
-        rewards_t       = torch.from_numpy(rewards).float().to(self.states.device)
-
-        size         = self.shape[0]*self.shape[1]*self.shape[2]
-        
+    
         current      = self.states[0:self.current_idx]
-        current_fltn = current.reshape((current.shape[0], size))
+        current      = self.downsample(current)
+        current_fltn = current.reshape((current.shape[0], self.size))
 
-        states_fltn  = states_t.reshape((states_t.shape[0], size))
+        states_down_t= self.downsample(states_t) 
+        states_fltn  = states_down_t.reshape((states_down_t.shape[0], self.size))
 
-        distances    = torch.cdist(states_fltn, current_fltn)/size
+        distances    = torch.cdist(states_fltn, current_fltn)/self.size
 
         #closest distances
         min_dist, min_idx = torch.min(distances, dim=1)
 
         for i in range(min_dist.shape[0]):
-            #add new rewarded state
-            if min_dist[i] > 0.2*self.add_threshold and rewards_t > 0.0:
-                self._add_new(states_t[i], score_sum_t[i])
-
             #add new interesting state
-            elif min_dist[i] > self.add_threshold:
-                self._add_new(states_t[i], score_sum_t[i])
+            if min_dist[i] > self.add_threshold:
+                self._add_new(states_t[i])
+                break
 
-        #update score sum
-        for i in range(min_idx.shape[0]):
-            idx = min_idx[i] 
-            if self.score[idx] > score_sum_t[i]:
-                self.score[idx] = score_sum_t[i]
+       
+        rewards = numpy.zeros(min_dist.shape[0])
+        #find reached goals
+        for i in range(min_dist.shape[0]):
+            if min_dist[i] < self.add_threshold:
+                goal_idx = min_idx[i]
+
+                if self.reached_goals[i][goal_idx] < 0.5:
+                    rewards[i] = 1.0
+                
+                self.reached_goals[i][goal_idx] = 1.0
+
+                self.goal_idx[i] = self._get_goal(i)
+
+                
+        #returing goals and states
+        goals = self.states[self.goal_idx]
+
+
+        size_y = 8
+        size_x = 8
+
+        reached_goals = self.reached_goals.unsqueeze(2).unsqueeze(3)
+        reached_goals = reached_goals.reshape((reached_goals.shape[0], 1, size_y, size_x))
+        reached_goals = torch.repeat_interleave(reached_goals, self.shape[1]//size_y, dim=2)
+        reached_goals = torch.repeat_interleave(reached_goals, self.shape[2]//size_x, dim=3)
+        
+        return goals, reached_goals, rewards
+
+        
+
+
+    def reset(self, env_id):
+        self.reached_goals[env_id]      = 0.0
+        self.reached_goals[env_id, 0]   = 1.0
+        self.goal_idx[env_id]           = self._get_goal(env_id)
 
 
     def render(self, save = False):
@@ -77,9 +109,17 @@ class GoalsBuffer:
             cv2.imwrite("goals.png", result*255)
 
 
-    def _add_new(self, state, score_sum):
+    def _add_new(self, state):
         if self.current_idx < self.states.shape[0]:
             self.states[self.current_idx] = state.clone()
-            self.score[self.current_idx]  = score_sum
 
             self.current_idx+= 1
+
+    def _get_goal(self, env_id):
+        result = 0
+        for i in range(self.current_idx):
+            if self.reached_goals[env_id][i] < 0.5:
+                result = i
+                break
+        
+        return result
