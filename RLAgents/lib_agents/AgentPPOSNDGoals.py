@@ -162,9 +162,11 @@ class AgentPPOSNDGoals():
         
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e]              = self.envs.reset(e).copy()
-                self.episode_score_sum[e]   = 0.0
 
+                self.states[e][0:self.state_shape[0]-2] = self.envs.reset(e).copy()
+                
+                self.episode_score_sum[e]        = 0.0
+                
                 self.goals_buffer.reset(e)
 
         '''
