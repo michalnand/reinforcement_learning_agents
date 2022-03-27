@@ -142,7 +142,7 @@ class AgentPPOSND():
         states_norm_t   = self._norm_state(states_t)
         features        = self.model_snd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
-
+        
         self.vis_features.append(features[0])
         self.vis_labels.append(infos[0]["room_id"])
 
@@ -155,7 +155,7 @@ class AgentPPOSND():
 
             plt.clf()
             plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
-            plt.colorbar(ticks=range(10))
+            plt.colorbar(ticks=range(16))
             plt.tight_layout()
             plt.show()
 
