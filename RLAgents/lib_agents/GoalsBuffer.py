@@ -12,6 +12,7 @@ class GoalsBuffer:
         self.states                 = torch.zeros((buffer_size, ) + shape).to(device)
         self.reached_goals          = torch.zeros((envs_count, buffer_size)).to(device)
         self.reached_goals[:, 0]    = 1.0
+        self.reached_goals[:, 1]    = 1.0
 
         self.goal_idx               = torch.zeros((envs_count), dtype=int).to(device)
 
