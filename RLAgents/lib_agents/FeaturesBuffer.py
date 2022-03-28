@@ -14,7 +14,7 @@ class FeaturesBuffer:
         self.buffer[:,env_id] = 0
  
         if initial_value is not None:
-            self.buffer[:,env_id] = initial_value.clone()
+            self.buffer[:,env_id] = initial_value.detach().to(self.buffer.device)
         else:
             self.initialising[env_id] = True
 
