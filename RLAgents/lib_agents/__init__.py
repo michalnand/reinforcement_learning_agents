@@ -29,6 +29,7 @@ from .AgentDDPG                     import AgentDDPG
 from .AgentPPO                      import AgentPPO
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
+from .AgentPPOSNDSA                 import AgentPPOSNDSA
 from .AgentPPOSNDEE                 import AgentPPOSNDEE
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
 

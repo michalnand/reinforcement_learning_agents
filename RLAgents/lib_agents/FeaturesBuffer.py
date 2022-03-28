@@ -5,7 +5,7 @@ import numpy
 class FeaturesBuffer:  
 
     def __init__(self, buffer_size, envs_count, shape, device = "cpu"):
-        self.buffer         = torch.zeros((buffer_size, envs_count ) + shape).to(device)
+        self.buffer         = torch.zeros((buffer_size, envs_count ) + shape, dtype=torch.float).to(device)
         self.current_idx    = 0
 
         self.initialising   = torch.zeros(envs_count, dtype=bool).to(device)
@@ -19,7 +19,7 @@ class FeaturesBuffer:
             self.initialising[env_id] = True
 
     def add(self, values_t):
-        self.buffer[self.current_idx] = values_t.clone()
+        self.buffer[self.current_idx] = values_t.detach().to(self.buffer.device)
 
         self.current_idx = (self.current_idx + 1)%self.buffer.shape[0]
 
@@ -28,13 +28,12 @@ class FeaturesBuffer:
         self.buffer[:,indices] = values_t[indices].clone()
         self.initialising[:] = False
 
-    '''
+    
     def compute_entropy(self):
-        var = torch.var(self.buffer, dim=0)
-        var = var.mean(dim=1)
-
-        return var
-    '''
+        std = torch.std(self.buffer, dim=0)
+        std = std.mean(dim=1)
+        return std
+    
  
     def compute(self, values_t, top_n = 32):
         #difference
