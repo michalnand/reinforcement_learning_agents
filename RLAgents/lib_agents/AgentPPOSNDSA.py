@@ -198,11 +198,13 @@ class AgentPPOSNDSA():
         self.model_ppo.save(save_path + "trained/")
         self.model_snd.save(save_path + "trained/")
         self.model_snd_target.save(save_path + "trained/")
+        self.model_sa.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
+        self.model_sa.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
