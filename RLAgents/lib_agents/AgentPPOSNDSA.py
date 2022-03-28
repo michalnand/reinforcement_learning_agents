@@ -155,7 +155,7 @@ class AgentPPOSNDSA():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
-                self.features.reset(e)
+                self.features_buffer.reset(e)
 
         '''
         states_norm_t   = self._norm_state(states_t)
