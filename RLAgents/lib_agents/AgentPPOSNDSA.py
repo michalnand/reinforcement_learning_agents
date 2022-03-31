@@ -227,17 +227,30 @@ class AgentPPOSNDSA():
         return result 
 
     def render(self, env_id):
-        size            = 256
+        size        = 256
 
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t    = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+        features_t  = self.model_sa.forward_features(states_t)[env_id]
 
-        state_im        = cv2.resize(state, (size, size))
-        state_im        = numpy.clip(state_im, 0.0, 1.0)
+        state       = self.states[env_id][0]
+        state       = cv2.resize(state, (size, size), interpolation = cv2.INTER_CUBIC)
 
-        cv2.imshow("RND agent", state_im)
+        features    = features_t.reshape((12, 12)).detach().to("cpu").numpy()
+        features    = cv2.resize(features, (size, size), interpolation = cv2.INTER_CUBIC)
+
+        result_im    = numpy.zeros((3, size, size))
+        result_im[:] = state
+        result_im[2] = result_im[2] + features
+
+        result_im    = numpy.moveaxis(result_im, 0, 2)
+
+        #result_im     = numpy.clip(result_im, 0.0, 1.0)
+        
+        cv2.imshow("SND self aware agent", result_im)
         cv2.waitKey(1)
+
+
     
 
     def _sample_actions(self, logits):
