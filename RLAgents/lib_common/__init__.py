@@ -11,3 +11,4 @@ from .TrainingLog           import TrainingLog
 from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
 from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaVideo
 from .WrapperPybullet       import *
+from .WrapperMiniHack       import WrapperMiniHack 
