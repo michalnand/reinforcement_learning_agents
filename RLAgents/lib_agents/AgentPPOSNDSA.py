@@ -69,9 +69,9 @@ class AgentPPOSNDSA():
  
         self.policy_buffer      = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
-        self.features_buffer    = FeaturesBuffer(config.buffer_size, self.envs_count, (1*12*12, ))
+        self.features_buffer    = FeaturesBuffer(config.buffer_size, self.envs_count, (1*24*24, ))
 
-        for e in range(self.envs_count):
+        for e in range(self.envs_count): 
             self.envs.reset(e)
         
         self.states_running_stats       = RunningStats(self.state_shape)
