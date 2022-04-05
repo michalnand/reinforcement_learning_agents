@@ -23,8 +23,8 @@ class GoalsBuffer:
 
         self.size                   = (shape[0]*shape[1]*shape[2])//(downsample**2)
 
-    def update(self, states):
-        states_t        = torch.from_numpy(states).float().to(self.states.device)
+    def update(self, states, rewards):
+        states_t     = torch.from_numpy(states).float().to(self.states.device)
     
         current      = self.states[0:self.current_idx]
         current      = self.downsample(current)
@@ -40,7 +40,7 @@ class GoalsBuffer:
 
         for i in range(min_dist.shape[0]):
             #add new interesting state
-            if min_dist[i] > self.add_threshold:
+            if rewards[i] > 0.0 and min_dist[i] > self.add_threshold:
                 self._add_new(states_t[i])
                 break
 
