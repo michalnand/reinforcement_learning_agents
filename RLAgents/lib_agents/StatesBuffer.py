@@ -1,97 +1,62 @@
 import torch
+import numpy 
 
-class StatesBuffer:  
 
-    def __init__(self, buffer_size, shape, add_threshold, downsample):
+class StatesBuffer:
+
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
         
-        self.add_threshold  = add_threshold
+        self.buffer_size    = buffer_size
+        self.state_shape    = state_shape
+        self.actions_size   = actions_size
+        self.envs_count     = envs_count
+        self.device         = device
 
-        shape_down          = (shape[0], shape[1]//downsample, shape[2]//downsample)
+        self.uint8_storage  = uint8_storage
 
-        self.featues_count  = shape_down[0]*shape_down[1]*shape_down[2]
-
-        self.downsample     = torch.nn.AvgPool2d(downsample, downsample)
-
-        self.states_b       = 100.0*torch.ones((buffer_size, self.featues_count))
-        self.steps_b        = torch.zeros((buffer_size, ))
-        self.visitings_b    = torch.zeros((buffer_size, )) 
-
-        self.current_idx    = 0
+        if self.uint8_storage:
+            self.scale  = 255
+        else:
+            self.scale  = 1 
+      
+        self.clear()   
  
-
-    def update(self, states, steps_np):
-
-        states_t = torch.from_numpy(states).float()
-        steps_t  = torch.from_numpy(steps_np).float()
-
-        #downsample and flatten
-        states_down     = self.downsample(states_t)
-        states_down     = states_down.reshape((states_down.shape[0], self.featues_count))
-
  
-        #add initial state
-        if self.current_idx == 0:
-            self._add_new_state(states_down[0], steps_t[0])
-
-        used_states     = self.states_b[0:self.current_idx]
-
-        #mean distances
-        distances       = torch.cdist(states_down, used_states)/self.featues_count
-
-        #find closest distances and indices
-        closest_val, closest_ids = torch.min(distances, dim=1)
-
-        #add new states if threshold reached
-        for i in range(closest_val.shape[0]):
-            if closest_val[i] > self.add_threshold:
-                self._add_new_state(states_down[i], steps_t[i])
- 
-        #shorter path reward
-        steps               = self.steps_b[closest_ids]
-        less_steps_reward   = torch.round(steps_t) < torch.round(steps)
-
-        #update with better count
-        self.steps_b[closest_ids] = less_steps_reward*steps_t + torch.logical_not(less_steps_reward)*steps
-
-        less_steps_reward = 1.0*less_steps_reward
-
-
-        '''
-        #update steps count with exponential moving average
-        k = 0.1
-        self.steps_b[closest_ids] = (1.0 - k)*steps + k*steps_t
-        '''
+    def add(self, state, action, reward_ext, reward_int_a, reward_int_b, done):
         
-        #visitings reward
-        visitings = self.visitings_b[closest_ids]   
+        self.states[self.ptr]    = state.copy()*self.scale
+        
+        self.actions[self.ptr]   = action.copy()
+        
+        self.reward_ext[self.ptr]    = reward_ext.copy()
+        self.reward_int_a[self.ptr]  = reward_int_a.copy()
+        self.reward_int_b[self.ptr]  = reward_int_b.copy()
 
-        visitings_reward  = 1.0/(1.0 + (visitings**0.5))
+        self.dones[self.ptr]       = (1.0*done).copy()
+        
+        self.ptr = self.ptr + 1 
 
-        #update counts
-        for i in range(closest_ids.shape[0]):
-            self.visitings_b[closest_ids[i]]+= 1
-            
-        return less_steps_reward.numpy(), visitings_reward.numpy()
 
-    def get_usage(self):
-        return self.current_idx
+    def is_full(self):
+        if self.ptr >= self.buffer_size:
+            return True
+
+        return False 
  
-    def save(self, path):
-        torch.save(self.states_b,      path + "buffer_states.pt")
-        torch.save(self.steps_b,       path + "buffer_steps.pt")
-        torch.save(self.visitings_b,   path + "visitings_b.pt")
 
-    def load(self, path):
-        self.states_b       = torch.load(path + "buffer_states.pt")
-        self.steps_b        = torch.load(path + "buffer_steps.pt")
-        self.visitings_b    = torch.load(path + "visitings_b.pt")
+    def clear(self):
+        if self.uint8_storage: 
+            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.ubyte)
+        else:
+            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
 
-    def _add_new_state(self, state, steps):
-        if self.current_idx < self.states_b.shape[0]:
-            self.states_b[self.current_idx]     = state.clone()
-            self.steps_b[self.current_idx]      = steps
-            self.visitings_b[self.current_idx]  = 1.0
+        self.actions        = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
+        
+        self.reward_ext     = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.reward_int_a   = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
+        self.reward_int_b   = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
-            self.current_idx+= 1
-            
+        self.dones          = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=numpy.float32)
 
+        self.ptr = 0  
+ 

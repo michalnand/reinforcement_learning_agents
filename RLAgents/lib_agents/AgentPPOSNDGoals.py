@@ -68,10 +68,10 @@ class AgentPPOSNDGoals():
 
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
- 
-        self.policy_buffer          = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        self.goals_policy_buffer    = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
 
+        self.states_buffer  = StatesBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        
         _shape = (1, self.state_shape[1], self.state_shape[2])
         self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, self.envs_count, _shape, config.goals_add_threshold)
 
@@ -150,7 +150,7 @@ class AgentPPOSNDGoals():
 
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+            self.states_buffer.add(states_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
             if self.policy_buffer.is_full():
                 self.goal_based_policy()
@@ -248,22 +248,22 @@ class AgentPPOSNDGoals():
         return actions
     
     def goal_based_policy(self):
-        buffer_size = self.policy_buffer.buffer_size
+        buffer_size = self.states_buffer.buffer_size
 
         #use last states as "true" goals
-        goals = self.policy_buffer.states[buffer_size-1, :, 4]
+        goals = self.states_buffer.states[buffer_size-1, :, 4]
  
         #reward for target reaching, last step
-        reward                      = numpy.zeros_like(self.policy_buffer.reward_ext)
+        reward                  = numpy.zeros_like(self.states_buffer.reward_ext)
         reward[buffer_size-1]   = 1.0
 
         for step in range(buffer_size):
-            states      = self.policy_buffer.states[step].copy()
-            actions     = self.policy_buffer.actions[step]
-            dones       = self.policy_buffer.dones[step]
+            states      = self.states_buffer.states[step].copy()
+            actions     = self.states_buffer.actions[step]
+            dones       = self.states_buffer.dones[step]
 
-            rewards_ext   = self.policy_buffer.reward_ext[step]
-            rewards_int_a = self.policy_buffer.reward_int_a[step]
+            rewards_ext   = self.states_buffer.reward_ext[step]
+            rewards_int_a = self.states_buffer.reward_int_a[step]
             rewards_int_b = reward[step]
 
             #replace goal
@@ -279,11 +279,10 @@ class AgentPPOSNDGoals():
             values_int_a_np = values_int_a_t.detach().to("cpu").numpy()
             values_int_b_np = values_int_b_t.detach().to("cpu").numpy()
 
-            self.goals_policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+            self.policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
-        self.goals_policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
@@ -293,18 +292,6 @@ class AgentPPOSNDGoals():
                 states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train common PPO model with internal motivation
-                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
-
-                self.optimizer_ppo.zero_grad()        
-                loss_ppo.backward()
-                torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
-                self.optimizer_ppo.step()
-
-
-
-                states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.goals_policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
-
-                #train goal based PPO model with internal motivation
                 loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
 
                 self.optimizer_ppo.zero_grad()        
