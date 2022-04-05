@@ -123,7 +123,7 @@ class PolicyBufferIMDual:
         return states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b 
 
 
-    def sample_states(self, batch_size, device = "cpu"): 
+    def sample_states(self, batch_size, far_ratio = 0.5, device = "cpu"): 
         count = self.envs_count*self.buffer_size
  
         indices_a       = numpy.random.randint(0, count, size=batch_size)
@@ -135,7 +135,7 @@ class PolicyBufferIMDual:
  
         indices_far     = numpy.random.randint(0, count, size=batch_size)
 
-        labels          = (numpy.random.rand(batch_size) > 0.5)
+        labels          = (numpy.random.rand(batch_size) > far_ratio)
         
         #label 0 = close states
         #label 1 = distant states
@@ -144,7 +144,7 @@ class PolicyBufferIMDual:
         states_a        = torch.from_numpy(numpy.take(self.states, indices_a, axis=0)/self.scale).float().to(device)
         states_b        = torch.from_numpy(numpy.take(self.states, indices_b, axis=0)/self.scale).float().to(device)
         labels_t        = torch.from_numpy(1.0*labels).float().to(device)
-
+        
         return states_a, states_b, labels_t
 
     def _gae(self, rewards, values, dones, gamma, lam):
