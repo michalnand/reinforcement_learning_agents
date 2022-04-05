@@ -288,7 +288,7 @@ class AgentPPOSNDGoals():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                
+
                 states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train common PPO model with internal motivation
@@ -676,10 +676,10 @@ class AgentPPOSNDGoals():
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
-     def _obtain_states(self, states, goals, active_goals):
-        return numpy.concatenate([states, goals, active_goals], axis=1)
+    def _obtain_states(self, states, goals):
+        return numpy.concatenate([states, goals], axis=1)
 
    
-
+ 
 
    
