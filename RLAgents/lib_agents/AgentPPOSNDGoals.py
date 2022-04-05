@@ -250,7 +250,7 @@ class AgentPPOSNDGoals():
         buffer_size = self.states_buffer.buffer_size
 
         #use last states as "true" goals
-        goals = self.states_buffer.states[buffer_size-1, :, 4]
+        goals = self.states_buffer.states[buffer_size-1, :, -1]
  
         #reward for target reaching, last step
         reward                  = numpy.zeros_like(self.states_buffer.reward_ext)
@@ -265,8 +265,8 @@ class AgentPPOSNDGoals():
             rewards_int_a = self.states_buffer.reward_int_a[step]
             rewards_int_b = reward[step]
 
-            #replace goal
-            states[:, 4] = goals 
+            #replace element in state
+            states[:, -1] = goals 
 
             states_t = torch.from_numpy(states).to(self.model_ppo.device)
 
@@ -500,80 +500,7 @@ class AgentPPOSNDGoals():
 
         return loss
 
-    '''
-    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
-        
-        xa = states_a_t.clone()
-        xb = states_b_t.clone()
-
-        #normalsie states
-        if normalise:
-            xa = self._norm_state(xa)
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        
-        #distances, each from each 
-        distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
-
-        #close states are on diagonal, set 0 on diagonal, 1 else
-        n = distances.shape[0]
-        labels  = 1.0 - torch.eye(n, device=distances.device)
-
-        
-        #balacne classes loss scaling
-        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
-        scale   = 0.5*scale
-
-
-        #MSE loss
-        loss = ((labels - distances)**2)
-        loss = loss*scale
-        loss = loss.mean()
-
-        return loss
-
-    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
-
-        xa = states_a_t.clone()
-        xb = states_b_t.clone()
-
-        #normalsie states
-        if normalise:
-            xa = self._norm_state(xa)
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
-
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #info NCE loss
-        logits      = torch.matmul(za, zb.t())
-        loss        = torch.nn.functional.cross_entropy(logits, torch.arange(za.shape[0]).to(za.device))
-
-        return loss
-    '''
-
+  
     #compute internal motivation
     def _curiosity(self, state_t):
         state_norm_t    = self._norm_state(state_t)
