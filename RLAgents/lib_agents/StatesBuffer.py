@@ -4,7 +4,7 @@ import numpy
 
 class StatesBuffer:
 
-    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device, uint8_storage = False):
+    def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
         
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
@@ -12,19 +12,12 @@ class StatesBuffer:
         self.envs_count     = envs_count
         self.device         = device
 
-        self.uint8_storage  = uint8_storage
-
-        if self.uint8_storage:
-            self.scale  = 255
-        else:
-            self.scale  = 1 
-      
         self.clear()   
  
  
     def add(self, state, action, reward_ext, reward_int_a, reward_int_b, done):
         
-        self.states[self.ptr]    = state.copy()*self.scale
+        self.states[self.ptr]    = state.copy()
         
         self.actions[self.ptr]   = action.copy()
         
@@ -45,10 +38,7 @@ class StatesBuffer:
  
 
     def clear(self):
-        if self.uint8_storage: 
-            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.ubyte)
-        else:
-            self.states     = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        self.states         = numpy.zeros((self.buffer_size, self.envs_count, ) + self.state_shape, dtype=numpy.float32)
 
         self.actions        = numpy.zeros((self.buffer_size, self.envs_count, ), dtype=int)
         
