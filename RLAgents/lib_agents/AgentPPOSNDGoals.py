@@ -123,10 +123,7 @@ class AgentPPOSNDGoals():
         logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
         
         states_np       = states_t.detach().to("cpu").numpy()
-        logits_np       = logits_t.detach().to("cpu").numpy()
-        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_a_np = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
+       
 
         #collect actions
         actions = self._sample_actions(logits_t)
@@ -277,9 +274,9 @@ class AgentPPOSNDGoals():
             logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
 
             logits_np       = logits_t.detach().to("cpu").numpy()
-            values_ext_np   = values_ext_t.detach().to("cpu").numpy()
-            values_int_a_np = values_int_a_t.detach().to("cpu").numpy()
-            values_int_b_np = values_int_b_t.detach().to("cpu").numpy()
+            values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+            values_int_a_np = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
+            values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
 
             self.policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
