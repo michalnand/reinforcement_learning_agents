@@ -133,7 +133,7 @@ class AgentPPOSNDGoals():
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
         states_ = numpy.expand_dims(states[:,0,:,:], 1)
-        goals, reached_goals, goal_rewards = self.goals_buffer.update(states_)
+        goals, reached_goals, goal_rewards = self.goals_buffer.update(states_, rewards_ext)
 
         self.states = self._obtain_states(states, goals.detach().to("cpu").numpy())
  

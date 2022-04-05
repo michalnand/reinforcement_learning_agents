@@ -43,16 +43,16 @@ class GoalsBuffer:
             if rewards[i] > 0.0 and min_dist[i] > self.add_threshold:
                 self._add_new(states_t[i])
                 break
-
+ 
        
-        rewards = numpy.zeros(min_dist.shape[0])
+        result_rewards = numpy.zeros(min_dist.shape[0])
         #find reached goals
         for i in range(min_dist.shape[0]):
             if min_dist[i] < self.add_threshold:
                 goal_idx = min_idx[i]
 
                 if self.reached_goals[i][goal_idx] < 0.5:
-                    rewards[i] = 1.0
+                    result_rewards[i] = 1.0 
                 
                 self.reached_goals[i][goal_idx] = 1.0
 
@@ -71,7 +71,7 @@ class GoalsBuffer:
         reached_goals = torch.repeat_interleave(reached_goals, self.shape[1]//size_y, dim=2)
         reached_goals = torch.repeat_interleave(reached_goals, self.shape[2]//size_x, dim=3)
         
-        return goals, reached_goals, rewards
+        return goals, reached_goals, result_rewards
 
         
 
