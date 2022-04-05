@@ -623,9 +623,8 @@ class AgentPPOSNDGoals():
             states, _, dones, _ = self.envs.step(actions)
 
             goals           = numpy.zeros((states.shape[0], 1, states.shape[2], states.shape[3]))
-            active_goals    = numpy.zeros((states.shape[0], 1, states.shape[2], states.shape[3]))
 
-            states_ = self._obtain_states(states, goals, active_goals)
+            states_ = self._obtain_states(states, goals)
 
             #update stats
             self.states_running_stats.update(states_)
