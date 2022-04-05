@@ -269,9 +269,9 @@ class AgentPPOSNDGoals():
             rewards_int_b = reward[step]
 
             #replace goal
-            states[:, 4] = goals
+            states[:, 4] = goals 
 
-            states_t = torch.from_numpy(state).to(self.model_ppo.device)
+            states_t = torch.from_numpy(states).to(self.model_ppo.device)
 
             #obtain current logits and values
             logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
