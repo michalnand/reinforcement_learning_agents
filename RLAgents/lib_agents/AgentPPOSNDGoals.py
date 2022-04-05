@@ -71,7 +71,7 @@ class AgentPPOSNDGoals():
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
 
-        self.states_buffer  = StatesBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.states_buffer  = StatesBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device)
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         
         _shape = (1, self.state_shape[1], self.state_shape[2])
