@@ -154,7 +154,7 @@ class AgentPPOSNDGoals():
         if self.enabled_training:
             self.states_buffer.add(states_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
-            if self.policy_buffer.is_full():
+            if self.states_buffer.is_full():
                 self.goal_based_policy()
                 self.train()
         
@@ -339,8 +339,9 @@ class AgentPPOSNDGoals():
                     k = 0.02
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
+        self.states_buffer.clear()
         self.policy_buffer.clear() 
-        self.goals_policy_buffer.clear()
+        
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
