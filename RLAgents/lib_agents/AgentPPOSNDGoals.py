@@ -251,8 +251,8 @@ class AgentPPOSNDGoals():
         buffer_size = self.policy_buffer.buffer_size
 
         #use last states as "true" goals
-        goals = self.policy_buffer.states[buffer_size, :, 4]
-
+        goals = self.policy_buffer.states[buffer_size-1, :, 4]
+ 
         #reward for target reaching, last step
         reward                      = numpy.zeros_like(self.policy_buffer.reward_ext)
         reward[buffer_size-1]   = 1.0
