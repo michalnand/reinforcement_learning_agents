@@ -256,12 +256,9 @@ class AgentPPOSNDGoals():
         #use last states as "true" goals - this state was sure reached
         goals = self.states_buffer.states[buffer_size-1, :, 0]
  
-
         #random ids for goal based
         goal_based_ids = numpy.random.choice(self.envs_count, int(100*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
-
-        print(">>> ", goal_based_ids)
 
         for step in range(buffer_size):
             states      = self.states_buffer.states[step]
