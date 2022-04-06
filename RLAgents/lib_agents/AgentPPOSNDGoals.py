@@ -253,10 +253,10 @@ class AgentPPOSNDGoals():
     def goal_based_policy(self):
         buffer_size = self.states_buffer.buffer_size
 
-        #use last states as "true" goals
-        goals = self.states_buffer.states[buffer_size-1, :, -1]
+        #use last states as "true" goals - this state was sure reached
+        goals = self.states_buffer.states[buffer_size-1, :, 0]
  
-       
+        print(">>> goals = ", goals.shape)
 
         #random ids for goal based
         goal_based_ids = numpy.random.randint(0, self.envs_count, int(100*self.goal_policy_ratio))
