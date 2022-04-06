@@ -262,13 +262,13 @@ class AgentPPOSNDGoals():
         goal_based_ids = numpy.sort(goal_based_ids)
 
         for step in range(buffer_size):
-            states      = self.states_buffer.states[step].copy()
+            states      = self.states_buffer.states[step]
             actions     = self.states_buffer.actions[step]
             dones       = self.states_buffer.dones[step]
 
             rewards_ext   = self.states_buffer.reward_ext[step]
             rewards_int_a = self.states_buffer.reward_int_a[step]
-            rewards_int_b = self.states_buffer.reward_int_b[step].copy()
+            rewards_int_b = self.states_buffer.reward_int_b[step]
 
 
             #replace goal element with reached state
