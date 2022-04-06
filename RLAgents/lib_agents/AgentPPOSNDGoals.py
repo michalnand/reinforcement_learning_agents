@@ -36,6 +36,8 @@ class AgentPPOSNDGoals():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        self.goal_policy_ratio   = config.goal_policy_ratio
+
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -254,9 +256,11 @@ class AgentPPOSNDGoals():
         #use last states as "true" goals
         goals = self.states_buffer.states[buffer_size-1, :, -1]
  
-        #reward for target reaching, last step
-        reward                  = numpy.zeros_like(self.states_buffer.reward_ext)
-        reward[buffer_size-1]   = 1.0
+       
+
+        #random ids for goal based
+        goal_based_ids = numpy.random.randint(0, self.envs_count, int(100*self.goal_policy_ratio))
+        goal_based_ids = numpy.sort(goal_based_ids)
 
         for step in range(buffer_size):
             states      = self.states_buffer.states[step].copy()
@@ -265,10 +269,17 @@ class AgentPPOSNDGoals():
 
             rewards_ext   = self.states_buffer.reward_ext[step]
             rewards_int_a = self.states_buffer.reward_int_a[step]
-            rewards_int_b = reward[step]
+            rewards_int_b = self.states_buffer.reward_int_b[step].copy()
 
-            #replace goal element in state
-            states[:, -1] = goals 
+
+            #replace goal element with reached state
+            states[goal_based_ids, -1] = goals[goal_based_ids]
+
+            #replace reward for reaching goal, one on last step
+            rewards_int_b[goal_based_ids] = 0.0
+            if step == buffer_size-1:
+                rewards_int_b[goal_based_ids] = 1.0
+
 
             states_t = torch.from_numpy(states).to(self.model_ppo.device)
 
