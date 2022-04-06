@@ -274,7 +274,6 @@ class AgentPPOSNDGoals():
             #replace goal element with reached state
             states[goal_based_ids, -1] = goals[goal_based_ids]
 
-            print(">>> ", states.shape, goals.shape, goal_based_ids.shape)
 
             #replace reward for reaching goal, one on last step
             rewards_int_b[goal_based_ids] = 0.0
