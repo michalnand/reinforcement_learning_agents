@@ -201,11 +201,13 @@ class AgentPPOSNDGoals():
         self.model_ppo.save(save_path + "trained/")
         self.model_snd.save(save_path + "trained/")
         self.model_snd_target.save(save_path + "trained/")
+        self.goals_buffer.save(load_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
+        self.goals_buffer.load(load_path + "trained/")
  
     def get_log(self): 
         result = "" 
@@ -265,7 +267,7 @@ class AgentPPOSNDGoals():
             rewards_int_a = self.states_buffer.reward_int_a[step]
             rewards_int_b = reward[step]
 
-            #replace element in state
+            #replace goal element in state
             states[:, -1] = goals 
 
             states_t = torch.from_numpy(states).to(self.model_ppo.device)

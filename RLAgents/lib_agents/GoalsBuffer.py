@@ -112,6 +112,12 @@ class GoalsBuffer:
         if save:
             cv2.imwrite("goals.png", result*255)
 
+    def save(self, path):
+        numpy.save(path + "goals.np", self.states)
+
+    def load(self, path):
+        self.states = numpy.load(path + "goals.np")
+
 
     def _add_new(self, state):
         if self.current_idx < self.states.shape[0]:
