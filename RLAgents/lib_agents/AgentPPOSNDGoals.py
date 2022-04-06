@@ -256,7 +256,6 @@ class AgentPPOSNDGoals():
         #use last states as "true" goals - this state was sure reached
         goals = self.states_buffer.states[buffer_size-1, :, 0]
  
-        print(">>> goals = ", goals.shape)
 
         #random ids for goal based
         goal_based_ids = numpy.random.randint(0, self.envs_count, int(100*self.goal_policy_ratio))
@@ -274,6 +273,8 @@ class AgentPPOSNDGoals():
 
             #replace goal element with reached state
             states[goal_based_ids, -1] = goals[goal_based_ids]
+
+            print(">>> ", states.shape, goals.shape, goal_based_ids.shape)
 
             #replace reward for reaching goal, one on last step
             rewards_int_b[goal_based_ids] = 0.0
