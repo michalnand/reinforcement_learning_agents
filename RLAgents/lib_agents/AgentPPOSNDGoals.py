@@ -261,6 +261,8 @@ class AgentPPOSNDGoals():
         goal_based_ids = numpy.random.choice(batch_size, int(batch_size*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
 
+        print(">>> ", goal_based_ids)
+
         for step in range(buffer_size):
             states      = self.states_buffer.states[step]
             actions     = self.states_buffer.actions[step]
