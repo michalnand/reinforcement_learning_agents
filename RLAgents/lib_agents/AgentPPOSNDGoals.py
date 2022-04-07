@@ -148,7 +148,7 @@ class AgentPPOSNDGoals():
         #goals motivation
         rewards_int_b    = numpy.clip(self.int_b_reward_coeff*goal_rewards, 0.0, 1.0)
         
-
+ 
         #put into policy buffer
         if self.enabled_training:
             self.states_buffer.add(states_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
@@ -258,7 +258,7 @@ class AgentPPOSNDGoals():
         goals = self.states_buffer.states[buffer_size-1, range(batch_size), 0]
  
         #random ids for goal based
-        goal_based_ids = numpy.random.choice(batch_size, int(100*self.goal_policy_ratio), replace=False)
+        goal_based_ids = numpy.random.choice(batch_size, int(batch_size*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
 
         for step in range(buffer_size):
@@ -275,7 +275,7 @@ class AgentPPOSNDGoals():
             states[goal_based_ids, 4] = goals[goal_based_ids]
 
 
-            #replace reward for reaching goal, one on last step
+            #replace reward for reaching goal, only on last step
             rewards_int_b[goal_based_ids] = 0.0
             if step == buffer_size-1:
                 rewards_int_b[goal_based_ids] = self.int_b_reward_coeff*1.0
