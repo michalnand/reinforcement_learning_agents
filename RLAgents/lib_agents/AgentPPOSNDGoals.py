@@ -257,6 +257,12 @@ class AgentPPOSNDGoals():
         #use last states as "true" goals - this state was sure reached
         goals = self.states_buffer.states[buffer_size-1, range(batch_size), 0]
  
+ 
+        if self.goals_buffer.current_idx > 2:
+            count   = int(batch_size*self.goal_policy_ratio)
+        else:
+            count   = 0
+        
         #random ids for goal based
         goal_based_ids = numpy.random.choice(batch_size, int(batch_size*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
