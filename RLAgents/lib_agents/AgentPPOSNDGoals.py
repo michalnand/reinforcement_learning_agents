@@ -252,12 +252,13 @@ class AgentPPOSNDGoals():
     
     def goal_based_policy(self):
         buffer_size = self.states_buffer.buffer_size
+        batch_size  = self.envs_count
 
         #use last states as "true" goals - this state was sure reached
-        goals = self.states_buffer.states[buffer_size-1, :, 0]
+        goals = self.states_buffer.states[buffer_size-1, range(batch_size), 0]
  
         #random ids for goal based
-        goal_based_ids = numpy.random.choice(self.envs_count, int(100*self.goal_policy_ratio), replace=False)
+        goal_based_ids = numpy.random.choice(batch_size, int(100*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
 
         for step in range(buffer_size):
@@ -271,7 +272,7 @@ class AgentPPOSNDGoals():
 
 
             #replace goal element with reached state
-            states[goal_based_ids, -1] = goals[goal_based_ids]
+            states[goal_based_ids, 4] = goals[goal_based_ids]
 
 
             #replace reward for reaching goal, one on last step
