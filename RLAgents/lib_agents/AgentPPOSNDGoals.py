@@ -261,8 +261,6 @@ class AgentPPOSNDGoals():
         goal_based_ids = numpy.random.choice(batch_size, int(batch_size*self.goal_policy_ratio), replace=False)
         goal_based_ids = numpy.sort(goal_based_ids)
 
-        print(">>> ", goal_based_ids)
-
         for step in range(buffer_size):
             states      = self.states_buffer.states[step]
             actions     = self.states_buffer.actions[step]
@@ -278,9 +276,11 @@ class AgentPPOSNDGoals():
 
 
             #replace reward for reaching goal, only on last step
-            rewards_int_b[goal_based_ids] = 0.0
+            
             if step == buffer_size-1:
                 rewards_int_b[goal_based_ids] = self.int_b_reward_coeff*1.0
+            else:
+                rewards_int_b[goal_based_ids] = 0.0
 
 
             states_t = torch.from_numpy(states).to(self.model_ppo.device)
