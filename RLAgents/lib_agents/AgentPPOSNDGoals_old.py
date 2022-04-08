@@ -1,6 +1,7 @@
 import numpy
 import torch 
 
+from .StatesBuffer          import *
 from .PolicyBufferIMDual    import *  
 from .GoalsBuffer           import *
 from .RunningStats          import *  
@@ -35,6 +36,8 @@ class AgentPPOSNDGoals():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        self.goal_policy_ratio   = config.goal_policy_ratio
+
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -56,7 +59,8 @@ class AgentPPOSNDGoals():
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
-        self.state_shape    = self.envs.observation_space.shape
+        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = (state_shape[0] + 1, state_shape[1], state_shape[2])
 
         self.actions_count  = self.envs.action_space.n
 
@@ -69,6 +73,7 @@ class AgentPPOSNDGoals():
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
 
+        self.states_buffer  = StatesBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device)
         self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
         
         _shape = (1, self.state_shape[1], self.state_shape[2])
@@ -76,10 +81,8 @@ class AgentPPOSNDGoals():
 
         for e in range(self.envs_count):
             self.envs.reset(e)
-
-        self.episode_steps = numpy.zeros(self.envs_count, dtype=int)
         
-        self.states_running_stats  = RunningStats(self.state_shape)
+        self.states_running_stats       = RunningStats(self.state_shape)
 
         if self.envs_count > 1:
             self._init_running_stats()
@@ -87,8 +90,7 @@ class AgentPPOSNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e)
-
+            self.states[e][0:state_shape[0]] = self.envs.reset(e).copy()
 
         self.enable_training()
         self.iterations                     = 0 
@@ -121,25 +123,20 @@ class AgentPPOSNDGoals():
 
         #compute model output
         logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
-
-        #logits_t, values_ext_t, values_int_a_t  = self.model_ppo.forward(states_t)
-        #values_int_b_t = values_int_a_t
         
         states_np       = states_t.detach().to("cpu").numpy()
        
+
         #collect actions
         actions = self._sample_actions(logits_t)
          
         #execute action
         states, rewards_ext, dones, infos = self.envs.step(actions)
 
-        self.states = states.copy()
+        states_ = numpy.expand_dims(states[:,0,:,:], 1)
+        goals, reached_goals, goal_rewards = self.goals_buffer.update(states_, rewards_ext)
 
-        self.episode_steps+= 1
-
-        states_      = numpy.expand_dims(states[:,0,:,:], 1)
-        goal_rewards = self.goals_buffer.update(states_)
-
+        self.states = self._obtain_states(states, goals.detach().to("cpu").numpy())
  
         #update long term states mean and variance
         self.states_running_stats.update(states_np)
@@ -151,22 +148,44 @@ class AgentPPOSNDGoals():
         #goals motivation
         rewards_int_b    = numpy.clip(self.int_b_reward_coeff*goal_rewards, 0.0, 1.0)
         
+ 
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+            self.states_buffer.add(states_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
 
-            if self.policy_buffer.is_full():
+            if self.states_buffer.is_full():
+                self.goal_based_policy()
                 self.train()
-
-        
         
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e)
+                self.states[e][0:self.state_shape[0]-1] = self.envs.reset(e).copy()                
                 self.goals_buffer.reset(e)
-                self.episode_steps[e] = 0
 
+        '''
+        states_norm_t   = self._norm_state(states_t)
+        features        = self.model_snd_target(states_norm_t)
+        features        = features.detach().to("cpu").numpy()
         
+        self.vis_features.append(features[0])
+        self.vis_labels.append(infos[0]["room_id"])
+
+        if dones[0]:
+            print("training t-sne")
+
+            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
+
+            print("result shape = ", features_embedded.shape)
+
+            plt.clf()
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
+            plt.colorbar(ticks=range(16))
+            plt.tight_layout()
+            plt.show()
+
+            self.vis_features   = []
+            self.vis_labels     = []
+        '''
         
 
         #collect stats
@@ -211,7 +230,17 @@ class AgentPPOSNDGoals():
         return result 
 
     def render(self, env_id):
-        self.goals_buffer.render()
+        size            = 256
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
+
+        cv2.imshow("RND agent", state_im)
+        cv2.waitKey(1)
     
 
     def _sample_actions(self, logits):
@@ -221,7 +250,57 @@ class AgentPPOSNDGoals():
         actions               = action_t.detach().to("cpu").numpy()
         return actions
     
-           
+    def goal_based_policy(self):
+        buffer_size = self.states_buffer.buffer_size
+        batch_size  = self.envs_count
+
+        #use last states as "true" goals - this state was sure reached
+        goals = self.states_buffer.states[buffer_size-1, range(batch_size), 0]
+ 
+ 
+        if self.goals_buffer.current_idx > 2:
+            count   = int(batch_size*self.goal_policy_ratio)
+        else:
+            count   = 0
+        
+        #random ids for goal based
+        goal_based_ids = numpy.random.choice(batch_size, int(batch_size*self.goal_policy_ratio), replace=False)
+        goal_based_ids = numpy.sort(goal_based_ids)
+
+        for step in range(buffer_size):
+            states      = self.states_buffer.states[step]
+            actions     = self.states_buffer.actions[step]
+            dones       = self.states_buffer.dones[step]
+
+            rewards_ext   = self.states_buffer.reward_ext[step]
+            rewards_int_a = self.states_buffer.reward_int_a[step]
+            rewards_int_b = self.states_buffer.reward_int_b[step]
+
+
+            #replace goal element with reached state
+            states[goal_based_ids, 4] = goals[goal_based_ids]
+
+
+            #replace reward for reaching goal, only on last step
+            
+            if step == buffer_size-1:
+                rewards_int_b[goal_based_ids] = self.int_b_reward_coeff*1.0
+            else:
+                rewards_int_b[goal_based_ids] = 0.0
+
+
+            states_t = torch.from_numpy(states).to(self.model_ppo.device)
+
+            #obtain current logits and values
+            logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
+
+            logits_np       = logits_t.detach().to("cpu").numpy()
+            values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+            values_int_a_np = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
+            values_int_b_np = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
+
+            self.policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
@@ -278,6 +357,7 @@ class AgentPPOSNDGoals():
                     k = 0.02
                     self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
 
+        self.states_buffer.clear()
         self.policy_buffer.clear() 
         
 
@@ -477,8 +557,12 @@ class AgentPPOSNDGoals():
             actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
+            goals           = numpy.zeros((states.shape[0], 1, states.shape[2], states.shape[3]))
+
+            states_ = self._obtain_states(states, goals)
+
             #update stats
-            self.states_running_stats.update(states)
+            self.states_running_stats.update(states_)
 
             for e in range(self.envs_count): 
                 if dones[e]:
@@ -526,5 +610,11 @@ class AgentPPOSNDGoals():
     def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
+
+    def _obtain_states(self, states, goals):
+        return numpy.concatenate([states, goals], axis=1)
+
+   
+ 
 
    

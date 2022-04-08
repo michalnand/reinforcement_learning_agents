@@ -178,7 +178,7 @@ class LifeLostEnv(gym.Wrapper):
 
         lives = self.env.unwrapped.ale.lives()
         if lives < self.lives:
-            reward+= -0.1
+            reward+= -0.0000000001
         
         self.lives = lives
         return obs, reward, done, info
@@ -236,6 +236,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
+    env = LifeLostEnv(env)
     env = RawScoreEnv(env, max_steps)
 
     return env
