@@ -12,18 +12,18 @@ class PolicyBufferIM:
  
     def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done):
         
-        self.states[self.ptr]    = state.copy()
-        self.logits[self.ptr]    = logits.copy()
+        self.states[self.ptr]    = state.clone() 
+        self.logits[self.ptr]    = logits.clone()
         
-        self.values_ext[self.ptr]= value_ext.copy()
-        self.values_int[self.ptr]= value_int.copy()
+        self.values_ext[self.ptr]= value_ext.clone()
+        self.values_int[self.ptr]= value_int.clone()
 
-        self.actions[self.ptr]   = action.copy()
+        self.actions[self.ptr]   = action.clone()
         
-        self.reward_ext[self.ptr]  = reward_ext.copy()
-        self.reward_int[self.ptr]  = reward_int.copy()
+        self.reward_ext[self.ptr]  = reward_ext.clone()
+        self.reward_int[self.ptr]  = reward_int.clone()
 
-        self.dones[self.ptr]       = (1.0*done).copy()
+        self.dones[self.ptr]       = (1.0*done).clone()
         
         self.ptr = self.ptr + 1 
 
