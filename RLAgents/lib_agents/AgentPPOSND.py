@@ -124,8 +124,8 @@ class AgentPPOSND():
         if self.enabled_training:
             states      = states.detach().to("cpu")
             logits      = logits.detach().to("cpu")
-            values_ext  = values_ext.detach().to("cpu") 
-            values_int  = values_int.detach().to("cpu")
+            values_ext  = values_ext.squeeze(1).detach().to("cpu") 
+            values_int  = values_int.squeeze(1).detach().to("cpu")
             actions     = torch.from_numpy(actions).to("cpu")
             rewards_ext = torch.from_numpy(rewards_ext).to("cpu")
             rewards_int = rewards_int.detach().to("cpu")
