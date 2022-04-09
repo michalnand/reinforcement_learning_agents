@@ -77,8 +77,8 @@ class PolicyBufferIM:
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
 
 
-    def sample_batch(self, batch_size, device):
-        indices         = torch.random.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
+    def sample_batch(self, batch_size, device = "cpu"):
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
         indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
 
         states          = torch.take(self.states, indices, axis=0).to(device)
