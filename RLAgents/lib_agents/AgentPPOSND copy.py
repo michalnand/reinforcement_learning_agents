@@ -100,46 +100,40 @@ class AgentPPOSND():
 
     def main(self): 
         #state to tensor
-        states        = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits, values_ext, values_int  = self.model_ppo.forward(states)
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
         
+        states_np       = states_t.detach().to("cpu").numpy()
+        logits_np       = logits_t.detach().to("cpu").numpy()
+        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
+        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
+
         #collect actions
-        actions = self._sample_actions(logits)
+        actions = self._sample_actions(logits_t)
          
         #execute action
-        states_new, rewards_ext, dones, infos = self.envs.step(actions)
+        states, rewards_ext, dones, infos = self.envs.step(actions)
 
-     
+        self.states = states.copy()
+ 
         #update long term states mean and variance
-        self.states_running_stats.update(states)
+        self.states_running_stats.update(states_np)
 
         #curiosity motivation
-        rewards_int    = self._curiosity(states)
-        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
+        rewards_int    = self._curiosity(states_t)
+
+        rewards_int    = numpy.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
 
         #put into policy buffer
         if self.enabled_training:
-            states      = states.detach().to("cpu")
-            logits      = logits.detach().to("cpu")
-            values_ext  = values_ext.detach().to("cpu")
-            values_int  = values_int.detach().to("cpu")
-            actions     = actions.detach().to("cpu")
-            rewards_ext = torch.from_numpy(rewards_ext, device="cpu")
-            rewards_int = rewards_int.detach().to("cpu")
-            dones       = torch.from_numpy(dones, device="cpu")
-
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones)
+            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
         
-        #update new state
-        self.states = states_new.copy()
-
-        #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
@@ -371,13 +365,13 @@ class AgentPPOSND():
         return loss_snd
 
     
-    def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
 
         #normalise states
         if normalise:
-            xa = self._norm_state(xa) 
+            xa = self._norm_state(xa)
             xb = self._norm_state(xb)
 
         #states augmentation
@@ -397,13 +391,13 @@ class AgentPPOSND():
         predicted = ((za - zb)**2).mean(dim=1)
 
         #MSE loss
-        loss = ((target - predicted)**2).mean()
+        loss = ((target_t - predicted)**2).mean()
 
         return loss
     
-    def _compute_contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
+    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
 
         #normalise states
         if normalise:
@@ -425,41 +419,117 @@ class AgentPPOSND():
 
         #info NCE loss
         logits  = (za*zb).mean(dim=1)
-        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target)
+        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
 
         return loss
 
+    '''
+    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
+        
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        
+        #distances, each from each 
+        distances = ((za.unsqueeze(1) - zb)**2).mean(dim=2)
+
+        #close states are on diagonal, set 0 on diagonal, 1 else
+        n = distances.shape[0]
+        labels  = 1.0 - torch.eye(n, device=distances.device)
+
+        
+        #balacne classes loss scaling
+        scale   = 1.0*(1.0-labels) + (1.0/(n-1))*labels
+        scale   = 0.5*scale
+
+
+        #MSE loss
+        loss = ((labels - distances)**2)
+        loss = loss*scale
+        loss = loss.mean()
+
+        return loss
+
+    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, normalise = False, augmentation = False):
+
+        xa = states_a_t.clone()
+        xb = states_b_t.clone()
+
+        #normalsie states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #info NCE loss
+        logits      = torch.matmul(za, zb.t())
+        loss        = torch.nn.functional.cross_entropy(logits, torch.arange(za.shape[0]).to(za.device))
+
+        return loss
+    '''
 
     #compute internal motivation
-    def _curiosity(self, states):
-        states_norm            = self._norm_state(states)
+    def _curiosity(self, state_t):
+        state_norm_t    = self._norm_state(state_t)
 
-        features_predicted_t    = self.model_snd(states_norm)
-        features_target_t       = self.model_snd_target(states_norm)
+        features_predicted_t  = self.model_snd(state_norm_t)
+        features_target_t     = self.model_snd_target(state_norm_t)
  
-        curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
-        return curiosity_t
+        curiosity_t = (features_target_t - features_predicted_t)**2
+        curiosity_t = curiosity_t.sum(dim=1)/2.0
+
+        return curiosity_t.detach().to("cpu").numpy()
 
 
     #normalise mean and std for state
-    def _norm_state(self, states):
-        states_norm = states
+    def _norm_state(self, state_t):
+        
+        state_norm_t = state_t
 
         if self.normalise_state_mean:
-            mean = torch.from_numpy(self.states_running_stats.mean).to(states.device).float()
-            states_norm = states_norm - mean
+            mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
+            state_norm_t = state_norm_t - mean
 
         if self.normalise_state_std:
-            std  = torch.from_numpy(self.states_running_stats.std).to(states.device).float()            
-            states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
+            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()            
+            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
 
-        return states_norm 
+        return state_norm_t 
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
         for _ in range(steps):
             #random action
-            actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
+            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
 
             #update stats
