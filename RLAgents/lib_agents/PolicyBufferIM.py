@@ -107,14 +107,14 @@ class PolicyBufferIM:
  
         indices_far     = torch.randint(0, count, size=(batch_size, ))
 
-        labels          = (torch.rand(batch_size) > far_ratio).float()
+        labels          = (torch.rand(batch_size) > far_ratio)
         
         #label 0 = close states
         #label 1 = distant states
-        indices_b       = (1 - labels)*indices_close + labels*indices_far
+        indices_b       = torch.logical_not(labels)*indices_close + labels*indices_far
 
-        states_a        = torch.index_select(self.states, dim=0, indices=indices_a).float().to(device)
-        states_b        = torch.index_select(self.states, dim=0, indices=indices_b).float().to(device)
+        states_a        = torch.index_select(self.states, dim=0, index=indices_a).float().to(device)
+        states_b        = torch.index_select(self.states, dim=0, index=indices_b).float().to(device)
         labels_t        = labels.float().to(device)
         
         return states_a, states_b, labels_t
