@@ -172,8 +172,8 @@ class AgentPPOSND():
 
         #collect stats
         k = 0.02
-        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
-        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
+        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean().detach().to("cpu").numpy()
+        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std().detach().to("cpu").numpy()
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
