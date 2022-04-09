@@ -107,7 +107,7 @@ class PolicyBufferIM:
  
         indices_far     = torch.randint(0, count, size=(batch_size, ))
 
-        labels          = (torch.rand(batch_size) > far_ratio)
+        labels          = (torch.rand(batch_size) > far_ratio).float()
         
         #label 0 = close states
         #label 1 = distant states
