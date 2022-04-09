@@ -126,7 +126,7 @@ class AgentPPOSND():
             logits      = logits.detach().to("cpu")
             values_ext  = values_ext.detach().to("cpu")
             values_int  = values_int.detach().to("cpu")
-            actions     = actions.detach().to("cpu")
+            actions     = torch.from_numpy(actions, device="cpu")
             rewards_ext = torch.from_numpy(rewards_ext, device="cpu")
             rewards_int = rewards_int.detach().to("cpu")
             dones       = torch.from_numpy(dones, device="cpu")
