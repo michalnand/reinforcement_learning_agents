@@ -82,17 +82,17 @@ class PolicyBufferIM:
         indices         = torch.random.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
         indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
 
-        states          = torch.take(self.states, indices, axis=0)).to(device)
-        states_next     = torch.take(self.states, indices_next, axis=0)).to(device)
-        logits          = torch.take(self.logits, indices, axis=0)).to(device)
+        states          = torch.take(self.states, indices, axis=0).to(device)
+        states_next     = torch.take(self.states, indices_next, axis=0).to(device)
+        logits          = torch.take(self.logits, indices, axis=0).to(device)
         
-        actions         = torch.take(self.actions, indices, axis=0)).to(device)
+        actions         = torch.take(self.actions, indices, axis=0).to(device)
         
-        returns_ext     = torch.take(self.returns_ext, indices, axis=0)).to(device)
-        returns_int     = torch.take(self.returns_int, indices, axis=0)).to(device)
+        returns_ext     = torch.take(self.returns_ext, indices, axis=0).to(device)
+        returns_int     = torch.take(self.returns_int, indices, axis=0).to(device)
 
-        advantages_ext  = torch.take(self.advantages_ext, indices, axis=0)).to(device)
-        advantages_int  = torch.take(self.advantages_int, indices, axis=0)).to(device)
+        advantages_ext  = torch.take(self.advantages_ext, indices, axis=0).to(device)
+        advantages_int  = torch.take(self.advantages_int, indices, axis=0).to(device)
 
 
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
