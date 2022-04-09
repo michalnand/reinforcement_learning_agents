@@ -1,3 +1,7 @@
+from .ValuesLogger                  import ValuesLogger
+from .RunningStats                  import RunningStats
+
+
 from .ExperienceBuffer                  import ExperienceBuffer
 from .ExperienceBufferGoals             import ExperienceBufferGoals
 from .ExperienceBufferContinuous        import ExperienceBufferContinuous
@@ -15,7 +19,7 @@ from .GoalsBuffer                   import GoalsBuffer
 
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
-from .RunningStats                  import RunningStats
+
 
 
 

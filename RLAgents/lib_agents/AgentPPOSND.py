@@ -1,7 +1,9 @@
 import numpy
 import torch 
-from .PolicyBufferIM    import *  
+from .ValuesLogger      import *
 from .RunningStats      import *  
+from .PolicyBufferIM    import *  
+
 
 import sklearn.manifold
 import matplotlib.pyplot as plt
@@ -79,15 +81,17 @@ class AgentPPOSND():
         self.enable_training()
         self.iterations                     = 0 
 
-        self.log_loss_snd                   = 0.0
-        self.loss_snd_regularization        = 0.0
-        self.loss_ppo_regularization        = 0.0
-        self.log_loss_actor                 = 0.0
-        self.log_loss_critic                = 0.0
+        self.values_logger                  = ValuesLogger()
 
-        self.log_internal_motivation_mean   = 0.0
-        self.log_internal_motivation_std    = 0.0
+        self.values_logger.add("loss_snd", 0.0)
+        self.values_logger.add("loss_snd_regularization", 0.0)
+        self.values_logger.add("loss_ppo_regularization", 0.0)
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("internal_motivation_mean", 0.0)
+        self.values_logger.add("internal_motivation_std", 0.0)
 
+    
         #self.vis_features = []
         #self.vis_labels   = []
 
@@ -122,16 +126,16 @@ class AgentPPOSND():
 
         #put into policy buffer
         if self.enabled_training:
-            states      = states.detach().to("cpu")
-            logits      = logits.detach().to("cpu")
-            values_ext  = values_ext.squeeze(1).detach().to("cpu") 
-            values_int  = values_int.squeeze(1).detach().to("cpu")
-            actions     = torch.from_numpy(actions).to("cpu")
-            rewards_ext = torch.from_numpy(rewards_ext).to("cpu")
-            rewards_int = rewards_int.detach().to("cpu")
-            dones       = torch.from_numpy(dones).to("cpu")
+            states          = states.detach().to("cpu")
+            logits          = logits.detach().to("cpu")
+            values_ext      = values_ext.squeeze(1).detach().to("cpu") 
+            values_int      = values_int.squeeze(1).detach().to("cpu")
+            actions         = torch.from_numpy(actions).to("cpu")
+            rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
+            rewards_int_t   = rewards_int.detach().to("cpu")
+            dones           = torch.from_numpy(dones).to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext, rewards_int, dones)
+            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -169,11 +173,9 @@ class AgentPPOSND():
             self.vis_labels     = []
         '''
         
-
         #collect stats
-        k = 0.02
-        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean().detach().to("cpu").numpy()
-        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std().detach().to("cpu").numpy()
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -189,18 +191,7 @@ class AgentPPOSND():
         self.model_snd_target.load(load_path + "trained/")
  
     def get_log(self): 
-        result = "" 
-
-        result+= str(round(self.log_loss_snd, 7)) + " "
-        result+= str(round(self.loss_snd_regularization, 7)) + " "
-        result+= str(round(self.loss_ppo_regularization, 7)) + " "
-        result+= str(round(self.log_loss_actor, 7)) + " "
-        result+= str(round(self.log_loss_critic, 7)) + " "
-
-        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_std, 7)) + " "
-
-        return result 
+        return self.values_logger.get_str()
 
     def render(self, env_id):
         size            = 256
@@ -248,9 +239,8 @@ class AgentPPOSND():
                 self.optimizer_snd.step()
 
                 #log results
-                k = 0.02
-                self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
-
+                self.values_logger.add("loss_snd", loss_snd.detach().to("cpu").numpy())
+              
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
 
@@ -262,8 +252,7 @@ class AgentPPOSND():
                     loss.backward()
                     self.optimizer_ppo.step()
 
-                    k = 0.02
-                    self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
+                    self.values_logger.add("loss_ppo_regularization", loss.detach().to("cpu").numpy())
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
@@ -273,8 +262,7 @@ class AgentPPOSND():
                     loss.backward()
                     self.optimizer_snd_target.step()
 
-                    k = 0.02
-                    self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
+                    self.values_logger.add("loss_snd_regularization", loss.detach().to("cpu").numpy())
 
         self.policy_buffer.clear() 
 
@@ -296,9 +284,8 @@ class AgentPPOSND():
         loss = 0.5*loss_critic + loss_actor
 
         #store to log
-        k = 0.02
-        self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
-        self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
+        self.values_logger.add("loss_actor", loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
 
         return loss 
 
