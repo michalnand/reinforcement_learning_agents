@@ -81,17 +81,17 @@ class PolicyBufferIM:
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
         indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
 
-        states          = torch.gather(self.states, dim=0, index=indices).to(device)
-        states_next     = torch.gather(self.states, dim=0, index=indices_next).to(device)
-        logits          = torch.gather(self.logits, dim=0, index=indices).to(device)
+        states          = torch.index_select(self.states, dim=0, index=indices).to(device)
+        states_next     = torch.index_select(self.states, dim=0, index=indices_next).to(device)
+        logits          = torch.index_select(self.logits, dim=0, index=indices).to(device)
         
-        actions         = torch.gather(self.actions, dim=0, index=indices).to(device)
+        actions         = torch.index_select(self.actions, dim=0, index=indices).to(device)
         
-        returns_ext     = torch.gather(self.returns_ext, dim=0, index=indices).to(device)
-        returns_int     = torch.gather(self.returns_int, dim=0, index=indices).to(device)
+        returns_ext     = torch.index_select(self.returns_ext, dim=0, index=indices).to(device)
+        returns_int     = torch.index_select(self.returns_int, dim=0, index=indices).to(device)
 
-        advantages_ext  = torch.gather(self.advantages_ext, dim=0, index=indices).to(device)
-        advantages_int  = torch.gather(self.advantages_int, dim=0, index=indices).to(device)
+        advantages_ext  = torch.index_select(self.advantages_ext, dim=0, index=indices).to(device)
+        advantages_int  = torch.index_select(self.advantages_int, dim=0, index=indices).to(device)
 
  
         return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
@@ -113,8 +113,8 @@ class PolicyBufferIM:
         #label 1 = distant states
         indices_b       = (1 - labels)*indices_close + labels*indices_far
 
-        states_a        = torch.gather(self.states, dim=0, indices=indices_a).float().to(device)
-        states_b        = torch.gather(self.states, dim=0, indices=indices_b).float().to(device)
+        states_a        = torch.index_select(self.states, dim=0, indices=indices_a).float().to(device)
+        states_b        = torch.index_select(self.states, dim=0, indices=indices_b).float().to(device)
         labels_t        = labels.float().to(device)
         
         return states_a, states_b, labels_t
