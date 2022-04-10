@@ -327,7 +327,7 @@ class AgentPPOSNDGoals():
 
     def goal_hindsight_policy(self):
         #use last state from buffer as goals
-        goals   = self.policy_buffer.states[-1,:]
+        goals   = self.policy_buffer.states[-1,:,0]
 
         #reward reaching goal - last step
         rewards         = torch.zeros((self.steps, self.envs_count))
@@ -343,7 +343,7 @@ class AgentPPOSNDGoals():
             print(">>>> ", states.shape, goals.shape)
             print("\n\n\n")
             #set goal state value
-            states[:,-1] = goals[0]
+            states[:,-1] = goals
 
             states = states.to(self.model_ppo.device)
 
