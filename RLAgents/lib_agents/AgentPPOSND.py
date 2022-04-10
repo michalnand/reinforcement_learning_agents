@@ -115,7 +115,6 @@ class AgentPPOSND():
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-     
         #update long term stats (mean and variance)
         self.states_running_stats.update(self.states)
 

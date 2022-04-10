@@ -1,9 +1,11 @@
 import numpy
 import torch 
 
-from .PolicyBufferIMDual    import *  
-from .GoalsBuffer           import *
+from .ValuesLogger          import *
 from .RunningStats          import *  
+from .PolicyBuffer          import *
+from .PolicyBufferIMDual    import *  
+from .GoalsBuffer           import *  
 
 
 import sklearn.manifold
@@ -15,16 +17,16 @@ class AgentPPOSNDGoals():
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
       
-        self.gamma_ext          = config.gamma_ext 
-        self.gamma_int_a        = config.gamma_int_a
-        self.gamma_int_b        = config.gamma_int_b
+        self.gamma_ext              = config.gamma_ext 
+        self.gamma_int_a            = config.gamma_int_a
+        self.gamma_int_b            = config.gamma_int_b
             
-        self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_a_adv_coeff    = config.int_a_adv_coeff
-        self.int_b_adv_coeff    = config.int_b_adv_coeff
+        self.ext_adv_coeff          = config.ext_adv_coeff
+        self.int_a_adv_coeff        = config.int_a_adv_coeff
+        self.int_b_adv_coeff        = config.int_b_adv_coeff
 
-        self.int_a_reward_coeff = config.int_a_reward_coeff
-        self.int_b_reward_coeff = config.int_b_reward_coeff
+        self.int_a_reward_coeff     = config.int_a_reward_coeff
+        self.int_b_reward_coeff     = config.int_b_reward_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -34,6 +36,8 @@ class AgentPPOSNDGoals():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
+
+        self.goals_policy       = config.goal_policy
 
 
         if config.snd_regularisation_loss == "mse":
@@ -56,8 +60,8 @@ class AgentPPOSNDGoals():
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
-        self.state_shape    = self.envs.observation_space.shape
-
+        state_shape         = self.envs.observation_space.shape
+        self.state_shape    = (state_shape[0] + 1, state_shape[1], state_shape[2])
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
@@ -68,18 +72,17 @@ class AgentPPOSNDGoals():
 
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
+ 
+        self.policy_buffer       = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.goal_policy_buffer  = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.goals_buffer        = GoalsBuffer(config.goals_buffer_size, self.envs_count, self.state_shape, config.goals_add_threshold, config.goals_change_threshold)
 
-        self.policy_buffer  = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
-        
-        _shape = (1, self.state_shape[1], self.state_shape[2])
-        self.goals_buffer  = GoalsBuffer(config.goals_buffer_size, self.envs_count, _shape, config.goals_add_threshold)
+        self.episode_steps       = torch.zeros((self.envs_count, ), dtype=int)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
-
-        self.episode_steps = numpy.zeros(self.envs_count, dtype=int)
         
-        self.states_running_stats  = RunningStats(self.state_shape)
+        self.states_running_stats       = RunningStats(self.state_shape)
 
         if self.envs_count > 1:
             self._init_running_stats()
@@ -87,24 +90,26 @@ class AgentPPOSNDGoals():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e)
-
+            self.states[e][0:4] = self.envs.reset(e).copy()
 
         self.enable_training()
         self.iterations                     = 0 
 
-        self.log_loss_snd                   = 0.0
-        self.loss_snd_regularization        = 0.0
-        self.loss_ppo_regularization        = 0.0
-        self.log_loss_actor                 = 0.0
-        self.log_loss_critic                = 0.0
+        self.values_logger                  = ValuesLogger()
 
-        self.log_internal_motivation_a_mean   = 0.0
-        self.log_internal_motivation_a_std    = 0.0
+        self.values_logger.add("loss_snd", 0.0)
+        self.values_logger.add("loss_snd_regularization", 0.0)
+        self.values_logger.add("loss_ppo_regularization", 0.0)
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_a2c", 0.0)
+        self.values_logger.add("internal_motivation_a_mean", 0.0)
+        self.values_logger.add("internal_motivation_a_std", 0.0)
+        self.values_logger.add("internal_motivation_b_mean", 0.0)
+        self.values_logger.add("internal_motivation_b_std", 0.0)
+        self.values_logger.add("goals_count", 0)
 
-        self.log_internal_motivation_b_mean   = 0.0
-        self.log_internal_motivation_b_std    = 0.0
-
+    
         #self.vis_features = []
         #self.vis_labels   = []
 
@@ -117,72 +122,93 @@ class AgentPPOSNDGoals():
 
     def main(self): 
         #state to tensor
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states        = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_a_t, values_int_b_t  = self.model_ppo.forward(states_t)
-
-        #logits_t, values_ext_t, values_int_a_t  = self.model_ppo.forward(states_t)
-        #values_int_b_t = values_int_a_t
-
-        states_np           = states_t.detach().to("cpu").numpy()
-        logits_np           = logits_t.detach().to("cpu").numpy()
-        values_ext_np       = values_ext_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_a_np     = values_int_a_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_b_np     = values_int_b_t.squeeze(1).detach().to("cpu").numpy()
-
+        #logits, values_ext, values_int_a, values_int_b   = self.model_ppo.forward(states)
+        logits, values_ext, values_int_a   = self.model_ppo.forward(states)
+        values_int_b = values_int_a
         
-        states_np       = states_t.detach().to("cpu").numpy()
-       
         #collect actions
-        actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits)
          
         #execute action
-        states, rewards_ext, dones, infos = self.envs.step(actions)
-
-        self.states = states.copy()
+        states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         self.episode_steps+= 1
 
-        states_      = numpy.expand_dims(states[:,0,:,:], 1)
-        goal_rewards = self.goals_buffer.update(states_)
-
- 
-        #update long term states mean and variance
-        self.states_running_stats.update(states_np)
+        #update long term stats (mean and variance)
+        self.states_running_stats.update(self.states)
 
         #curiosity motivation
-        rewards_int_a    = self._curiosity(states_t)
-        rewards_int_a    = numpy.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
+        rewards_int_a    = self._curiosity(states)
+        rewards_int_a    = torch.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
 
-        #goals motivation
-        rewards_int_b    = numpy.clip(self.int_b_reward_coeff*goal_rewards, 0.0, 1.0)
+        #curiosity motivation
+        rewards_int_b, goals    = self.goals_buffer.update(states, dones, self.episode_steps)
+        rewards_int_b           = torch.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
         
+
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states, logits_np, values_ext_np, values_int_a_np, values_int_b_np, actions, rewards_ext, rewards_int_a, rewards_int_b, dones)
+            states          = states.detach().to("cpu")
+            logits          = logits.detach().to("cpu")
+            values_ext      = values_ext.squeeze(1).detach().to("cpu") 
+            values_int      = values_int.squeeze(1).detach().to("cpu")
+            actions         = torch.from_numpy(actions).to("cpu")
+            rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
+            rewards_int_t   = rewards_int.detach().to("cpu")
+            dones           = torch.from_numpy(dones).to("cpu")
+
+            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
+         
+        #update new state
+        goals = goals.unsqueeze(1).detach().to("cpu").numpy()
+        self.states = numpy.concatenate([states_new, goals], axis=1)
 
-        
-        
+        #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e)
+                self.states[e][0:4] = self.envs.reset(e).copy()
                 self.goals_buffer.reset(e)
                 self.episode_steps[e] = 0
 
+        '''
+        states_norm_t   = self._norm_state(states_t)
+        features        = self.model_snd_target(states_norm_t)
+        features        = features.detach().to("cpu").numpy()
         
-        
+        self.vis_features.append(features[0])
+        self.vis_labels.append(infos[0]["room_id"])
 
+        if dones[0]:
+            print("training t-sne")
+
+            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
+
+            print("result shape = ", features_embedded.shape)
+
+            plt.clf()
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
+            plt.colorbar(ticks=range(16))
+            plt.tight_layout()
+            plt.show()
+
+            self.vis_features   = []
+            self.vis_labels     = []
+        '''
+        
         #collect stats
-        k = 0.02
-        self.log_internal_motivation_a_mean   = (1.0 - k)*self.log_internal_motivation_a_mean + k*rewards_int_a.mean()
-        self.log_internal_motivation_a_std    = (1.0 - k)*self.log_internal_motivation_a_std  + k*rewards_int_a.std()
+        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_std" , rewards_int_a.std().detach().to("cpu").numpy())
 
-        self.log_internal_motivation_b_mean   = (1.0 - k)*self.log_internal_motivation_b_mean + k*rewards_int_b.mean()
-        self.log_internal_motivation_b_std    = (1.0 - k)*self.log_internal_motivation_b_std  + k*rewards_int_b.std()
+        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
+
+        self.values_logger.add("goals_count", self.goals_buffer.count)
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
@@ -191,34 +217,30 @@ class AgentPPOSNDGoals():
         self.model_ppo.save(save_path + "trained/")
         self.model_snd.save(save_path + "trained/")
         self.model_snd_target.save(save_path + "trained/")
-        self.goals_buffer.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
-        self.goals_buffer.load(load_path + "trained/")
  
     def get_log(self): 
-        result = "" 
-
-        result+= str(round(self.log_loss_snd, 7)) + " "
-        result+= str(round(self.loss_snd_regularization, 7)) + " "
-        result+= str(round(self.loss_ppo_regularization, 7)) + " "
-        result+= str(round(self.log_loss_actor, 7)) + " "
-        result+= str(round(self.log_loss_critic, 7)) + " "
-
-        result+= str(round(self.log_internal_motivation_a_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_a_std, 7)) + " "
-        result+= str(round(self.log_internal_motivation_b_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_b_std, 7)) + " "
-
-        result+= str(round(self.goals_buffer.current_idx, 7)) + " "
-
-        return result 
+        return self.values_logger.get_str()
 
     def render(self, env_id):
         self.goals_buffer.render()
+        '''
+        size            = 256
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
+
+        cv2.imshow("RND agent", state_im)
+        cv2.waitKey(1)
+        '''
     
 
     def _sample_actions(self, logits):
@@ -228,26 +250,27 @@ class AgentPPOSNDGoals():
         actions               = action_t.detach().to("cpu").numpy()
         return actions
     
-           
     def train(self): 
+        
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
+
+        if self.goals_policy:
+            self.goal_hindsight_policy()
+            self.goal_policy_buffer.compute_returns(self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
+                states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
-
-                #train common PPO model with internal motivation
-                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
+                #train PPO model
+                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
-
-
 
                 #train snd model, MSE loss
                 loss_snd = self._compute_loss_snd(states)
@@ -257,9 +280,8 @@ class AgentPPOSNDGoals():
                 self.optimizer_snd.step()
 
                 #log results
-                k = 0.02
-                self.log_loss_snd  = (1.0 - k)*self.log_loss_snd + k*loss_snd.detach().to("cpu").numpy()
-
+                self.values_logger.add("loss_snd", loss_snd.detach().to("cpu").numpy())
+              
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
 
@@ -271,8 +293,7 @@ class AgentPPOSNDGoals():
                     loss.backward()
                     self.optimizer_ppo.step()
 
-                    k = 0.02
-                    self.loss_ppo_regularization  = (1.0 - k)*self.loss_ppo_regularization + k*loss.detach().to("cpu").numpy()
+                    self.values_logger.add("loss_ppo_regularization", loss.detach().to("cpu").numpy())
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
@@ -282,21 +303,65 @@ class AgentPPOSNDGoals():
                     loss.backward()
                     self.optimizer_snd_target.step()
 
-                    k = 0.02
-                    self.loss_snd_regularization  = (1.0 - k)*self.loss_snd_regularization + k*loss.detach().to("cpu").numpy()
+                    self.values_logger.add("loss_snd_regularization", loss.detach().to("cpu").numpy())
+
+                
+                #goal based policy, only one epoch, since A2C
+                if self.goals_policy and e == 0:
+                    #train goal based part - use A2C loss, due "off policy charcter" it seems be stable
+                    states, _, logits, actions, returns, advantages = self.goal_policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+
+                    loss_a2c = self._compute_a2c_loss(states, logits, actions, returns, advantages)
+
+                    self.optimizer_ppo.zero_grad()        
+                    loss_a2c.backward()
+                    self.optimizer_ppo.step()
+
+                    self.values_logger.add("loss_a2c", loss_a2c.detach().to("cpu").numpy())
+
 
         self.policy_buffer.clear() 
-        
+        self.goal_policy_buffer.clear()
+
+
+    def goal_hindsight_policy(self):
+        #use last state from buffer as goals
+        goals   = self.policy_buffer.state[-1,:,0]
+
+        #reward reaching goal - last step
+        rewards         = torch.zeros((self.steps, self.envs_count))
+        rewards[-1, :]  = self.int_b_reward_coeff
+
+        for step in range(self.steps):
+            states  = self.policy_buffer.state[step].clone()
+            action  = self.policy_buffer.action[step]
+            reward  = rewards[step]
+            done    = self.policy_buffer.done[step]
+
+
+            #set goal state value
+            states[:,-1] = goals
+
+            states = states.to(self.model_ppo.device)
+
+            #obtain goal conditioned logits and values
+            logits, _, _, values = self.model_ppo.forward(states)
+
+            states          = states.detach().to("cpu")
+            logits          = logits.detach().to("cpu")
+            values          = values.squeeze(1).detach().to("cpu") 
+
+            self.goal_policy_buffer.add(states, logits, values, action, reward, done)
 
     
-    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
-        logits_new, values_ext_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states)
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         #critic loss
-        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b)
+        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss        
-        advantages  = self.ext_adv_coeff*advantages_ext + self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
+        advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
 
@@ -306,14 +371,13 @@ class AgentPPOSNDGoals():
         loss = 0.5*loss_critic + loss_actor
 
         #store to log
-        k = 0.02
-        self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
-        self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
+        self.values_logger.add("loss_actor", loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
 
         return loss 
 
     #MSE critic loss
-    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b):
+    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
@@ -326,20 +390,11 @@ class AgentPPOSNDGoals():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_a_new  = values_int_a_new.squeeze(1)
-        loss_int_a_value  = (returns_int_a.detach() - values_int_a_new)**2
-        loss_int_a_value  = loss_int_a_value.mean()
+        values_int_new  = values_int_new.squeeze(1)
+        loss_int_value  = (returns_int.detach() - values_int_new)**2
+        loss_int_value  = loss_int_value.mean()
         
-        '''
-        compute internal critic loss, as MSE
-        L = (T - V(s))^2
-        '''
-        values_int_b_new  = values_int_b_new.squeeze(1)
-        loss_int_b_value  = (returns_int_b.detach() - values_int_b_new)**2
-        loss_int_b_value  = loss_int_b_value.mean()
-        
-
-        loss_critic     = loss_ext_value + loss_int_a_value + loss_int_b_value
+        loss_critic     = loss_ext_value + loss_int_value
         return loss_critic
 
     #PPO actor loss
@@ -371,6 +426,30 @@ class AgentPPOSNDGoals():
         return loss_policy, loss_entropy
 
 
+    def _compute_loss_a2c(self, states, logits, actions, returns, advantages):
+        logits_new, _, _, values_new  = self.model_ppo.forward(states)
+
+        probs_new       = torch.nn.functional.softmax(logits_new, dim = 1)
+        log_probs_new   = torch.nn.functional.log_softmax(logits_new, dim = 1)
+        
+        #critic loss
+        values_new   = values_new.squeeze(1)
+        loss_critic  = (returns.detach() - values_new)**2
+        loss_critic  = loss_critic.mean()
+
+        #actor loss        
+        log_probs_new   = log_probs_new[range(len(log_probs_new)), actions]
+        loss_actor      = -log_probs_new*advantages.detach() 
+
+        #entropy regularisation
+        loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
+        loss_entropy = self.entropy_beta*loss_entropy.mean()
+
+        loss = 0.5*loss_critic + loss_actor + loss_entropy
+        
+        return loss 
+
+
     #MSE loss for snd model
     def _compute_loss_snd(self, states):
         
@@ -390,13 +469,13 @@ class AgentPPOSNDGoals():
         return loss_snd
 
     
-    def _contrastive_loss_mse(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
-        xa = states_a_t.clone()
-        xb = states_b_t.clone()
+    def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_b.clone()
 
         #normalise states
         if normalise:
-            xa = self._norm_state(xa)
+            xa = self._norm_state(xa) 
             xb = self._norm_state(xb)
 
         #states augmentation
@@ -416,13 +495,13 @@ class AgentPPOSNDGoals():
         predicted = ((za - zb)**2).mean(dim=1)
 
         #MSE loss
-        loss = ((target_t - predicted)**2).mean()
+        loss = ((target - predicted)**2).mean()
 
         return loss
     
-    def _compute_contrastive_loss_info_nce(self, model, states_a_t, states_b_t, target_t, normalise, augmentation):
-        xa = states_a_t.clone()
-        xb = states_b_t.clone()
+    def _compute_contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_b.clone()
 
         #normalise states
         if normalise:
@@ -444,45 +523,46 @@ class AgentPPOSNDGoals():
 
         #info NCE loss
         logits  = (za*zb).mean(dim=1)
-        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target_t)
+        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target)
 
         return loss
 
-  
+
     #compute internal motivation
-    def _curiosity(self, state_t):
-        state_norm_t    = self._norm_state(state_t)
+    def _curiosity(self, states):
+        states_norm            = self._norm_state(states)
 
-        features_predicted_t  = self.model_snd(state_norm_t)
-        features_target_t     = self.model_snd_target(state_norm_t)
+        features_predicted_t    = self.model_snd(states_norm)
+        features_target_t       = self.model_snd_target(states_norm)
  
-        curiosity_t = (features_target_t - features_predicted_t)**2
-        curiosity_t = curiosity_t.sum(dim=1)/2.0
-
-        return curiosity_t.detach().to("cpu").numpy()
+        curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+        return curiosity_t
 
 
     #normalise mean and std for state
-    def _norm_state(self, state_t):
-        
-        state_norm_t = state_t
+    def _norm_state(self, states):
+        states_norm = states
 
         if self.normalise_state_mean:
-            mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-            state_norm_t = state_norm_t - mean
+            mean = torch.from_numpy(self.states_running_stats.mean).to(states.device).float()
+            states_norm = states_norm - mean
 
         if self.normalise_state_std:
-            std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()            
-            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
+            std  = torch.from_numpy(self.states_running_stats.std).to(states.device).float()            
+            states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
 
-        return state_norm_t 
+        return states_norm 
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
+        states_ = numpy.zeros((self.envs_count, ) + self.state_shape)
+
         for _ in range(steps):
             #random action
-            actions = numpy.random.randint(0, self.actions_count, (self.envs_count))
+            actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
             states, _, dones, _ = self.envs.step(actions)
+
+            states_[:, 0:4] = states
 
             #update stats
             self.states_running_stats.update(states)
@@ -533,5 +613,6 @@ class AgentPPOSNDGoals():
     def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
+
 
    
