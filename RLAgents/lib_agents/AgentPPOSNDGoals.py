@@ -108,8 +108,6 @@ class AgentPPOSNDGoals():
         self.values_logger.add("internal_motivation_b_mean", 0.0)
         self.values_logger.add("internal_motivation_b_std", 0.0)
         self.values_logger.add("goals_count", 0)
-
-        self.goals_buffer.save("saving_test_")
  
         #self.vis_features = []
         #self.vis_labels   = []
