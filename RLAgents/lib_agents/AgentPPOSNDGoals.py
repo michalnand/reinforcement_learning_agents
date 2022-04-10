@@ -125,9 +125,7 @@ class AgentPPOSNDGoals():
         states        = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
 
         #compute model output
-        #logits, values_ext, values_int_a, values_int_b   = self.model_ppo.forward(states)
-        logits, values_ext, values_int_a   = self.model_ppo.forward(states)
-        values_int_b = values_int_a
+        logits, values_ext, values_int_a, values_int_b   = self.model_ppo.forward(states)
         
         #collect actions
         actions = self._sample_actions(logits)
