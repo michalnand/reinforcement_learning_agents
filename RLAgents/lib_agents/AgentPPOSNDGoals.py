@@ -335,8 +335,8 @@ class AgentPPOSNDGoals():
 
         for step in range(self.steps):
             states  = self.policy_buffer.states[step].clone()
-            action  = self.policy_buffer.action[step]
-            reward  = rewards[step]
+            actions = self.policy_buffer.actions[step]
+            reward  = rewards[step] 
             done    = self.policy_buffer.done[step]
 
 
@@ -352,7 +352,7 @@ class AgentPPOSNDGoals():
             logits          = logits.detach().to("cpu")
             values          = values.squeeze(1).detach().to("cpu") 
 
-            self.goal_policy_buffer.add(states, logits, values, action, reward, done)
+            self.goal_policy_buffer.add(states, logits, values, actions, reward, done)
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
