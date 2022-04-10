@@ -446,8 +446,8 @@ class AgentPPOSNDGoals():
         loss_critic  = loss_critic.mean()
 
         #actor loss        
-        log_probs_new   = log_probs_new[range(len(log_probs_new)), actions]
-        loss_actor      = -log_probs_new*advantages.detach() 
+        loss_actor      = -log_probs_new[range(len(log_probs_new)), actions]*advantages.detach() 
+        loss_actor      = loss_actor.mean()
 
         #entropy regularisation
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
