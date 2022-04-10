@@ -312,7 +312,7 @@ class AgentPPOSNDGoals():
                     #train goal based part - use A2C loss, due "off policy charcter" it seems be stable
                     states, _, logits, actions, returns, advantages = self.goal_policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                    loss_a2c = self._compute_a2c_loss(states, logits, actions, returns, advantages)
+                    loss_a2c = self._compute_loss_a2c(states, logits, actions, returns, advantages)
 
                     self.optimizer_ppo.zero_grad()        
                     loss_a2c.backward()
@@ -339,9 +339,6 @@ class AgentPPOSNDGoals():
             reward  = rewards[step] 
             done    = self.policy_buffer.dones[step]
 
-            print("\n\n\n")
-            print(">>>> ", states.shape, goals.shape)
-            print("\n\n\n")
             #set goal state value
             states[:,-1] = goals
 
