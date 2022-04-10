@@ -7,9 +7,9 @@ class GoalsBuffer:
 
     def __init__(self, buffer_size, envs_count, shape, add_threshold, goals_change_threshold, device = "cpu"):
 
-        self.shape          = (1, shape[1], shape[2])
-        self.add_threshold  = add_threshold
-        self.goals_change_threshold = goals_change_threshold
+        self.shape                  = (1, shape[1], shape[2])
+        self.add_threshold          = add_threshold*0.001
+        self.goals_change_threshold = goals_change_threshold*0.001
 
         self.states         = torch.zeros((buffer_size, ) + self.shape, dtype=torch.float).to(device)
         self.steps          = torch.zeros((buffer_size, ), dtype=torch.float).to(device)
@@ -117,6 +117,8 @@ class GoalsBuffer:
             self.steps[self.count]  = steps
 
             self.count+= 1 
+
+            print("new goal, ", self.count)
 
     def _get_goal(self, env_id):
         result = 0
