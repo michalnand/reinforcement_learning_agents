@@ -167,6 +167,10 @@ class AgentPPOSNDGoals():
          
         #update new state
         goals = goals.unsqueeze(1).detach().to("cpu").numpy()
+
+        print("\n\n\n")
+        print(">>> ", states_new.shape, goals.shape)
+        print("\n\n\n")
         self.states = numpy.concatenate([states_new, goals], axis=1)
 
         #or reset env if done
