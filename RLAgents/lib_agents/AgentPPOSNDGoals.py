@@ -263,10 +263,10 @@ class AgentPPOSNDGoals():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, states_next, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b)
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -355,14 +355,14 @@ class AgentPPOSNDGoals():
             self.goal_policy_buffer.add(states, logits, values, action, reward, done)
 
     
-    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int_a, returns_int_b, advantages_ext, advantages_int_a, advantages_int_b):
+        logits_new, values_ext_new, values_int_a_new, values_int_b_new  = self.model_ppo.forward(states)
 
         #critic loss
-        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
+        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b)
 
         #actor loss        
-        advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
+        advantages  = self.ext_adv_coeff*advantages_ext + self.int_a_adv_coeff*advantages_int_a + self.int_b_adv_coeff*advantages_int_b
         advantages  = advantages.detach() 
         loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
 
@@ -378,7 +378,7 @@ class AgentPPOSNDGoals():
         return loss 
 
     #MSE critic loss
-    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
+    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_a_new, returns_int_a, values_int_b_new, returns_int_b):
         ''' 
         compute external critic loss, as MSE
         L = (T - V(s))^2
@@ -391,11 +391,19 @@ class AgentPPOSNDGoals():
         compute internal critic loss, as MSE
         L = (T - V(s))^2
         '''
-        values_int_new  = values_int_new.squeeze(1)
-        loss_int_value  = (returns_int.detach() - values_int_new)**2
-        loss_int_value  = loss_int_value.mean()
+        values_int_a_new  = values_int_a_new.squeeze(1)
+        loss_int_value_a  = (returns_int_a.detach() - values_int_a_new)**2
+        loss_int_value_a  = loss_int_value_a.mean()
+
+        '''
+        compute internal critic loss, as MSE
+        L = (T - V(s))^2
+        '''
+        values_int_b_new  = values_int_b_new.squeeze(1)
+        loss_int_value_b  = (returns_int_b.detach() - values_int_b_new)**2
+        loss_int_value_b  = loss_int_value_b.mean()
         
-        loss_critic     = loss_ext_value + loss_int_value
+        loss_critic     = loss_ext_value + loss_int_value_a + loss_int_value_b
         return loss_critic
 
     #PPO actor loss
