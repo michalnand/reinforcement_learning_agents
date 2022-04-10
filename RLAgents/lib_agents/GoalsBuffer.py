@@ -55,9 +55,9 @@ class GoalsBuffer:
         
         #add new, if change threshold reached, and state not yet in buffer
         for i in range(batch_size):
-            if change > self.goals_change_threshold and min_dist[i] > self.add_threshold and dones[i] == False:
+            if change[i] > self.goals_change_threshold and min_dist[i] > self.add_threshold and dones[i] == False:
                 self._add_new(states[i], steps[i])
-                break
+                break 
 
         #update if less steps to reach
         for i in range(batch_size):
