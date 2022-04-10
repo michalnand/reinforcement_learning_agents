@@ -49,7 +49,7 @@ class GoalsBuffer:
  
         #create new goal
         for i in range(batch_size):
-            if self.rewards > 0:
+            if self.rewards[i] > 0:
                 self.reached[i][min_idx] = True
                 self.current_idx[i]      = self._get_goal(i)        
         
