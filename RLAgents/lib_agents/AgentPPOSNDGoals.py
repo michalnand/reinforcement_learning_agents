@@ -152,13 +152,15 @@ class AgentPPOSNDGoals():
             states          = states.detach().to("cpu")
             logits          = logits.detach().to("cpu")
             values_ext      = values_ext.squeeze(1).detach().to("cpu") 
-            values_int      = values_int.squeeze(1).detach().to("cpu")
+            values_int_a    = values_int_a.squeeze(1).detach().to("cpu")
+            values_int_b    = values_int_b.squeeze(1).detach().to("cpu")
             actions         = torch.from_numpy(actions).to("cpu")
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
-            rewards_int_t   = rewards_int.detach().to("cpu")
+            rewards_int_a_t = rewards_int_a.detach().to("cpu")
+            rewards_int_b_t = rewards_int_b.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
+            self.policy_buffer.add(states, logits, values_ext, values_int_a, values_int_b, actions, rewards_ext_t, rewards_int_a_t, rewards_int_b_t, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
