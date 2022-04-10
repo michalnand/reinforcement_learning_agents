@@ -337,7 +337,7 @@ class AgentPPOSNDGoals():
             states  = self.policy_buffer.states[step].clone()
             actions = self.policy_buffer.actions[step]
             reward  = rewards[step] 
-            done    = self.policy_buffer.done[step]
+            done    = self.policy_buffer.dones[step]
 
 
             #set goal state value
