@@ -565,7 +565,7 @@ class AgentPPOSNDGoals():
             states_[:, 0:4] = states
 
             #update stats
-            self.states_running_stats.update(states)
+            self.states_running_stats.update(states_)
 
             for e in range(self.envs_count): 
                 if dones[e]:
