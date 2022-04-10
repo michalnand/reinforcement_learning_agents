@@ -339,7 +339,9 @@ class AgentPPOSNDGoals():
             reward  = rewards[step] 
             done    = self.policy_buffer.dones[step]
 
-
+            print("\n\n\n")
+            print(">>>> ", states.shape, goals.shape)
+            print("\n\n\n")
             #set goal state value
             states[:,-1] = goals 
 
