@@ -253,11 +253,11 @@ class AgentPPOSNDGoals():
     
     def train(self): 
         
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
-
         if self.goals_policy:
             self.goal_hindsight_policy()
             self.goal_policy_buffer.compute_returns(self.gamma_int_b)
+
+        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
 
