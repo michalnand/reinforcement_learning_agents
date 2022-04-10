@@ -109,7 +109,8 @@ class AgentPPOSNDGoals():
         self.values_logger.add("internal_motivation_b_std", 0.0)
         self.values_logger.add("goals_count", 0)
 
-    
+        self.goals_buffer.save("saving_test_")
+ 
         #self.vis_features = []
         #self.vis_labels   = []
 
@@ -204,7 +205,7 @@ class AgentPPOSNDGoals():
         
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
 
         self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
@@ -218,11 +219,13 @@ class AgentPPOSNDGoals():
         self.model_ppo.save(save_path + "trained/")
         self.model_snd.save(save_path + "trained/")
         self.model_snd_target.save(save_path + "trained/")
+        self.goals_buffer.save(save_path + "trained/")
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
+        self.goals_buffer.load(save_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
