@@ -56,7 +56,7 @@ class AgentPPOContinuous():
         for e in range(self.envs_count):
             actions[e] = self._sample_action(mu_np[e], var_np[e])
 
-        states, rewards, dones, infos = self.envs.step(actions)
+        states_new, rewards, dones, infos = self.envs.step(actions)
         
         if self.enabled_training:
             states      = torch.from_numpy(states).to("cpu")
@@ -67,12 +67,12 @@ class AgentPPOContinuous():
             actions     = torch.from_numpy(actions).to("cpu")
             rewards_    = torch.from_numpy(rewards).to("cpu")
             dones       = torch.from_numpy(dones).to("cpu")
-            
+             
             self.policy_buffer.add(states, values, actions, mu, var, rewards_, dones)
             if self.policy_buffer.is_full():
                 self.train()
 
-        self.states = states.copy()
+        self.states = states_new.copy()
         for e in range(self.envs_count):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
