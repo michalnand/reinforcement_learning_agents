@@ -44,9 +44,9 @@ class AgentPPOContinuous():
         self.enabled_training = False
 
     def main(self):        
-        states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+        states                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
  
-        mu, var, values   = self.model.forward(states_t)
+        mu, var, values   = self.model.forward(states)
 
        
         mu_np   = mu.detach().to("cpu").numpy()
@@ -58,8 +58,8 @@ class AgentPPOContinuous():
 
         states_new, rewards, dones, infos = self.envs.step(actions)
         
-        if self.enabled_training:
-            states      = torch.from_numpy(states).to("cpu")
+        if self.enabled_training: 
+            states      = states.detach().to("cpu")
             values      = values.squeeze(1).detach().to("cpu")
             mu          = mu.detach().to("cpu")
             var         = var.detach().to("cpu")
