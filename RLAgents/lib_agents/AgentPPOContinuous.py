@@ -31,7 +31,7 @@ class AgentPPOContinuous():
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+            self.states[e] = self.envs.reset(e)
 
         self.enable_training()
         self.iterations = 0
@@ -46,23 +46,29 @@ class AgentPPOContinuous():
     def main(self):        
         states_t                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
  
-        mu_t, var_t, values_t   = self.model.forward(states_t)
+        mu, var, values   = self.model.forward(states_t)
 
-        states_np = states_t.detach().to("cpu").numpy()
-        values_np = values_t.squeeze(1).detach().to("cpu").numpy()
+        mu  = mu.detach().to("cpu")
+        var = var.detach().to("cpu")
 
-        mu_np   = mu_t.detach().to("cpu").numpy()
-        var_np  = var_t.detach().to("cpu").numpy()
+        mu_np   = mu.numpy()
+        var_np  = var.numpy()
 
-        actions = []
+        actions = numpy.zeros((self.envs_count, self.actions_count))
         for e in range(self.envs_count):
-            action = self._sample_action(mu_np[e], var_np[e])
-            actions.append(action)
+            actions[e] = self._sample_action(mu_np[e], var_np[e])
 
         states, rewards, dones, infos = self.envs.step(actions)
         
         if self.enabled_training:
-            self.policy_buffer.add(states_np, values_np, actions, mu_np, var_np, rewards, dones)
+            states      = states.detach().to("cpu")
+            values      = values.detach().to("cpu")
+
+            actions     = torch.from_numpy(actions).to("cpu")
+            rewards_    = torch.from_numpy(rewards).to("cpu")
+            dones       = torch.from_numpy(dones).to("cpu")
+            
+            self.policy_buffer.add(states, values, actions, mu, var, rewards_, dones)
             if self.policy_buffer.is_full():
                 self.train()
 

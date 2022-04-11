@@ -411,7 +411,7 @@ class AgentPPOSND():
 
         #info NCE loss
         logits  = (za*zb).mean(dim=1)
-        loss    = torch.nn.functional.binary_cross_entropy_with_logits(logits, target)
+        loss    = torch.nn.functional.cross_entropy(logits, target)
 
         return loss
 
