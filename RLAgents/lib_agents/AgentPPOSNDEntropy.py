@@ -141,12 +141,12 @@ class AgentPPOSNDEntropy():
         self.states_running_stats.update(self.states)
 
         #curiosity motivation
-        rewards_int_a    = self._curiosity(states)
-        rewards_int_a    = torch.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
+        rewards_int_a   = self._curiosity(states)
+        rewards_int_a   = torch.clip(self.int_a_reward_coeff*rewards_int_a, 0.0, 1.0)
 
         #curiosity motivation
-        rewards_int_b, goals    = self._entropy(states)
-        rewards_int_b           = torch.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
+        rewards_int_b   = self._entropy(states)
+        rewards_int_b   = torch.clip(self.int_b_reward_coeff*rewards_int_b, 0.0, 1.0)
         
 
         #put into policy buffer
@@ -168,8 +168,6 @@ class AgentPPOSNDEntropy():
                 self.train()
          
         #update new state
-        goals = goals.detach().to("cpu").numpy()
-
         self.states = states_new.copy()
 
         #or reset env if done
