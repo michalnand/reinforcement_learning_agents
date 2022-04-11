@@ -137,8 +137,6 @@ class AgentPPOSNDEntropy():
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        self.episode_steps+= 1
-
         #update long term stats (mean and variance)
         self.states_running_stats.update(self.states)
 
