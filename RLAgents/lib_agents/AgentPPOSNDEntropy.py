@@ -40,21 +40,21 @@ class AgentPPOSNDEntropy():
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
         elif config.snd_regularisation_loss == "info_nce":
-            self._snd_regularisation_loss = self._compute_contrastive_loss_info_nce
-        else:
+            self._snd_regularisation_loss = self._contrastive_loss_info_nce
+        else: 
             self._snd_regularisation_loss = None
 
         if config.ppo_regularisation_loss == "mse":
             self._ppo_regularisation_loss = self._contrastive_loss_mse
         elif config.ppo_regularisation_loss == "info_nce":
-            self._ppo_regularisation_loss = self._compute_contrastive_loss_info_nce
+            self._ppo_regularisation_loss = self._contrastive_loss_info_nce
         else:
             self._ppo_regularisation_loss = None
 
         if config.entropy_regularisation_loss == "mse":
             self._entropy_regularisation_loss = self._contrastive_loss_mse
         elif config.entropy_regularisation_loss == "info_nce":
-            self._entropy_regularisation_loss = self._compute_contrastive_loss_info_nce
+            self._entropy_regularisation_loss = self._contrastive_loss_info_nce
         else:
             self._entropy_regularisation_loss = None
 
@@ -465,7 +465,7 @@ class AgentPPOSNDEntropy():
 
         return loss
     
-    def _compute_contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
+    def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_b.clone()
 
