@@ -67,19 +67,19 @@ class PolicyBufferContinuous:
     def sample_batch(self, batch_size, device):
         indices     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
                         
-        states      = torch.index_select(self.states, indices, dim=0).to(device)
+        states      = torch.index_select(self.states, dim=0, index=indices).to(device)
         
-        values      = torch.index_select(self.values, indices, dim=0).to(device)
+        values      = torch.index_select(self.values, dim=0, index=indices).to(device)
         
-        actions      = torch.index_select(self.actions, indices, dim=0).to(device)
-        actions_mu   = torch.index_select(self.actions_mu, indices, dim=0).to(device)
-        actions_var  = torch.index_select(self.actions_var, indices, dim=0).to(device)
+        actions      = torch.index_select(self.actions, dim=0, index=indices).to(device)
+        actions_mu   = torch.index_select(self.actions_mu, dim=0, index=indices).to(device)
+        actions_var  = torch.index_select(self.actions_var, dim=0, index=indices).to(device)
 
-        rewards     = torch.index_select(self.rewards, indices, dim=0).to(device)
-        dones       = torch.index_select(self.dones, indices, dim=0).to(device)
+        rewards     = torch.index_select(self.rewards, dim=0, index=indices).to(device)
+        dones       = torch.index_select(self.dones, dim=0, index=indices).to(device)
 
-        returns     = torch.index_select(self.returns, indices, dim=0).to(device)
-        advantages  = torch.index_select(self.advantages, indices, dim=0).to(device)
+        returns     = torch.index_select(self.returns, dim=0, index=indices).to(device)
+        advantages  = torch.index_select(self.advantages, dim=0, index=indices).to(device)
  
        
         return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages 
