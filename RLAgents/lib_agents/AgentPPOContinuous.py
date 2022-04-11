@@ -60,7 +60,7 @@ class AgentPPOContinuous():
         
         if self.enabled_training:
             states      = torch.from_numpy(states).to("cpu")
-            values      = values.detach().to("cpu")
+            values      = values.squeeze(1).detach().to("cpu")
             mu          = mu.detach().to("cpu")
             var         = var.detach().to("cpu")
 
