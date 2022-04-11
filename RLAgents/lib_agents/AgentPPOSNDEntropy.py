@@ -489,7 +489,7 @@ class AgentPPOSNDEntropy():
 
         logits = torch.matmul(za, zb.t())
 
-        labels = torch.tensor(range(30)).to(logits.device)
+        labels = torch.tensor(range(logits.shape[0])).to(logits.device)
 
         loss   = torch.nn.functional.cross_entropy(logits, labels)
 
