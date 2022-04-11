@@ -391,31 +391,6 @@ class AgentPPOSNDEntropy():
 
         return loss_policy, loss_entropy
 
-
-    def _compute_loss_a2c(self, states, logits, actions, returns, advantages):
-        logits_new, _, _, values_new  = self.model_ppo.forward(states)
-
-        probs_new       = torch.nn.functional.softmax(logits_new, dim = 1)
-        log_probs_new   = torch.nn.functional.log_softmax(logits_new, dim = 1)
-        
-        #critic loss
-        values_new   = values_new.squeeze(1)
-        loss_critic  = (returns.detach() - values_new)**2
-        loss_critic  = loss_critic.mean()
-
-        #actor loss        
-        loss_actor      = -log_probs_new[range(len(log_probs_new)), actions]*advantages.detach() 
-        loss_actor      = loss_actor.mean()
-
-        #entropy regularisation
-        loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
-        loss_entropy = self.entropy_beta*loss_entropy.mean()
-
-        loss = 0.5*loss_critic + loss_actor + loss_entropy
-        
-        return loss 
-
-
     #MSE loss for snd model
     def _compute_loss_snd(self, states):
         
@@ -467,7 +442,7 @@ class AgentPPOSNDEntropy():
     
     def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
-        xb = states_b.clone()
+        xb = states_a.clone() 
 
         #normalise states
         if normalise:
