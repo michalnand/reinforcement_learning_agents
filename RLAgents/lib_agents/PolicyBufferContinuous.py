@@ -66,7 +66,6 @@ class PolicyBufferContinuous:
 
     def sample_batch(self, batch_size, device):
         indices     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
-
                         
         states      = torch.index_select(self.states, indices, axis=0).to(device)
         
