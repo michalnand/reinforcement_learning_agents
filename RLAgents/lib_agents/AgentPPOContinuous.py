@@ -48,11 +48,9 @@ class AgentPPOContinuous():
  
         mu, var, values   = self.model.forward(states_t)
 
-        mu  = mu.detach().to("cpu")
-        var = var.detach().to("cpu")
-
-        mu_np   = mu.numpy()
-        var_np  = var.numpy()
+       
+        mu_np   = mu.detach().to("cpu").numpy()
+        var_np  = var.detach().to("cpu").numpy()
 
         actions = numpy.zeros((self.envs_count, self.actions_count))
         for e in range(self.envs_count):
@@ -61,8 +59,10 @@ class AgentPPOContinuous():
         states, rewards, dones, infos = self.envs.step(actions)
         
         if self.enabled_training:
-            states      = states.detach().to("cpu")
+            states      = torch.from_numpy(states).to("cpu")
             values      = values.detach().to("cpu")
+            mu          = mu.detach().to("cpu")
+            var         = var.detach().to("cpu")
 
             actions     = torch.from_numpy(actions).to("cpu")
             rewards_    = torch.from_numpy(rewards).to("cpu")
