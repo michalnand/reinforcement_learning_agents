@@ -4,6 +4,7 @@ import torch
 from .ValuesLogger          import *
 from .RunningStats          import *  
 from .PolicyBufferIMDual    import *  
+from .FeaturesBuffer        import *
 
 
 import sklearn.manifold
