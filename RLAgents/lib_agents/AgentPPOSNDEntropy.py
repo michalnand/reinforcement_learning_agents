@@ -249,10 +249,6 @@ class AgentPPOSNDEntropy():
         return actions
     
     def train(self): 
-        
-        if self.goals_policy:
-            self.goal_policy_buffer.compute_returns(self.gamma_int_b)
-
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int_a, self.gamma_int_b)
 
         batch_count = self.steps//self.batch_size
@@ -302,7 +298,6 @@ class AgentPPOSNDEntropy():
 
                     self.values_logger.add("loss_snd_regularization", loss.detach().to("cpu").numpy())
 
-                
                 #train entropy target model for regularisation (optional)
                 if self._entropy_regularisation_loss is not None:                    
                     loss = self._entropy_regularisation_loss(self.model_entropy, states_a, states_b, labels, normalise=False, augmentation=True)                
