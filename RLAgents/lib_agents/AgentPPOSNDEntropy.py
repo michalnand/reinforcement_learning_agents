@@ -83,7 +83,7 @@ class AgentPPOSNDEntropy():
  
         self.policy_buffer       = PolicyBufferIMDual(self.steps, self.state_shape, self.actions_count, self.envs_count)
         
-        self.features_buffer     = FeaturesBuffer(config.entropy_buffer_size, self.envs_count, (256, ))
+        self.features_buffer     = FeaturesBuffer(config.features_buffer_size, self.envs_count, (256, ))
 
         for e in range(self.envs_count):
             self.envs.reset(e)
