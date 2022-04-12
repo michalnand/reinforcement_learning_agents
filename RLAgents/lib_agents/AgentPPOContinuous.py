@@ -148,10 +148,15 @@ class AgentPPOContinuous():
 
         
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
-        loss_kl     = self.kl_coeff*kl_div + 1000*(kl_div > self.kl_cutoff)*( (kl_div-self.kl_cutoff)**2 )
+        kl_div      = kl_div.mean()
+        loss_kl     = self.kl_coeff*kl_div
+ 
+        if kl_div > (self.kl_cutoff * 1.5):
+            self.kl_coeff *= 2.0
+        elif kl_div < (self.kl_cutoff / 1.5):
+            self.kl_coeff *= 0.5
 
-        loss_kl     = loss_kl.mean()
-
+        self.kl_coeff = numpy.clip(self.kl_coeff, 0.0001, 100.0)
 
         '''
         loss_kl     = (self.kl_target - kl_div)**2 
