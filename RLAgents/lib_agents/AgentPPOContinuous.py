@@ -180,7 +180,7 @@ class AgentPPOContinuous():
  
         loss = loss_value + loss_policy + loss_kl + loss_entropy
 
-        self.values_logger.add("loss_actor",    loss_actor.detach().to("cpu").numpy())
+        self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
         self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
         
