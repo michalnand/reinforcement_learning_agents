@@ -1,10 +1,8 @@
 import numpy
 import torch
-import time
 
-from torch.distributions import Categorical
-
-from .PolicyBufferContinuous import *
+from .ValuesLogger              import *
+from .PolicyBufferContinuous    import *
 
 class AgentPPOContinuous():
     def __init__(self, envs, Model, config):
@@ -35,7 +33,16 @@ class AgentPPOContinuous():
 
         self.enable_training()
         self.iterations = 0
+
+        self.values_logger                  = ValuesLogger()
+     
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_kl", 0.0)
  
+
+    def get_log(self): 
+        return self.values_logger.get_str()
 
     def enable_training(self):
         self.enabled_training = True
@@ -172,6 +179,10 @@ class AgentPPOContinuous():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
         loss = loss_value + loss_policy + loss_kl + loss_entropy
+
+        self.values_logger.add("loss_actor",    loss_actor.detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
+        self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
         
         return loss
 
