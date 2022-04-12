@@ -156,7 +156,7 @@ class AgentPPOContinuous():
         elif kl_div < (self.kl_cutoff / 1.5):
             self.kl_coeff *= 0.5
 
-        self.kl_coeff = numpy.clip(self.kl_coeff, 0.0001, 10.0)
+        self.kl_coeff = numpy.clip(self.kl_coeff, 0.0001, 1000.0)
 
         '''
         loss_kl     = (self.kl_target - kl_div)**2 
