@@ -137,10 +137,7 @@ class AgentPPOContinuous():
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
         '''
-
-        
-        advantages  = advantages.detach()
-        advantages  = advantages.unsqueeze(1) 
+        advantages  = advantages.unsqueeze(1) .detach()
         
         log_ratio   = log_probs_new - log_probs_old
         loss_policy = -torch.exp(log_ratio)*advantages
@@ -152,7 +149,7 @@ class AgentPPOContinuous():
         loss_kl     = self.kl_coeff*kl_div
 
         '''
-        adaptive KL beta coefficient
+        adaptive kl_coeff coefficient
         https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
         ''' 
         if kl_div > (self.kl_cutoff * 1.5):
