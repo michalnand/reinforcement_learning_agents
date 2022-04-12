@@ -12,8 +12,8 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_beta            = 1.0
-        self.kl_target          = config.kl_target
+        self.kl_coeff           = config.kl_coeff
+        self.kl_cutoff          = config.kl_cutoff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -140,21 +140,26 @@ class AgentPPOContinuous():
         loss_policy = loss_policy.mean()
 
         
-        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new)
-        loss_kl     = (self.kl_target - kl_div)**2
-        loss_kl     = self.kl_beta*loss_kl.mean()
+        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
+        loss_kl     = self.kl_coeff*kl_div + 1000*(kl_div>self.kl_cutoff)*((kl_div-self.kl_cutoff)**2)
+        
+        '''
+        loss_kl     = (self.kl_target - kl_div)**2 
+        loss_kl     = self.kl_coeff*loss_kl.mean()
 
+        
         kl_div_mean = kl_div.mean().detach().to("cpu").numpy()
 
  
         if kl_div_mean > (self.kl_target * 1.5):
-            self.kl_beta *= 2.0
+            self.kl_coeff *= 2.0
         elif kl_div_mean < (self.kl_target / 1.5):
-            self.kl_beta *= 0.5
+            self.kl_coeff *= 0.5
 
-        self.kl_beta = numpy.clip(self.kl_beta, 0.0001, 10)
+        self.kl_coeff = numpy.clip(self.kl_coeff, 0.0001, 10)
 
-        #print(">>> ", loss_kl, kl_div_mean, self.kl_beta)
+        #print(">>> ", loss_kl, kl_div_mean, self.kl_coeff)
+        '''
 
         '''
         compute entropy loss, to avoid greedy strategy
