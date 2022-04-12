@@ -157,7 +157,7 @@ class AgentPPOContinuous():
         elif kl_div < (self.kl_cutoff / 1.5):
             self.kl_coeff *= 0.5
 
-        self.kl_coeff = numpy.clip(self.kl_coeff, 0.00001, 100.0)
+        self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 100.0)
 
         '''
         loss_kl     = (self.kl_target - kl_div)**2 
@@ -194,7 +194,7 @@ class AgentPPOContinuous():
         return loss
 
     def _log_prob(self, action, mu, var):
-        p1 = -((action - mu)**2)/(2.0*var + 0.001)
+        p1 = -((action - mu)**2)/(2.0*var + 0.00000001)
         p2 = -torch.log(torch.sqrt(2.0*numpy.pi*var)) 
 
         return p1 + p2
