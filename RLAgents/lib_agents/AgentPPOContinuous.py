@@ -136,10 +136,9 @@ class AgentPPOContinuous():
         ''' 
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
+        '''
 
-        adaptive KL beta coefficient
-        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
-        ''' 
+        
         advantages  = advantages.detach()
         advantages  = advantages.unsqueeze(1) 
         
@@ -151,31 +150,17 @@ class AgentPPOContinuous():
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
         kl_div      = kl_div.mean()
         loss_kl     = self.kl_coeff*kl_div
- 
+
+        '''
+        adaptive KL beta coefficient
+        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
+        ''' 
         if kl_div > (self.kl_cutoff * 1.5):
             self.kl_coeff *= 2.0
         elif kl_div < (self.kl_cutoff / 1.5):
             self.kl_coeff *= 0.5
 
-        self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 100.0)
-
-        '''
-        loss_kl     = (self.kl_target - kl_div)**2 
-        loss_kl     = self.kl_coeff*loss_kl.mean()
-
-        
-        kl_div_mean = kl_div.mean().detach().to("cpu").numpy()
-
- 
-        if kl_div_mean > (self.kl_target * 1.5):
-            self.kl_coeff *= 2.0
-        elif kl_div_mean < (self.kl_target / 1.5):
-            self.kl_coeff *= 0.5
-
-        self.kl_coeff = numpy.clip(self.kl_coeff, 0.0001, 10)
-
-        #print(">>> ", loss_kl, kl_div_mean, self.kl_coeff)
-        '''
+        self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 1000.0)
 
         '''
         compute entropy loss, to avoid greedy strategy
