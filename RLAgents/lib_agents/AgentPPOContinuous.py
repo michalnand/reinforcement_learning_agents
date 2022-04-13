@@ -142,6 +142,12 @@ class AgentPPOContinuous():
         '''
         clipped loss
         '''
+        '''
+        compute actor loss with KL divergence loss to prevent policy collapse
+        see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
+        with adaptive kl_coeff coefficient
+        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
+        '''
         if self.mode == "clipped":
             advantages  = advantages.unsqueeze(1).detach()
 
@@ -152,13 +158,6 @@ class AgentPPOContinuous():
             loss_policy = loss_policy.mean() 
 
             loss_kl     = 0.0
-
-        '''
-        compute actor loss with KL divergence loss to prevent policy collapse
-        see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
-        with adaptive kl_coeff coefficient
-        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
-        '''
         else:
             advantages  = advantages.unsqueeze(1).detach()
         
