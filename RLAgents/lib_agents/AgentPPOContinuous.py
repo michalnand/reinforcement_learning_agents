@@ -12,7 +12,7 @@ class AgentPPOContinuous():
         self.entropy_beta       = config.entropy_beta
         self.mode               = config.mode
 
-        if self.mode = "clipped":
+        if self.mode == "clipped":
             self.eps_clip           = config.eps_clip
         else:
             self.kl_coeff           = 1.0
@@ -140,7 +140,7 @@ class AgentPPOContinuous():
         '''
         clipped loss
         '''
-        if self.mode = "clipped":
+        if self.mode == "clipped":
             advantages  = advantages.unsqueeze(1).detach()
 
             ratio       = torch.exp(log_probs_new - log_probs_old)
@@ -150,7 +150,7 @@ class AgentPPOContinuous():
             loss_policy = loss_policy.mean() 
 
             loss_kl     = 0.0
-            
+
         '''
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
