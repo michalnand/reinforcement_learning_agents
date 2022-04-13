@@ -10,8 +10,9 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_coeff           = config.kl_coeff
+        self.kl_coeff           = 1.0
         self.kl_cutoff          = config.kl_cutoff
+        self.eps_clip           = config.eps_clip
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        

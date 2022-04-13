@@ -221,7 +221,7 @@ class AgentPPOSNDEntropy():
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
         self.model_snd_target.load(load_path + "trained/")
-        self.model_entropy.load(save_path + "trained/")
+        self.model_entropy.load(load_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
