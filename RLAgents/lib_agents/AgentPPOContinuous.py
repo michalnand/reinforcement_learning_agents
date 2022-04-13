@@ -12,13 +12,15 @@ class AgentPPOContinuous():
         self.entropy_beta       = config.entropy_beta
         self.mode               = config.mode
 
-        if self.mode == "clipped":
-            self.eps_clip           = config.eps_clip
-        elif self.mode == "kl_div":
+        if self.mode == "kl_div":
             self.kl_coeff           = 1.0
             self.kl_cutoff          = config.eps_clip
+        elif self.mode == "clipped":
+            self.eps_clip           = config.eps_clip
         else:
-            print("uknow policy clipping mode")
+            self.mode   = "clipped"
+            self.eps_clip           = config.eps_clip
+            print("uknow policy clipping mode, setting to clip")
         
 
         self.steps              = config.steps
