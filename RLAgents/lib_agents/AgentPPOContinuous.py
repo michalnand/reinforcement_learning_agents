@@ -40,7 +40,7 @@ class AgentPPOContinuous():
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("loss_kl", 0.0)
-        self.values_logger.add("kl_coeff", self.kl_coeff)
+        #self.values_logger.add("kl_coeff", self.kl_coeff)
  
 
     def get_log(self): 
