@@ -178,7 +178,7 @@ class AgentPPOContinuous():
         self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
         self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
-        self.values_logger.add("kl_coeff",      self.kl_coeff)
+        #self.values_logger.add("kl_coeff",      self.kl_coeff)
         
         return loss
 
