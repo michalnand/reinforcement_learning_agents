@@ -173,7 +173,7 @@ class AgentPPOContinuous():
         loss_entropy = -(torch.log(2.0*numpy.pi*var_new) + 1.0)/2.0
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
-        loss = loss_value + loss_policy + loss_kl + loss_entropy
+        loss = loss_value + loss_policy + loss_entropy
 
         self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
