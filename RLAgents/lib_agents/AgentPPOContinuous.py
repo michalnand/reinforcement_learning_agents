@@ -10,9 +10,14 @@ class AgentPPOContinuous():
 
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.kl_coeff           = 1.0
-        self.kl_cutoff          = config.kl_cutoff
-        self.eps_clip           = config.eps_clip
+        self.mode               = config.mode
+
+        if self.mode = "clipped":
+            self.eps_clip           = config.eps_clip
+        else:
+            self.kl_coeff           = 1.0
+            self.kl_cutoff          = config.eps_clip
+        
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -39,9 +44,7 @@ class AgentPPOContinuous():
      
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
-        ##self.values_logger.add("loss_kl", 0.0)
-        #self.values_logger.add("kl_coeff", self.kl_coeff)
- 
+     
 
     def get_log(self): 
         return self.values_logger.get_str()
@@ -135,36 +138,43 @@ class AgentPPOContinuous():
         
  
         '''
-        #compute actor loss with KL divergence loss to prevent policy collapse
-        #see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
-        advantages  = advantages.unsqueeze(1).detach()
-        
-        ratio       = log_probs_new - log_probs_old
-        loss_policy = -torch.exp(ratio)*advantages
-        loss_policy = loss_policy.mean()
-
-        
-        kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
-        kl_div      = kl_div.mean()
-        #loss_kl     = self.kl_coeff*kl_div
-
-        #adaptive kl_coeff coefficient
-        #https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
-        if kl_div > (self.kl_cutoff * 1.5):
-            self.kl_coeff *= 2.0
-        elif kl_div < (self.kl_cutoff / 1.5):
-            self.kl_coeff *= 0.5
-
-        self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 1000.0)
+        clipped loss
         '''
- 
-        advantages  = advantages.unsqueeze(1).detach()
+        if self.mode = "clipped":
+            advantages  = advantages.unsqueeze(1).detach()
 
-        ratio       = torch.exp(log_probs_new - log_probs_old)
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
-        loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean() 
+            ratio       = torch.exp(log_probs_new - log_probs_old)
+            p1          = ratio*advantages
+            p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
+            loss_policy = -torch.min(p1, p2)  
+            loss_policy = loss_policy.mean() 
+
+            loss_kl     = 0.0
+            
+        '''
+        compute actor loss with KL divergence loss to prevent policy collapse
+        see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
+        with adaptive kl_coeff coefficient
+        https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
+        '''
+        else:
+            advantages  = advantages.unsqueeze(1).detach()
+        
+            ratio       = torch.exp(log_probs_new - log_probs_old)
+            loss_policy = -ratio*advantages
+            loss_policy = loss_policy.mean()
+
+            kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
+            kl_div      = kl_div.mean()
+            loss_kl     = self.kl_coeff*kl_div
+
+            if kl_div > (self.kl_cutoff * 1.5):
+                self.kl_coeff *= 2.0
+            elif kl_div < (self.kl_cutoff / 1.5):
+                self.kl_coeff *= 0.5
+
+            self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 1000.0)
+        
 
         '''
         compute entropy loss, to avoid greedy strategy
@@ -173,12 +183,10 @@ class AgentPPOContinuous():
         loss_entropy = -(torch.log(2.0*numpy.pi*var_new) + 1.0)/2.0
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
-        loss = loss_value + loss_policy + loss_entropy
+        loss = loss_value + loss_policy + loss_kl + loss_entropy 
 
         self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
-        #self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
-        #self.values_logger.add("kl_coeff",      self.kl_coeff)
         
         return loss
 
