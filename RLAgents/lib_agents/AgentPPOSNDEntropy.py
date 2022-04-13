@@ -177,8 +177,9 @@ class AgentPPOSNDEntropy():
                 self.features_buffer.reset(e)
 
         '''
-        states_norm_t   = self._norm_state(states_t)
-        features        = self.model_snd_target(states_norm_t)
+        #states_norm_t   = self._norm_state(states_t)
+        #features        = self.model_snd_target(states_norm_t)
+        features = self.model_entropy(states.to(self.model_entropy.device))
         features        = features.detach().to("cpu").numpy()
         
         self.vis_features.append(features[0])
