@@ -14,9 +14,11 @@ class AgentPPOContinuous():
 
         if self.mode == "clipped":
             self.eps_clip           = config.eps_clip
-        else:
+        elif self.mode == "kl_div":
             self.kl_coeff           = 1.0
             self.kl_cutoff          = config.eps_clip
+        else:
+            print("uknow policy clipping mode")
         
 
         self.steps              = config.steps
