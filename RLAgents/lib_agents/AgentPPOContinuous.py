@@ -39,7 +39,7 @@ class AgentPPOContinuous():
      
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
-        self.values_logger.add("loss_kl", 0.0)
+        ##self.values_logger.add("loss_kl", 0.0)
         #self.values_logger.add("kl_coeff", self.kl_coeff)
  
 
@@ -146,7 +146,7 @@ class AgentPPOContinuous():
         
         kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
         kl_div      = kl_div.mean()
-        loss_kl     = self.kl_coeff*kl_div
+        #loss_kl     = self.kl_coeff*kl_div
 
         #adaptive kl_coeff coefficient
         #https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
@@ -177,7 +177,7 @@ class AgentPPOContinuous():
 
         self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
-        self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
+        #self.values_logger.add("loss_kl",       loss_kl.detach().to("cpu").numpy())
         #self.values_logger.add("kl_coeff",      self.kl_coeff)
         
         return loss
