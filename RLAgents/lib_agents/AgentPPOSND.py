@@ -424,6 +424,7 @@ class AgentPPOSND():
         features_target_t       = self.model_snd_target(states_norm)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+        
         return curiosity_t
 
 
