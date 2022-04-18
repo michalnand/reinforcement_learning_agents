@@ -437,9 +437,9 @@ class AgentPPOSNDEntropy():
         predicted = ((za - zb)**2).mean(dim=1)
 
         #MSE loss
-        loss = ((target - predicted)**2).mean()
+        loss_mse = ((target - predicted)**2).mean()
 
-        return loss
+        return loss_mse
     
     def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
@@ -465,16 +465,19 @@ class AgentPPOSNDEntropy():
 
         logits = torch.matmul(za, zb.t())
 
+        #place target class ID on diagonal
         labels = torch.tensor(range(logits.shape[0])).to(logits.device)
 
-        loss_entropy   = torch.nn.functional.cross_entropy(logits, labels)
+        #info NCE loss, train to strong correlation for similar states
+        loss_nce   = torch.nn.functional.cross_entropy(logits, labels)
 
+        #magnitude regularisation
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
         loss_magnitude = 0.1*(mag_za + mag_zb)
     
-        loss = loss_entropy + loss_magnitude 
+        loss = loss_nce + loss_magnitude  
 
         return loss
 
@@ -493,6 +496,7 @@ class AgentPPOSNDEntropy():
         features_t    = self.model_entropy(states)
         self.features_buffer.add(features_t)
 
+        
         return self.features_buffer.compute_entropy()
 
 
