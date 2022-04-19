@@ -448,7 +448,7 @@ class AgentPPOSND():
         #print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
 
         return curiosity_t
-
+ 
 
     #normalise mean and std for state
     def _norm_state(self, states):
