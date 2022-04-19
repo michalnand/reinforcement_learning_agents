@@ -390,7 +390,7 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        loss_magnitude = 0.01*(mag_za + mag_zb)
+        loss_magnitude = 0.001*(mag_za + mag_zb)
 
         loss = loss_mse + loss_magnitude
     
@@ -445,6 +445,8 @@ class AgentPPOSND():
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         
+        print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
+
         return curiosity_t
 
 
