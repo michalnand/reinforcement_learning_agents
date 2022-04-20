@@ -90,6 +90,7 @@ class AgentPPOSND():
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
+        self.values_logger.add("symmetry_acc", 0.0)
 
     
         #self.vis_features = []
@@ -245,7 +246,7 @@ class AgentPPOSND():
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, actions, labels, normalise=False, augmentation=True)
 
                     self.optimizer_ppo.zero_grad()        
                     loss.backward()
@@ -255,7 +256,7 @@ class AgentPPOSND():
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, actions, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_snd_target.zero_grad() 
                     loss.backward()
@@ -357,7 +358,7 @@ class AgentPPOSND():
         return loss_snd
 
     
-    def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
+    def _contrastive_loss_mse(self, model, states_a, states_b, actions, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_b.clone()
 
@@ -386,7 +387,7 @@ class AgentPPOSND():
         loss_mse = ((target - predicted)**2).mean()
 
 
-        #magnitude regularisation
+        #magnitude regularisation, keep magnitude in small numbers
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
@@ -396,7 +397,7 @@ class AgentPPOSND():
     
         return loss
     
-    def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
+    def _contrastive_loss_info_nce(self, model, states_a, states_b, actions, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_a.clone() 
 
@@ -430,9 +431,54 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        loss_magnitude = 0.1*(mag_za + mag_zb)
+        #loss_magnitude = 0.1*(mag_za + mag_zb)
+        loss_magnitude = 0.001*(mag_za + mag_zb)
     
         loss = loss_nce + loss_magnitude  
+
+        return loss
+
+
+    def _contrastive_loss_symmetry(self, model, states_now, states_next, actions, target, normalise, augmentation):
+        xa = states_now.clone()
+        xb = states_next.clone() 
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa)
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+
+        z = model.forward_features(xa, xb)
+
+        #each by each similarity, dot product and sigmoid to obtain probs
+        logits      = torch.matmul(z, z.t())
+        logits      = torch.flatten(logits)
+        probs       = torch.sigmoid(logits)
+
+        #true labels are where are same actions
+        actions_    = actions.unsqueeze(1)
+        labels      = actions_ == actions_.t()
+        labels      = torch.flatten(labels)
+
+        #binary classification loss
+        loss_func   = torch.nn.BCELoss()
+        loss_bce    = loss_func(probs, labels)
+
+        #maginitude regularisation
+        loss_mag    = 0.001*(z**2).mean()
+
+        loss        = loss_bce + loss_mag
+
+        #compute prediction accuracy for log
+        acc = (labels == (probs > 0.5)).float().mean()
+        acc = acc.detach().to("cpu").numpy()
+
+        self.values_logger.add("symmetry_acc", acc)
 
         return loss
 
