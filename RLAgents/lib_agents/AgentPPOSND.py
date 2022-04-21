@@ -391,7 +391,7 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        loss_magnitude = 0.0001*(mag_za + mag_zb)
+        loss_magnitude = 0.00001*(mag_za + mag_zb)
 
         loss = loss_mse + loss_magnitude
     
