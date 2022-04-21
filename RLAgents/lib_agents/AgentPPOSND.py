@@ -90,7 +90,7 @@ class AgentPPOSND():
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
-        self.values_logger.add("symmetry_acc", 0.0)
+        self.values_logger.add("symmetry_recall", 0.0)
 
     
         #self.vis_features = []
@@ -391,7 +391,7 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        loss_magnitude = 0.001*(mag_za + mag_zb)
+        loss_magnitude = 0.0001*(mag_za + mag_zb)
 
         loss = loss_mse + loss_magnitude
     
@@ -432,7 +432,7 @@ class AgentPPOSND():
         mag_zb = (zb**2).mean()
 
         #loss_magnitude = 0.1*(mag_za + mag_zb)
-        loss_magnitude = 0.001*(mag_za + mag_zb)
+        loss_magnitude = 0.0001*(mag_za + mag_zb)
     
         loss = loss_nce + loss_magnitude  
 
@@ -462,7 +462,7 @@ class AgentPPOSND():
 
         #true labels are where are same actions
         actions_    = actions.unsqueeze(1)
-        labels      = actions_ == actions_.t()
+        labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
 
         #binary classification loss
@@ -474,11 +474,15 @@ class AgentPPOSND():
 
         loss        = loss_bce + loss_mag
 
-        #compute prediction accuracy for log
-        acc = (labels == (probs > 0.5)).float().mean()
-        acc = acc.detach().to("cpu").numpy()
+        #compute prediction recall (since True event is rare, this is better metrics)
+        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
+        false_negative = torch.logical_and(labels > 0.5, probs <= 0.5).float().sum()
 
-        self.values_logger.add("symmetry_acc", acc)
+        recall = true_positive/(true_positive + false_negative + 10**-10)
+         
+        recall = recall.detach().to("cpu").numpy()
+
+        self.values_logger.add("symmetry_recall", recall)
 
         return loss
 
