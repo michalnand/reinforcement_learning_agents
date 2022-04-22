@@ -30,6 +30,7 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        self.regularisation_coeff = 0.00001
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -406,7 +407,7 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        loss_magnitude = 0.00001*(mag_za + mag_zb)
+        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
 
         loss = loss_mse + loss_magnitude
     
@@ -446,8 +447,7 @@ class AgentPPOSND():
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
-        #loss_magnitude = 0.1*(mag_za + mag_zb)
-        loss_magnitude = 0.00001*(mag_za + mag_zb)
+        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
     
         loss = loss_nce + loss_magnitude  
 
@@ -475,21 +475,17 @@ class AgentPPOSND():
         logits      = torch.flatten(logits)
         probs       = torch.sigmoid(logits)
 
-        print("probs = ", probs.shape)
-
         #true labels are where are same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
-
-        print("labels = ", labels.shape)
 
         #binary classification loss
         loss_func   = torch.nn.BCELoss()
         loss_bce    = loss_func(probs, labels)
 
         #maginitude regularisation
-        loss_mag    = 0.00001*(z**2).mean()
+        loss_mag    = self.regularisation_coeff*(z**2).mean()
 
         loss        = loss_bce + loss_mag
 
