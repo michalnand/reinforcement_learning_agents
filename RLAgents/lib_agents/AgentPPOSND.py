@@ -45,8 +45,14 @@ class AgentPPOSND():
         else:
             self._ppo_regularisation_loss = None
 
-        print("snd_regularisation_loss = ", self._snd_regularisation_loss)
-        print("ppo_regularisation_loss = ", self._ppo_regularisation_loss)
+        if hasattr(config.symmetry_loss, "symmetry_loss"):
+            self.symmetry_loss = config.symmetry_loss
+        else:
+            self.symmetry_loss = False
+
+        print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
+        print("ppo_regularisation_loss  = ", self._ppo_regularisation_loss)
+        print("symmetry_loss             = ", self.symmetry_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -219,12 +225,21 @@ class AgentPPOSND():
 
         batch_count = self.steps//self.batch_size
 
+        small_batch = 64
+
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+
+                if self.symmetry_loss == True:
+                    states_         = states[0:small_batch]
+                    states_next_    = states_next[0:small_batch]
+                    actions_        = actions[0:small_batch]
+
+                    loss_ppo+= self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -242,11 +257,11 @@ class AgentPPOSND():
                 self.values_logger.add("loss_snd", loss_snd.detach().to("cpu").numpy())
               
                 #smaller batch for regularisation
-                states_a, states_b, labels = self.policy_buffer.sample_states(64, 0.5, self.model_ppo.device)
+                states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
                 #contrastive loss for better features space (optional)
                 if self._ppo_regularisation_loss is not None:
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, actions, labels, normalise=False, augmentation=True)
+                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)
 
                     self.optimizer_ppo.zero_grad()        
                     loss.backward()
@@ -256,7 +271,7 @@ class AgentPPOSND():
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, actions, labels, normalise=True, augmentation=True)                
+                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_snd_target.zero_grad() 
                     loss.backward()
@@ -358,7 +373,7 @@ class AgentPPOSND():
         return loss_snd
 
     
-    def _contrastive_loss_mse(self, model, states_a, states_b, actions, target, normalise, augmentation):
+    def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_b.clone()
 
@@ -397,7 +412,7 @@ class AgentPPOSND():
     
         return loss
     
-    def _contrastive_loss_info_nce(self, model, states_a, states_b, actions, target, normalise, augmentation):
+    def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_a.clone() 
 
@@ -432,14 +447,14 @@ class AgentPPOSND():
         mag_zb = (zb**2).mean()
 
         #loss_magnitude = 0.1*(mag_za + mag_zb)
-        loss_magnitude = 0.0001*(mag_za + mag_zb)
+        loss_magnitude = 0.00001*(mag_za + mag_zb)
     
         loss = loss_nce + loss_magnitude  
 
         return loss
 
 
-    def _contrastive_loss_symmetry(self, model, states_now, states_next, actions, target, normalise, augmentation):
+    def _loss_symmetry(self, model, states_now, states_next, actions, normalise, augmentation):
         xa = states_now.clone()
         xb = states_next.clone() 
 
@@ -460,17 +475,21 @@ class AgentPPOSND():
         logits      = torch.flatten(logits)
         probs       = torch.sigmoid(logits)
 
+        print("probs = ", probs.shape)
+
         #true labels are where are same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
+
+        print("labels = ", labels.shape)
 
         #binary classification loss
         loss_func   = torch.nn.BCELoss()
         loss_bce    = loss_func(probs, labels)
 
         #maginitude regularisation
-        loss_mag    = 0.001*(z**2).mean()
+        loss_mag    = 0.00001*(z**2).mean()
 
         loss        = loss_bce + loss_mag
 
