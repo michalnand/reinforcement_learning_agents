@@ -97,7 +97,10 @@ class AgentPPOSND():
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
-        self.values_logger.add("symmetry_recall", 0.0)
+
+        if self.symmetry_loss:
+            self.values_logger.add("loss_symmetry", 0.0)
+            self.values_logger.add("symmetry_recall", 0.0)
 
     
         #self.vis_features = []
@@ -497,6 +500,7 @@ class AgentPPOSND():
          
         recall = recall.detach().to("cpu").numpy()
 
+        self.values_logger.add("loss_symmetry", loss.detach().to("cpu").numpy())
         self.values_logger.add("symmetry_recall", recall)
 
         return loss
