@@ -474,7 +474,7 @@ class AgentPPOSND():
         z = model.forward_features(xa, xb)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())
+        logits      = torch.matmul(z, z.t())/z.shape[1] 
         logits      = torch.flatten(logits)
         probs       = torch.sigmoid(logits)
 
