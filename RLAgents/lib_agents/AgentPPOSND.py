@@ -45,7 +45,7 @@ class AgentPPOSND():
         else:
             self._ppo_regularisation_loss = None
 
-        if hasattr(config.symmetry_loss, "symmetry_loss"):
+        if hasattr(config, "symmetry_loss"):
             self.symmetry_loss = config.symmetry_loss
         else:
             self.symmetry_loss = False
