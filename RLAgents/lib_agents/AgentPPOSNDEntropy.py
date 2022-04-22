@@ -36,6 +36,7 @@ class AgentPPOSNDEntropy():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
+        self.regularisation_coeff = 0.00001
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -439,7 +440,15 @@ class AgentPPOSNDEntropy():
         #MSE loss
         loss_mse = ((target - predicted)**2).mean()
 
-        return loss_mse
+        #magnitude regularisation, keep magnitude in small numbers
+        mag_za = (za**2).mean()
+        mag_zb = (zb**2).mean()
+        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
+
+        loss = loss_mse + loss_magnitude
+
+
+        return loss
     
     def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
@@ -471,11 +480,10 @@ class AgentPPOSNDEntropy():
         #info NCE loss, train to strong correlation for similar states
         loss_nce   = torch.nn.functional.cross_entropy(logits, labels)
 
-        #magnitude regularisation
+        #magnitude regularisation, keep magnitude in small numbers
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
-
-        loss_magnitude = 0.1*(mag_za + mag_zb)
+        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
     
         loss = loss_nce + loss_magnitude  
 
