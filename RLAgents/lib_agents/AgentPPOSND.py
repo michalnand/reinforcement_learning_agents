@@ -490,7 +490,7 @@ class AgentPPOSND():
 
         #binary classification loss, weighted due class inbalance
         w           = 1.0/self.actions_count
-        loss_bce    = w*(1.0 - labels)*torch.log(1.0 - probs) + (1.0 - w)*labels*torch.log(probs)
+        loss_bce    = -1.0*(w*(1.0 - labels)*torch.log(1.0 - probs) + (1.0 - w)*labels*torch.log(probs))
         loss_bce    = 0.01*loss_bce.mean()
 
         #magnitude regularisation
