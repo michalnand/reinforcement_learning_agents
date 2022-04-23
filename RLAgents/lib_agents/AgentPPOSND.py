@@ -474,7 +474,7 @@ class AgentPPOSND():
         z = model.forward_features(xa, xb)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())/z.shape[1] 
+        logits      = torch.matmul(z, z.t())
         logits      = torch.flatten(logits)
         probs       = torch.sigmoid(logits)
 
@@ -483,11 +483,12 @@ class AgentPPOSND():
         labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
 
-        #binary classification loss
-        loss_func   = torch.nn.BCELoss() 
-        loss_bce    = 0.01*loss_func(probs, labels)
+        #binary classification loss, weighted due class inbalance
+        w           = 1.0/self.actions_count
+        loss_bce    = w*(1.0 - labels)*torch.log(1.0 - probs) + (1.0 - w)*labels*torch.log(probs)
+        loss_bce    = 0.01*loss_bce
 
-        #maginitude regularisation
+        #magnitude regularisation
         loss_mag    = self.regularisation_coeff*(z**2).mean()
 
         loss        = loss_bce + loss_mag
