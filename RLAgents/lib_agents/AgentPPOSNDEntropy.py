@@ -36,7 +36,7 @@ class AgentPPOSNDEntropy():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.regularisation_coeff = 0.00001
+        self.regularisation_coeff = 0.001
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -438,15 +438,16 @@ class AgentPPOSNDEntropy():
         predicted = ((za - zb)**2).mean(dim=1)
 
         #MSE loss
-        loss_mse = ((target - predicted)**2).mean()
+        loss = ((target - predicted)**2).mean()
 
+        '''
         #magnitude regularisation, keep magnitude in small numbers
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
         loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
 
         loss = loss_mse + loss_magnitude
-
+        '''
 
         return loss
     
