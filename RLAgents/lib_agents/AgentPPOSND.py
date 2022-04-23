@@ -260,14 +260,14 @@ class AgentPPOSND():
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
 
-                    loss = self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
+                    loss_symmetry = self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
 
                     self.optimizer_ppo.zero_grad()        
-                    loss_ppo.backward()
+                    loss_symmetry.backward()
                     torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                     self.optimizer_ppo.step()
 
-                    self.values_logger.add("loss_symmetry", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
 
               
                 #smaller batch for regularisation
