@@ -30,7 +30,7 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.regularisation_coeff = 0.00001
+        self.regularisation_coeff = 10**-6
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
