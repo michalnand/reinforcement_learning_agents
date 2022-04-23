@@ -238,13 +238,7 @@ class AgentPPOSND():
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                if self.symmetry_loss == True:
-                    states_         = states[0:small_batch]
-                    states_next_    = states_next[0:small_batch]
-                    actions_        = actions[0:small_batch]
-
-                    loss_ppo+= self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
-
+              
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
@@ -259,6 +253,22 @@ class AgentPPOSND():
 
                 #log results
                 self.values_logger.add("loss_snd", loss_snd.detach().to("cpu").numpy())
+
+
+                if self.symmetry_loss == True:
+                    states_         = states[0:small_batch]
+                    states_next_    = states_next[0:small_batch]
+                    actions_        = actions[0:small_batch]
+
+                    loss = self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
+
+                    self.optimizer_ppo.zero_grad()        
+                    loss_ppo.backward()
+                    torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
+                    self.optimizer_ppo.step()
+
+                    self.values_logger.add("loss_symmetry", loss.detach().to("cpu").numpy())
+
               
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
@@ -282,6 +292,8 @@ class AgentPPOSND():
                     self.optimizer_snd_target.step()
 
                     self.values_logger.add("loss_snd_regularization", loss.detach().to("cpu").numpy())
+
+                
 
         self.policy_buffer.clear() 
 
@@ -501,7 +513,6 @@ class AgentPPOSND():
          
         recall = recall.detach().to("cpu").numpy()
 
-        self.values_logger.add("loss_symmetry", loss.detach().to("cpu").numpy())
         self.values_logger.add("symmetry_recall", recall)
 
         return loss
