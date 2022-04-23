@@ -484,8 +484,8 @@ class AgentPPOSND():
         labels      = torch.flatten(labels)
 
         #binary classification loss
-        loss_func   = torch.nn.BCELoss()
-        loss_bce    = loss_func(probs, labels)
+        loss_func   = torch.nn.BCELoss() 
+        loss_bce    = 0.01*loss_func(probs, labels)
 
         #maginitude regularisation
         loss_mag    = self.regularisation_coeff*(z**2).mean()
