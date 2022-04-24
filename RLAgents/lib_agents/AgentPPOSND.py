@@ -35,14 +35,14 @@ class AgentPPOSND():
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
         elif config.snd_regularisation_loss == "info_nce":
-            self._snd_regularisation_loss = self._compute_contrastive_loss_info_nce
+            self._snd_regularisation_loss = self._contrastive_loss_info_nce
         else:
             self._snd_regularisation_loss = None
 
         if config.ppo_regularisation_loss == "mse":
             self._ppo_regularisation_loss = self._contrastive_loss_mse
         elif config.ppo_regularisation_loss == "info_nce":
-            self._ppo_regularisation_loss = self._compute_contrastive_loss_info_nce
+            self._ppo_regularisation_loss = self._contrastive_loss_info_nce
         else:
             self._ppo_regularisation_loss = None
 
@@ -443,7 +443,7 @@ class AgentPPOSND():
             za = model(xa)  
             zb = model(xb)
 
-        logits = torch.matmul(za, zb.t())
+        logits = torch.matmul(za, zb.t())/za.shape[1]
 
         #place target class ID on diagonal
         labels = torch.tensor(range(logits.shape[0])).to(logits.device)
@@ -519,7 +519,7 @@ class AgentPPOSND():
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         
-        #print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
+        print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
 
         return curiosity_t
  
