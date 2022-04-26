@@ -2,7 +2,8 @@ import numpy
 import torch
 import time
 
-from .PolicyBuffer import *
+from .ValuesLogger      import *
+from .PolicyBuffer      import *
 
 class AgentPPO():
     def __init__(self, envs, Model, config):
@@ -24,17 +25,19 @@ class AgentPPO():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
+        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e)
+            self.states[e] = self.envs.reset(e) 
 
         self.enable_training()
         self.iterations = 0 
 
-        self.log_advantages                 = 0.0
-
+        self.values_logger  = ValuesLogger()
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
+        
 
     def enable_training(self):
         self.enabled_training = True
@@ -43,26 +46,28 @@ class AgentPPO():
         self.enabled_training = False
 
     def main(self):        
-        states_t            = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+        states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
     
-        logits_t, values_t  = self.model.forward(states_t)
-
-        states_np = states_t.detach().to("cpu").numpy() 
-        logits_np = logits_t.detach().to("cpu").numpy()
-        values_np = values_t.squeeze(1).detach().to("cpu").numpy()
+        logits, values  = self.model.forward(states)
  
-        actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits)
         
-        states, rewards, dones, infos = self.envs.step(actions)
-        
-        self.states = states.copy()
-
+        states_new, rewards, dones, infos = self.envs.step(actions)
+    
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_np, actions, rewards, dones)
+            states      = states.detach().to("cpu")
+            logits      = logits.detach().to("cpu")
+            values      = values.squeeze(1).detach().to("cpu") 
+            actions     = torch.from_numpy(actions).to("cpu")
+            rewards_t   = torch.from_numpy(rewards).to("cpu")
+            dones       = torch.from_numpy(dones).to("cpu")
+
+            self.policy_buffer.add(states, logits, values, actions, rewards_t, dones)
 
             if self.policy_buffer.is_full():
                 self.train()
     
+        self.states = states_new.copy()
         for e in range(self.envs_count):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
@@ -77,9 +82,7 @@ class AgentPPO():
         self.model.load(save_path + "trained/")
 
     def get_log(self):
-        result = "" 
-        result+= str(round(self.log_advantages, 7)) + " "
-        return result
+        return self.values_logger.get_str()
     
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -94,7 +97,7 @@ class AgentPPO():
         batch_count = self.steps//self.batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, values, actions, rewards, dones, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model.device)
+                states, _, logits, actions, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model.device)
 
                 loss = self._compute_loss(states, logits, actions, returns, advantages)
 
@@ -110,7 +113,7 @@ class AgentPPO():
 
         logits_new, values_new   = self.model.forward(states)
 
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
+        probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
 
 
@@ -126,6 +129,7 @@ class AgentPPO():
         compute actor loss, surrogate loss
         '''
         advantages       = advantages.detach() 
+        #this normalisation have no effect
         #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
@@ -135,7 +139,7 @@ class AgentPPO():
         p1          = ratio*advantages
         p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
         loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean() 
+        loss_policy = loss_policy.mean()  
     
         '''
         compute entropy loss, to avoid greedy strategy
@@ -146,7 +150,7 @@ class AgentPPO():
 
         loss = loss_value + loss_policy + loss_entropy
 
-        k = 0.02
-        self.log_advantages = (1.0 - k)*self.log_advantages + k*advantages.mean().detach().to("cpu").numpy()
-        
+        self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
+
         return loss

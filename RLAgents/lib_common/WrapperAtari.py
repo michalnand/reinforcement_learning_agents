@@ -2,6 +2,9 @@ import gym
 import numpy
 from PIL import Image
 
+
+
+
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
         super(NopOpsEnv, self).__init__(env)
@@ -16,36 +19,71 @@ class NopOpsEnv(gym.Wrapper):
             obs, _, done, _ = self.env.step(0)
 
             if done:
-                self.env.reset()
-                obs, _, _ ,_ = self.env.step(1)
-                obs, _, _ ,_ = self.env.step(2)
+                obs = self.env.reset()
            
         return obs
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-        return obs, reward, done, info
+        return self.env.step(action)
 
-class MaxAndSkipEnv(gym.Wrapper):
-    def __init__(self, env, skip=4):
-        gym.Wrapper.__init__(self, env)
-
-        self._obs_buffer = numpy.zeros((2,) + env.observation_space.shape, dtype=numpy.uint8)
-        self._skip = skip
+class StickyActionEnv(gym.Wrapper):
+    def __init__(self, env, p=0.25):
+        super(StickyActionEnv, self).__init__(env)
+        self.p = p
+        self.last_action = 0
 
     def step(self, action):
-        total_reward = 0.0
-        done = None
-        for i in range(self._skip):
-            obs, reward, done, info = self.env.step(action)
-            if i == self._skip - 2: self._obs_buffer[0] = obs
-            if i == self._skip - 1: self._obs_buffer[1] = obs
-            total_reward += reward
+        if numpy.random.uniform() < self.p:
+            action = self.last_action
+
+        self.last_action = action
+        return self.env.step(action)
+
+    def reset(self):
+        self.last_action = 0
+        return self.env.reset()
+ 
+
+class RepeatActionEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
+
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        reward, done = 0, False
+        for t in range(4):
+            state, r, done, info = self.env.step(action)
+            if t == 2:
+                self.successive_frame[0] = state
+            elif t == 3:
+                self.successive_frame[1] = state
+            reward += r
             if done:
                 break
 
-        max_frame = self._obs_buffer.max(axis=0)
-        return max_frame, total_reward, done, info
+        state = self.successive_frame.max(axis=0)
+        return state, reward, done, info
+
+class FireResetEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+
+    def reset(self):
+        self.env.reset()
+        
+        obs, _, done, _ = self.env.step(1)
+        if done:
+            self.env.reset()
+
+        obs, _, done, _ = self.env.step(2)
+        if done:
+            self.env.reset()
+
+        return obs
+
 
 class ResizeEnv(gym.ObservationWrapper):
     def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
@@ -71,72 +109,55 @@ class ResizeEnv(gym.ObservationWrapper):
 
         return self.state
 
-class FireResetEnv(gym.Wrapper):
-    def __init__(self, env):
+
+class RawScoreEnv(gym.Wrapper):
+    def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
 
-    def reset(self):
-        self.env.reset()
-        
-        obs, _, done, _ = self.env.step(1)
-        if done:
-            self.env.reset()
+        self.steps      = 0
+        self.max_steps  = max_steps
 
-        obs, _, done, _ = self.env.step(2)
-        if done:
-            self.env.reset()
-
-        return obs
-
-class EpisodicLifeEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-        self.lives = 0
-        self.was_real_done          = True
-
-        self.raw_episodes           = 0
-        self.raw_score              = 0.0
-        self.raw_score_per_episode  = 0.0
-        self.raw_score_total        = 0.0  
+        self.raw_episodes            = 0
+        self.raw_score               = 0.0
+        self.raw_score_per_episode   = 0.0
+        self.raw_score_total         = 0.0
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
-        self.was_real_done = done
+
+        self.steps+= 1
+        if self.steps >= self.max_steps:
+            self.steps = 0
+            done = True 
 
         self.raw_score+= reward
         self.raw_score_total+= reward
-
-        if self.was_real_done:
-            k = 0.1
-
+        if done:
+            self.steps        = 0
             self.raw_episodes+= 1
-            self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score
+ 
+            k = 0.1
+            self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
             self.raw_score = 0.0
 
-
+        
         lives = self.env.unwrapped.ale.lives()
-        if lives < self.lives and lives > 0:
-            done    = True 
-            reward  = -1.0
-        if lives == 0 and self.inital_lives > 0:
-            reward = -1.0 
 
-        self.lives = lives
+        #life lost negative reward
+        if lives < self.lives:
+            self.lives  = lives
+            reward      = -1.0
+        #points reward
+        else:
+            reward = float(numpy.sign(reward))
 
-        reward = numpy.clip(reward, -1.0, 1.0)
         return obs, reward, done, info
 
-    def reset(self, **kwargs):
-        if self.was_real_done:
-            obs = self.env.reset(**kwargs) 
-        else:
-            obs, _, _, _ = self.env.step(1)
-            obs, _, _, _ = self.env.step(2)
-            obs, _, _, _ = self.env.step(0) 
-
+    def reset(self):
+        self.steps = 0
         self.lives = self.env.unwrapped.ale.lives()
-        self.inital_lives = self.env.unwrapped.ale.lives()
-        return obs
+
+        return self.env.reset()
 
 
 
@@ -163,21 +184,25 @@ class NoRewardsEnv(gym.Wrapper):
         return self.env.reset()
 
 
-def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+def WrapperAtari(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps=4500):
     env = NopOpsEnv(env)
-    env = FireResetEnv(env) 
-    env = MaxAndSkipEnv(env, frame_skipping)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = FireResetEnv(env)
+
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env)
+    env = RawScoreEnv(env, max_steps)
 
     return env
  
-def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4):
+def WrapperAtariNoRewards(env, height = 96, width = 96, frame_stacking=4, frame_skipping=4, max_steps=4500):
     env = NopOpsEnv(env)
-    env = FireResetEnv(env) 
-    env = MaxAndSkipEnv(env, frame_skipping)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    env = FireResetEnv(env)
+
     env = ResizeEnv(env, height, width, frame_stacking)
-    env = EpisodicLifeEnv(env)
+    env = RawScoreEnv(env, max_steps)
 
     env = NoRewardsEnv(env) 
 

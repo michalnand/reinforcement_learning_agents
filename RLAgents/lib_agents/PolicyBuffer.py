@@ -17,8 +17,8 @@ class PolicyBuffer:
         self.values[self.ptr]    = value.clone()
         self.actions[self.ptr]   = action.clone()
         
-        self.reward[self.ptr]       = reward.clone()
-        self.dones[self.ptr]       = (1.0*done).clone()
+        self.reward[self.ptr]    = reward.clone()
+        self.dones[self.ptr]     = (1.0*done).clone()
         
         self.ptr = self.ptr + 1 
 
