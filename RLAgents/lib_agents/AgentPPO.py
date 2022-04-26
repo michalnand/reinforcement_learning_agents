@@ -4,7 +4,7 @@ import time
 
 from .ValuesLogger      import *
 from .PolicyBuffer      import *
-
+ 
 class AgentPPO():
     def __init__(self, envs, Model, config):
         self.envs = envs
@@ -129,7 +129,7 @@ class AgentPPO():
         compute actor loss, surrogate loss
         '''
         advantages       = advantages.detach() 
-        #this normalisation have no effect
+        #this normalisation has no effect
         #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]

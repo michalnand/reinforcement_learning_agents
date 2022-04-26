@@ -133,7 +133,6 @@ class AgentPPOSND():
         rewards_int    = self._curiosity(states)
         rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
-
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
