@@ -4,6 +4,9 @@ import time
 
 from .ValuesLogger      import *
 from .PolicyBuffer      import *
+
+import cv2
+
  
 class AgentPPO():
     def __init__(self, envs, Model, config):
@@ -107,6 +110,28 @@ class AgentPPO():
                 self.optimizer.step() 
 
         self.policy_buffer.clear()   
+
+    def render(self, env_id):
+        size            = 256
+
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+
+        attention_t     = torch.tensor(states_t, requires_grad=True)
+        
+        prediction      = self.model_ppo.forward(attention_t)
+
+        loss            = -(prediction**2).mean()
+        loss.backward()
+
+        print(attention_t.grads)
+
+        state_im        = states_t[env_id][0].detach().to("cpu").numpy()
+
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
+
+        cv2.imshow("RND agent", state_im)
+        cv2.waitKey(1)
     
     def _compute_loss(self, states, logits, actions, returns, advantages):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
