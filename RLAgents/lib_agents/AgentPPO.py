@@ -112,25 +112,37 @@ class AgentPPO():
         self.policy_buffer.clear()   
 
     def render(self, env_id):
-        size            = 256
+        size            = 512
 
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
 
-        attention_t     = torch.tensor(states_t, requires_grad=True)
+        features_t      = self.model.forward_features(states_t)
+
+        features_t      = features_t.reshape((features_t.shape[0], 64, 12, 12))
+
+        attention_t     = (features_t**2).mean(dim=1)
+
+        min = torch.min(attention_t)
+        max = torch.max(attention_t)
         
-        prediction      = self.model_ppo.forward(attention_t)
+        attention_t     =(attention_t + min)/(max - min)
 
-        loss            = -(prediction**2).mean()
-        loss.backward()
+        state_im       = states_t[env_id][0].detach().to("cpu").numpy()
+        attention_im   = attention_t[env_id].detach().to("cpu").numpy()
+        
+        state_im       = numpy.array([state_im, state_im, state_im])
+        state_im       = numpy.moveaxis(state_im, 0, 2)
+        state_im       = cv2.resize(state_im, (size, size))
 
-        print(attention_t.grads)
+        attention_im   = numpy.array([attention_im*0, attention_im*0, attention_im])
+        attention_im   = numpy.moveaxis(attention_im, 0, 2)
+        attention_im   = cv2.resize(attention_im, (size, size))
 
-        state_im        = states_t[env_id][0].detach().to("cpu").numpy()
 
-        state_im        = cv2.resize(state, (size, size))
-        state_im        = numpy.clip(state_im, 0.0, 1.0)
+        image = state_im + attention_im
 
-        cv2.imshow("RND agent", state_im)
+
+        cv2.imshow("PPO agent", image)
         cv2.waitKey(1)
     
     def _compute_loss(self, states, logits, actions, returns, advantages):
