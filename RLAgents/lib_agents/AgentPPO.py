@@ -112,7 +112,8 @@ class AgentPPO():
         self.policy_buffer.clear()   
 
     def render(self, env_id):
-        size            = 512
+        width   = 2*160
+        height  = 2*192
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
 
@@ -132,11 +133,11 @@ class AgentPPO():
         
         state_im       = numpy.array([state_im, state_im, state_im])
         state_im       = numpy.moveaxis(state_im, 0, 2)
-        state_im       = cv2.resize(state_im, (size, size))
+        state_im       = cv2.resize(state_im, (width, height), cv2.INTER_CUBIC)
 
-        attention_im   = numpy.array([attention_im*0, attention_im*0, attention_im])
+        attention_im   = numpy.array([attention_im*0, attention_im*0, attention_im*0.5])
         attention_im   = numpy.moveaxis(attention_im, 0, 2)
-        attention_im   = cv2.resize(attention_im, (size, size))
+        attention_im   = cv2.resize(attention_im, (width, height), cv2.INTER_CUBIC)
 
 
         image = state_im + attention_im
