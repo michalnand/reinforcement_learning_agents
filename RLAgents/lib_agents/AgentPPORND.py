@@ -1,5 +1,7 @@
 import numpy
-import torch 
+import torch
+
+from .ValuesLogger      import * 
 from .PolicyBufferIM    import *  
 from .RunningStats      import *  
 import cv2
@@ -25,7 +27,6 @@ class AgentPPORND():
 
 
         self.normalise_state_std = config.normalise_state_std
-        self.normalise_im_std    = config.normalise_im_std
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -36,13 +37,12 @@ class AgentPPORND():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model_ppo.device, True)
+        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
         
         self.states_running_stats       = RunningStats(self.state_shape)
-        self.rewards_int_running_stats  = RunningStats((1, ))
 
         self._init_running_stats()
 
@@ -55,13 +55,13 @@ class AgentPPORND():
         self.enable_training()
         self.iterations                     = 0 
 
-        self.log_loss_rnd                   = 0.0
-        self.log_loss_actor                 = 0.0
-        self.log_loss_critic                = 0.0
+        self.values_logger                  = ValuesLogger()
 
-        self.log_internal_motivation_mean   = 0.0
-        self.log_internal_motivation_std    = 0.0
-      
+        self.values_logger.add("loss_rnd", 0.0)
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("internal_motivation_mean", 0.0)
+        self.values_logger.add("internal_motivation_std", 0.0)
 
     def enable_training(self):
         self.enabled_training = True
@@ -71,53 +71,53 @@ class AgentPPORND():
 
     def main(self): 
         #state to tensor
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
+        states        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits, values_ext, values_int  = self.model_ppo.forward(states)
         
-        states_np       = states_t.detach().to("cpu").numpy()
-        logits_np       = logits_t.detach().to("cpu").numpy()
-        values_ext_np   = values_ext_t.squeeze(1).detach().to("cpu").numpy()
-        values_int_np   = values_int_t.squeeze(1).detach().to("cpu").numpy()
-
+       
         #collect actions
-        actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits)
          
         #execute action
-        states, rewards_ext, dones, infos = self.envs.step(actions)
-
-        self.states = states.copy()
+        states_new, rewards_ext, dones, infos = self.envs.step(actions)
  
         #update long term states mean and variance
-        self.states_running_stats.update(states_np)
+        self.states_running_stats.update(states_new)
 
         #curiosity motivation
-        rewards_int    = self._curiosity(states_t)
-        self.rewards_int_running_stats.update(rewards_int)
-
-        #normalise internal motivation
-        if self.normalise_im_std:
-            rewards_int    = rewards_int/self.rewards_int_running_stats.std
-            
-        rewards_int    = numpy.clip(rewards_int, 0.0, 1.0)
+        rewards_int    = self._curiosity(states)        
+        rewards_int    = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
-            self.policy_buffer.add(states_np, logits_np, values_ext_np, values_int_np, actions, rewards_ext, rewards_int, dones)
+            states          = states.detach().to("cpu")
+            logits          = logits.detach().to("cpu")
+            values_ext      = values_ext.squeeze(1).detach().to("cpu") 
+            values_int      = values_int.squeeze(1).detach().to("cpu")
+            actions         = torch.from_numpy(actions).to("cpu")
+            rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
+            rewards_int_t   = rewards_int.detach().to("cpu")
+            dones           = torch.from_numpy(dones).to("cpu")
+
+            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.policy_buffer.is_full():
-                self.train()
+                self.train()    
+
+
+        self.states = states_new.copy()
         
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
         #collect stats
-        k = 0.02
-        self.log_internal_motivation_mean   = (1.0 - k)*self.log_internal_motivation_mean + k*rewards_int.mean()
-        self.log_internal_motivation_std    = (1.0 - k)*self.log_internal_motivation_std  + k*rewards_int.std()
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
+       
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     
@@ -130,16 +130,7 @@ class AgentPPORND():
         self.model_rnd.load(load_path + "trained/")
 
     def get_log(self): 
-        result = "" 
-
-        result+= str(round(self.log_loss_rnd, 7)) + " "
-        result+= str(round(self.log_loss_actor, 7)) + " "
-        result+= str(round(self.log_loss_critic, 7)) + " "
-
-        result+= str(round(self.log_internal_motivation_mean, 7)) + " "
-        result+= str(round(self.log_internal_motivation_std, 7)) + " "
-
-        return result 
+        return self.values_logger.get_str()
 
     
     def render(self, env_id):
@@ -190,9 +181,9 @@ class AgentPPORND():
                 loss_rnd.backward()
                 self.optimizer_rnd.step()
 
-                k = 0.02
-                self.log_loss_rnd  = (1.0 - k)*self.log_loss_rnd + k*loss_rnd.detach().to("cpu").numpy()
-
+              
+                self.values_logger.add("loss_rnd", loss_rnd.detach().to("cpu").numpy())
+        
         self.policy_buffer.clear() 
 
     
@@ -213,10 +204,9 @@ class AgentPPORND():
         loss = 0.5*loss_critic + loss_actor
 
         #store to log
-        k = 0.02
-        self.log_loss_actor     = (1.0 - k)*self.log_loss_actor  + k*loss_actor.mean().detach().to("cpu").numpy()
-        self.log_loss_critic    = (1.0 - k)*self.log_loss_critic + k*loss_critic.mean().detach().to("cpu").numpy()
-
+        self.values_logger.add("loss_actor", loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
+        
         return loss 
 
     #MSE critic loss
@@ -295,7 +285,7 @@ class AgentPPORND():
         curiosity_t = (features_target_t - features_predicted_t)**2
         curiosity_t = curiosity_t.sum(dim=1)/2.0
      
-        return curiosity_t.detach().to("cpu").numpy()
+        return curiosity_t
 
 
     #normalise mean and std for state
