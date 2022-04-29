@@ -30,7 +30,7 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.regularisation_coeff = 10**-6
+        self.regularisation_coeff = config.regularisation_coeff
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -518,7 +518,7 @@ class AgentPPOSND():
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         
-        #print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
+        print("mag = ", (features_target_t**2).mean(), (features_predicted_t**2).mean())
 
         return curiosity_t
  

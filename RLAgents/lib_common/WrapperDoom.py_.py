@@ -1,13 +1,10 @@
 import numpy
 from PIL import Image
-
-
 import gym
 from gym import spaces
 
 from vizdoom import DoomGame, ScreenResolution
 
-import time
 
 
 class GameIO(gym.Env):
@@ -33,16 +30,15 @@ class GameIO(gym.Env):
 
         done        = self.game.is_episode_finished()
         reward      = self.game.get_last_reward()/100.0
+        reward      = numpy.clip(reward, -1.0, 1.0)
+
         if done:
             state   = self.reset()
         else:
             state   = self.game.get_state().screen_buffer
         
-        
-
         return state, reward, done, None
         
-
 
     def reset(self):
         self.game.new_episode()
@@ -58,12 +54,11 @@ class ResizeEnv(gym.ObservationWrapper):
         self.frame_stacking = frame_stacking
 
         state_shape = (self.frame_stacking, self.height, self.width)
-        self.dtype = numpy.float32
 
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
-        self.state = numpy.zeros(state_shape, dtype=self.dtype)
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=numpy.float32)
+        self.state = numpy.zeros(state_shape, dtype=numpy.float32)
 
-    def observation(self, state):
+    def observation(self, state): 
         state = numpy.moveaxis(state, 0,2)
         
         img = Image.fromarray(state, 'RGB')
@@ -72,7 +67,7 @@ class ResizeEnv(gym.ObservationWrapper):
 
         for i in reversed(range(self.frame_stacking-1)):
             self.state[i+1] = self.state[i].copy()
-        self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
+        self.state[0] = (numpy.array(img).astype(numpy.float32)/255.0).copy()
 
         return self.state
 
@@ -96,4 +91,10 @@ def WrapperDoom(scenario, set_window_visible=False, set_sound_enabled = False, h
     return env
     
 def WrapperDoomRender(scenario):
-    return WrapperDoom(scenario, set_window_visible=True, set_sound_enabled=False)
+    return WrapperDoom(scenario, set_window_visible=True, set_sound_enabled=True)
+
+
+if __name__ == "__main__":
+
+    #"scenarios/basic.cfg"
+    env = WrapperDoom("vizdoom/scenarios/basic.cfg")
