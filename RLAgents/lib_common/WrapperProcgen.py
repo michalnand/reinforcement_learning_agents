@@ -1,4 +1,5 @@
 import gym
+import procgen
 import numpy
 
 from PIL import Image
