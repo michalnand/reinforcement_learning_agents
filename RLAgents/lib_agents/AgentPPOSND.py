@@ -207,7 +207,8 @@ class AgentPPOSND():
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+        #state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+        state           = states_t[env_id][0].detach().to("cpu").numpy()
 
         state_im        = cv2.resize(state, (size, size))
         state_im        = numpy.clip(state_im, 0.0, 1.0)
