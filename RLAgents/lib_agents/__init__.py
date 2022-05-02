@@ -25,6 +25,7 @@ from .AgentDQN                      import AgentDQN
 from .AgentDDPG                     import AgentDDPG
 
 from .AgentPPO                      import AgentPPO
+from .AgentPPOSymmetry              import AgentPPOSymmetry
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDGoals              import AgentPPOSNDGoals
