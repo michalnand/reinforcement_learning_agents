@@ -42,7 +42,7 @@ class AgentPPOSymmetry():
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("loss_symmetry", 0.0)
-        self.values_logger.add("symmetry_recall", 0.0)
+        self.values_logger.add("symmetry_accuracy", 0.0)
 
     def enable_training(self):
         self.enabled_training = True
@@ -233,6 +233,14 @@ class AgentPPOSymmetry():
         self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
 
 
+        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        positive       = torch.logical_and(labels > 0.5).float().sum()
+        negative       = torch.logical_and(labels < 0.5).float().sum()
+
+        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
+
+        '''
         #compute prediction recall (since True event is rare, this is better metrics)
         true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
         false_negative = torch.logical_and(labels > 0.5, probs <= 0.5).float().sum()
@@ -240,8 +248,11 @@ class AgentPPOSymmetry():
         recall = true_positive/(true_positive + false_negative + 10**-10)
          
         recall = recall.detach().to("cpu").numpy()
+        '''
 
-        self.values_logger.add("symmetry_recall", recall)
+        acc = acc.detach().to("cpu").numpy() 
+
+        self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
 
