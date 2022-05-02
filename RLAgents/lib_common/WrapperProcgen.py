@@ -58,15 +58,15 @@ class ResizeEnv(gym.ObservationWrapper):
         return self.state
 
   
-def WrapperProcgen(env_name = "procgen:procgen-climber-v0", height = 64, width = 64, frame_stacking = 4, render=False):
+def WrapperProcgen(env_name = "procgen-climber-v0", height = 64, width = 64, frame_stacking = 4, render=False):
 
-    env = gym.make(env_name, render=render)
-    env = ResizeEnv(env, height, width, frame_stacking)
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
+    env = ResizeEnv(env, height, width, frame_stacking) 
      
     return env 
 
 def WrapperProcgenVideo(env_name, height = 64, width = 64, frame_stacking = 4):
-    env = gym.make(env_name, render=render)
+    env = gym.make(env_name, render=False, start_level = 0, num_levels = 1, use_sequential_levels=True)
     env = VideoRecorder(env)    
     env = WrapperProcgen(env, height, width, frame_stacking)
 
