@@ -235,9 +235,9 @@ class AgentPPOSymmetry():
 
         true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
         true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
-        positive       = torch.logical_and(labels > 0.5).float().sum()
-        negative       = torch.logical_and(labels < 0.5).float().sum()
-
+        positive       = (labels > 0.5).float().sum()
+        negative       = (labels < 0.5).float().sum()
+ 
         acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
         '''
