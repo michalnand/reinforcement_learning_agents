@@ -232,23 +232,13 @@ class AgentPPOSymmetry():
 
         self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
 
-
+        #compute weighted accuracy
         true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
         true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
-        positive       = (labels > 0.5).float().sum()
-        negative       = (labels < 0.5).float().sum()
+        positive       = (labels > 0.5).float().sum() + 10**-12
+        negative       = (labels < 0.5).float().sum() + 10**-12
  
         acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        '''
-        #compute prediction recall (since True event is rare, this is better metrics)
-        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
-        false_negative = torch.logical_and(labels > 0.5, probs <= 0.5).float().sum()
-
-        recall = true_positive/(true_positive + false_negative + 10**-10)
-         
-        recall = recall.detach().to("cpu").numpy()
-        '''
 
         acc = acc.detach().to("cpu").numpy() 
 
