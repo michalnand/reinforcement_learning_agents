@@ -112,8 +112,24 @@ class AgentPPO():
         self.policy_buffer.clear()   
 
     def render(self, env_id):
-        width   = 2*160
-        height  = 2*192
+        width   = 256
+        height  = 256
+        
+
+        state_im       = numpy.array([self.states[env_id][2], self.states[env_id][1], self.states[env_id][0]])
+        state_im       = numpy.moveaxis(state_im, 0, 2)
+        state_im       = cv2.resize(state_im, (width, height), cv2.INTER_CUBIC)
+
+        state_im   = cv2.resize(state_im, (width, height), cv2.INTER_CUBIC)
+
+        cv2.imshow("PPO agent", state_im)
+        cv2.waitKey(1)
+
+
+    '''
+    def render(self, env_id):
+        width   = 256
+        height  = 256
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
 
@@ -145,6 +161,7 @@ class AgentPPO():
 
         cv2.imshow("PPO agent", image)
         cv2.waitKey(1)
+    '''
     
     def _compute_loss(self, states, logits, actions, returns, advantages):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()

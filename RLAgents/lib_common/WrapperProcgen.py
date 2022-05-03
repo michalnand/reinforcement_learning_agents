@@ -34,29 +34,24 @@ class VideoRecorder(gym.Wrapper):
         return self.env.reset()
 
 
-class ResizeEnv(gym.ObservationWrapper):
-    def __init__(self, env, height = 64, width = 64, frame_stacking = 4):
-        super(ResizeEnv, self).__init__(env)
-        self.height = height
-        self.width  = width
-        self.frame_stacking = frame_stacking
-
-        state_shape = (self.frame_stacking, self.height, self.width)
+class StateEnv(gym.ObservationWrapper):
+    def __init__(self, env, frame_stacking):
+        super(StateEnv, self).__init__(env)
+        state_shape = (3*frame_stacking, 64, 64)
         self.dtype  = numpy.float32
 
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
         self.state = numpy.zeros(state_shape, dtype=self.dtype)
 
     def observation(self, state):
-        img = Image.fromarray(state)
-        img = img.convert('L')
-        img = img.resize((self.height, self.width))
 
-        self.state    = numpy.roll(self.state, 1, axis=0)
-        self.state[0] = numpy.array(img).astype(self.dtype)/255.0
+        state_new = numpy.moveaxis(state, 2, 0)
+        state_new = numpy.array(state_new).astype(self.dtype)/255.0
 
+        self.state    = numpy.roll(self.state, 3, axis=0)
+        self.state[0:3] = state_new[0:3]
+        
         return self.state
-
 
 class MaxStepsEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -78,42 +73,20 @@ class MaxStepsEnv(gym.Wrapper):
         self.steps = 0
         return self.env.reset()
 
-class RewardEnv(gym.Wrapper):
-    def __init__(self, env):
-        super(RewardEnv, self).__init__(env)
 
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
 
-        if done:
-            reward = -1.0
-
-        return state, reward, done, info
-        
-    def reset(self):
-        return self.env.reset()
-
-def WrapperProcgen(env_name = "procgen-climber-v0", height = 64, width = 64, frame_stacking = 4, max_steps = 4500, render=False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, max_steps = 4500, render=False):
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
-    env = ResizeEnv(env, height, width, frame_stacking) 
+    env = StateEnv(env, frame_stacking) 
     env = MaxStepsEnv(env, max_steps)
       
     return env 
 
-def WrapperProcgenVideo(env_name, height = 64, width = 64, frame_stacking = 4, max_steps = 4500):
-    env = gym.make(env_name, render=False, start_level = 0, num_levels = 1, use_sequential_levels=True)
-    #env = gym.make(env_name, render=False, start_level = 0, num_levels = 0, use_sequential_levels=False)
 
-    env = VideoRecorder(env)    
-    env = WrapperProcgen(env, height, width, frame_stacking)
-    env = MaxStepsEnv(env, max_steps)
-
-    return env
-
-def WrapperProcgenRender(env_name, height = 64, width = 64, frame_stacking = 4, max_steps = 4500):
-    env = WrapperProcgen(env_name, height, width, frame_stacking, max_steps, True)
+def WrapperProcgenRender(env_name, frame_stacking = 2, max_steps = 4500):
+    env = WrapperProcgen(env_name, frame_stacking, max_steps, True)
 
     return env
 
