@@ -99,7 +99,6 @@ def WrapperProcgen(env_name = "procgen-climber-v0", height = 64, width = 64, fra
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     env = ResizeEnv(env, height, width, frame_stacking) 
     env = MaxStepsEnv(env, max_steps)
-    env = RewardEnv(env)
       
     return env 
 
@@ -110,7 +109,6 @@ def WrapperProcgenVideo(env_name, height = 64, width = 64, frame_stacking = 4, m
     env = VideoRecorder(env)    
     env = WrapperProcgen(env, height, width, frame_stacking)
     env = MaxStepsEnv(env, max_steps)
-    env = RewardEnv(env)
 
     return env
 
