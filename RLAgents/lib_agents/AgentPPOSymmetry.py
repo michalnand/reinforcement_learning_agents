@@ -200,7 +200,7 @@ class AgentPPOSymmetry():
 
         return loss
 
-    
+    '''
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
@@ -238,9 +238,8 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-
-
     '''
+
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
@@ -267,7 +266,6 @@ class AgentPPOSymmetry():
         loss_entropy = loss_entropy.mean()
 
         
-
         loss = loss_bce + loss_entropy
 
         self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
@@ -287,4 +285,4 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    '''
+    
