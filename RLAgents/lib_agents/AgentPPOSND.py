@@ -100,7 +100,7 @@ class AgentPPOSND():
 
         if self.symmetry_loss:
             self.values_logger.add("loss_symmetry", 0.0)
-            self.values_logger.add("symmetry_recall", 0.0)
+            self.values_logger.add("symmetry_accuracy", 0.0)
 
     
         #self.vis_features = []
@@ -243,11 +243,10 @@ class AgentPPOSND():
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
 
-                    loss_symmetry = self._loss_symmetry(self.model_ppo, states_, states_next_, actions_, False, False)
+                    loss_symmetry = self._compute_loss_symmetry(self.model_ppo, states_, states_next_, actions_)
                     loss_ppo+= loss_symmetry
 
-                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
-               
+
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
@@ -462,54 +461,50 @@ class AgentPPOSND():
         return loss
 
 
-    def _loss_symmetry(self, model, states_now, states_next, actions, normalise, augmentation):
-        xa = states_now.clone()
-        xb = states_next.clone() 
+    def _compute_loss_symmetry(self, model, states, states_next, actions):
 
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa)
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
-
-        z = model.forward_features(xa, xb)
+        z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
         logits      = torch.matmul(z, z.t())
+
         logits      = torch.flatten(logits)
         probs       = torch.sigmoid(logits)
 
-        #true labels are where are same actions
+        #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
 
-        #binary classification loss, weighted due class inbalance
-        w           = 1.0/self.actions_count
-        loss_bce    = -1.0*(w*(1.0 - labels)*torch.log(1.0 - probs) + (1.0 - w)*labels*torch.log(probs))
-        loss_bce    = 0.01*loss_bce.mean()
 
-        #magnitude regularisation
-        loss_mag    = self.regularisation_coeff*(z**2).mean()
+        #similar features for transitions caused by same action
+        #conservation of rules - the rules are the same, no matters the state
+        loss_bce    = -( labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
+        loss_bce    = loss_bce.mean() 
 
-        loss        = loss_bce + loss_mag
+        #entropy regularisation, maxmise entropy
+        loss_entropy = self.entropy_beta2*probs*torch.log(probs)
+        loss_entropy = loss_entropy.mean()
 
-        #compute prediction recall (since True event is rare, this is better metrics)
+        
+        loss = loss_bce + loss_entropy
+
+        self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
+
+        #compute weighted accuracy
         true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
-        false_negative = torch.logical_and(labels > 0.5, probs <= 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        positive       = (labels > 0.5).float().sum() + 10**-12
+        negative       = (labels < 0.5).float().sum() + 10**-12
+ 
+        w              = 1.0 - positive/(positive + negative)
+ 
+        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
-        recall = true_positive/(true_positive + false_negative + 10**-10)
-         
-        recall = recall.detach().to("cpu").numpy()
+        self.values_logger.add("symmetry_accuracy", acc.detach().to("cpu").numpy() )
 
-        self.values_logger.add("symmetry_recall", recall)
-
-        return loss
-
+        return loss 
+    
     #compute internal motivation
     def _curiosity(self, states):
         states_norm            = self._norm_state(states)
