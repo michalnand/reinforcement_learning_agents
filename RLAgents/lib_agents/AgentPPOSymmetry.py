@@ -210,10 +210,11 @@ class AgentPPOSymmetry():
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
-        labels      = 1.0 - (actions_ == actions_.t()).float()
+        labels      = (actions_ == actions_.t()).float()
 
         #mse loss
-        loss_symmetry = ((labels - distances)**2).mean()
+        loss_symmetry = ((1.0 - labels) - distances)**2
+        loss_symmetry = loss_symmetry.mean()
 
         #magnitude regularisation
         loss_mag      = (10**-4)*(z**2).mean()
@@ -223,8 +224,8 @@ class AgentPPOSymmetry():
         self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, distances > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, distances < 0.5).float().sum()
+        true_positive  = torch.logical_and(labels > 0.5, distances < 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, distances > 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12
  
