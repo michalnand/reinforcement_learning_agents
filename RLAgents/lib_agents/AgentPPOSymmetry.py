@@ -210,7 +210,7 @@ class AgentPPOSymmetry():
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
-        labels      = (actions_ == actions_.t()).float()
+        labels      = 1.0 - (actions_ == actions_.t()).float()
 
         #mse loss
         loss_symmetry = ((labels - distances)**2).mean()
