@@ -259,6 +259,7 @@ class AgentPPOSymmetry():
         w           = 1.0 - 1.0/self.actions_count
         #loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
         loss_bce    = (labels - probs)**2 
+        print(">>>> ", labels.shape, probs.shape, loss_bce.shape)
         loss_bce    = loss_bce.mean()  
 
         #entropy regularisation, maxmise entropy
