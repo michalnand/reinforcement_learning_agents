@@ -249,6 +249,8 @@ class AgentPPOSymmetry():
 
         #each by each similarity, dot product and sigmoid to obtain probs
         logits      = torch.matmul(z, z.t())
+
+        print(logits)
         probs       = torch.sigmoid(logits)
 
         #true labels are where are the same actions
