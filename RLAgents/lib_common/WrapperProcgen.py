@@ -48,8 +48,11 @@ class StateEnv(gym.ObservationWrapper):
         state_new = numpy.moveaxis(state, 2, 0)
         state_new = numpy.array(state_new).astype(self.dtype)/255.0
 
-        self.state    = numpy.roll(self.state, 3, axis=0)
-        self.state[0:3] = state_new[0:3]
+        if self.frame_stacking == 1:
+            self.state = state_new
+        else:
+            self.state    = numpy.roll(self.state, 3, axis=0)
+            self.state[0:3] = state_new[0:3]
         
         return self.state
 
@@ -75,7 +78,7 @@ class MaxStepsEnv(gym.Wrapper):
 
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, max_steps = 4500, render=False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, max_steps = 4500, render=False):
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
@@ -85,7 +88,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, max_step
     return env 
 
 
-def WrapperProcgenRender(env_name, frame_stacking = 2, max_steps = 4500):
+def WrapperProcgenRender(env_name, frame_stacking = 1, max_steps = 4500):
     env = WrapperProcgen(env_name, frame_stacking, max_steps, True)
 
     return env
