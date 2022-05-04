@@ -37,7 +37,8 @@ class VideoRecorder(gym.Wrapper):
 class StateEnv(gym.ObservationWrapper):
     def __init__(self, env, frame_stacking):
         super(StateEnv, self).__init__(env)
-        state_shape = (3*frame_stacking, 64, 64)
+        self.frame_stacking = frame_stacking
+        state_shape = (3*self.frame_stacking, 64, 64)
         self.dtype  = numpy.float32
 
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
