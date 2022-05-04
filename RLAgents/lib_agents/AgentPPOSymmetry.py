@@ -259,7 +259,8 @@ class AgentPPOSymmetry():
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
         w           = 1.0 - 1.0/self.actions_count
-        loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
+        #loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
+        loss_bce    = (labels - probs)**2
         loss_bce    = loss_bce.mean()  
 
         #entropy regularisation, maxmise entropy
