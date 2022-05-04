@@ -208,8 +208,6 @@ class AgentPPOSymmetry():
         #each by each distance
         distance   = torch.cdist(z, z)
 
-        print(distance)
-
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
