@@ -255,12 +255,15 @@ class AgentPPOSymmetry():
         labels      = (actions_ == actions_.t()).float()
         labels      = torch.flatten(labels)
 
-
+        '''
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
         w           = 1.0 - 1.0/self.actions_count
         loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
         loss_bce    = loss_bce.mean()  
+        '''
+
+        loss_bce = (z**2).mean()
 
         #entropy regularisation, maxmise entropy
         loss_entropy = self.entropy_beta2*probs*torch.log(probs)
