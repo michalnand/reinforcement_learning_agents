@@ -248,7 +248,7 @@ class AgentPPOSymmetry():
         z = self.model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())
+        logits      = torch.matmul(z, z.t())/z.shape[0]
 
         print(logits)
         probs       = torch.sigmoid(logits)
