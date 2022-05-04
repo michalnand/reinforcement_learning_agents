@@ -244,29 +244,27 @@ class AgentPPOSymmetry():
     '''
 
     def _compute_loss_symmetry(self, states, states_next, actions):
-
         z = self.model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())/z.shape[0]
+        logits      = torch.matmul(z, z.t())
         probs       = torch.sigmoid(logits)
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
 
-        
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
-        w           = 1.0 - 1.0/self.actions_count
-        loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
+        #w           = 1.0 - 1.0/self.actions_count
+        #loss_bce    = -( w*labels*torch.log(probs) + (1.0 - w)*(1.0 - labels)*torch.log(1.0 - probs) )
+        loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
         loss_bce    = loss_bce.mean()  
 
         #entropy regularisation, maxmise entropy
         loss_entropy = self.entropy_beta2*probs*torch.log(probs)
         loss_entropy = loss_entropy.mean()
 
-        
         loss = loss_bce + loss_entropy
 
         self.values_logger.add("loss_symmetry",  loss_bce.detach().to("cpu").numpy())
