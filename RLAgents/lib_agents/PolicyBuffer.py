@@ -65,7 +65,11 @@ class PolicyBuffer:
 
     def sample_batch(self, batch_size, device = "cpu"):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
-        indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
+        indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size - 1)
+
+        print(indices)
+        print(indices_next)
+        print("\n\n\n")
 
         states          = torch.index_select(self.states, dim=0, index=indices).to(device)
         states_next     = torch.index_select(self.states, dim=0, index=indices_next).to(device)

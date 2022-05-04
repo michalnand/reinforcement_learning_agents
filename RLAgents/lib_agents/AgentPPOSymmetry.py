@@ -253,7 +253,7 @@ class AgentPPOSymmetry():
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
-        labels      = (actions_.t() == actions_).float()
+        labels      = (actions_ == actions_.t()).float()
 
         
         #similar features for transitions caused by same action
