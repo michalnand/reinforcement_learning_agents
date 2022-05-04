@@ -263,14 +263,14 @@ class AgentPPOSymmetry():
         loss_bce    = loss_bce.mean()  
         '''
 
-        loss_bce = (z**2).mean()
+        loss_bce = (z**2).sum()
 
         #entropy regularisation, maxmise entropy
         loss_entropy = self.entropy_beta2*probs*torch.log(probs)
         loss_entropy = loss_entropy.mean()
 
         
-        loss = loss_bce + loss_entropy
+        loss = loss_bce #+ loss_entropy
 
         self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
 
