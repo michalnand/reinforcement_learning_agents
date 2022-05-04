@@ -200,7 +200,7 @@ class AgentPPOSymmetry():
 
         return loss
 
-    
+    '''
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
@@ -240,8 +240,8 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-
     '''
+
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
@@ -249,13 +249,15 @@ class AgentPPOSymmetry():
         #each by each similarity, dot product and sigmoid to obtain probs
         logits      = torch.matmul(z, z.t())
 
-        logits      = torch.flatten(logits)
+        print(logits)
         probs       = torch.sigmoid(logits)
+        print(probs)
+
+        print("\n\n\n")
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
-        labels      = torch.flatten(labels)
 
         
         #similar features for transitions caused by same action
@@ -288,4 +290,4 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    '''
+    
