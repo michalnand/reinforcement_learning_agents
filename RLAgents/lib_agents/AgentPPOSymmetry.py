@@ -200,22 +200,22 @@ class AgentPPOSymmetry():
 
         return loss
 
-    '''
+    
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
 
-        #each by each similarity
-        similarity   = 1.0 - torch.sigmoid(torch.cdist(z, z))
+        #each by each distance
+        distance   = torch.cdist(z, z)
 
-        print(similarity)
+        print(distance)
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
 
         #mse loss
-        loss_symmetry = (labels - similarity)**2
+        loss_symmetry = ((1.0 - labels) - distance)**2
         loss_symmetry = loss_symmetry.mean() 
 
         #magnitude regularisation
@@ -226,8 +226,8 @@ class AgentPPOSymmetry():
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, similarity > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, similarity < 0.5).float().sum()
+        true_positive  = torch.logical_and(labels > 0.5, distance < 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, distance > 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12
  
@@ -240,14 +240,15 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    '''
+    
 
+    '''
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())/z.shape[0]
+        logits      = torch.matmul(z, z.t())
         probs       = torch.sigmoid(logits)
 
         #true labels are where are the same actions
@@ -285,4 +286,4 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    
+    '''
