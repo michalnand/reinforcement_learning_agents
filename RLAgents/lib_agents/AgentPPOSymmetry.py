@@ -212,9 +212,12 @@ class AgentPPOSymmetry():
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
 
-        #mse loss
-        loss_symmetry = ((1.0 - labels) - distance)**2
-        loss_symmetry = loss_symmetry.mean() 
+        #weighted mse loss
+        w           = 1.0 - 1.0/self.actions_count
+
+        loss_positive = ((labels == True)*(0.0  - distance)**2).mean()
+        loss_negative = ((labels == False)*(1.0 - distance)**2).mean()
+        loss_symmetry = w*loss_positive + (1.0 - w)*loss_negative
 
         #magnitude regularisation
         loss_mag      = (10**-4)*(z**2).mean()
