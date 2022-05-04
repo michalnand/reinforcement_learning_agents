@@ -208,6 +208,8 @@ class AgentPPOSymmetry():
         #each by each similarity
         similarity   = 1.0 - torch.sigmoid(torch.cdist(z, z))
 
+        print(similarity)
+
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
