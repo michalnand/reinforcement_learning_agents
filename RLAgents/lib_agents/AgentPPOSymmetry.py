@@ -221,7 +221,7 @@ class AgentPPOSymmetry():
 
         loss = loss_symmetry + loss_mag
 
-        self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
+        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
         true_positive  = torch.logical_and(labels > 0.5, distances < 0.5).float().sum()
