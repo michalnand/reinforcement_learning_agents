@@ -254,7 +254,7 @@ class AgentPPOSymmetry():
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
 
-        print(labels)
+        print(labels.sum(dim=1))
 
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
