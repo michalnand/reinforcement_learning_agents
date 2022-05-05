@@ -228,7 +228,7 @@ class AgentPPOSymmetry():
         self.values_logger.add("loss_symmetry",  loss_contrastive.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        similarity     = 1.0 - distances
+        similarity     = torch.clamp(1.0 - distances, 0.0)
         true_positive  = torch.logical_and(labels > 0.5, similarity > 0.5).float().sum()
         true_negative  = torch.logical_and(labels < 0.5, similarity < 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
