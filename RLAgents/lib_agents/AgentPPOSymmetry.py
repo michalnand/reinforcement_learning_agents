@@ -254,6 +254,8 @@ class AgentPPOSymmetry():
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
 
+        print(labels)
+
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
         loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
