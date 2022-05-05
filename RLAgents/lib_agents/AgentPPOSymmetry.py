@@ -245,8 +245,6 @@ class AgentPPOSymmetry():
 
     def _compute_loss_symmetry(self, states, states_next, actions):
 
-        print(">>> ", states.shape, states_next.shape, actions.shape)
-
         z = self.model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
@@ -260,6 +258,9 @@ class AgentPPOSymmetry():
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
         loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
+
+        print(">>>> ", z.shape, probs.shape, z.shape, loss_bce.shape)
+        
         loss_bce    = loss_bce.mean()   
 
         #entropy regularisation, maxmise entropy
