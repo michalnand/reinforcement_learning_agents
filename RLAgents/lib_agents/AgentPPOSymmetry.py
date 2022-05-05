@@ -259,8 +259,8 @@ class AgentPPOSymmetry():
         #conservation of rules - the rules are the same, no matters the state
         loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
 
-        print(">>>> ", z.shape, probs.shape, z.shape, loss_bce.shape)
-        
+        print(">>>> ", z.shape, probs.shape, labels.shape, loss_bce.shape)
+
         loss_bce    = loss_bce.mean()   
 
         #entropy regularisation, maxmise entropy
