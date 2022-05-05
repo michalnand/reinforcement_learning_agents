@@ -200,35 +200,37 @@ class AgentPPOSymmetry():
 
         return loss
 
-    '''
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
 
-        #each by each distance
-        distance   = torch.cdist(z, z)
+        #each by each similarity, dot product and sigmoid to obtain probs
+        distances   = torch.cdist(z, z)
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
+        target_dist = 1.0 - labels
 
-        #weighted mse loss
-        w           = 1.0 - 1.0/self.actions_count
+        #similar features for transitions caused by same action
+        #conservation of rules - the rules are the same, no matters the state
+        loss_contrastive = target_dist*(torch.clamp(1.0 - distances, 0.0)**2)
+        loss_contrastive+= (1.0 - target_dist)*(distances**2)
 
-        loss_positive = ((labels == True)*(0.0  - distance)**2).mean()
-        loss_negative = ((labels == False)*(1.0 - distance)**2).mean()
-        loss_symmetry = w*loss_positive + (1.0 - w)*loss_negative
+        loss_contrastive    = loss_contrastive.mean()   
 
         #magnitude regularisation
-        loss_mag      = (10**-4)*(z**2).mean()
+        loss_mag = self.entropy_beta2*(z**2)
+        loss_mag = loss_mag.mean() 
 
-        loss = loss_symmetry + loss_mag
+        loss = loss_contrastive + loss_mag
 
-        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
+        self.values_logger.add("loss_symmetry",  loss_contrastive.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, distance < 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, distance > 0.5).float().sum()
+        similarity     = 1.0 - distances
+        true_positive  = torch.logical_and(labels > 0.5, similarity > 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, similarity < 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12
  
@@ -241,8 +243,9 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    '''
 
+
+    '''
     def _compute_loss_symmetry(self, states, states_next, actions):
 
         z = self.model.forward_features(states, states_next)
@@ -258,8 +261,6 @@ class AgentPPOSymmetry():
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
         loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
-
-        print(">>>> ", z.shape, probs.shape, labels.shape, loss_bce.shape)
 
         loss_bce    = loss_bce.mean()   
 
@@ -286,4 +287,4 @@ class AgentPPOSymmetry():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-
+    '''
