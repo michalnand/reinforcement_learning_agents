@@ -217,7 +217,7 @@ class AgentPPOSymmetry():
         #label = 0, the distance should be big (1)
         loss_contrastive = (1.0 - labels)*((1.0 - distances)**2)
 
-        #label = 1, the distance should be low
+        #label = 1, the distance should be low (0)
         loss_contrastive+= labels*(distances**2)
 
         loss_contrastive    = loss_contrastive.mean()   
