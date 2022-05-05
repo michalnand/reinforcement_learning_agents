@@ -210,12 +210,15 @@ class AgentPPOSymmetry():
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float()
-        target_dist = 1.0 - labels
 
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
-        loss_contrastive = target_dist*(torch.clamp(1.0 - distances, 0.0)**2)
-        loss_contrastive+= (1.0 - target_dist)*(distances**2)
+        
+        #label = 0, the distance should be big (1)
+        loss_contrastive = (1.0 - labels)*((1.0 - distances)**2)
+
+        #label = 1, the distance should be low
+        loss_contrastive+= labels*(distances**2)
 
         loss_contrastive    = loss_contrastive.mean()   
 
