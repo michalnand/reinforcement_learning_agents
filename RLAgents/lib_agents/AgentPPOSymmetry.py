@@ -244,6 +244,9 @@ class AgentPPOSymmetry():
     '''
 
     def _compute_loss_symmetry(self, states, states_next, actions):
+
+        print(">>> ", states.shape, states_next.shape, actions.shape)
+
         z = self.model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
