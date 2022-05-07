@@ -119,38 +119,16 @@ class AgentPPOSymmetry():
         self.policy_buffer.clear()   
 
     def render(self, env_id):
-        width   = 2*160
-        height  = 2*192
+        size            = 256
 
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+        state           = self.states[env_id]
 
-        features_t      = self.model.forward_features(states_t)
+        state           = numpy.moveaxis(state, 0, 2)
 
-        features_t      = features_t.reshape((features_t.shape[0], 64, 12, 12))
+        state_im        = cv2.resize(state, (size, size))
+        state_im        = numpy.clip(state_im, 0.0, 1.0)
 
-        attention_t     = (features_t**2).mean(dim=1)
-
-        min = torch.min(attention_t)
-        max = torch.max(attention_t)
-        
-        attention_t     =(attention_t + min)/(max - min)
-
-        state_im       = states_t[env_id][0].detach().to("cpu").numpy()
-        attention_im   = attention_t[env_id].detach().to("cpu").numpy()
-        
-        state_im       = numpy.array([state_im, state_im, state_im])
-        state_im       = numpy.moveaxis(state_im, 0, 2)
-        state_im       = cv2.resize(state_im, (width, height), cv2.INTER_CUBIC)
-
-        attention_im   = numpy.array([attention_im*0, attention_im*0, attention_im*0.5])
-        attention_im   = numpy.moveaxis(attention_im, 0, 2)
-        attention_im   = cv2.resize(attention_im, (width, height), cv2.INTER_CUBIC)
-
-
-        image = state_im + attention_im
-
-
-        cv2.imshow("PPO agent", image)
+        cv2.imshow("PPO agent", state_im)
         cv2.waitKey(1)
     
     def _compute_loss_ppo(self, states, logits, actions, returns, advantages):
