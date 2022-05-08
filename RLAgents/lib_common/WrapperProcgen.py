@@ -58,12 +58,19 @@ class RewardNormalise(gym.Wrapper):
         self.mean       = 0.0
         self.var        = 0.0
 
+        self.raw_score              = 0.0
         self.raw_score_per_episode  = 0.0
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
 
-        self.raw_score_per_episode+= reward
+        self.raw_score+= reward
+
+        if done:
+            k = 0.1
+            self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
+            self.raw_score = 0.0
+
 
         self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward 
         self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.mean)**2)
@@ -75,7 +82,6 @@ class RewardNormalise(gym.Wrapper):
         return obs, reward_norm, done, info
 
     def reset(self):
-        self.raw_score_per_episode = 0.0
         return self.env.reset()
 
 
