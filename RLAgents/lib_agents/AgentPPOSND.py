@@ -467,10 +467,6 @@ class AgentPPOSND():
         actions_target = torch.zeros((actions.shape[0], self.actions_count)).to(actions.device)
         actions_target[range(actions.shape[0]), actions] = 1.0
 
-        print("\n\n\n")
-        print(">>> ", actions_target)
-        print(">>> ", actions_target.shape, actions_pred.shape)
-        print("\n\n\n")
 
         loss = ((actions_target - actions_pred)**2).mean()
 
