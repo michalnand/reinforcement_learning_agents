@@ -28,38 +28,6 @@ class ExtractState(gym.Wrapper):
 
         return s
 
-
-class RewardNormalise(gym.Wrapper):
-    def __init__(self, env, gamma = 0.99, clip = 10.0):
-        super(RewardNormalise, self).__init__(env)
-
-        self.gamma      = gamma
-        self.clip       = clip
-        self.mean       = 0.0
-        self.var        = 0.0
-
-        self.raw_score_per_episode  = 0.0
-
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-
-        self.raw_score_per_episode+= numpy.random.rand() #reward
-
-        self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
-        self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
-
-        eps = 10**-8 
-
-        reward_norm = numpy.clip(reward/numpy.sqrt(self.var + eps) , -self.clip, self.clip)
-        
-        return obs, reward_norm, done, info
-
-    def reset(self):
-        self.raw_score_per_episode = 0.0
-        return self.env.reset()
-
-
-        
 class MaxStepsEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
         super(MaxStepsEnv, self).__init__(env)
@@ -79,15 +47,51 @@ class MaxStepsEnv(gym.Wrapper):
     def reset(self):
         self.steps = 0
         return self.env.reset()
+        
+
+class RewardNormalise(gym.Wrapper):
+    def __init__(self, env, gamma = 0.99, clip = 10.0):
+        super(RewardNormalise, self).__init__(env)
+
+        self.gamma      = gamma
+        self.clip       = clip
+        self.mean       = 0.0
+        self.var        = 0.0
+
+        self.raw_score_per_episode  = 0.0
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+
+        self.raw_score_per_episode+= reward
+
+        self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
+        self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
+
+        print(">>> ", self.gamma, self.mean, self.var)
+
+        eps = 10**-8 
+
+        reward_norm = numpy.clip(reward/numpy.sqrt(self.var + eps) , -self.clip, self.clip)
+        
+        return obs, reward_norm, done, info
+
+    def reset(self):
+        self.raw_score_per_episode = 0.0
+        return self.env.reset()
+
+
+        
+
 
  
 
 def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, render = False):
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     env = ExtractState(env) 
-    env = RewardNormalise(env)
     env = MaxStepsEnv(env, max_steps)
-    
+    env = RewardNormalise(env)
+
     return env 
 
 def WrapperProcgenRender(env_name = "procgen:procgen-climber-v0", max_steps = 4500):
