@@ -464,7 +464,7 @@ class AgentPPOSND():
 
         actions_pred   = model.forward_features(states, states_next)
 
-        actions_target = torch.zeros((actions.shape[0], self.act)).to(actions.device)
+        actions_target = torch.zeros((actions.shape[0], self.actions_count)).to(actions.device)
         actions_target[range(actions.shape[0]), actions] = 1.0
 
         print("\n\n\n")
