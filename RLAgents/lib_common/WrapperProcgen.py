@@ -47,7 +47,7 @@ class MaxStepsEnv(gym.Wrapper):
     def reset(self):
         self.steps = 0
         return self.env.reset()
-        
+
 
 class RewardNormalise(gym.Wrapper):
     def __init__(self, env, gamma = 0.99, clip = 10.0):
@@ -68,7 +68,7 @@ class RewardNormalise(gym.Wrapper):
         self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
         self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
 
-        print(">>> ", self.gamma, self.mean, self.var)
+        print(">>> ", self.gamma, reward, self.mean, self.var)
 
         eps = 10**-8 
 
