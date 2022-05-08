@@ -460,7 +460,7 @@ class AgentPPOSND():
 
         return loss
 
-     def _compute_loss_symmetry(self, model, states, states_next, actions):
+    def _compute_loss_symmetry(self, model, states, states_next, actions):
 
         actions_pred   = model.forward_features(states, states_next)
 
