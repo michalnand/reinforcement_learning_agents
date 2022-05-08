@@ -72,9 +72,6 @@ class RewardNormalise(gym.Wrapper):
 
         reward_norm = numpy.clip(reward/numpy.sqrt(self.var + eps) , -self.clip, self.clip)
 
-        if reward != 0:
-            print(">>> ", reward, self.mean, self.var, reward_norm)
-
         return obs, reward_norm, done, info
 
     def reset(self):
