@@ -65,8 +65,8 @@ class RewardNormalise(gym.Wrapper):
 
         self.raw_score_per_episode+= reward
 
-        self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
-        self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
+        self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward 
+        self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.mean)**2)
 
         print(">>> ", self.gamma, reward, self.mean, self.var)
 
