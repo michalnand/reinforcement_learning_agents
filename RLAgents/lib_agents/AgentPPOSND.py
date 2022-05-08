@@ -474,9 +474,7 @@ class AgentPPOSND():
 
 
         hit     = (torch.argmax(actions_target, dim=1) == torch.argmax(actions_pred, dim=1)).float().sum()
-        miss    = (torch.argmax(actions_target, dim=1) != torch.argmax(actions_pred, dim=1)).float().sum()
-
-        acc     = hit/(hit + miss)
+        acc     = hit/actions.shape[0]
 
         self.values_logger.add("symmetry_accuracy", acc.detach().to("cpu").numpy())
 
