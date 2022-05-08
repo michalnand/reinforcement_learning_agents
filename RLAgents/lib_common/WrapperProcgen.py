@@ -2,61 +2,64 @@ import gym
 import procgen
 import numpy
 
-from PIL import Image
-import cv2
 
-class VideoRecorder(gym.Wrapper):
-    def __init__(self, env, file_name = "video.avi"):
-        super(VideoRecorder, self).__init__(env)
+class ExtractState(gym.Wrapper):
+    def __init__(self, env):
+        super(ExtractState, self).__init__(env)
 
-        self.height  = 2*env.observation_space.shape[0]
-        self.width   = 2*env.observation_space.shape[1]
-
-        fourcc = cv2.VideoWriter_fourcc(*'XVID') 
-        self.writer = cv2.VideoWriter(file_name, fourcc, 25.0, (self.width, self.height)) 
-        self.frame_counter = 0
+        state_shape = (3, 64, 64)
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=numpy.float32)
 
     def step(self, action):
-        state, reward, done, info = self.env.step(action)
-        
-        if self.frame_counter%4 == 0:
-            im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
+        obs, reward, done, info = self.env.step(action)
+        obs = self._get_state(obs)
 
-            resized = cv2.resize(im_bgr, (self.width, self.height), interpolation = cv2.INTER_AREA)
-
-            self.writer.write(resized)
-
-        self.frame_counter+= 1
-
-        return state, reward, done, info
+        return obs, reward, done, info
 
     def reset(self):
+        s = self.env.reset()
+        s = self._get_state(s)
+
+        return s
+
+    def _get_state(self, s):
+        s = numpy.array(s, dtype=numpy.float32)/255.0
+        s = numpy.moveaxis(s, 2, 0)
+
+        return s
+
+
+class RewardNormalise(gym.Wrapper):
+    def __init__(self, env, gamma = 0.99, clip = 10.0):
+        super(RewardNormalise, self).__init__(env)
+
+        self.gamma      = gamma
+        self.clip       = clip
+        self.mean       = 0.0
+        self.var        = 0.0
+
+        self.raw_score_per_episode  = 0.0
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+
+        self.raw_score_per_episode+= reward
+
+        self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
+        self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
+
+        eps = 10**-8 
+
+        reward_norm = numpy.clip(reward/numpy.sqrt(self.var + eps) , -self.clip, self.clip)
+        
+        return obs, reward_norm, done, info
+
+    def reset(self):
+        self.raw_score_per_episode = 0.0
         return self.env.reset()
 
 
-class StateEnv(gym.ObservationWrapper):
-    def __init__(self, env, frame_stacking):
-        super(StateEnv, self).__init__(env)
-        self.frame_stacking = frame_stacking
-        state_shape = (3*self.frame_stacking, 64, 64)
-        self.dtype  = numpy.float32
-
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
-        self.state = numpy.zeros(state_shape, dtype=self.dtype)
-
-    def observation(self, state):
-
-        state_new = numpy.moveaxis(state, 2, 0)
-        state_new = numpy.array(state_new).astype(self.dtype)/255.0
-
-        if self.frame_stacking == 1:
-            self.state = state_new
-        else:
-            self.state    = numpy.roll(self.state, 3, axis=0)
-            self.state[0:3] = state_new[0:3]
         
-        return self.state
-
 class MaxStepsEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
         super(MaxStepsEnv, self).__init__(env)
@@ -79,18 +82,13 @@ class MaxStepsEnv(gym.Wrapper):
 
  
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, max_steps = 4500, render=False):
-  
+def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, render = False):
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=True)
-    env = StateEnv(env, frame_stacking)  
-    env = MaxStepsEnv(env, max_steps) 
-      
+    env = ExtractState(env) 
+    env = RewardNormalise(env)
+    env = MaxStepsEnv(env, max_steps)
+    
     return env 
 
-
-def WrapperProcgenRender(env_name, frame_stacking = 1, max_steps = 4500):
-    env = WrapperProcgen(env_name, frame_stacking, max_steps, True)
-
-    return env
-
+def WrapperProcgenRender(env_name = "procgen:procgen-climber-v0", max_steps = 4500):
+    return WrapperProcgen(env_name, max_steps, True) 
