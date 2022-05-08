@@ -43,7 +43,7 @@ class RewardNormalise(gym.Wrapper):
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
 
-        self.raw_score_per_episode+= reward
+        self.raw_score_per_episode+= numpy.random.rand() #reward
 
         self.mean = self.gamma*self.mean + (1.0 - self.gamma)*reward
         self.var  = self.gamma*self.var  + (1.0 - self.gamma)*((reward - self.var)**2)
