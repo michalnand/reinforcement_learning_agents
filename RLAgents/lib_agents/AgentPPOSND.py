@@ -53,7 +53,7 @@ class AgentPPOSND():
 
         print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
         print("ppo_regularisation_loss  = ", self._ppo_regularisation_loss)
-        print("symmetry_loss             = ", self.symmetry_loss)
+        print("symmetry_loss            = ", self.symmetry_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -467,29 +467,25 @@ class AgentPPOSND():
 
         #each by each similarity, dot product and sigmoid to obtain probs
         logits      = torch.matmul(z, z.t())
-
-        logits      = torch.flatten(logits)
-        probs       = torch.sigmoid(logits)
+        probs       = torch.sigmoid(logits) 
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
-        labels      = (actions_ == actions_.t()).float()
-        labels      = torch.flatten(labels)
-
+        labels      = (actions_ == actions_.t()).float().detach()
 
         #similar features for transitions caused by same action
         #conservation of rules - the rules are the same, no matters the state
-        loss_bce    = -( labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
-        loss_bce    = loss_bce.mean() 
+        loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
+
+        loss_bce    = loss_bce.mean()   
 
         #entropy regularisation, maxmise entropy
         loss_entropy = self.entropy_beta*probs*torch.log(probs)
         loss_entropy = loss_entropy.mean()
 
-        
         loss = loss_bce + loss_entropy
 
-        self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
+        self.values_logger.add("loss_symmetry",  loss_bce.detach().to("cpu").numpy())
 
         #compute weighted accuracy
         true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
@@ -501,9 +497,12 @@ class AgentPPOSND():
  
         acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
-        self.values_logger.add("symmetry_accuracy", acc.detach().to("cpu").numpy() )
+        acc = acc.detach().to("cpu").numpy() 
+
+        self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
+
     
     #compute internal motivation
     def _curiosity(self, states):
