@@ -460,7 +460,33 @@ class AgentPPOSND():
 
         return loss
 
+     def _compute_loss_symmetry(self, model, states, states_next, actions):
 
+        actions_pred   = model.forward_features(states, states_next)
+
+        actions_target = torch.zeros((actions.shape[0], self.act)).to(actions.device)
+        actions_target[range(actions.shape[0]), actions] = 1.0
+
+        print("\n\n\n")
+        print(">>> ", actions_target)
+        print(">>> ", actions_target.shape, actions_pred.shape)
+        print("\n\n\n")
+
+        loss = ((actions_target - actions_pred)**2).mean()
+
+        self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
+
+
+        hit     = (torch.argmax(actions_target, dim=1) == torch.argmax(actions_pred, dim=1)).float().sum()
+        miss    = (torch.argmax(actions_target, dim=1) != torch.argmax(actions_pred, dim=1)).float().sum()
+
+        acc     = hit/(hit + miss)
+
+        self.values_logger.add("symmetry_accuracy", acc.detach().to("cpu").numpy())
+
+        return loss
+
+    '''
     def _compute_loss_symmetry(self, model, states, states_next, actions):
 
         z = model.forward_features(states, states_next)
@@ -502,7 +528,7 @@ class AgentPPOSND():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-
+    '''
     
     #compute internal motivation
     def _curiosity(self, states):
