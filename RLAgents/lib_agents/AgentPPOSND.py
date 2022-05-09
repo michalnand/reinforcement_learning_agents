@@ -460,7 +460,8 @@ class AgentPPOSND():
 
         return loss
 
-      def _compute_loss_symmetry(self, model, states, states_next, actions):
+
+    def _compute_loss_symmetry(self, model, states, states_next, actions):
 
         half_count = states.shape[0]//2
 
