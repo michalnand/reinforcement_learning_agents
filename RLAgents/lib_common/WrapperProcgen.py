@@ -18,14 +18,13 @@ class ExtractState(gym.Wrapper):
 
     def reset(self):
         s = self.env.reset()
-        s = self._get_state(s)
+        s = self._get_state(s) 
 
         return s
 
     def _get_state(self, s):
         s = numpy.array(s, dtype=numpy.float32)/255.0
-        s = numpy.moveaxis(s, 2, 0)
-
+        s = numpy.moveaxis(s, 2, 0) 
         return s
 
 class MaxStepsEnv(gym.Wrapper):
@@ -49,11 +48,10 @@ class MaxStepsEnv(gym.Wrapper):
         return self.env.reset()
 
 
-
 def WrapperProcgen(env_name = "procgen-climber-v0", max_steps = 4500, render = False):
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
-    env = ExtractState(env) 
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
+    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
+    env = ExtractState(env)  
     env = MaxStepsEnv(env, max_steps)
 
     return env 
