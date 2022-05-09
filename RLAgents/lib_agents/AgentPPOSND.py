@@ -470,17 +470,17 @@ class AgentPPOSND():
 
         labels    = (actions_a == actions_b).float().detach()
 
-        print(">>> ", actions.shape, actions_a.shape, actions_b.shape)
-        print(actions)
-
         #compute features
         z = model.forward_features(states, states_next)
         za, zb = torch.split(z, half_count, dim=0)
-        
 
         #compute similarity 
         logits = (za*zb).sum(dim=1)
         probs  = torch.sigmoid(logits)
+
+        print(labels)
+        print(logits)
+        print("\n\n\n")
 
         #entropy regularisation, maximise entropy
         loss_entropy = self.entropy_beta*probs*torch.log(probs)
