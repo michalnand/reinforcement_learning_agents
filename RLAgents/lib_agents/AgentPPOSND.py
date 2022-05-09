@@ -468,6 +468,8 @@ class AgentPPOSND():
         #true labels are where are the same actions
         actions_a = actions[0:half_count]
         actions_b = actions[half_count:-1]
+
+        print(">>> ", actions.shape, actions_a.shape, actions_b.shape)
         labels    = (actions_a == actions_b).float().detach()
 
         print(actions)
@@ -478,7 +480,7 @@ class AgentPPOSND():
         zb = z[half_count:-1]
 
         #compute similarity 
-        logits = torch.matmul(za, zb.t())
+        logits = (za*zb).sum(dim=1)
         probs  = torch.sigmoid(logits)
 
         #entropy regularisation, maximise entropy
