@@ -466,18 +466,17 @@ class AgentPPOSND():
         half_count = states.shape[0]//2
 
         #true labels are where are the same actions
-        actions_a = actions[0:half_count]
-        actions_b = actions[half_count:-1]
+        actions_a, actions_b = torch.split(actions, half_count, dim=0)
 
-        print(">>> ", actions.shape, actions_a.shape, actions_b.shape)
         labels    = (actions_a == actions_b).float().detach()
 
+        print(">>> ", actions.shape, actions_a.shape, actions_b.shape)
         print(actions)
 
         #compute features
         z = model.forward_features(states, states_next)
-        za = z[0:half_count]
-        zb = z[half_count:-1]
+        za, zb = torch.split(z, half_count, dim=0)
+        
 
         #compute similarity 
         logits = (za*zb).sum(dim=1)
