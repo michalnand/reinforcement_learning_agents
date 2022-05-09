@@ -478,10 +478,6 @@ class AgentPPOSND():
         logits = (za*zb).sum(dim=1)
         probs  = torch.sigmoid(logits)
 
-        print(labels)
-        print(logits)
-        print("\n\n\n")
-
         #entropy regularisation, maximise entropy
         loss_entropy = self.entropy_beta*probs*torch.log(probs)
         loss_entropy = loss_entropy.mean()
@@ -498,7 +494,7 @@ class AgentPPOSND():
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12
  
-        w              = 1.0 - positive/(positive + negative)
+        w              = 1.0 - 1.0/self.actions_count
  
         acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
