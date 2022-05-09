@@ -474,23 +474,22 @@ class AgentPPOSND():
         z = model.forward_features(states, states_next)
         za, zb = torch.split(z, half_count, dim=0)
 
+        dist = ((za - zb)**2).mean(dim=1)
+
         #compute similarity 
-        logits = (za*zb).sum(dim=1)
-        probs  = torch.sigmoid(logits)
+        target = 1.0 - labels
+        loss_symmetry = ((target - dist)**2).mean()
+        
 
-        #entropy regularisation, maximise entropy
-        loss_entropy = self.entropy_beta*probs*torch.log(probs)
-        loss_entropy = loss_entropy.mean()
+        #magnitude regularisation, maximise entropy
+        loss_mag = (10**-6)*(z**2).mean()
 
-        loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
-        loss_bce    = loss_bce.mean()   
-
-        loss = loss_bce + loss_entropy
+        loss = loss_symmetry + loss_mag
 
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        true_positive  = torch.logical_and(labels > 0.5, dist < 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, dist > 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12
  
@@ -501,7 +500,7 @@ class AgentPPOSND():
         acc = acc.detach().to("cpu").numpy() 
 
 
-        self.values_logger.add("loss_symmetry",  loss_bce.detach().to("cpu").numpy())
+        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss
