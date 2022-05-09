@@ -460,26 +460,56 @@ class AgentPPOSND():
 
         return loss
 
-    '''
-    def _compute_loss_symmetry(self, model, states, states_next, actions):
-        actions_pred   = model.forward_features(states, states_next)
+      def _compute_loss_symmetry(self, model, states, states_next, actions):
 
-        actions_target = torch.zeros((actions.shape[0], self.actions_count)).to(actions.device)
-        actions_target[range(actions.shape[0]), actions] = 1.0
+        half_count = states.shape[0]//2
+
+        #true labels are where are the same actions
+        actions_a = actions[0:half_count]
+        actions_b = actions[half_count:-1]
+        labels    = (actions_a == actions_b).float().detach()
+
+        print(actions)
+
+        #compute features
+        z = model.forward_features(states, states_next)
+        za = z[0:half_count]
+        zb = z[half_count:-1]
+
+        #compute similarity 
+        logits = torch.matmul(za, zb.t())
+        probs  = torch.sigmoid(logits)
+
+        #entropy regularisation, maximise entropy
+        loss_entropy = self.entropy_beta*probs*torch.log(probs)
+        loss_entropy = loss_entropy.mean()
+
+        loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
+        loss_bce    = loss_bce.mean()   
+
+        loss = loss_bce + loss_entropy
 
 
-        loss = ((actions_target - actions_pred)**2).mean()
+        #compute weighted accuracy
+        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        positive       = (labels > 0.5).float().sum() + 10**-12
+        negative       = (labels < 0.5).float().sum() + 10**-12
+ 
+        w              = 1.0 - positive/(positive + negative)
+ 
+        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
-        self.values_logger.add("loss_symmetry",  loss.detach().to("cpu").numpy())
+        acc = acc.detach().to("cpu").numpy() 
 
-        hit     = (torch.argmax(actions_target, dim=1) == torch.argmax(actions_pred, dim=1)).float().sum()
-        acc     = hit/actions.shape[0]
 
-        self.values_logger.add("symmetry_accuracy", acc.detach().to("cpu").numpy())
+        self.values_logger.add("loss_symmetry",  loss_bce.detach().to("cpu").numpy())
+        self.values_logger.add("symmetry_accuracy", acc)
 
         return loss
-    '''
 
+       
+    '''
     def _compute_loss_symmetry(self, model, states, states_next, actions):
 
         z = model.forward_features(states, states_next)
@@ -498,7 +528,7 @@ class AgentPPOSND():
 
         loss_bce    = loss_bce.mean()   
 
-        #entropy regularisation, maxmise entropy
+        #entropy regularisation, maximise entropy
         loss_entropy = self.entropy_beta*probs*torch.log(probs)
         loss_entropy = loss_entropy.mean()
 
@@ -521,7 +551,7 @@ class AgentPPOSND():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss 
-    
+    '''
     
     #compute internal motivation
     def _curiosity(self, states):
