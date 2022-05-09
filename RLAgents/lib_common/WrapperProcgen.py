@@ -51,7 +51,7 @@ class MaxStepsEnv(gym.Wrapper):
 
 
 def WrapperProcgen(env_name = "procgen-climber-v0", max_steps = 4500, render = False):
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, use_background=False)
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, use_backgrounds=False)
     env = ExtractState(env) 
     env = MaxStepsEnv(env, max_steps)
 
