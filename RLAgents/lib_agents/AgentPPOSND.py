@@ -460,7 +460,7 @@ class AgentPPOSND():
 
         return loss
 
-
+    '''
     def _compute_loss_symmetry(self, model, states, states_next, actions):
 
         half_count = states.shape[0]//2
@@ -504,7 +504,52 @@ class AgentPPOSND():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss
+    '''
 
+    def _compute_loss_symmetry(self, model, states, states_next, actions):
+
+        z = model.forward_features(states, states_next)
+
+        #each by each similarity, dot product and sigmoid to obtain probs
+        distances   = torch.cdist(z, z)
+        probs       = torch.sigmoid(logits) 
+
+        #true labels are where are the same actions
+        actions_    = actions.unsqueeze(1)
+        labels      = (actions_ == actions_.t()).float().detach()
+
+        #similar features for transitions caused by same action
+        #conservation of rules - the rules are the same, no matters the state
+        required = 1.0 - labels
+
+        print(">>> ", required.shape, distances.shape)
+
+        loss_symmetry    = (required - distances)**2
+        loss_symmetry    = loss_symmetry.mean()   
+
+        #magnitude regularisation
+        loss_mag = self.entropy_beta*(z**2)
+        loss_mag = loss_mag.mean()
+
+        loss = 0.01*(loss_symmetry + loss_mag)
+
+        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
+
+        #compute weighted accuracy
+        true_positive  = torch.logical_and(labels > 0.5, distances < 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, distances > 0.5).float().sum()
+        positive       = (labels > 0.5).float().sum() + 10**-12
+        negative       = (labels < 0.5).float().sum() + 10**-12
+ 
+        w              = 1.0 - positive/(positive + negative)
+ 
+        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
+
+        acc = acc.detach().to("cpu").numpy() 
+
+        self.values_logger.add("symmetry_accuracy", acc)
+
+        return loss
        
     '''
     def _compute_loss_symmetry(self, model, states, states_next, actions):
