@@ -521,8 +521,6 @@ class AgentPPOSND():
         #conservation of rules - the rules are the same, no matters the state
         required = 1.0 - labels
 
-        print(">>> ", required.shape, distances.shape)
-
         loss_symmetry    = (required - distances)**2
         loss_symmetry    = loss_symmetry.mean()   
 
