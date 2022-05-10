@@ -525,7 +525,7 @@ class AgentPPOSND():
         loss_symmetry    = loss_symmetry.mean()   
 
         #magnitude regularisation
-        loss_mag = self.entropy_beta*(z**2)
+        loss_mag = (10**-4)*(z**2)
         loss_mag = loss_mag.mean()
 
         loss = 0.01*(loss_symmetry + loss_mag)
