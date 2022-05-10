@@ -511,7 +511,7 @@ class AgentPPOSND():
         z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        distances   = torch.cdist(z, z)
+        distances   = torch.cdist(z, z)/z.shape[1] 
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
