@@ -512,7 +512,6 @@ class AgentPPOSND():
 
         #each by each similarity, dot product and sigmoid to obtain probs
         distances   = torch.cdist(z, z)
-        probs       = torch.sigmoid(logits) 
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
