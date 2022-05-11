@@ -34,15 +34,15 @@ class AgentPPOSND():
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
-        elif config.snd_regularisation_loss == "info_nce":
-            self._snd_regularisation_loss = self._contrastive_loss_info_nce
+        elif config.snd_regularisation_loss == "mse_cross": 
+            self._snd_regularisation_loss = self._contrastive_loss_mse_cross
         else:
             self._snd_regularisation_loss = None
 
         if config.ppo_regularisation_loss == "mse":
             self._ppo_regularisation_loss = self._contrastive_loss_mse
-        elif config.ppo_regularisation_loss == "info_nce":
-            self._ppo_regularisation_loss = self._contrastive_loss_info_nce
+        elif config.ppo_regularisation_loss == "mse_cross":
+            self._ppo_regularisation_loss = self._contrastive_loss_mse_cross
         else:
             self._ppo_regularisation_loss = None
 
@@ -419,14 +419,15 @@ class AgentPPOSND():
         loss = loss_mse + loss_magnitude
     
         return loss
-    
-    def _contrastive_loss_info_nce(self, model, states_a, states_b, target, normalise, augmentation):
+
+
+    def _contrastive_loss_mse_cross(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
-        xb = states_a.clone() 
+        xb = states_b.clone()
 
         #normalise states
         if normalise:
-            xa = self._norm_state(xa)
+            xa = self._norm_state(xa) 
             xb = self._norm_state(xb)
 
         #states augmentation
@@ -440,71 +441,24 @@ class AgentPPOSND():
             zb = model.forward_features(xb) 
         else:
             za = model(xa)  
-            zb = model(xb)
+            zb = model(xb) 
 
-        logits = torch.matmul(za, zb.t())/za.shape[1]
+        #predict close distance for similar, far distance for different states
+        predicted = torch.cdist(za, zb)/za.shape[1]
 
-        #place target class ID on diagonal
-        labels = torch.tensor(range(logits.shape[0])).to(logits.device)
+        #MSE loss
+        loss_mse = ((target - predicted)**2).mean()
 
-        #info NCE loss, train to strong correlation for similar states
-        loss_nce   = torch.nn.functional.cross_entropy(logits, labels)
-
-        #magnitude regularisation
+        #magnitude regularisation, keep magnitude in small numbers
         mag_za = (za**2).mean()
         mag_zb = (zb**2).mean()
 
         loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
+
+        loss = loss_mse + loss_magnitude
     
-        loss = loss_nce + loss_magnitude  
-
         return loss
-
-    '''
-    def _compute_loss_symmetry(self, model, states, states_next, actions):
-
-        half_count = states.shape[0]//2
-
-        #true labels are where are the same actions
-        actions_a, actions_b = torch.split(actions, half_count, dim=0)
-
-        labels    = (actions_a == actions_b).float().detach()
-
-        #compute features
-        z = model.forward_features(states, states_next)
-        za, zb = torch.split(z, half_count, dim=0)
-
-        dist = ((za - zb)**2).mean(dim=1)
-
-        #compute similarity 
-        target = 1.0 - labels
-        loss_symmetry = ((target - dist)**2).mean()
-        
-
-        #magnitude regularisation, maximise entropy
-        loss_mag = (10**-6)*(z**2).mean()
-
-        loss = loss_symmetry + loss_mag
-
-
-        #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, dist < 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, dist > 0.5).float().sum()
-        positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12
- 
-        w              = 1.0 - 1.0/self.actions_count
- 
-        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        acc = acc.detach().to("cpu").numpy() 
-
-
-        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
-        self.values_logger.add("symmetry_accuracy", acc)
-
-        return loss
-    '''
+   
 
     def _compute_loss_symmetry(self, model, states, states_next, actions):
 
@@ -524,8 +478,8 @@ class AgentPPOSND():
         loss_symmetry    = (required - distances)**2
         loss_symmetry    = loss_symmetry.mean()   
 
-        #magnitude regularisation
-        loss_mag = (10**-4)*(z**2)
+        #magnitude regularisation (10**-4)
+        loss_mag = self.regularisation_coeff*(z**2)
         loss_mag = loss_mag.mean()
 
         loss = 0.01*(loss_symmetry + loss_mag)
@@ -547,51 +501,7 @@ class AgentPPOSND():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss
-       
-    '''
-    def _compute_loss_symmetry(self, model, states, states_next, actions):
 
-        z = model.forward_features(states, states_next)
-
-        #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())
-        probs       = torch.sigmoid(logits) 
-
-        #true labels are where are the same actions
-        actions_    = actions.unsqueeze(1)
-        labels      = (actions_ == actions_.t()).float().detach()
-
-        #similar features for transitions caused by same action
-        #conservation of rules - the rules are the same, no matters the state
-        loss_bce    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs) )
-
-        loss_bce    = loss_bce.mean()   
-
-        #entropy regularisation, maximise entropy
-        loss_entropy = self.entropy_beta*probs*torch.log(probs)
-        loss_entropy = loss_entropy.mean()
-
-        loss = loss_bce + loss_entropy
-
-        self.values_logger.add("loss_symmetry",  loss_bce.detach().to("cpu").numpy())
-
-        #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
-        positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12
- 
-        w              = 1.0 - positive/(positive + negative)
- 
-        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        acc = acc.detach().to("cpu").numpy() 
-
-        self.values_logger.add("symmetry_accuracy", acc)
-
-        return loss 
-    '''
-    
     #compute internal motivation
     def _curiosity(self, states):
         states_norm            = self._norm_state(states)
