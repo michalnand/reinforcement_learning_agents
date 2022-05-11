@@ -423,7 +423,7 @@ class AgentPPOSND():
 
     def _contrastive_loss_mse_cross(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
-        xb = states_b.clone()
+        xb = states_a.clone()
 
         #normalise states
         if normalise:
@@ -446,8 +446,14 @@ class AgentPPOSND():
         #predict close distance for similar, far distance for different states
         predicted = torch.cdist(za, zb)/za.shape[1]
 
+        #similar states are on diagonal, create zero diagonal target
+        labels   = 1.0 - torch.eye(predicted.shape[0]).to(predicted.device)
+
         #MSE loss
-        loss_mse = ((target - predicted)**2).mean()
+        dif = labels - predicted
+
+        print(">>> ", predicted.shape, labels.shape, dif.shape)
+        loss_mse = (dif**2).mean() 
 
         #magnitude regularisation, keep magnitude in small numbers
         mag_za = (za**2).mean()
