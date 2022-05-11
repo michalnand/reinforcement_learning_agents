@@ -452,7 +452,6 @@ class AgentPPOSND():
         #MSE loss
         dif = labels - predicted
 
-        print(">>> ", predicted.shape, labels.shape, dif.shape)
         loss_mse = (dif**2).mean() 
 
         #magnitude regularisation, keep magnitude in small numbers
