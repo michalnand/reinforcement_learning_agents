@@ -496,8 +496,9 @@ class AgentPPOSND():
         true_negative  = torch.logical_and(labels < 0.5, distances > 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12 
-  
-        acc            = (true_positive + true_negative)/(positive + negative)
+
+        w               = 1.0 - 1.0/self.actions_count
+        acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
         acc = acc.detach().to("cpu").numpy() 
 
