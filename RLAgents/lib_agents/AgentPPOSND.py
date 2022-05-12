@@ -49,7 +49,7 @@ class AgentPPOSND():
         if hasattr(config, "symmetry_loss"):
             self.symmetry_loss = config.symmetry_loss
         else:
-            self.symmetry_loss = False
+            self.symmetry_loss = 0.0
 
         print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
         print("ppo_regularisation_loss  = ", self._ppo_regularisation_loss)
@@ -98,7 +98,7 @@ class AgentPPOSND():
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
 
-        if self.symmetry_loss:
+        if self.symmetry_loss > 0.0:
             self.values_logger.add("loss_symmetry", 0.0)
             self.values_logger.add("symmetry_accuracy", 0.0)
 
@@ -238,7 +238,7 @@ class AgentPPOSND():
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                if self.symmetry_loss == True:
+                if self.symmetry_loss > 0.0:
                     states_         = states[0:small_batch]
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
@@ -487,7 +487,7 @@ class AgentPPOSND():
         loss_mag = self.regularisation_coeff*(z**2)
         loss_mag = loss_mag.mean()
 
-        loss = 0.01*(loss_symmetry + loss_mag)
+        loss = self.symmetry_loss*(loss_symmetry + loss_mag)
 
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
@@ -495,11 +495,9 @@ class AgentPPOSND():
         true_positive  = torch.logical_and(labels > 0.5, distances < 0.5).float().sum()
         true_negative  = torch.logical_and(labels < 0.5, distances > 0.5).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12
- 
-        w              = 1.0 - positive/(positive + negative)
- 
-        acc            = w*true_positive/positive + (1.0 - w)*true_negative/negative
+        negative       = (labels < 0.5).float().sum() + 10**-12 
+  
+        acc            = (true_positive + true_negative)/(positive + negative)
 
         acc = acc.detach().to("cpu").numpy() 
 
