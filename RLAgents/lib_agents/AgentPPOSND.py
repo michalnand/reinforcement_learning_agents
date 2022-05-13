@@ -412,13 +412,8 @@ class AgentPPOSND():
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
-        mag_za = self.regularisation_coeff*za.norm(dim=1, p=2)
-        mag_za = mag_za.mean()
-
-        mag_zb = self.regularisation_coeff*zb.norm(dim=1, p=2)
-        mag_zb = mag_za.mean()
-
-        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
+        loss_magnitude = za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)
+        loss_magnitude = self.regularisation_coeff*loss_magnitude.mean()
 
         loss = loss_mse + loss_magnitude
     
@@ -487,9 +482,9 @@ class AgentPPOSND():
         loss_symmetry    = (required - distances)**2
         loss_symmetry    = loss_symmetry.mean()   
 
-        #L2 magnitude regularisation (10**-4)
-        loss_mag = self.regularisation_coeff*z.norm(dim=1, p=2)
-        loss_mag = loss_mag.mean()
+        #L2 magnitude regularisation (10**-4) 
+        loss_mag = z.norm(dim=1, p=2)
+        loss_mag = self.regularisation_coeff*loss_mag.mean()
 
         loss = self.symmetry_loss*(loss_symmetry + loss_mag)
 
