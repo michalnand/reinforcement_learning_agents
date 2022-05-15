@@ -80,8 +80,8 @@ class Score(gym.Wrapper):
             
             self.reward_sum = 0.0
 
-        info["raw_score"]        = self.score_raw
-        info["normalised_score"] = self.score_normalised
+        info["raw_score"]        = round(self.score_raw, 5)
+        info["normalised_score"] = round(self.score_normalised, 5)
 
         k   = 0.01
         eps = 10**-8
@@ -91,7 +91,7 @@ class Score(gym.Wrapper):
 
         reward_norm = reward/((self.reward_var + eps)**0.5)
         reward_norm = numpy.clip(reward_norm, -self.clip_reward, self.clip_reward)
-
+        
         return state, reward_norm, done, info
         
     def reset(self):
