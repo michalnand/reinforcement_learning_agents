@@ -92,18 +92,27 @@ class Score(gym.Wrapper):
 
 def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, render = False):
 
-    r_min = {}
-    r_max = {}
+    r_min = 0.0
+    r_max = 1.0
 
-    r_min["procgen:procgen-climber-v0"] = 1.0
-    r_max["procgen:procgen-climber-v0"] = 12.6
+    if "coinrun" in env_name:
+        r_min = 5.0
+        r_max = 10.0
+    elif "starpilot" in env_name:
+        r_min = 1.5
+        r_max = 35.0
+    elif "climber" in env_name:
+        r_min = 1.0
+        r_max = 12.6
+
+    print(">>>> ", r_min, r_max)
 
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
     env = ExtractState(env)  
     env = MaxSteps(env, max_steps) 
-    env = Score(env, r_min[env_name], r_max[env_name]) 
+    env = Score(env, r_min, r_max) 
 
     return env 
 
