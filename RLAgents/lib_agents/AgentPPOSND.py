@@ -401,7 +401,7 @@ class AgentPPOSND():
 
         #L2 magnitude regularisation
         magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude.mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_mse + loss_magnitude
 
@@ -441,10 +441,12 @@ class AgentPPOSND():
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
-        loss_magnitude = za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)
-        loss_magnitude = self.regularisation_coeff*loss_magnitude.mean()
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_nce + loss_magnitude
+
+        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
 
