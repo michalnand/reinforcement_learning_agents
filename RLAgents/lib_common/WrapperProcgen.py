@@ -72,7 +72,7 @@ class Score(gym.Wrapper):
         if done:
             k = 0.1
             self.score_raw          = (1.0 - k)*self.score_raw          + k*self.reward_sum
-            self.score_normalised   = (1.0 - k)*self.score_normalised   + k*_normalise(self.reward_sum)
+            self.score_normalised   = (1.0 - k)*self.score_normalised   + k*self._normalise(self.reward_sum)
             
             self.reward_sum = 0.0
 
