@@ -227,7 +227,8 @@ class AgentPPOSND():
 
         batch_count = self.steps//self.batch_size
 
-        small_batch = 64
+        #small_batch = 64
+
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
@@ -237,6 +238,8 @@ class AgentPPOSND():
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 if self._ppo_symmetry_loss is not None:
+                    small_batch = states.shape[0]//8
+                     
                     states_         = states[0:small_batch]
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
@@ -497,7 +500,7 @@ class AgentPPOSND():
         z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        probs   = torch.sigmoid(torch.matmul(z, z.t()))
+        probs   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
@@ -511,7 +514,7 @@ class AgentPPOSND():
         magnitude   = (z.norm(dim=1, p=2)).mean()
         loss_mag    = self.regularisation_coeff*magnitude
 
-        loss = self.symmetry_loss*(loss_symmetry + loss_mag)
+        loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
 
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
