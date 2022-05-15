@@ -88,6 +88,7 @@ class AgentPPOSND():
 
         self.values_logger.add("loss_snd", 0.0)
         self.values_logger.add("loss_snd_regularization", 0.0)
+        self.values_logger.add("snd_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
@@ -97,6 +98,7 @@ class AgentPPOSND():
 
         self.values_logger.add("loss_symmetry", 0.0)
         self.values_logger.add("symmetry_accuracy", 0.0)
+        self.values_logger.add("symmetry_magnitude", 0.0)
 
     
         #self.vis_features = []
@@ -398,10 +400,12 @@ class AgentPPOSND():
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
-        loss_magnitude = za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)
-        loss_magnitude = self.regularisation_coeff*loss_magnitude.mean()
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude.mean()
 
         loss = loss_mse + loss_magnitude
+
+        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy()
     
         return loss
 
@@ -464,8 +468,8 @@ class AgentPPOSND():
         loss_symmetry    = loss_symmetry.mean()   
 
         #L2 magnitude regularisation (10**-4) 
-        loss_mag = z.norm(dim=1, p=2)
-        loss_mag = self.regularisation_coeff*loss_mag.mean()
+        magnitude   = (z.norm(dim=1, p=2)).mean()
+        loss_mag    = self.regularisation_coeff*magnitude
 
         loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
  
@@ -483,6 +487,7 @@ class AgentPPOSND():
         acc = acc.detach().to("cpu").numpy() 
 
         self.values_logger.add("symmetry_accuracy", acc)
+        self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
 
