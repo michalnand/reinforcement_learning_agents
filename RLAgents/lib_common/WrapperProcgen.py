@@ -87,7 +87,7 @@ class Score(gym.Wrapper):
         self.reward_mean = (1.0 - k)*self.reward_mean + k*reward
         self.reward_var  = (1.0 - k)*self.reward_var  + k*((reward - self.reward_mean)**2)
 
-        reward_norm = (reward - self.reward_mean)/((self.reward_var**0.5) + (10**-10))
+        reward_norm = reward/((self.reward_var**0.5) + (10**-10))
         reward_norm = numpy.clip(reward_norm, -self.clip_reward, self.clip_reward)
 
         return state, reward_norm, done, info
