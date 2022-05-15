@@ -51,18 +51,22 @@ class MaxSteps(gym.Wrapper):
         return self.env.reset()
 
 
-
 class Score(gym.Wrapper):
-    def __init__(self, env, min_score, max_score):
+    def __init__(self, env, min_score, max_score, clip_reward = 10.0):
         super(Score, self).__init__(env)
 
-        self.min_score = min_score
-        self.max_score = max_score
+        self.min_score          = min_score
+        self.max_score          = max_score
+        self.clip_reward        = 10.0
 
         self.reward_sum         = 0.0
 
         self.score_raw          = 0.0
         self.score_normalised   = 0.0
+
+        self.reward_mean         = 0.0
+        self.reward_var          = 0.0
+        
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
@@ -79,7 +83,14 @@ class Score(gym.Wrapper):
         info["raw_score"]        = self.score_raw
         info["normalised_score"] = self.score_normalised
 
-        return state, reward, done, info
+        k = 0.01
+        self.reward_mean = (1.0 - k)*self.reward_mean + k*reward
+        self.reward_var  = (1.0 - k)*self.reward_var  + k*((reward - self.reward_mean)**2)
+
+        reward_norm = (reward - self.reward_mean)/((self.reward_var**0.5) + (10**-10))
+        reward_norm = numpy.clip(reward_norm, -self.clip_reward, self.clip_reward)
+
+        return state, reward_norm, done, info
         
     def reset(self):
         self.reward_sum = 0.0
@@ -101,11 +112,51 @@ def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, re
     elif "starpilot" in env_name:
         r_min = 1.5
         r_max = 35.0
+    elif "caveflyer" in env_name:
+        r_min = 2.0
+        r_max = 13.4
+    elif "dodgeball" in env_name:
+        r_min = 1.5
+        r_max = 19.0
+    elif "fruitbot" in env_name:
+        r_min = -0.5
+        r_max = 27.2
+    elif "chaser" in env_name:
+        r_min = 0.5
+        r_max = 14.2
+    elif "miner" in env_name:
+        r_min = 1.5
+        r_max = 20.0
+    elif "jumper" in env_name:
+        r_min = 1.0
+        r_max = 10.0
+    elif "leaper" in env_name:
+        r_min = 1.5
+        r_max = 10.0
+    elif "maze" in env_name:
+        r_min = 4.0
+        r_max = 10.0
+    elif "bigfish" in env_name:
+        r_min = 0.0
+        r_max = 40.0
+    elif "heist" in env_name:
+        r_min = 2.0
+        r_max = 10.0
     elif "climber" in env_name:
         r_min = 1.0
         r_max = 12.6
+    elif "pluner" in env_name:
+        r_min = 3.0
+        r_max = 30.0
+    elif "ninja" in env_name:
+        r_min = 2.0
+        r_max = 10.0
+    elif "bossfight" in env_name:
+        r_min = 0.5
+        r_max = 13.0
+    else:
+        print("ERROR : unknow reward normalisation")
 
-    print(">>>> ", r_min, r_max)
 
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
