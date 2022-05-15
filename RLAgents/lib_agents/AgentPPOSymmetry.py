@@ -245,7 +245,7 @@ class AgentPPOSymmetry():
         z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        probs   = torch.sigmoid(torch.matmul(z, z.t())) #/z.shape[1])
+        probs   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
@@ -259,7 +259,8 @@ class AgentPPOSymmetry():
         magnitude   = (z.norm(dim=1, p=2)).mean()
         loss_mag    = self.regularisation_coeff*magnitude
 
-        loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
+        #loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
+        loss = 1.0*(loss_symmetry + loss_mag)
  
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
