@@ -405,7 +405,7 @@ class AgentPPOSND():
 
         loss = loss_mse + loss_magnitude
 
-        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy()
+        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
     
         return loss
 
@@ -506,8 +506,8 @@ class AgentPPOSND():
         loss_symmetry    = loss_symmetry.mean()   
 
         #L2 magnitude regularisation (10**-4) 
-        loss_mag = z.norm(dim=1, p=2)
-        loss_mag = self.regularisation_coeff*loss_mag.mean()
+        magnitude   = (z.norm(dim=1, p=2)).mean()
+        loss_mag    = self.regularisation_coeff*magnitude
 
         loss = self.symmetry_loss*(loss_symmetry + loss_mag)
 
@@ -525,6 +525,7 @@ class AgentPPOSND():
         acc = acc.detach().to("cpu").numpy() 
 
         self.values_logger.add("symmetry_accuracy", acc)
+        self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
 
