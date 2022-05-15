@@ -40,15 +40,15 @@ class AgentPPOSND():
             self._snd_regularisation_loss = None
 
 
-        if config.symmetry_loss == "mse":
-            self._symmetry_loss = self._symmetry_loss_mse
+        if config.ppo_symmetry_loss == "mse":
+            self._ppo_symmetry_loss = self._symmetry_loss_mse
         elif config.symmetry_loss == "nce": 
-            self._symmetry_loss = self._symmetry_loss_nce
+            self._ppo_symmetry_loss = self._symmetry_loss_nce
         else:
-            self._symmetry_loss = None
+            self._ppo_symmetry_loss = None
 
         print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
-        print("symmetry_loss            = ", self._symmetry_loss)
+        print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -233,12 +233,12 @@ class AgentPPOSND():
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                if self._symmetry_loss is not None:
+                if self._ppo_symmetry_loss is not None:
                     states_         = states[0:small_batch]
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
 
-                    loss_symmetry = self._symmetry_loss(self.model_ppo, states_, states_next_, actions_)
+                    loss_symmetry = self._ppo_symmetry_loss(self.model_ppo, states_, states_next_, actions_)
                     loss_ppo+= loss_symmetry
 
 
