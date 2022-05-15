@@ -59,26 +59,22 @@ class Score(gym.Wrapper):
         self.min_score = min_score
         self.max_score = max_score
 
-        self.score_raw      = 0.0
-        self.score_raw_tmp  = 0.0
+        self.reward_sum         = 0.0
 
-        self.score_normalised      = 0.0
-        self.score_normalised_tmp  = 0.0
+        self.score_raw          = 0.0
+        self.score_normalised   = 0.0
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
-        self.score_raw_tmp+= reward
-        self.score_normalised_tmp+= self._normalise_reward(reward)
+        self.reward_sum+= reward
 
         if done:
             k = 0.1
+            self.score_raw          = (1.0 - k)*self.score_raw          + k*self.reward_sum
+            self.score_normalised   = (1.0 - k)*self.score_normalised   + k*_normalise(self.reward_sum)
             
-            self.score_raw      = (1.0 - k)*self.score_raw + k*self.score_raw_tmp
-            self.score_raw_tmp  = 0.0 
-
-            self.score_normalised      = (1.0 - k)*self.score_normalised + k*self.score_normalised_tmp
-            self.score_normalised_tmp  = 0.0 
+            self.reward_sum = 0.0
 
         info["raw_score"]        = self.score_raw
         info["normalised_score"] = self.score_normalised
@@ -86,20 +82,28 @@ class Score(gym.Wrapper):
         return state, reward, done, info
         
     def reset(self):
-        self.score_tmp  = 0.0
+        self.reward_sum = 0.0
         return self.env.reset()
 
-    def _normalise_reward(self, x):
+    def _normalise(self, x):
         y = (x - self.min_score)/(self.max_score - self.min_score)
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", max_steps = 4500, render = False):
+def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, render = False):
+
+    r_min = {}
+    r_max = {}
+
+    r_min["procgen:procgen-climber-v0"] = 1.0
+    r_max["procgen:procgen-climber-v0"] = 12.6
+
+
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
     env = ExtractState(env)  
     env = MaxSteps(env, max_steps) 
-    env = Score(env, 1.0, 10.0) 
+    env = Score(env, r_min[env_name], r_max[env_name]) 
 
     return env 
 
