@@ -57,7 +57,7 @@ class Score(gym.Wrapper):
 
         self.min_score          = min_score
         self.max_score          = max_score
-        self.clip_reward        = 10.0
+        self.clip_reward        = clip_reward
 
         self.reward_sum         = 0.0
 
