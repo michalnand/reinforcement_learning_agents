@@ -20,7 +20,6 @@ class AgentPPOSND():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
-        self.symmetry_loss_coeff= config.symmetry_loss_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -31,7 +30,8 @@ class AgentPPOSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.regularisation_coeff = config.regularisation_coeff
+        self.regularisation_coeff   = config.regularisation_coeff
+        self.symmetry_loss_coeff    = config.symmetry_loss_coeff
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
@@ -468,7 +468,7 @@ class AgentPPOSND():
         loss_mag = self.regularisation_coeff*loss_mag.mean()
 
         loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
-
+ 
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
