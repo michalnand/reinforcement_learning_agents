@@ -245,7 +245,7 @@ class AgentPPOSymmetry():
         z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        probs   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
+        probs   = torch.sigmoid(torch.matmul(z, z.t())) #/z.shape[1])
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
