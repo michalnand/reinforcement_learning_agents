@@ -245,23 +245,22 @@ class AgentPPOSymmetry():
         z = model.forward_features(states, states_next)
 
         #each by each similarity, dot product and sigmoid to obtain probs
-        probs   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
+        logits   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float().detach()
 
         #BCE loss
-        loss_symmetry    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
+        loss_symmetry    = (labels - logits)**2
         loss_symmetry    = loss_symmetry.mean()   
 
         #L2 magnitude regularisation (10**-4) 
         magnitude   = (z.norm(dim=1, p=2)).mean()
         loss_mag    = self.regularisation_coeff*magnitude
 
-        #loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
-        loss = 1.0*(loss_symmetry + loss_mag)
- 
+        loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
+        
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
