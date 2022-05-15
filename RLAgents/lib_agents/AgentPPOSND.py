@@ -42,7 +42,7 @@ class AgentPPOSND():
 
         if config.ppo_symmetry_loss == "mse":
             self._ppo_symmetry_loss = self._symmetry_loss_mse
-        elif config.symmetry_loss == "nce": 
+        elif config.ppo_symmetry_loss == "nce": 
             self._ppo_symmetry_loss = self._symmetry_loss_nce
         else:
             self._ppo_symmetry_loss = None
