@@ -34,26 +34,21 @@ class AgentPPOSND():
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
-        elif config.snd_regularisation_loss == "mse_cross": 
-            self._snd_regularisation_loss = self._contrastive_loss_mse_cross
+        elif config.snd_regularisation_loss == "nce": 
+            self._snd_regularisation_loss = self._contrastive_loss_nce
         else:
             self._snd_regularisation_loss = None
 
-        if config.ppo_regularisation_loss == "mse":
-            self._ppo_regularisation_loss = self._contrastive_loss_mse
-        elif config.ppo_regularisation_loss == "mse_cross":
-            self._ppo_regularisation_loss = self._contrastive_loss_mse_cross
-        else:
-            self._ppo_regularisation_loss = None
 
-        if hasattr(config, "symmetry_loss"):
-            self.symmetry_loss = config.symmetry_loss
+        if config.symmetry_loss == "mse":
+            self._symmetry_loss = self._symmetry_loss_mse
+        elif config.symmetry_loss == "nce": 
+            self._symmetry_loss = self._symmetry_loss_nce
         else:
-            self.symmetry_loss = 0.0
+            self._symmetry_loss = None
 
         print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
-        print("ppo_regularisation_loss  = ", self._ppo_regularisation_loss)
-        print("symmetry_loss            = ", self.symmetry_loss)
+        print("symmetry_loss            = ", self._symmetry_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -92,15 +87,15 @@ class AgentPPOSND():
 
         self.values_logger.add("loss_snd", 0.0)
         self.values_logger.add("loss_snd_regularization", 0.0)
-        self.values_logger.add("loss_ppo_regularization", 0.0)
+
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
+
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
 
-        if self.symmetry_loss > 0.0:
-            self.values_logger.add("loss_symmetry", 0.0)
-            self.values_logger.add("symmetry_accuracy", 0.0)
+        self.values_logger.add("loss_symmetry", 0.0)
+        self.values_logger.add("symmetry_accuracy", 0.0)
 
     
         #self.vis_features = []
@@ -238,12 +233,12 @@ class AgentPPOSND():
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                if self.symmetry_loss > 0.0:
+                if self._symmetry_loss is not None:
                     states_         = states[0:small_batch]
                     states_next_    = states_next[0:small_batch]
                     actions_        = actions[0:small_batch]
 
-                    loss_symmetry = self._compute_loss_symmetry(self.model_ppo, states_, states_next_, actions_)
+                    loss_symmetry = self._symmetry_loss(self.model_ppo, states_, states_next_, actions_)
                     loss_ppo+= loss_symmetry
 
 
@@ -264,16 +259,6 @@ class AgentPPOSND():
               
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
-
-                #contrastive loss for better features space (optional)
-                if self._ppo_regularisation_loss is not None:
-                    loss = self._ppo_regularisation_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)
-
-                    self.optimizer_ppo.zero_grad()        
-                    loss.backward()
-                    self.optimizer_ppo.step()
-
-                    self.values_logger.add("loss_ppo_regularization", loss.detach().to("cpu").numpy())
 
                 #train snd target model for regularisation (optional)
                 if self._snd_regularisation_loss is not None:                    
@@ -419,9 +404,8 @@ class AgentPPOSND():
     
         return loss
 
-
-    def _contrastive_loss_mse_cross(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
+    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone() 
         xb = states_a.clone()
 
         #normalise states
@@ -442,29 +426,25 @@ class AgentPPOSND():
             za = model(xa)  
             zb = model(xb) 
 
-        #predict close distance for similar, far distance for different states
-        predicted = torch.cdist(za, zb)/za.shape[1]
+        probs  = torch.sigmoid(torch.matmul(za, zb.t))
 
-        #similar states are on diagonal, create zero diagonal target
-        labels   = 1.0 - torch.eye(predicted.shape[0]).to(predicted.device)
+        labels = torch.eye(probs.shape[0]).to(probs.device)
 
-        #MSE loss
-        dif = labels - predicted
-
-        loss_mse = (dif**2).mean() 
+        loss_nce = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
+        loss_nce = loss_nce.mean()
 
         #magnitude regularisation, keep magnitude in small numbers
-        mag_za = (za**2).mean()
-        mag_zb = (zb**2).mean()
 
-        loss_magnitude = self.regularisation_coeff*(mag_za + mag_zb)
+        #L2 magnitude regularisation
+        loss_magnitude = za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)
+        loss_magnitude = self.regularisation_coeff*loss_magnitude.mean()
 
-        loss = loss_mse + loss_magnitude
-    
+        loss = loss_nce + loss_magnitude
+
         return loss
-   
 
-    def _compute_loss_symmetry(self, model, states, states_next, actions):
+    
+    def _symmetry_loss_mse(self, model, states, states_next, actions):
 
         z = model.forward_features(states, states_next)
 
@@ -504,6 +484,46 @@ class AgentPPOSND():
         self.values_logger.add("symmetry_accuracy", acc)
 
         return loss
+
+    def _symmetry_loss_nce(self, model, states, states_next, actions):
+        z = model.forward_features(states, states_next)
+
+        #each by each similarity, dot product and sigmoid to obtain probs
+        probs   = torch.sigmoid(torch.matmul(z, z.t()))
+
+        #true labels are where are the same actions
+        actions_    = actions.unsqueeze(1)
+        labels      = (actions_ == actions_.t()).float().detach()
+
+        #BCE loss
+        loss_symmetry    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
+        loss_symmetry    = loss_symmetry.mean()   
+
+        #L2 magnitude regularisation (10**-4) 
+        loss_mag = z.norm(dim=1, p=2)
+        loss_mag = self.regularisation_coeff*loss_mag.mean()
+
+        loss = self.symmetry_loss*(loss_symmetry + loss_mag)
+
+        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
+
+        #compute weighted accuracy
+        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        positive       = (labels > 0.5).float().sum() + 10**-12
+        negative       = (labels < 0.5).float().sum() + 10**-12 
+
+        w               = 1.0 - 1.0/self.actions_count
+        acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
+
+        acc = acc.detach().to("cpu").numpy() 
+
+        self.values_logger.add("symmetry_accuracy", acc)
+
+        return loss
+
+
+    
 
     #compute internal motivation
     def _curiosity(self, states):
