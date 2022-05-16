@@ -2,6 +2,26 @@ import gym
 import procgen
 import numpy
 
+class FrameSkipWrapper(gym.Wrapper):
+    def __init__(self, env, frame_skip):
+        super(FrameSkipWrapper, self).__init__(env)
+        self.frame_skip = frame_skip
+
+    def step(self, action):
+        reward_sum = 0.0
+
+        for i in range(self.frame_skip):
+            obs, reward, done, info = self.env.step(action)
+            reward_sum+= reward
+
+            if done:
+                break
+        
+        return obs, reward_sum, done, info
+
+    def reset(self):
+        return self.env.reset()
+
 
 class StateWrapper(gym.Wrapper):
     def __init__(self, env, frame_stacking):
@@ -83,7 +103,7 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_skip = 4, render = False):
 
     r_min = 0.0
     r_max = 1.0
@@ -142,10 +162,11 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
 
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 200, use_sequential_levels=False)
+    env = FrameSkipWrapper(env, frame_skip)
     env = StateWrapper(env, frame_stacking)  
     env = ScoreWrapper(env, r_min, r_max) 
 
     return env 
 
 def WrapperProcgenRender(env_name = "procgen-climber-v0"):
-    return WrapperProcgen(env_name, frame_stacking = 4, render=True) 
+    return WrapperProcgen(env_name, frame_stacking = 2, frame_skip = 4, render=True) 
