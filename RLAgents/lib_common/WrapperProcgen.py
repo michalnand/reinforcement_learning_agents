@@ -63,6 +63,8 @@ class Score(gym.Wrapper):
         self.score_raw          = numpy.zeros((averaging_episoded, ), dtype=numpy.float32)
         self.score_normalised   = numpy.zeros((averaging_episoded, ), dtype=numpy.float32)
 
+        self.ptr = 0 
+
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
