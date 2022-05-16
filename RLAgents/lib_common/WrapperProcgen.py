@@ -52,21 +52,16 @@ class MaxSteps(gym.Wrapper):
 
 
 class Score(gym.Wrapper):
-    def __init__(self, env, min_score, max_score, clip_reward = 10.0):
+    def __init__(self, env, min_score, max_score, averaging_episoded = 100):
         super(Score, self).__init__(env)
 
         self.min_score          = min_score
         self.max_score          = max_score
-        self.clip_reward        = clip_reward
-
+        
         self.reward_sum         = 0.0
 
-        self.score_raw          = 0.0
-        self.score_normalised   = 0.0
-
-        self.reward_mean         = 0.0
-        self.reward_var          = 0.0
-        
+        self.score_raw          = numpy.zeros((averaging_episoded, ), dtype=numpy.float32)
+        self.score_normalised   = numpy.zeros((averaging_episoded, ), dtype=numpy.float32)
 
     def step(self, action):
         state, reward, done, info = self.env.step(action)
@@ -74,25 +69,17 @@ class Score(gym.Wrapper):
         self.reward_sum+= reward
 
         if done:
-            k = 0.1
-            self.score_raw          = (1.0 - k)*self.score_raw          + k*self.reward_sum
-            self.score_normalised   = (1.0 - k)*self.score_normalised   + k*self._normalise(self.reward_sum)
+            self.score_raw[self.ptr]        = self.reward_sum
+            self.score_normalised[self.ptr] = self._normalise(self.reward_sum)
             
             self.reward_sum = 0.0
 
-        info["raw_score"]        = round(self.score_raw, 5)
-        info["normalised_score"] = round(self.score_normalised, 5)
+            self.ptr = (self.ptr+1)%self.score_raw.shape[0]
 
-        k   = 0.01
-        eps = 10**-8
-
-        self.reward_mean = (1.0 - k)*self.reward_mean + k*reward
-        self.reward_var  = (1.0 - k)*self.reward_var  + k*((reward - self.reward_mean)**2)
-
-        reward_norm = reward/((self.reward_var + eps)**0.5)
-        reward_norm = numpy.clip(reward_norm, -self.clip_reward, self.clip_reward)
-        
-        return state, reward_norm, done, info
+        info["raw_score"]        = round(self.score_raw.mean(), 5)
+        info["normalised_score"] = round(self.score_normalised.mean(), 5)
+    
+        return state, reward, done, info
         
     def reset(self):
         self.reward_sum = 0.0
