@@ -115,7 +115,8 @@ class AgentPPO():
         width   = 256
         height  = 256
         
-        state_im       = numpy.array([self.states[env_id][2], self.states[env_id][1], self.states[env_id][0]])
+        ofs = 0
+        state_im       = numpy.array([self.states[env_id][2 + 3*ofs], self.states[env_id][1 + 3*ofs], self.states[env_id][0 + 3*ofs]])
         state_im       = numpy.moveaxis(state_im, 0, 2)
         state_im       = cv2.resize(state_im, (width, height), cv2.INTER_CUBIC)
 

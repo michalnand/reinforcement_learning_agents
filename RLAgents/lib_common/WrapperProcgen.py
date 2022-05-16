@@ -3,11 +3,16 @@ import procgen
 import numpy
 
 
-class ExtractState(gym.Wrapper):
-    def __init__(self, env):
-        super(ExtractState, self).__init__(env)
+class StateWrapper(gym.Wrapper):
+    def __init__(self, env, frame_stacking):
+        super(StateWrapper, self).__init__(env)
 
-        state_shape = (3, 64, 64)
+        self.frame_stacking = frame_stacking
+
+        state_shape = (3*self.frame_stacking, 64, 64)
+
+        self.state = numpy.zeros(state_shape, dtype=numpy.float32)
+
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=numpy.float32)
 
     def step(self, action):
@@ -17,6 +22,8 @@ class ExtractState(gym.Wrapper):
         return obs, reward, done, info
 
     def reset(self):
+        self.state[:,:,:] = 0.0
+
         s = self.env.reset()
         s = self._get_state(s) 
 
@@ -25,35 +32,16 @@ class ExtractState(gym.Wrapper):
     def _get_state(self, s):
         s = numpy.array(s, dtype=numpy.float32)/255.0
         s = numpy.moveaxis(s, 2, 0) 
+
+        self.state      = numpy.roll(self.state, 3, axis=0)
+        self.state[0:3] = s 
         
-        #s = (s - s.mean())/(s.std() + 10**-10)
-
-        return s
-
-class MaxSteps(gym.Wrapper):
-    def __init__(self, env, max_steps):
-        super(MaxSteps, self).__init__(env)
-
-        self.max_steps = max_steps
-        self.steps     = 0
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-
-        self.steps+= 1
-        if self.steps >= self.max_steps:
-            done = True
-
-        return state, reward, done, info
-        
-    def reset(self):
-        self.steps = 0
-        return self.env.reset()
+        return self.state
 
 
-class Score(gym.Wrapper):
+class ScoreWrapper(gym.Wrapper):
     def __init__(self, env, min_score, max_score, averaging_episoded = 100):
-        super(Score, self).__init__(env)
+        super(ScoreWrapper, self).__init__(env)
 
         self.min_score          = min_score
         self.max_score          = max_score
@@ -92,7 +80,7 @@ class Score(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 4, render = False):
 
     r_min = 0.0
     r_max = 1.0
@@ -146,17 +134,15 @@ def WrapperProcgen(env_name = "procgen:procgen-climber-v0", max_steps = 4500, re
         r_min = 0.5
         r_max = 13.0
     else:
-        print("ERROR : unknow reward normalisation")
-
+        raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
     #env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
-    env = ExtractState(env)  
-    env = MaxSteps(env, max_steps) 
-    env = Score(env, r_min, r_max) 
+    env = StateWrapper(env, frame_stacking)  
+    env = ScoreWrapper(env, r_min, r_max) 
 
     return env 
 
-def WrapperProcgenRender(env_name = "procgen-climber-v0", max_steps = 4500):
-    return WrapperProcgen(env_name, max_steps, True) 
+def WrapperProcgenRender(env_name = "procgen-climber-v0"):
+    return WrapperProcgen(env_name, frame_stacking = 4, render=True) 
