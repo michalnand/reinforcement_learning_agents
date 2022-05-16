@@ -33,10 +33,13 @@ class StateWrapper(gym.Wrapper):
         s = numpy.array(s, dtype=numpy.float32)/255.0
         s = numpy.moveaxis(s, 2, 0) 
 
-        self.state      = numpy.roll(self.state, 3, axis=0)
-        self.state[0:3] = s 
+        if self.frame_stacking > 1: 
+            self.state      = numpy.roll(self.state, 3, axis=0)
+            self.state[0:3] = s  
         
-        return self.state
+            return self.state
+        else:
+            return s
 
 
 class ScoreWrapper(gym.Wrapper):
