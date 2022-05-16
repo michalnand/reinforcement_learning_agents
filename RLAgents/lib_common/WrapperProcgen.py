@@ -137,8 +137,8 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 4, render =
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
 
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 1, use_sequential_levels=True)
+    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 200, use_sequential_levels=False)
     env = StateWrapper(env, frame_stacking)  
     env = ScoreWrapper(env, r_min, r_max) 
 
