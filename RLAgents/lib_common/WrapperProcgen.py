@@ -83,7 +83,7 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 4, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
 
     r_min = 0.0
     r_max = 1.0
