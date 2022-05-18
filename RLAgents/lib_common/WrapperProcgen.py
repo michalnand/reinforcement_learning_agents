@@ -24,8 +24,37 @@ class FrameSkipWrapper(gym.Wrapper):
 
 
 class StateWrapper(gym.Wrapper):
-    def __init__(self, env, frame_stacking):
+    def __init__(self, env):
         super(StateWrapper, self).__init__(env)
+
+        state_shape = (3, 64, 64)
+
+        self.state = numpy.zeros(state_shape, dtype=numpy.float32)
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=numpy.float32)
+
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+        obs = self._get_state(obs)
+
+        return obs, reward, done, info
+
+    def reset(self):
+        s = self.env.reset()
+        s = self._get_state(s) 
+
+        return s
+
+    def _get_state(self, s):
+        s = numpy.array(s, dtype=numpy.float32)/255.0
+        s = numpy.moveaxis(s, 2, 0) 
+
+        return s
+
+
+class FrameStacking(gym.Wrapper):
+    def __init__(self, env, frame_stacking):
+        super(FrameStacking, self).__init__(env)
 
         self.frame_stacking = frame_stacking
 
@@ -48,20 +77,13 @@ class StateWrapper(gym.Wrapper):
         s = self._get_state(s) 
 
         return s
-
+ 
     def _get_state(self, s):
-        s = numpy.array(s, dtype=numpy.float32)/255.0
-        s = numpy.moveaxis(s, 2, 0) 
-
-        if self.frame_stacking > 1: 
-            self.state      = numpy.roll(self.state, 3, axis=0)
-            self.state[0:3] = s  
+        self.state      = numpy.roll(self.state, 3, axis=0)
+        self.state[0:3] = s  
         
-            return self.state
-        else:
-            return s
-
-
+        return self.state
+        
 class ScoreWrapper(gym.Wrapper):
     def __init__(self, env, min_score, max_score, averaging_episoded = 100):
         super(ScoreWrapper, self).__init__(env)
@@ -103,7 +125,7 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_skip = 4, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, frame_skip = 1, render = False):
 
     r_min = 0.0
     r_max = 1.0
@@ -160,13 +182,19 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_sk
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
 
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False)
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 200, use_sequential_levels=False)
-    env = FrameSkipWrapper(env, frame_skip)
-    env = StateWrapper(env, frame_stacking)  
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
+
+    if frame_skip > 1:
+        env = FrameSkipWrapper(env, frame_skip)
+
+    env = StateWrapper(env)  
+
+    if frame_stacking > 1:
+        env = FrameStacking(env, frame_stacking)  
+
     env = ScoreWrapper(env, r_min, r_max) 
 
     return env 
 
 def WrapperProcgenRender(env_name = "procgen-climber-v0"):
-    return WrapperProcgen(env_name, frame_stacking = 2, frame_skip = 4, render=True) 
+    return WrapperProcgen(env_name, frame_stacking = 1, frame_skip = 1, render=True) 
