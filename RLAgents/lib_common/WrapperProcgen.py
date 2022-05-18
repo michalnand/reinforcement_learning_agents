@@ -167,7 +167,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, frame_sk
         r_min = 2.0
         r_max = 10.0
     elif "climber" in env_name:
-        r_min = 1.0
+        r_min = 2 #1.0
         r_max = 12.6
     elif "pluner" in env_name:
         r_min = 3.0
