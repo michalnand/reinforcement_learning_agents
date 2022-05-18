@@ -269,7 +269,7 @@ class AgentPPOSymmetry():
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12 
 
-        w               = 1.0 - 1.0/self.actions_count
+        w               = 1.0 - positive/(positive + negative) 
         acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
 
         acc = acc.detach().to("cpu").numpy() 
