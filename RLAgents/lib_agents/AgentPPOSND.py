@@ -227,7 +227,7 @@ class AgentPPOSND():
 
         batch_count = self.steps//self.batch_size
 
-        #small_batch = 64
+        small_batch = 64
 
 
         for e in range(self.training_epochs):
@@ -238,7 +238,7 @@ class AgentPPOSND():
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
                 if self._ppo_symmetry_loss is not None:
-                    small_batch = states.shape[0]//8
+                    #small_batch = states.shape[0]//8
                      
                     states_         = states[0:small_batch]
                     states_next_    = states_next[0:small_batch]
