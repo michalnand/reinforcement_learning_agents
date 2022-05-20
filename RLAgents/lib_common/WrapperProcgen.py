@@ -2,25 +2,6 @@ import gym
 import procgen
 import numpy
 
-class FrameSkipWrapper(gym.Wrapper):
-    def __init__(self, env, frame_skip):
-        super(FrameSkipWrapper, self).__init__(env)
-        self.frame_skip = frame_skip
-
-    def step(self, action):
-        reward_sum = 0.0
-
-        for i in range(self.frame_skip):
-            obs, reward, done, info = self.env.step(action)
-            reward_sum+= reward
-
-            if done:
-                break
-        
-        return obs, reward_sum, done, info
-
-    def reset(self):
-        return self.env.reset()
 
 
 class StateWrapper(gym.Wrapper):
@@ -125,7 +106,7 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_skip = 1, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, render = False):
 
     if "coinrun" in env_name:
         r_min = 5.0
@@ -178,11 +159,8 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_sk
     else:
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 50, use_sequential_levels=False, distribution_mode="easy")
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
-
-    if frame_skip > 1:
-        env = FrameSkipWrapper(env, frame_skip)
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 100, use_sequential_levels=False, distribution_mode="easy")
+    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
 
     env = StateWrapper(env)  
 
@@ -194,5 +172,5 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, frame_sk
     return env 
 
 def WrapperProcgenRender(env_name = "procgen-climber-v0"):
-    return WrapperProcgen(env_name, frame_stacking = 2, frame_skip = 1, render=True) 
+    return WrapperProcgen(env_name, frame_stacking = 2, render=True) 
 
