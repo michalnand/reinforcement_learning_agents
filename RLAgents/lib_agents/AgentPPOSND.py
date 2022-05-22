@@ -156,7 +156,7 @@ class AgentPPOSND():
                 self.states[e] = self.envs.reset(e).copy()
 
         '''
-        states_norm_t   = self._norm_state(states_t)
+        states_norm_t   = self._norm_state(states)
         features        = self.model_snd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
         
@@ -191,7 +191,7 @@ class AgentPPOSND():
         self.model_ppo.save(save_path + "trained/")
         self.model_snd.save(save_path + "trained/")
         self.model_snd_target.save(save_path + "trained/")
-
+ 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_snd.load(load_path + "trained/")
