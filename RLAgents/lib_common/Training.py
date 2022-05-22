@@ -49,7 +49,8 @@ class TrainingIterations:
                 #compute fps, and remaining time in hours
                 dt              = (time_now - time_prev)/self.log_period_iterations
                 time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
-
+            
+            print(">>> INFO = ", info)
 
             if hasattr(self.env, "get_raw_score"):
                 res                     = self.env.get_raw_score(0)
