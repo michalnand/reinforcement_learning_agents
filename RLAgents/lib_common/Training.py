@@ -55,6 +55,9 @@ class TrainingIterations:
                 res                     = self.env.get_raw_score(0)
                 raw_episodes            = res[0] 
                 raw_score_per_episode   = res[1]
+            elif "raw_score" in info:
+                raw_score_per_episode   = float(info["raw_score"])
+                print("RAW score = ", raw_score_per_episode)
             else:
                 raw_episodes            = None
                 raw_score_per_episode   = None
