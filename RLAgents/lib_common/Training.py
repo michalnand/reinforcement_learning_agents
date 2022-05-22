@@ -51,15 +51,15 @@ class TrainingIterations:
                 time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
             
             if "raw_score" in info:
+                raw_episodes            = None
                 raw_score_per_episode   = float(info["raw_score"])
-                print(">>>> info ", raw_score_per_episode)
             elif hasattr(self.env, "get_raw_score"):
                 res                     = self.env.get_raw_score(0)
                 raw_episodes            = res[0] 
                 raw_score_per_episode   = res[1]            
             else:
                 raw_episodes            = None
-                raw_score_per_episode   = None
+                raw_score_per_episode   = None 
 
             #episode done, update score per episode
             score_per_episode_+= reward
