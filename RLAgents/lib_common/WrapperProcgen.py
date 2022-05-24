@@ -106,7 +106,7 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
 
     if "coinrun" in env_name:
         r_min = 5.0
@@ -172,5 +172,5 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, render =
     return env 
 
 def WrapperProcgenRender(env_name = "procgen-climber-v0"):
-    return WrapperProcgen(env_name, frame_stacking = 2, render=True) 
+    return WrapperProcgen(env_name, frame_stacking = 1, render=True) 
 
