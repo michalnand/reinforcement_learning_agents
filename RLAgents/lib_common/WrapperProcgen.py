@@ -108,6 +108,7 @@ class ScoreWrapper(gym.Wrapper):
 
 def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
 
+    '''
     if "coinrun" in env_name:
         r_min = 5.0
         r_max = 10.0
@@ -158,9 +159,62 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
         r_max = 10.0
     else:
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
+    '''
 
-    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 100, use_sequential_levels=False, distribution_mode="easy")
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
+
+    if "coinrun" in env_name:
+        r_min = 5.0
+        r_max = 10.0
+    elif "starpilot" in env_name:
+        r_min = 1.5
+        r_max = 35.0
+    elif "caveflyer" in env_name:
+        r_min = 2.0
+        r_max = 13.4
+    elif "dodgeball" in env_name:
+        r_min = 1.5
+        r_max = 19.0
+    elif "fruitbot" in env_name:
+        r_min = -0.5
+        r_max = 27.2
+    elif "chaser" in env_name:
+        r_min = 0.5
+        r_max = 14.2
+    elif "miner" in env_name:
+        r_min = 1.5
+        r_max = 20.0
+    elif "jumper" in env_name:
+        r_min = 1.0
+        r_max = 10.0
+    elif "leaper" in env_name:
+        r_min = 1.5
+        r_max = 10.0
+    elif "maze" in env_name:
+        r_min = 4.0
+        r_max = 10.0
+    elif "bigfish" in env_name:
+        r_min = 0.0
+        r_max = 40.0
+    elif "heist" in env_name:
+        r_min = 2.0
+        r_max = 10.0
+    elif "climber" in env_name:
+        r_min = 1
+        r_max = 12.6
+    elif "plunder" in env_name:
+        r_min = 3.0
+        r_max = 30.0
+    elif "ninja" in env_name:
+        r_min = 2.0
+        r_max = 10.0
+    elif "bossfight" in env_name:
+        r_min = 0.5
+        r_max = 13.0
+    else:
+        raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
+
+    #env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="hard")
 
     env = StateWrapper(env)  
 
