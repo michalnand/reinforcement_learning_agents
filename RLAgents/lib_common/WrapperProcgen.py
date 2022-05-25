@@ -220,8 +220,8 @@ env_name        : default "procgen-climber-v0",  generic "procgen-GameName-v0"
 frame_stacking  : default 1, can experiment with 4 (4 rgb planes input, 12 channels total)
 mode            : default "easy", ("hard")
 
-easy mode       : 64  paralel envs,  500 000 steps for trainig (total 64*500k samples), approx 6hours on RTX3060
-hard mode       : 200 paralel envs, 1M steps for training (total 200*1M samples), prefered for benchmarking
+easy mode       : quick testing, training options : 64  paralel envs, 500k steps for trainig (total 64*500k samples), approx 6hours on RTX3060
+hard mode       : prefered for benchmarking, training options : 200 paralel envs, 1M steps for training (total 200*1M samples)
 
 wrapper adds into info :
 
