@@ -106,147 +106,134 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
-class RewardNormalise(gym.Wrapper):
-    def __init__(self, env, score_max = 10.0, alpha = 0.01):
-        super(RewardNormalise, self).__init__(env)
 
-        self.score_max          = score_max
-
-        self.alpha              = alpha
-        self.mean = 0.0
-        self.var  = 0.0
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-
-        eps = 10**-8
-
-        self.mean = (1.0 - self.alpha)*self.mean + self.alpha*reward
-        self.var  = (1.0 - self.alpha)*self.var  + self.alpha*( (reward - self.mean)**2 )
-
-        reward_norm = reward/((self.var + eps)**0.5)
-        reward_norm = numpy.clip(reward_norm, -self.score_max, self.score_max)
-
-    
-        return state, reward_norm, done, info
-        
-    def reset(self):
-        return self.env.reset()
-
-
-
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
-
-    
-    if "coinrun" in env_name:
-        r_min = 5.0
-        r_max = 10.0
-    elif "starpilot" in env_name:
-        r_min = 2.5
-        r_max = 64.0
-    elif "caveflyer" in env_name:
-        r_min = 3.5
-        r_max = 12.0
-    elif "dodgeball" in env_name:
-        r_min = 1.5
-        r_max = 19.0
-    elif "fruitbot" in env_name:
-        r_min = -1.5
-        r_max = 32.4
-    elif "chaser" in env_name:
-        r_min = 0.5
-        r_max = 13.0
-    elif "miner" in env_name:
-        r_min = 1.5
-        r_max = 13.0
-    elif "jumper" in env_name:
-        r_min = 3.0
-        r_max = 10.0
-    elif "leaper" in env_name:
-        r_min = 3.0
-        r_max = 10.0
-    elif "maze" in env_name:
-        r_min = 5.0
-        r_max = 10.0
-    elif "bigfish" in env_name:
-        r_min = 1.0
-        r_max = 40.0
-    elif "heist" in env_name:
-        r_min = 3.5
-        r_max = 10.0
-    elif "climber" in env_name:
-        r_min = 2
-        r_max = 12.6
-    elif "plunder" in env_name:
-        r_min = 4.5
-        r_max = 30.0
-    elif "ninja" in env_name:
-        r_min = 3.5
-        r_max = 10.0
-    elif "bossfight" in env_name:
-        r_min = 3.5
-        r_max = 10.0
+def get_reward_range(env_name, mode = "easy"):
+    if mode == "easy":
+        if "coinrun" in env_name:
+            r_min = 5.0
+            r_max = 10.0
+        elif "starpilot" in env_name:
+            r_min = 2.5
+            r_max = 64.0
+        elif "caveflyer" in env_name:
+            r_min = 3.5
+            r_max = 12.0
+        elif "dodgeball" in env_name:
+            r_min = 1.5
+            r_max = 19.0
+        elif "fruitbot" in env_name:
+            r_min = -1.5
+            r_max = 32.4
+        elif "chaser" in env_name:
+            r_min = 0.5
+            r_max = 13.0
+        elif "miner" in env_name:
+            r_min = 1.5
+            r_max = 13.0
+        elif "jumper" in env_name:
+            r_min = 3.0
+            r_max = 10.0
+        elif "leaper" in env_name:
+            r_min = 3.0
+            r_max = 10.0
+        elif "maze" in env_name:
+            r_min = 5.0
+            r_max = 10.0
+        elif "bigfish" in env_name:
+            r_min = 1.0
+            r_max = 40.0
+        elif "heist" in env_name:
+            r_min = 3.5
+            r_max = 10.0
+        elif "climber" in env_name:
+            r_min = 2
+            r_max = 12.6
+        elif "plunder" in env_name:
+            r_min = 4.5
+            r_max = 30.0
+        elif "ninja" in env_name:
+            r_min = 3.5
+            r_max = 10.0
+        elif "bossfight" in env_name:
+            r_min = 3.5
+            r_max = 10.0
+        else:
+            raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
     else:
-        raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
+        if "coinrun" in env_name:
+            r_min = 5.0
+            r_max = 10.0
+        elif "starpilot" in env_name:
+            r_min = 1.5
+            r_max = 35.0
+        elif "caveflyer" in env_name:
+            r_min = 2.0
+            r_max = 13.4
+        elif "dodgeball" in env_name:
+            r_min = 1.5
+            r_max = 19.0
+        elif "fruitbot" in env_name:
+            r_min = -0.5
+            r_max = 27.2
+        elif "chaser" in env_name:
+            r_min = 0.5
+            r_max = 14.2
+        elif "miner" in env_name:
+            r_min = 1.5
+            r_max = 20.0
+        elif "jumper" in env_name:
+            r_min = 1.0
+            r_max = 10.0
+        elif "leaper" in env_name:
+            r_min = 1.5
+            r_max = 10.0
+        elif "maze" in env_name:
+            r_min = 4.0
+            r_max = 10.0
+        elif "bigfish" in env_name:
+            r_min = 0.0
+            r_max = 40.0
+        elif "heist" in env_name:
+            r_min = 2.0
+            r_max = 10.0
+        elif "climber" in env_name:
+            r_min = 1
+            r_max = 12.6
+        elif "plunder" in env_name:
+            r_min = 3.0
+            r_max = 30.0
+        elif "ninja" in env_name:
+            r_min = 2.0
+            r_max = 10.0
+        elif "bossfight" in env_name:
+            r_min = 0.5
+            r_max = 13.0
+        else:
+            raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
+
+    return r_min, r_max
+
+
+'''
+env_name        : default "procgen-climber-v0",  generic "procgen-GameName-v0"
+frame_stacking  : default 1, can experiment with 4 (4 rgb planes input, 12 channels total)
+mode            : default "easy", ("hard")
+
+easy mode       : 64  paralel envs,  500 000 steps for trainig (total 64*500k samples), approx 6hours on RTX3060
+hard mode       : 200 paralel envs, 1M steps for training (total 200*1M samples), prefered for benchmarking
+
+wrapper adds into info :
+
+info["raw_score"]           : rewards sum per episode, averaged over 100episodes
+info["normalised_score"]    : normalised rewards sum per episode, averaged over 100episodes
+'''
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, mode = "easy", render = False):
+
+    r_min, r_max = get_reward_range(env_name, mode)
     
-
-    '''
-    if "coinrun" in env_name:
-        r_min = 5.0
-        r_max = 10.0
-    elif "starpilot" in env_name:
-        r_min = 1.5
-        r_max = 35.0
-    elif "caveflyer" in env_name:
-        r_min = 2.0
-        r_max = 13.4
-    elif "dodgeball" in env_name:
-        r_min = 1.5
-        r_max = 19.0
-    elif "fruitbot" in env_name:
-        r_min = -0.5
-        r_max = 27.2
-    elif "chaser" in env_name:
-        r_min = 0.5
-        r_max = 14.2
-    elif "miner" in env_name:
-        r_min = 1.5
-        r_max = 20.0
-    elif "jumper" in env_name:
-        r_min = 1.0
-        r_max = 10.0
-    elif "leaper" in env_name:
-        r_min = 1.5
-        r_max = 10.0
-    elif "maze" in env_name:
-        r_min = 4.0
-        r_max = 10.0
-    elif "bigfish" in env_name:
-        r_min = 0.0
-        r_max = 40.0
-    elif "heist" in env_name:
-        r_min = 2.0
-        r_max = 10.0
-    elif "climber" in env_name:
-        r_min = 1
-        r_max = 12.6
-    elif "plunder" in env_name:
-        r_min = 3.0
-        r_max = 30.0
-    elif "ninja" in env_name:
-        r_min = 2.0
-        r_max = 10.0
-    elif "bossfight" in env_name:
-        r_min = 0.5
-        r_max = 13.0
-    else:
-        raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
-
-    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="hard")
-    '''
-
+    
+    env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode=mode)
     env = StateWrapper(env)  
 
     if frame_stacking > 1:
@@ -256,6 +243,16 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
 
     return env 
 
-def WrapperProcgenRender(env_name = "procgen-climber-v0"):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=True) 
+
+def WrapperProcgenEasy(env_name = "procgen-climber-v0"):
+    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="easy")
+
+def WrapperProcgenHard(env_name = "procgen-climber-v0"):
+    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="hard")
+
+def WrapperProcgenEasyRender(env_name = "procgen-climber-v0"):
+    return WrapperProcgen(env_name, frame_stacking = 1, render=True, mode="easy") 
+
+def WrapperProcgenHardRender(env_name = "procgen-climber-v0"):
+    return WrapperProcgen(env_name, frame_stacking = 1, render=True, mode="hard") 
 
