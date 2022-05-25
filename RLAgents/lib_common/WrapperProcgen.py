@@ -106,9 +106,38 @@ class ScoreWrapper(gym.Wrapper):
         return y
 
 
+class RewardNormalise(gym.Wrapper):
+    def __init__(self, env, score_max = 10.0, alpha = 0.01):
+        super(RewardNormalise, self).__init__(env)
+
+        self.score_max          = score_max
+
+        self.alpha              = alpha
+        self.mean = 0.0
+        self.var  = 0.0
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+
+        eps = 10**-8
+
+        self.mean = (1.0 - self.alpha)*self.mean + self.alpha*reward
+        self.var  = (1.0 - self.alpha)*self.var  + self.alpha*( (reward - self.mean)**2 )
+
+        reward_norm = reward/((self.var + eps)**0.5)
+        reward_norm = numpy.clip(reward_norm, -self.score_max, self.score_max)
+
+    
+        return state, reward_norm, done, info
+        
+    def reset(self):
+        return self.env.reset()
+
+
+
 def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render = False):
 
-    '''
+    
     if "coinrun" in env_name:
         r_min = 5.0
         r_max = 10.0
@@ -161,9 +190,9 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="easy")
+    
+
     '''
-
-
     if "coinrun" in env_name:
         r_min = 5.0
         r_max = 10.0
@@ -216,6 +245,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
         raise ValueError("\n\nERROR : unknow reward normalisation or unsupported envname\n\n")
 
     env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode="hard")
+    '''
 
     env = StateWrapper(env)  
 
@@ -223,6 +253,8 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
         env = FrameStacking(env, frame_stacking)  
 
     env = ScoreWrapper(env, r_min, r_max) 
+
+    env = RewardNormalise(env)
 
     return env 
 
