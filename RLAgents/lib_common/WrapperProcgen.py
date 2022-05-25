@@ -254,8 +254,6 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, render =
 
     env = ScoreWrapper(env, r_min, r_max) 
 
-    env = RewardNormalise(env)
-
     return env 
 
 def WrapperProcgenRender(env_name = "procgen-climber-v0"):
