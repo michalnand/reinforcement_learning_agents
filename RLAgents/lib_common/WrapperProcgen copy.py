@@ -225,7 +225,6 @@ mode            : default "easy", ("hard")
 
 easy mode       : quick testing, training options : 64  paralel envs, 500k steps for trainig (total 64*500k samples), approx 6hours on RTX3060
 hard mode       : prefered for benchmarking, training options : 200 paralel envs, 1M steps for training (total 200*1M samples)
-exploration mode: hard exploration, where PPO baseline reach 0 points
 
 wrapper adds into info :
 

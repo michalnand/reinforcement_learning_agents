@@ -12,4 +12,4 @@ from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
 from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaVideo
 from .WrapperPybullet       import *
 
-from .WrapperProcgen        import WrapperProcgenEasy, WrapperProcgenHard, WrapperProcgenEasyRender, WrapperProcgenHardRender
+from .WrapperProcgen        import WrapperProcgenEasy, WrapperProcgenHard, WrapperProcgenExploration, WrapperProcgenEasyRender, WrapperProcgenHardRender, WrapperProcgenExplorationRender
