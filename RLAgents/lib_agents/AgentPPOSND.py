@@ -445,7 +445,7 @@ class AgentPPOSND():
 
         #L2 magnitude regularisation
         magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
+        loss_magnitude  = 0.01*magnitude
 
         loss = loss_nce + loss_magnitude
 
