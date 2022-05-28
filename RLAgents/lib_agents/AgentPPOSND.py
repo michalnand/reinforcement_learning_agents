@@ -474,7 +474,7 @@ class AgentPPOSND():
 
         #L2 magnitude regularisation (10**-4) 
         magnitude   = (z.norm(dim=1, p=2)).mean()
-        loss_mag    = 0.001*magnitude
+        loss_mag    = 0.01*magnitude
 
         loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
  
