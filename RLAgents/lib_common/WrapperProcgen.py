@@ -3,26 +3,19 @@ import procgen
 import numpy
 
 
-class NopOps(gym.Wrapper):
-    def __init__(self, env=None, max_count=30):
-        super(NopOps, self).__init__(env)
-        self.max_count = max_count
-
-    def reset(self):
-        self.env.reset()
-
-        noops = numpy.random.randint(1, self.max_count + 1)
-         
-        for _ in range(noops):
-            obs, _, done, _ = self.env.step(0)
-
-            if done:
-                obs = self.env.reset()
-           
-        return obs
+class RandomAction(gym.Wrapper):
+    def __init__(self, env, prob = 0.01):
+        super(RandomAction, self).__init__(env)
+        self.prob = prob
 
     def step(self, action):
+        if numpy.random.random() < self.prob:
+            action = numpy.random.randint(self.env.action_space.n)
+ 
         return self.env.step(action)
+
+    def reset(self):
+        return self.env.reset()
 
 class StateWrapper(gym.Wrapper):
     def __init__(self, env):
@@ -274,7 +267,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
     else:
         env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode=mode)
     
-    env = NopOps(env) 
+    env = RandomAction(env) 
     env = StateWrapper(env)  
 
     if frame_stacking > 1:
