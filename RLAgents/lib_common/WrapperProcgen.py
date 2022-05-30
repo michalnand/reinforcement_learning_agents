@@ -232,7 +232,7 @@ wrapper adds into info :
 info["raw_score"]           : rewards sum per episode, averaged over 100episodes
 info["normalised_score"]    : normalised rewards sum per episode, averaged over 100episodes
 '''
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, mode = "easy", render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "easy", render = False):
 
     r_min, r_max = get_reward_range(env_name, mode)
     
@@ -265,19 +265,19 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 1, mode = "
 
 
 def WrapperProcgenEasy(env_name): 
-    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="easy")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="easy")
 
 def WrapperProcgenHard(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="hard")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="hard")
 
 def WrapperProcgenExploration(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="exploration")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="exploration")
 
 def WrapperProcgenEasyRender(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=True, mode="easy") 
+    return WrapperProcgen(env_name, frame_stacking = 2, render=True, mode="easy") 
 
 def WrapperProcgenHardRender(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=True, mode="hard") 
+    return WrapperProcgen(env_name, frame_stacking = 2, render=True, mode="hard") 
 
 def WrapperProcgenExplorationRender(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=True, mode="exploration")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=True, mode="exploration")
