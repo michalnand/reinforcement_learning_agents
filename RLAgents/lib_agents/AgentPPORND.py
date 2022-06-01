@@ -26,7 +26,9 @@ class AgentPPORND():
         self.envs_count         = config.envs_count 
 
 
-        self.normalise_state_std = config.normalise_state_std
+        self.normalise_state_mean = config.normalise_state_mean
+        self.normalise_state_std  = config.normalise_state_std
+
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -286,19 +288,22 @@ class AgentPPORND():
         curiosity_t = curiosity_t.sum(dim=1)/2.0
      
         return curiosity_t
-
+ 
 
     #normalise mean and std for state
-    def _norm_state(self, state_t):
-        mean = torch.from_numpy(self.states_running_stats.mean).to(state_t.device).float()
-        std  = torch.from_numpy(self.states_running_stats.std).to(state_t.device).float()
-        
-        state_norm_t = state_t - mean
+    def _norm_state(self, states):
+        states_norm = states
+
+        if self.normalise_state_mean:
+            mean = torch.from_numpy(self.states_running_stats.mean).to(states.device).float()
+            states_norm = states_norm - mean
 
         if self.normalise_state_std:
-            state_norm_t = torch.clamp(state_norm_t/std, -1.0, 1.0)
+            std  = torch.from_numpy(self.states_running_stats.std).to(states.device).float()            
+            states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
 
-        return state_norm_t 
+        return states_norm 
+
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
