@@ -455,8 +455,6 @@ class AgentPPOSND():
 
         #mse loss
         loss_mse = (target - distances)**2
-
-        print(loss_mse)
         
         loss_mse = (w*loss_mse).mean()
 
