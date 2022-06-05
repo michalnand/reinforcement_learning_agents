@@ -35,6 +35,8 @@ class AgentPPOSND():
 
         if config.snd_regularisation_loss == "mse":
             self._snd_regularisation_loss = self._contrastive_loss_mse
+        elif config.snd_regularisation_loss == "mse_all":
+            self._snd_regularisation_loss = self._contrastive_loss_mse_all
         elif config.snd_regularisation_loss == "nce": 
             self._snd_regularisation_loss = self._contrastive_loss_nce
         else:
@@ -161,7 +163,11 @@ class AgentPPOSND():
         features        = features.detach().to("cpu").numpy()
         
         self.vis_features.append(features[0])
-        self.vis_labels.append(infos[0]["room_id"])
+
+        if "room_id" in infos[0]:
+            self.vis_labels.append(infos[0]["room_id"])
+        else:
+            self.vis_labels.append(0)
 
         if dones[0]:
             print("training t-sne")
@@ -171,6 +177,7 @@ class AgentPPOSND():
             print("result shape = ", features_embedded.shape)
 
             plt.clf()
+            #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
             plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
             plt.colorbar(ticks=range(16))
             plt.tight_layout()
@@ -412,6 +419,59 @@ class AgentPPOSND():
     
         return loss
 
+    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone() 
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+
+        distances  = torch.cdist(za, zb)/za.shape[1]
+
+        batch_size  = xa.shape[0]
+
+
+        target = 1.0 - torch.eye(batch_size).to(distances.device)
+
+        #de-biasing weights, ones on diagonal, 1/(batch_size-1) else
+        diag        = torch.eye(batch_size).to(distances.device)
+        w           = diag + (1.0/(batch_size-1))*(1.0 - diag)
+
+        #mse loss
+        loss_mse = (target - distances)**2
+
+        print(loss_mse)
+        
+        loss_mse = (w*loss_mse).mean()
+
+        #magnitude regularisation, keep magnitude in small numbers
+
+        #L2 magnitude regularisation
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
+ 
+        loss = loss_mse + loss_magnitude
+
+        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
+
+        return loss
+
     def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone() 
         xb = states_a.clone()
@@ -445,7 +505,7 @@ class AgentPPOSND():
 
         #L2 magnitude regularisation
         magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = 0.001*magnitude
+        loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_nce + loss_magnitude
 
