@@ -492,7 +492,9 @@ class AgentPPOSND():
             za = model(xa)  
             zb = model(xb) 
 
-        probs  = torch.sigmoid(torch.matmul(za, zb.t()))
+        logits = torch.matmul(za, zb.t())
+
+        probs  = torch.sigmoid(logits)
 
         labels = torch.eye(probs.shape[0]).to(probs.device)
 
