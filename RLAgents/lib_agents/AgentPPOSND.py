@@ -450,13 +450,13 @@ class AgentPPOSND():
         target = 1.0 - torch.eye(batch_size).to(distances.device)
 
         #de-biasing weights, ones on diagonal, 1/(batch_size-1) else
-        diag        = torch.eye(batch_size).to(distances.device)
-        w           = diag + (1.0/(batch_size-1))*(1.0 - diag)
+        #diag        = torch.eye(batch_size).to(distances.device)
+        #w           = diag + (1.0/(batch_size-1))*(1.0 - diag)
 
         #mse loss
         loss_mse = (target - distances)**2
         
-        loss_mse = (w*loss_mse).mean()
+        loss_mse = loss_mse.mean()
 
         #magnitude regularisation, keep magnitude in small numbers
 
