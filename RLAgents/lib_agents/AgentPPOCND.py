@@ -435,12 +435,15 @@ class AgentPPOCND():
 
         if hasattr(model, "forward_predictor"):
             za = model.forward_predictor(xa)  
+            print("forward predictor")
         else:
             za = model.forward(xa)  
-            
+
         zb = model.forward(xb) 
 
         logits = torch.matmul(za, zb.t())
+
+        print(logits)
 
         probs  = torch.sigmoid(logits)
 
