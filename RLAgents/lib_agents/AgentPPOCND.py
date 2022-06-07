@@ -11,7 +11,7 @@ import cv2
  
        
 class AgentPPOCND():   
-    def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
+    def __init__(self, envs, ModelPPO, ModelCNDTarget, ModelCND, config):
         self.envs = envs  
       
         self.gamma_ext          = config.gamma_ext 
@@ -35,8 +35,6 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "mse_all":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_all
         elif config.cnd_regularisation_loss == "nce": 
             self._cnd_regularisation_loss = self._contrastive_loss_nce
         else:
@@ -62,10 +60,10 @@ class AgentPPOCND():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_cnd_target      = ModelSNDTarget.Model(self.state_shape)
+        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape)
         self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
 
-        self.model_cnd      = ModelSND.Model(self.state_shape)
+        self.model_cnd      = ModelCND.Model(self.state_shape)
         self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
@@ -90,7 +88,7 @@ class AgentPPOCND():
 
         self.values_logger.add("loss_cnd", 0.0)
         self.values_logger.add("loss_cnd_regularization", 0.0)
-        self.values_logger.add("snd_magnitude", 0.0)
+        self.values_logger.add("cnd_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
@@ -260,12 +258,12 @@ class AgentPPOCND():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train snd model, MSE loss
+                #train cnd model, MSE loss
                 loss_cnd = self._compute_loss_cnd(states)
 
                 self.optimizer_cnd.zero_grad() 
                 loss_cnd.backward()
-                self.optimizer_cnd.step()
+                self.optimizer_cnd.step() 
 
                 #log results
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
@@ -273,7 +271,7 @@ class AgentPPOCND():
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                #train snd target model for regularisation (optional)
+                #train cnd target model for regularisation (optional)
                 if self._cnd_regularisation_loss is not None:                    
                     loss = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
@@ -360,7 +358,7 @@ class AgentPPOCND():
         return loss_policy, loss_entropy
 
 
-    #MSE loss for snd model
+    #MSE loss for cnd model
     def _compute_loss_cnd(self, states):
         
         state_norm_t    = self._norm_state(states).detach()
@@ -415,59 +413,8 @@ class AgentPPOCND():
 
         loss = loss_mse + loss_magnitude
 
-        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
-        return loss
-
-    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone() 
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-
-        distances  = torch.cdist(za, zb)/za.shape[1]
-
-        batch_size  = xa.shape[0]
-
-
-        target = 1.0 - torch.eye(batch_size).to(distances.device)
-
-        #de-biasing weights, ones on diagonal, 1/(batch_size-1) else
-        #diag        = torch.eye(batch_size).to(distances.device)
-        #w           = diag + (1.0/(batch_size-1))*(1.0 - diag)
-
-        #mse loss
-        loss_mse = (target - distances)**2
-        
-        loss_mse = loss_mse.mean()
-
-        #magnitude regularisation, keep magnitude in small numbers
-
-        #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
- 
-        loss = loss_mse + loss_magnitude
-
-        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
-
         return loss
 
     def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
@@ -485,12 +432,13 @@ class AgentPPOCND():
             xb = self._aug(xb)
  
         #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
+
+        if hasattr(model, "forward_predictor"):
+            za = model.forward_predictor(xa)  
         else:
-            za = model(xa)  
-            zb = model(xb) 
+            za = model.forward(xa)  
+            
+        zb = model.forward(xb) 
 
         logits = torch.matmul(za, zb.t())
 
@@ -509,7 +457,7 @@ class AgentPPOCND():
 
         loss = loss_nce + loss_magnitude
 
-        self.values_logger.add("snd_magnitude", magnitude.detach().to("cpu").numpy())
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
 
