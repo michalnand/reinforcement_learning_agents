@@ -447,10 +447,10 @@ class AgentPPOCND():
 
 
         #target class is on diagonal
-        labels = torch.arange(states_a.shape[0], device=states_a.device)
+        labels      = torch.arange(states_a.shape[0], device=states_a.device)
 
-        loss_func = nn.CrossEntropyLoss()
-        loss_nce = loss_func(logits, labels)
+        loss_func   = torch.nn.CrossEntropyLoss()
+        loss_nce    = loss_func(logits, labels)
 
         #magnitude regularisation, keep magnitude in small numbers
 
