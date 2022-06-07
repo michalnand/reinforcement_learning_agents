@@ -443,14 +443,14 @@ class AgentPPOCND():
 
         logits = torch.matmul(za, zb.t())
 
-        print(logits)
+        print(logits, "\n\n\n")
 
-        probs  = torch.sigmoid(logits)
 
-        labels = torch.eye(probs.shape[0]).to(probs.device)
+        #target class is on diagonal
+        labels = torch.arange(states_a.shape[0], device=states_a.device)
 
-        loss_nce = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
-        loss_nce = loss_nce.mean()
+        loss_func = nn.CrossEntropyLoss()
+        loss_nce = loss_func(logits, labels)
 
         #magnitude regularisation, keep magnitude in small numbers
 
