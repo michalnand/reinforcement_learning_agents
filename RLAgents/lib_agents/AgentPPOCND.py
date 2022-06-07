@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import cv2
  
        
-class AgentPPOSND():   
+class AgentPPOCND():   
     def __init__(self, envs, ModelPPO, ModelSNDTarget, ModelSND, config):
         self.envs = envs  
       
@@ -32,15 +32,15 @@ class AgentPPOSND():
 
         self.regularisation_coeff   = config.regularisation_coeff
         self.symmetry_loss_coeff    = config.symmetry_loss_coeff
-
-        if config.snd_regularisation_loss == "mse":
-            self._snd_regularisation_loss = self._contrastive_loss_mse
-        elif config.snd_regularisation_loss == "mse_all":
-            self._snd_regularisation_loss = self._contrastive_loss_mse_all
-        elif config.snd_regularisation_loss == "nce": 
-            self._snd_regularisation_loss = self._contrastive_loss_nce
+ 
+        if config.cnd_regularisation_loss == "mse":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse
+        elif config.cnd_regularisation_loss == "mse_all":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_all
+        elif config.cnd_regularisation_loss == "nce": 
+            self._cnd_regularisation_loss = self._contrastive_loss_nce
         else:
-            self._snd_regularisation_loss = None
+            self._cnd_regularisation_loss = None
 
 
         if config.ppo_symmetry_loss == "mse":
@@ -50,7 +50,7 @@ class AgentPPOSND():
         else:
             self._ppo_symmetry_loss = None
 
-        print("snd_regularisation_loss  = ", self._snd_regularisation_loss)
+        print("cnd_regularisation_loss  = ", self._cnd_regularisation_loss)
         print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
 
         self.normalise_state_mean = config.normalise_state_mean
@@ -62,11 +62,11 @@ class AgentPPOSND():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_snd_target      = ModelSNDTarget.Model(self.state_shape)
-        self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_snd_target)
+        self.model_cnd_target      = ModelSNDTarget.Model(self.state_shape)
+        self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
 
-        self.model_snd      = ModelSND.Model(self.state_shape)
-        self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
+        self.model_cnd      = ModelSND.Model(self.state_shape)
+        self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
@@ -88,8 +88,8 @@ class AgentPPOSND():
 
         self.values_logger                  = ValuesLogger()
 
-        self.values_logger.add("loss_snd", 0.0)
-        self.values_logger.add("loss_snd_regularization", 0.0)
+        self.values_logger.add("loss_cnd", 0.0)
+        self.values_logger.add("loss_cnd_regularization", 0.0)
         self.values_logger.add("snd_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
@@ -159,7 +159,7 @@ class AgentPPOSND():
 
         '''
         states_norm_t   = self._norm_state(states)
-        features        = self.model_snd_target(states_norm_t)
+        features        = self.model_cnd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
         
         self.vis_features.append(features[0])
@@ -196,13 +196,13 @@ class AgentPPOSND():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_snd.save(save_path + "trained/")
-        self.model_snd_target.save(save_path + "trained/")
+        self.model_cnd.save(save_path + "trained/")
+        self.model_cnd_target.save(save_path + "trained/")
  
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_snd.load(load_path + "trained/")
-        self.model_snd_target.load(load_path + "trained/")
+        self.model_cnd.load(load_path + "trained/")
+        self.model_cnd_target.load(load_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
@@ -261,27 +261,27 @@ class AgentPPOSND():
                 self.optimizer_ppo.step()
 
                 #train snd model, MSE loss
-                loss_snd = self._compute_loss_snd(states)
+                loss_cnd = self._compute_loss_cnd(states)
 
-                self.optimizer_snd.zero_grad() 
-                loss_snd.backward()
-                self.optimizer_snd.step()
+                self.optimizer_cnd.zero_grad() 
+                loss_cnd.backward()
+                self.optimizer_cnd.step()
 
                 #log results
-                self.values_logger.add("loss_snd", loss_snd.detach().to("cpu").numpy())
+                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
               
                 #smaller batch for regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
                 #train snd target model for regularisation (optional)
-                if self._snd_regularisation_loss is not None:                    
-                    loss = self._snd_regularisation_loss(self.model_snd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
+                if self._cnd_regularisation_loss is not None:                    
+                    loss = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
-                    self.optimizer_snd_target.zero_grad() 
+                    self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
-                    self.optimizer_snd_target.step()
+                    self.optimizer_cnd_target.step()
 
-                    self.values_logger.add("loss_snd_regularization", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
 
                 
 
@@ -361,22 +361,22 @@ class AgentPPOSND():
 
 
     #MSE loss for snd model
-    def _compute_loss_snd(self, states):
+    def _compute_loss_cnd(self, states):
         
         state_norm_t    = self._norm_state(states).detach()
  
-        features_predicted_t  = self.model_snd(state_norm_t)
-        features_target_t     = self.model_snd_target(state_norm_t).detach()
+        features_predicted_t  = self.model_cnd(state_norm_t)
+        features_target_t     = self.model_cnd_target(state_norm_t).detach()
 
-        loss_snd = (features_target_t - features_predicted_t)**2
+        loss_cnd = (features_target_t - features_predicted_t)**2
 
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 32.0/self.envs_count
-        random_mask     = torch.rand(loss_snd.shape).to(loss_snd.device)
+        random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
         random_mask     = 1.0*(random_mask < prob) 
-        loss_snd        = (loss_snd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
 
-        return loss_snd
+        return loss_cnd
 
     
     def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
@@ -601,8 +601,8 @@ class AgentPPOSND():
     def _curiosity(self, states):
         states_norm            = self._norm_state(states)
 
-        features_predicted_t    = self.model_snd(states_norm)
-        features_target_t       = self.model_snd_target(states_norm)
+        features_predicted_t    = self.model_cnd(states_norm)
+        features_target_t       = self.model_cnd_target(states_norm)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         
