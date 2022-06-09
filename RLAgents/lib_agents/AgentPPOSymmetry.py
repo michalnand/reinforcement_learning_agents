@@ -242,39 +242,54 @@ class AgentPPOSymmetry():
         return loss
 
     def _symmetry_loss_nce(self, model, states, states_next, actions):
-        z = model.forward_features(states, states_next)
 
-        #each by each similarity, dot product and sigmoid to obtain probs
-        logits      = torch.matmul(z, z.t())
+        za, zb = model.forward_features_predictor(states, states_next)  
+        
+        #each by each similarity, dot product
+        logits      = torch.matmul(za, zb.t())/za.shape(1)
+        logits      = logits.flatten()
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float().detach()
+        labels      = labels.flatten()
 
-        #BCE loss
-        loss_symmetry    = (labels - logits)**2
-        loss_symmetry    = loss_symmetry.mean()   
+        #weighted BCE loss with logits (numericaly more stable)
+        w               = 1.0/(labels.mean() + 10**-12)
+        loss_func       = torch.nn.BCEWithLogitsLoss(pos_weight = w)
+        loss_symmetry   = loss_func(logits, labels)
 
-        #L2 magnitude regularisation (10**-4) 
-        magnitude   = (z.norm(dim=1, p=2)).mean()
-        loss_mag    = self.regularisation_coeff*magnitude
+
+        #L2 magnitude regularisation
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
         
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, logits > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, logits < 0.5).float().sum()
-        positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12 
-
-        w               = 1.0 - positive/(positive + negative) 
-        acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        acc = acc.detach().to("cpu").numpy() 
+        probs   = torch.sigmoid(logits).detach()
+        acc     = self._acc(labels, probs)
 
         self.values_logger.add("symmetry_accuracy", acc)
         self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
+
+    def _acc(self, labels, probs, th = 0.5):
+        positive = (labels >  th).float().sum() + 10**-12
+        negative = (labels <= th).float().sum() + 10**-12
+
+        true_positive  = torch.logical_and(labels >  th, probs >  th).float().sum()
+        true_negative  = torch.logical_and(labels <= th, probs <= th).float().sum()
+
+        #weight for positive class
+        w   = 1.0 - positive/(positive + negative) 
+
+        #weighted accuracy
+        acc = w*true_positive/positive + (1.0 - w)*true_negative/negative
+
+        acc = acc.detach().to("cpu").numpy() 
+
+        return acc
