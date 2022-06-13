@@ -418,6 +418,48 @@ class AgentPPOCND():
         return loss
 
     def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_b.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #predict similarity (cosine similarity)
+        logits = (za*zb).mean(dim = 1)
+
+        #BCE loss with logits (numericaly more stable)
+        loss_func   = torch.nn.BCEWithLogitsLoss()
+        loss_bce    = loss_func(logits, 1.0 - target)
+
+        #magnitude regularisation, keep magnitude in small numbers
+        #L2 magnitude regularisation
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_bce + loss_magnitude
+
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
+    
+        return loss
+
+
+    '''
+    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone() 
         xb = states_a.clone()
 
@@ -460,7 +502,7 @@ class AgentPPOCND():
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
-
+    '''
     
     def _symmetry_loss_mse(self, model, states, states_next, actions):
 
