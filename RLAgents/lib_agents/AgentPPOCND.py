@@ -451,6 +451,8 @@ class AgentPPOCND():
         #close distances are on diagonal
         target_     = (1.0 - torch.eye(predicted.shape[0])).to(distances.device)
 
+        print(target_)
+
         #MSE loss
         loss_mse = ((target_ - distances)**2).mean()
 
