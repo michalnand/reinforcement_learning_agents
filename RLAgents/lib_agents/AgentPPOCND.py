@@ -443,7 +443,7 @@ class AgentPPOCND():
             za = model(xa)  
             zb = model(xb) 
 
-        #euclidean distances each by each
+        #euclidean distances each by each, used (a-b)^2 = a^2 + b^2 - 2ab trick
         #distances_ref   = (torch.cdist(za, zb)**2)/za.shape[1]
         distances = ((za**2).unsqueeze(1) + (zb**2).unsqueeze(0)).sum(dim=2) - 2.0*torch.matmul(za, zb.t())
         distances = distances/za.shape[1]
@@ -451,8 +451,13 @@ class AgentPPOCND():
         #close distances are on diagonal
         target_     = (1.0 - torch.eye(distances.shape[0])).to(distances.device)
 
+        weight      = 1.0/(self.actions_count - 1.0)
+        loss_weight = (torch.eye(distances.shape[0])*(1.0 - weight) + weight).to(distances.device)
+
+        print(loss_weight)
+        
         #MSE loss
-        loss_mse = ((target_ - distances)**2).mean()
+        loss_mse = (loss_weight*(target_ - distances)**2).mean()
 
         #magnitude regularisation, keep magnitude in small numbers
 
