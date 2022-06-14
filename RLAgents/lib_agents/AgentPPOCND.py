@@ -444,14 +444,12 @@ class AgentPPOCND():
             zb = model(xb) 
 
         #euclidean distances each by each
-        distances_ref   = (torch.cdist(za, zb)**2)/za.shape[1]
+        #distances_ref   = (torch.cdist(za, zb)**2)/za.shape[1]
         distances = ((za**2).unsqueeze(1) + (zb**2).unsqueeze(0)).sum(dim=2) - 2.0*torch.matmul(za, zb.t())
         distances = distances/za.shape[1]
 
         #close distances are on diagonal
         target_     = (1.0 - torch.eye(distances.shape[0])).to(distances.device)
-
-        print("DIF = ", ((distances_ref - distances)**2).sum())
 
         #MSE loss
         loss_mse = ((target_ - distances)**2).mean()
