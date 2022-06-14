@@ -451,11 +451,12 @@ class AgentPPOCND():
         #close distances are on diagonal
         target_     = (1.0 - torch.eye(distances.shape[0])).to(distances.device)
 
-        weight      = 1.0/(self.actions_count - 1.0)
+        #debiasing using weighting
+        weight      = 1.0/distances.shape[0]
         loss_weight = (torch.eye(distances.shape[0])*(1.0 - weight) + weight).to(distances.device)
 
         print(loss_weight)
-        
+
         #MSE loss
         loss_mse = (loss_weight*(target_ - distances)**2).mean()
 
