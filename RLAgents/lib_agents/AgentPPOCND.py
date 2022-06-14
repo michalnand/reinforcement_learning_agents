@@ -454,11 +454,10 @@ class AgentPPOCND():
         #debiasing using weighting
         weight      = 1.0/distances.shape[0]
         loss_weight = (torch.eye(distances.shape[0])*(1.0 - weight) + weight).to(distances.device)
-
-        print(loss_weight)
-
+ 
         #MSE loss
-        loss_mse = (loss_weight*(target_ - distances)**2).mean()
+        loss_mse = loss_weight*((target_ - distances)**2)
+        loss_mse = loss_mse.mean()
 
         #magnitude regularisation, keep magnitude in small numbers
 
