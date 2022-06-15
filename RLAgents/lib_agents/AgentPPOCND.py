@@ -425,6 +425,8 @@ class AgentPPOCND():
         xa = states_a.clone()
         xb = states_a.clone()
 
+        batch_size = states_a.shape[0]
+
         #normalise states
         if normalise:
             xa = self._norm_state(xa) 
@@ -449,11 +451,13 @@ class AgentPPOCND():
         distances = distances/za.shape[1]
 
         #close distances are on diagonal
-        target_     = (1.0 - torch.eye(distances.shape[0])).to(distances.device)
+        target_     = (1.0 - torch.eye(batch_size)).to(distances.device)
 
-        #debiasing using weighting
-        weight      = 1.0/distances.shape[0]
-        loss_weight = (torch.eye(distances.shape[0])*(1.0 - weight) + weight).to(distances.device)
+        #debiasing inbalaced classes
+        weight      = 1.0/batch_size
+        loss_weight = weight*(1.0 - torch.eye(batch_size)) + torch.eye(batch_size)
+        loss_weight = loss_weight*weight
+        loss_weight = loss_weight.to(distances.device)
  
         #MSE loss
         loss_mse = loss_weight*((target_ - distances)**2)
