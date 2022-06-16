@@ -459,6 +459,8 @@ class AgentPPOCND():
 
         loss = loss_mse + loss_bce + loss_magnitude
 
+        print("loss = ", loss_mse, loss_bce)
+
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
         return loss
