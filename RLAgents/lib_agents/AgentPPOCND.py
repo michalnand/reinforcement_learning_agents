@@ -35,10 +35,10 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "mse_all":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_all
         elif config.cnd_regularisation_loss == "nce": 
             self._cnd_regularisation_loss = self._contrastive_loss_nce
+        elif config.cnd_regularisation_loss == "mse_nce": 
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_nce
         else:
             self._cnd_regularisation_loss = None
 
@@ -420,12 +420,9 @@ class AgentPPOCND():
         return loss
 
 
-
-    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
+    def _contrastive_loss_mse_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
-        xb = states_a.clone()
-
-        batch_size = states_a.shape[0]
+        xb = states_b.clone()
 
         #normalise states
         if normalise:
@@ -445,23 +442,14 @@ class AgentPPOCND():
             za = model(xa)  
             zb = model(xb) 
 
-        #euclidean distances each by each, used (a-b)^2 = a^2 + b^2 - 2ab trick
-        #distances_ref   = (torch.cdist(za, zb)**2)/za.shape[1]
-        distances = ((za**2).unsqueeze(1) + (zb**2).unsqueeze(0)).sum(dim=2) - 2.0*torch.matmul(za, zb.t())
-        distances = distances/za.shape[1]
+        #predict close distance for similar, far distance for different states, MSE loss
+        predicted_mse   = ((za - zb)**2).mean(dim=1)
+        loss_mse        = ((target - predicted_mse)**2).mean()
 
-        #close distances are on diagonal
-        target_     = (1.0 - torch.eye(batch_size)).to(distances.device)
-
-        #debiasing inbalaced classes
-        weight      = 1.0/batch_size
-        loss_weight = weight*(1.0 - torch.eye(batch_size)) + torch.eye(batch_size)
-        loss_weight = loss_weight*weight
-        loss_weight = loss_weight.to(distances.device)
- 
-        #MSE loss
-        loss_mse = loss_weight*((target_ - distances)**2)
-        loss_mse = loss_mse.mean()
+        #BCE loss with logits (numericaly more stable)
+        predicted_nce   = (za*zb).mean(dim=1)
+        loss_func       = torch.nn.BCEWithLogitsLoss()
+        loss_bce        = loss_func(predicted_nce, 1.0 - target)
 
         #magnitude regularisation, keep magnitude in small numbers
 
@@ -469,11 +457,12 @@ class AgentPPOCND():
         magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
         loss_magnitude  = self.regularisation_coeff*magnitude
 
-        loss = loss_mse + loss_magnitude
+        loss = loss_mse + loss_bce + loss_magnitude
 
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
         return loss
+
 
     def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
@@ -515,53 +504,6 @@ class AgentPPOCND():
     
         return loss
 
-
-    '''
-    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone() 
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-
-        if hasattr(model, "forward_predictor"):
-            za = model.forward_predictor(xa)  
-        else:
-            za = model.forward(xa)  
-
-        zb = model.forward(xb) 
-
-        logits = torch.matmul(za, zb.t())
-
-
-        #target class is on diagonal
-        labels      = torch.arange(states_a.shape[0], device=states_a.device)
-
-        loss_func   = torch.nn.CrossEntropyLoss()
-        loss_nce    = loss_func(logits, labels)
-
-        #magnitude regularisation, keep magnitude in small numbers
-
-        #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_nce + loss_magnitude
-
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
-
-        return loss
-    '''
-    
     def _symmetry_loss_mse(self, model, states, states_next, actions):
 
         z = model.forward_features(states, states_next)
