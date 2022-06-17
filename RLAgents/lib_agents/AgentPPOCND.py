@@ -35,6 +35,8 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
+        elif config.cnd_regularisation_loss == "mse_spatial":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_spatial
         elif config.cnd_regularisation_loss == "nce": 
             self._cnd_regularisation_loss = self._contrastive_loss_nce
         elif config.cnd_regularisation_loss == "mse_nce": 
@@ -378,7 +380,7 @@ class AgentPPOCND():
 
         return loss_cnd
 
-    
+
     def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_b.clone()
@@ -414,6 +416,46 @@ class AgentPPOCND():
         loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_mse + loss_magnitude
+
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
+    
+        return loss
+
+
+    def _contrastive_loss_mse_spatial(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_b.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        zas, zag = model.forward_features(xa)  
+        zbs, zbg = model.forward_features(xb) 
+        
+        #predict close distance for similar, far distance for different states
+        distance_g = ((zag - zbg)**2).mean(dim=1)
+
+        distance_s = ((zas - zbs)**2).mean(dim=1)
+ 
+        #MSE loss
+        loss_mse_g = ((target - distance_g)**2).mean()
+        loss_mse_s = ((target.unsqueeze(1).unsqueeze(1) - distance_s)**2).mean()
+
+        #magnitude regularisation, keep magnitude in small numbers
+
+        #L2 magnitude regularisation
+        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_mse_g + loss_mse_s + loss_magnitude
 
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
