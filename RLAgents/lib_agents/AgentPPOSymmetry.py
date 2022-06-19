@@ -236,7 +236,6 @@ class AgentPPOSymmetry():
 
         acc = acc.detach().to("cpu").numpy() 
 
-        print("acc = ", acc)
 
         self.values_logger.add("symmetry_accuracy", acc)
         self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
