@@ -1,10 +1,10 @@
 import numpy
 from .MultiEnv import *
 import time
-
+import os
 
 class TrainingIterations:
-    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
+    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 10):
         self.env = env
         self.agent = agent
 
@@ -123,5 +123,5 @@ class TrainingIterations:
                         path = self.saving_path + str(iteration) + "_"
                         os.mkdir(path + "trained")
                         self.agent.save(path)
-                        
+
                         print("\n\n")
