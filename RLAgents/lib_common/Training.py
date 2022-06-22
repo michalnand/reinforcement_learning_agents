@@ -111,7 +111,7 @@ class TrainingIterations:
                 if raw_episodes >= len(score_per_episode_buffer):
                     mean_score = score_per_episode_buffer.mean()
 
-                    if mean_score > raw_score_per_episode_best and raw_score_per_episode >= raw_score_per_episode_prev:
+                    if mean_score > raw_score_per_episode_best and raw_score_per_episode > raw_score_per_episode_prev:
                         raw_score_per_episode_best = mean_score
 
                         raw_score_per_episode_prev = raw_score_per_episode
@@ -119,5 +119,9 @@ class TrainingIterations:
                         print("\n\n")
                         print("saving new best with score = ", raw_score_per_episode_best)
                         self.agent.save(self.saving_path)
-                        self.agent.save(self.saving_path + str(iteration) + "_")
+
+                        path = self.saving_path + str(iteration) + "_"
+                        os.mkdir(path + "trained")
+                        self.agent.save(path)
+                        
                         print("\n\n")
