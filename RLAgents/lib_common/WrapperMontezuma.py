@@ -130,8 +130,6 @@ class VisitedRoomsEnv(gym.Wrapper):
         self.room_id            = 0
         self.explored_rooms     = 0
         
-
-
     def step(self, action):
         obs, reward, done, _ = self.env.step(action)
         
@@ -168,27 +166,43 @@ class VisitedRoomsEnv(gym.Wrapper):
         return numpy.min(distances), numpy.argmin(distances)
 
 
-class LifeLostEnv(gym.Wrapper):
-    def __init__(self, env):
+class RawScoreEnv(gym.Wrapper):
+    def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
-        self.lives          = 0
 
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action) 
+        self.steps      = 0
+        self.max_steps  = max_steps
 
-        lives = self.env.unwrapped.ale.lives()
-        if lives < self.lives:
-            reward+= -1.0
+        self.raw_score               = 0.0
+        self.raw_score_per_episode   = 0.0
         
-        self.lives = lives
+    def step(self, action):
+        obs, reward, done, info = self.env.step(action)
+
+        self.steps+= 1
+        if self.steps >= self.max_steps:
+            self.steps = 0
+            done = True 
+
+        self.raw_score+= reward
+        if done:
+            self.steps = 0
+  
+            k = 0.1
+            self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
+            self.raw_score = 0.0
+
+        info["raw_score"] = self.raw_score_per_episode
+
+        reward = float(numpy.sign(reward))
+
         return obs, reward, done, info
 
     def reset(self):
-        obs         = self.env.reset()
-        self.lives  = self.env.unwrapped.ale.lives()
-        return obs
+        self.steps = 0
+        return self.env.reset()
 
-
+'''
 class RawScoreEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
@@ -226,7 +240,7 @@ class RawScoreEnv(gym.Wrapper):
     def reset(self):
         self.steps = 0
         return self.env.reset()
- 
+''' 
   
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
