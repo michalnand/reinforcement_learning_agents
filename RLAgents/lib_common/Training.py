@@ -4,7 +4,7 @@ import time
 import os
 
 class TrainingIterations:
-    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 10):
+    def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
         self.env = env
         self.agent = agent
 
@@ -100,7 +100,7 @@ class TrainingIterations:
                 log_f.write(log_str + "\n")
                 log_f.flush()
                 log_f.close() 
-
+ 
 
             #check if agent is done
             if done:
@@ -111,9 +111,9 @@ class TrainingIterations:
                 if raw_episodes >= len(score_per_episode_buffer):
                     mean_score = score_per_episode_buffer.mean()
 
-                    if mean_score > raw_score_per_episode_best and raw_score_per_episode > raw_score_per_episode_prev:
+                    if mean_score > raw_score_per_episode_best and raw_score_per_episode >= raw_score_per_episode_prev:
                         raw_score_per_episode_best = mean_score
-
+ 
                         raw_score_per_episode_prev = raw_score_per_episode
                 
                         print("\n\n")
