@@ -592,16 +592,16 @@ class AgentPPOCND():
     def _symmetry_loss_nce(self, model, states, states_next, actions):
         z = model.forward_features(states, states_next)
 
-        #each by each similarity, dot product and sigmoid to obtain probs
-        probs   = torch.sigmoid(torch.matmul(z, z.t())/z.shape[1])
+        #each by each similarity, dot product to obtain logits
+        logits      = torch.matmul(z, z.t())/z.shape[1]
 
         #true labels are where are the same actions
         actions_    = actions.unsqueeze(1)
         labels      = (actions_ == actions_.t()).float().detach()
 
-        #BCE loss
-        loss_symmetry    = -(labels*torch.log(probs) + (1.0 - labels)*torch.log(1.0 - probs))
-        loss_symmetry    = loss_symmetry.mean()   
+        #BCE loss from logits, more stable
+        loss_func       = torch.nn.BCEWithLogitsLoss()
+        loss_symmetry   = loss_func(logits, labels)
 
         #L2 magnitude regularisation (10**-4) 
         magnitude   = (z.norm(dim=1, p=2)).mean()
@@ -612,8 +612,8 @@ class AgentPPOCND():
         self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
 
         #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, probs > 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, probs < 0.5).float().sum()
+        true_positive  = torch.logical_and(labels > 0.5, logits > 0.0).float().sum()
+        true_negative  = torch.logical_and(labels < 0.5, logits < 0.0).float().sum()
         positive       = (labels > 0.5).float().sum() + 10**-12
         negative       = (labels < 0.5).float().sum() + 10**-12 
 
