@@ -119,9 +119,9 @@ class TrainingIterations:
                         print("\n\n")
                         print("saving new best with score = ", raw_score_per_episode_best)
                         self.agent.save(self.saving_path)
-
-                        path = self.saving_path + str(iteration) + "_"
-                        os.mkdir(path + "trained")
-                        self.agent.save(path)
-
                         print("\n\n")
+
+            if iteration%100000 == 0:
+                path = self.saving_path + str(iteration) + "_"
+                os.mkdir(path + "trained")
+                self.agent.save(path)
