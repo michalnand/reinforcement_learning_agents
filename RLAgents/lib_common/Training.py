@@ -99,7 +99,7 @@ class TrainingIterations:
                 if episodes >= len(score_per_episode_buffer):
                     mean_score = score_per_episode_buffer.mean()
 
-                    if mean_score > mean_score_per_episode_best
+                    if mean_score > mean_score_per_episode_best:
                         mean_score_per_episode_best = mean_score
                   
                         print("\n\n")
