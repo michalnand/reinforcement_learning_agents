@@ -21,14 +21,11 @@ class TrainingIterations:
         log_f.close()
 
         episodes                        = 0
-        raw_episodes                    = 0
-        
-        raw_score_per_episode           = 0.0
+                
         score_per_episode               = 0.0
-
         score_per_episode_              = 0.0
-        raw_score_per_episode_best      = -100000.0
-        raw_score_per_episode_prev      = -100000.0
+
+        mean_score_per_episode_best     = -100000.0
 
 
         score_per_episode_buffer = numpy.zeros(self.averaging_episodes)
@@ -51,33 +48,25 @@ class TrainingIterations:
                 dt              = (time_now - time_prev)/self.log_period_iterations
                 time_remaining  = (1.0 - filter_k)*time_remaining + filter_k*((self.iterations_count - iteration)*dt)/3600.0
             
-            if "raw_score" in info:
-                raw_episodes            = None
-                raw_score_per_episode   = float(info["raw_score"])
-            elif hasattr(self.env, "get_raw_score"):
-                res                     = self.env.get_raw_score(0)
-                raw_episodes            = res[0] 
-                raw_score_per_episode   = res[1]            
-            else:
-                raw_episodes            = None
-                raw_score_per_episode   = None 
-
             #episode done, update score per episode
             score_per_episode_+= reward
-            if done:
-                episodes+= 1
-                
+            if done:                
                 score_per_episode = (1.0 - filter_k)*score_per_episode + filter_k*score_per_episode_
                 score_per_episode_= 0.0
-                
-            #get raw episodes count if availible
-            if raw_episodes is None:
+
+            
+            #get raw episodes if availible
+            if "raw_episodes" in info:
+                raw_episodes = float(info["raw_episodes"])
+            else:
                 raw_episodes = episodes
-           
+
             #get raw score per episode if availible
-            if raw_score_per_episode is None:
+            if "raw_score" in info:
+                raw_score_per_episode = float(info["raw_score"])
+            else:
                 raw_score_per_episode = score_per_episode
-           
+
             #get aditional log if present
             log_agent = "" 
             if hasattr(self.agent, "get_log"):
@@ -101,25 +90,25 @@ class TrainingIterations:
                 log_f.flush()
                 log_f.close() 
  
-
             #check if agent is done
             if done:
                 #log score per episode
-                score_per_episode_buffer[raw_episodes%len(score_per_episode_buffer)] = raw_score_per_episode
+                score_per_episode_buffer[episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
                 #save the best (if any)
-                if raw_episodes >= len(score_per_episode_buffer):
+                if episodes >= len(score_per_episode_buffer):
                     mean_score = score_per_episode_buffer.mean()
 
-                    if mean_score > raw_score_per_episode_best and raw_score_per_episode >= raw_score_per_episode_prev:
-                        raw_score_per_episode_best = mean_score
- 
-                        raw_score_per_episode_prev = raw_score_per_episode
-                
+                    if mean_score > mean_score_per_episode_best
+                        mean_score_per_episode_best = mean_score
+                  
                         print("\n\n")
-                        print("saving new best with score = ", raw_score_per_episode_best)
+                        print("saving new best with score = ", mean_score_per_episode_best)
                         self.agent.save(self.saving_path)
                         print("\n\n")
+
+                episodes+= 1
+
 
             if iteration%100000 == 0:
                 path = self.saving_path + str(iteration) + "_"
