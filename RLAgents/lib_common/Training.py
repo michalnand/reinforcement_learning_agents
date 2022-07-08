@@ -112,5 +112,8 @@ class TrainingIterations:
 
             if iteration%100000 == 0:
                 path = self.saving_path + str(iteration) + "_"
-                os.mkdir(path + "trained")
+
+                if not os.path.exists(path + "trained"):
+                    os.mkdir(path + "trained")
+                
                 self.agent.save(path)
