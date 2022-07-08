@@ -188,7 +188,8 @@ class RawScoreEnv(gym.Wrapper):
         if done:
             self.steps = 0
   
-            k = 0.1
+            k = 0.1 
+            #k = 1.0
             self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
             self.raw_score = 0.0
 
