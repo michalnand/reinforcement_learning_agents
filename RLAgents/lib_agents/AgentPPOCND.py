@@ -35,12 +35,8 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "mse_spatial":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_spatial
-        elif config.cnd_regularisation_loss == "nce": 
-            self._cnd_regularisation_loss = self._contrastive_loss_nce
-        elif config.cnd_regularisation_loss == "mse_nce": 
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_nce
+        elif config.cnd_regularisation_loss == "sim_siam":
+            self._cnd_regularisation_loss = self._contrastive_loss_sim_siam
         else:
             self._cnd_regularisation_loss = None
 
@@ -421,10 +417,25 @@ class AgentPPOCND():
     
         return loss
 
+    #sim siam similarity
+    def _similarity(self, p, z):
+            #stopgrad - critical for learning
+            z = z.detach()
 
-    def _contrastive_loss_mse_spatial(self, model, states_a, states_b, target, normalise, augmentation):
+            #normalise magnitude
+            p = p/(p**2).sum(dim=1, keepdim=True)
+            z = z/(z**2).sum(dim=1, keepdim=True)
+
+            #cosine similarity
+            r = -(p*z).sum(dim=1)
+            r = r.mean()
+ 
+            return r
+
+    def _contrastive_loss_sim_siam(self, model, states_a, states_b, target, normalise, augmentation):
+        #use only one state
         xa = states_a.clone()
-        xb = states_b.clone()
+        xb = states_a.clone()
 
         #normalise states
         if normalise:
@@ -436,116 +447,28 @@ class AgentPPOCND():
             xa = self._aug(xa)
             xb = self._aug(xb)
  
-        #obtain features from model
-        zas, zag = model.forward_features(xa)  
-        zbs, zbg = model.forward_features(xb) 
+        #obtain features and prediction from model
+        za, pa = model.forward_features(xa)
+        zb, pb = model.forward_features(xb)
+
+        loss_sim_siam = 0.5*self._similarity(pa, za) + 0.5*self._similarity(pb, zb)
         
-        #predict close distance for similar, far distance for different states
-        distance_g = ((zag - zbg)**2).mean(dim=1)
-
-        distance_s = ((zas - zbs)**2).mean(dim=1)
- 
-        #MSE loss
-        loss_mse_g = ((target - distance_g)**2).mean()
-        loss_mse_s = ((target.unsqueeze(1).unsqueeze(1) - distance_s)**2).mean()
-
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
         magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
         loss_magnitude  = self.regularisation_coeff*magnitude
 
-        loss = loss_mse_g + loss_mse_s + loss_magnitude
+        loss = loss_sim_siam + loss_magnitude
 
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
         return loss
 
-
-    def _contrastive_loss_mse_nce(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #predict close distance for similar, far distance for different states, MSE loss
-        predicted_mse   = ((za - zb)**2).mean(dim=1)
-        loss_mse        = ((target - predicted_mse)**2).mean()
-
-        #BCE loss with logits (numericaly more stable)
-        predicted_nce   = (za*zb).mean(dim=1)
-        loss_func       = torch.nn.BCEWithLogitsLoss()
-        loss_bce        = loss_func(predicted_nce, 1.0 - target)
-
-        #magnitude regularisation, keep magnitude in small numbers
-
-        #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_bce + loss_magnitude
+     
 
 
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
-    
-        return loss
-
-
-    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #predict similarity (cosine similarity)
-        logits = (za*zb).mean(dim = 1)
-
-        #BCE loss with logits (numericaly more stable)
-        loss_func   = torch.nn.BCEWithLogitsLoss()
-        loss_bce    = loss_func(logits, 1.0 - target)
-
-        #magnitude regularisation, keep magnitude in small numbers
-        #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_bce + loss_magnitude
-
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
-    
-        return loss
+       
 
     def _symmetry_loss_mse(self, model, states, states_next, actions):
 
@@ -671,12 +594,6 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
     def _aug(self, x):
-        '''
-        x = self._aug_random_apply(x, 0.5, self._aug_mask)
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
-        x = self._aug_noise(x, k = 0.2)
-        '''
-
         #this works perfect
         x = self._aug_random_apply(x, 0.5, self._aug_resize2)
         x = self._aug_random_apply(x, 0.25, self._aug_resize4)
@@ -705,13 +622,54 @@ class AgentPPOCND():
     def _aug_resize4(self, x):
         return self._aug_resize(x, 4)
 
+    #random pixel-wise dropout
     def _aug_mask(self, x, p = 0.1):
         mask = 1.0*(torch.rand_like(x) < (1.0 - p))
         return x*mask  
 
+    #uniform aditional noise
     def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
+    #random tiled dropout
+    def _aug_mask_tiles(self, x, p = 0.5):
+        tile_sizes  = [4, 8, 12, 16, 24]
+        tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
-   
+        size_h  = x.shape[2]//tile_size
+        size_w  = x.shape[3]//tile_size
+
+        mask    = 1.0*(torch.rand((x.shape[0], x.shape[1], size_h, size_w)) < (1.0 - p))
+        mask    = torch.repeat_interleave(mask, tile_size, dim=2)
+        mask    = torch.repeat_interleave(mask, tile_size, dim=3)
+
+        return x*mask.to(x.device) 
+
+    #random jigsaw permutation
+    def _aug_jigsaw_tiles(self, x):
+        batch_size  = x.shape[0]
+
+        tile_sizes  = [8, 12, 16, 24, 32, 48]
+        tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
+        
+        size_h  = x.shape[2]//tile_size
+        size_w  = x.shape[3]//tile_size 
+
+        permutations = torch.zeros((batch_size, size_h*size_w), dtype=int)
+        for b in range(batch_size):
+            permutations[b] = torch.randperm(size_h*size_w)
+        
+        permutations = permutations.reshape((batch_size, size_h, size_w))
+
+        result = torch.zeros_like(x)
+        
+        b   = range(batch_size)
+        ch  = range(x.shape[1])
+        for j in range(size_h):  
+            for i in range(size_w):  
+                y_idx = permutations[b, j, i]//size_w
+                x_idx = permutations[b, j, i]%size_w          
+                result[b, ch, j*tile_size:(j+1)*tile_size, i*tile_size:(i+1)*tile_size] = x[b, ch, y_idx*tile_size:(y_idx+1)*tile_size, x_idx*tile_size:(x_idx+1)*tile_size]
+    
+        return result
