@@ -38,7 +38,7 @@ class AgentPPOCND():
         elif config.cnd_regularisation_loss == "nce":
             self._cnd_regularisation_loss = self._contrastive_loss_nce
         elif config.cnd_regularisation_loss == "barlow":
-            self._cnd_regularisation_loss = self._contrastive_loss_sim_siam
+            self._cnd_regularisation_loss = self._contrastive_loss_barlow
         else:
             self._cnd_regularisation_loss = None
 
