@@ -457,7 +457,7 @@ class AgentPPOCND():
         return loss
 
     #barlow twins self supervised
-    def _contrastive_loss_barlow(za, zb):
+    def _contrastive_loss_barlow(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_a.clone()
 
