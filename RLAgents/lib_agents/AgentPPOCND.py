@@ -35,7 +35,9 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "sim_siam":
+        elif config.cnd_regularisation_loss == "nce":
+            self._cnd_regularisation_loss = self._contrastive_loss_nce
+        elif config.cnd_regularisation_loss == "barlow":
             self._cnd_regularisation_loss = self._contrastive_loss_sim_siam
         else:
             self._cnd_regularisation_loss = None
@@ -408,7 +410,7 @@ class AgentPPOCND():
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        magnitude       = (za**2).mean() + (zb**2).mean() 
         loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_mse + loss_magnitude
@@ -417,23 +419,9 @@ class AgentPPOCND():
     
         return loss
 
-    #sim siam similarity
-    def _similarity(self, p, z):
-            #stopgrad - critical for learning
-            z = z.detach()
 
-            #normalise magnitude
-            p = p/(p**2).sum(dim=1, keepdim=True)
-            z = z/(z**2).sum(dim=1, keepdim=True)
-
-            #cosine similarity
-            r = -(p*z).sum(dim=1)
-            r = r.mean()
- 
-            return r
-
-    def _contrastive_loss_sim_siam(self, model, states_a, states_b, target, normalise, augmentation):
-        #use only one state
+   
+    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_a.clone()
 
@@ -447,25 +435,73 @@ class AgentPPOCND():
             xa = self._aug(xa)
             xb = self._aug(xb)
  
-        #obtain features and prediction from model
-        za, pa = model.forward_features(xa)
-        zb, pb = model.forward_features(xb)
+        #obtain features from model
+        za, pa = model.forward_features(xa)  
+        zb, pb = model.forward_features(xb) 
 
-        loss_sim_siam = 0.5*self._similarity(pa, za) + 0.5*self._similarity(pb, zb)
+        #info NCE loss, CE with target classes on diagonal
+        similarity      = torch.matmul(pa, zb.T)
+        lf              = torch.nn.CrossEntropyLoss()
+        loss_info_max   = lf(similarity, torch.arange(za.shape[0]))
         
         #magnitude regularisation, keep magnitude in small numbers
 
         #L2 magnitude regularisation
-        magnitude       = (za.norm(dim=1, p=2) + zb.norm(dim=1, p=2)).mean()
+        magnitude       = (za**2).mean() + (zb**2).mean()
         loss_magnitude  = self.regularisation_coeff*magnitude
 
-        loss = loss_sim_siam + loss_magnitude
+        loss = loss_info_max + loss_magnitude
 
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
         return loss
 
-     
+    #barlow twins self supervised
+    def _contrastive_loss_barlow(za, zb):
+        xa = states_a.clone()
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+
+
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #barlow loss
+        eps = 10**-12
+
+        za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
+        zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
+        
+        c = torch.mm(za_norm.T, zb_norm)/za.shape[0]
+
+        diag        = torch.eye(c.shape[0]).to(c.device)
+        off_diag    = 1.0 - diag
+
+        l_invariance = (diag*(1.0 - c)**2).sum()
+        l_redundance = (0.001*off_diag*(c**2)).sum()
+
+        loss = l_invariance + l_redundance
+
+        magnitude       = (za**2).mean() + (zb**2).mean()
+
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
+
+        return loss
+   
 
 
        
@@ -593,13 +629,26 @@ class AgentPPOCND():
                 if dones[e]:
                     self.envs.reset(e)
 
-    def _aug(self, x):
+    def _aug(self, x, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, jigsaw_tiles = False, noise = True):
         #this works perfect
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
-        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
-        x = self._aug_random_apply(x, 0.125, self._aug_mask)
-        x = self._aug_noise(x, k = 0.2)
-        
+        if resize_2:
+            x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+
+        if resize_4:
+            x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+
+        if mask:
+            x = self._aug_random_apply(x, 0.125, self._aug_mask)
+
+        if mask_tiles:
+            x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
+
+        if jigsaw_tiles:
+            x = self._aug_random_apply(x, 0.5, self._aug_jigsaw_tiles)
+
+        if noise:
+            x = self._aug_noise(x, k = 0.2)
+
         return x
 
     def _aug_random_apply(self, x, p, aug_func):
@@ -634,7 +683,7 @@ class AgentPPOCND():
 
     #random tiled dropout
     def _aug_mask_tiles(self, x, p = 0.5):
-        tile_sizes  = [4, 8, 12, 16, 24]
+        tile_sizes  = [1, 2, 4, 8, 12, 16, 24]
         tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
         size_h  = x.shape[2]//tile_size
