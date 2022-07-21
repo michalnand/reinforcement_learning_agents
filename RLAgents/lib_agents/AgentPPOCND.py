@@ -491,18 +491,18 @@ class AgentPPOCND():
         diag        = torch.eye(c.shape[0]).to(c.device)
         off_diag    = 1.0 - diag
 
-        l_invariance = (diag*(1.0 - c)**2).sum()
-        l_redundance = (0.001*off_diag*(c**2)).sum()
+        loss_invariance = (diag*(1.0 - c)**2).sum()
+        loss_redundance = (0.0005*off_diag*(c**2)).sum()
 
-        loss = l_invariance + l_redundance
 
         magnitude       = (za**2).mean() + (zb**2).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_invariance + loss_redundance + loss_magnitude
 
         self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
 
         return loss
-   
-
 
        
 
@@ -643,9 +643,6 @@ class AgentPPOCND():
         if mask_tiles:
             x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
 
-        if jigsaw_tiles:
-            x = self._aug_random_apply(x, 0.5, self._aug_jigsaw_tiles)
-
         if noise:
             x = self._aug_noise(x, k = 0.2)
 
@@ -694,31 +691,3 @@ class AgentPPOCND():
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.to(x.device) 
-
-    #random jigsaw permutation
-    def _aug_jigsaw_tiles(self, x):
-        batch_size  = x.shape[0]
-
-        tile_sizes  = [8, 12, 16, 24, 32, 48]
-        tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
-        
-        size_h  = x.shape[2]//tile_size
-        size_w  = x.shape[3]//tile_size 
-
-        permutations = torch.zeros((batch_size, size_h*size_w), dtype=int)
-        for b in range(batch_size):
-            permutations[b] = torch.randperm(size_h*size_w)
-        
-        permutations = permutations.reshape((batch_size, size_h, size_w))
-
-        result = torch.zeros_like(x)
-        
-        b   = range(batch_size)
-        ch  = range(x.shape[1])
-        for j in range(size_h):  
-            for i in range(size_w):  
-                y_idx = permutations[b, j, i]//size_w
-                x_idx = permutations[b, j, i]%size_w          
-                result[b, ch, j*tile_size:(j+1)*tile_size, i*tile_size:(i+1)*tile_size] = x[b, ch, y_idx*tile_size:(y_idx+1)*tile_size, x_idx*tile_size:(x_idx+1)*tile_size]
-    
-        return result
