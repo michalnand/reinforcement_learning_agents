@@ -468,8 +468,8 @@ class AgentPPOCND():
 
         #states augmentation
         if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
+            xa = self._aug(xa, resize_2 = False, resize_4 = False, mask = False, mask_tiles = True, noise = True)
+            xb = self._aug(xb, resize_2 = False, resize_4 = False, mask = False, mask_tiles = True, noise = True)
 
 
         #obtain features from model
@@ -629,7 +629,7 @@ class AgentPPOCND():
                 if dones[e]:
                     self.envs.reset(e)
 
-    def _aug(self, x, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, jigsaw_tiles = False, noise = True):
+    def _aug(self, x, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True):
         #this works perfect
         if resize_2:
             x = self._aug_random_apply(x, 0.5, self._aug_resize2)
@@ -680,7 +680,7 @@ class AgentPPOCND():
 
     #random tiled dropout
     def _aug_mask_tiles(self, x, p = 0.5):
-        tile_sizes  = [1, 2, 4, 8, 12, 16, 24]
+        tile_sizes  = [1, 2, 4, 8, 12, 16]
         tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
         size_h  = x.shape[2]//tile_size
