@@ -468,8 +468,8 @@ class AgentPPOCND():
 
         #states augmentation
         if augmentation:
-            xa = self._aug(xa, resize_2 = False, resize_4 = False, mask = False, mask_tiles = True, noise = True)
-            xb = self._aug(xb, resize_2 = False, resize_4 = False, mask = False, mask_tiles = True, noise = True)
+            xa = self._aug(xa, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
+            xb = self._aug(xb, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
 
 
         #obtain features from model
@@ -641,7 +641,7 @@ class AgentPPOCND():
             x = self._aug_random_apply(x, 0.125, self._aug_mask)
 
         if mask_tiles:
-            x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
+            x = self._aug_random_apply(x, 0.125, self._aug_mask_tiles)
 
         if noise:
             x = self._aug_noise(x, k = 0.2)
