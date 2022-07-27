@@ -492,7 +492,53 @@ class AgentPPOCND():
         off_diag    = 1.0 - diag
 
         loss_invariance = (diag*(1.0 - c)**2).sum()
-        loss_redundance = (off_diag*(c**2)).sum()/c.shape[0]
+        loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
+
+
+        magnitude       = (za**2).mean() + (zb**2).mean()
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_invariance + loss_redundance + loss_magnitude
+
+        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
+
+        return loss
+
+
+    #barlow twins self supervised
+    def _contrastive_loss_barlow_mse(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
+            xb = self._aug(xb, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
+
+
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #barlow MSE loss
+      
+        
+        c = torch.cdist(za.T, zb.T)/za.shape[0]
+
+        diag        = torch.eye(c.shape[0]).to(c.device)
+        off_diag    = 1.0 - diag  
+
+        l_invariance = (diag*((0.0 - c)**2)).sum()
+        l_redundance = (off_diag*((1.0 - c)**2)).sum()/(c.shape[0] - 1)
 
 
         magnitude       = (za**2).mean() + (zb**2).mean()
