@@ -492,7 +492,7 @@ class AgentPPOCND():
         off_diag    = 1.0 - diag
 
         loss_invariance = (diag*(1.0 - c)**2).sum()
-        loss_redundance = (0.0005*off_diag*(c**2)).sum()
+        loss_redundance = (off_diag*(c**2)).sum()/c.shape[0]
 
 
         magnitude       = (za**2).mean() + (zb**2).mean()
