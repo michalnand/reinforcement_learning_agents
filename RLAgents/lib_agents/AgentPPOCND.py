@@ -517,8 +517,8 @@ class AgentPPOCND():
 
         #states augmentation
         if augmentation:
-            xa = self._aug(xa, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
-            xb = self._aug(xb, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
+            xa = self._aug(xa)
+            xb = self._aug(xb)
 
 
         #obtain features from model
@@ -675,7 +675,16 @@ class AgentPPOCND():
                 if dones[e]:
                     self.envs.reset(e)
 
+    def _aug(self, x): 
+        x = self._aug_random_apply(x, 0.5, self._aug_inverse)
+        x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
+        x = self._aug_random_apply(x, 0.5, self._aug_noise)
+
+        return x
+
+    '''
     def _aug(self, x, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True):
+        
         #this works perfect
         if resize_2:
             x = self._aug_random_apply(x, 0.5, self._aug_resize2)
@@ -693,14 +702,9 @@ class AgentPPOCND():
             x = self._aug_noise(x, k = 0.2)
 
         return x
-
-    def _aug_random_apply(self, x, p, aug_func):
-        shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
-        apply  = 1.0*(torch.rand(shape, device=x.device) < p)
-
-        return (1 - apply)*x + apply*aug_func(x) 
+    '''
  
-
+    '''
     def _aug_resize(self, x, scale = 2):
         ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
         us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
@@ -718,14 +722,26 @@ class AgentPPOCND():
     def _aug_mask(self, x, p = 0.1):
         mask = 1.0*(torch.rand_like(x) < (1.0 - p))
         return x*mask  
+    '''
+
+
+    def _aug_random_apply(self, x, p, aug_func):
+        shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
+        apply  = 1.0*(torch.rand(shape, device=x.device) < p)
+
+        return (1 - apply)*x + apply*aug_func(x) 
 
     #uniform aditional noise
     def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
 
+    #inverse colors
+    def _aug_inverse(self, x): 
+        return 1.0 - x
+
     #random tiled dropout
-    def _aug_mask_tiles(self, x, p = 0.5):
+    def _aug_mask_tiles(self, x, p = 0.1):
         tile_sizes  = [1, 2, 4, 8, 12, 16]
         tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
@@ -737,3 +753,4 @@ class AgentPPOCND():
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.to(x.device) 
+
