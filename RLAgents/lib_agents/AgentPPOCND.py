@@ -728,7 +728,6 @@ class AgentPPOCND():
     def _aug_random_apply(self, x, p, aug_func):
         shape  = (x.shape[0], ) + (1,)*(len(x.shape)-1)
         apply  = 1.0*(torch.rand(shape, device=x.device) < p)
-
         return (1 - apply)*x + apply*aug_func(x) 
 
     #uniform aditional noise
