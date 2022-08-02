@@ -47,6 +47,8 @@ class AgentPPOCND():
             self._ppo_symmetry_loss = self._symmetry_loss_mse
         elif config.ppo_symmetry_loss == "nce": 
             self._ppo_symmetry_loss = self._symmetry_loss_nce
+        elif config.cnd_regularisation_loss == "barlow":
+            self._cnd_regularisation_loss = self._symmetry_loss_barlow
         else:
             self._ppo_symmetry_loss = None
 
@@ -218,7 +220,7 @@ class AgentPPOCND():
         state_im        = cv2.resize(state, (size, size))
         state_im        = numpy.clip(state_im, 0.0, 1.0)
 
-        cv2.imshow("RND agent", state_im)
+        cv2.imshow("CND agent", state_im)
         cv2.waitKey(1)
     
 
@@ -235,7 +237,6 @@ class AgentPPOCND():
         batch_count = self.steps//self.batch_size
 
         small_batch = 64
-
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
@@ -282,8 +283,6 @@ class AgentPPOCND():
                     self.optimizer_cnd_target.step()
 
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
-
-                
 
         self.policy_buffer.clear() 
 
@@ -504,54 +503,6 @@ class AgentPPOCND():
 
         return loss
 
-
-    #barlow twins self supervised
-    def _contrastive_loss_barlow_mse(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
-
-
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #barlow MSE loss
-      
-        
-        c = torch.cdist(za.T, zb.T)/za.shape[0]
-
-        diag        = torch.eye(c.shape[0]).to(c.device)
-        off_diag    = 1.0 - diag  
-
-        l_invariance = (diag*((0.0 - c)**2)).sum()
-        l_redundance = (off_diag*((1.0 - c)**2)).sum()/(c.shape[0] - 1)
-
-
-        magnitude       = (za**2).mean() + (zb**2).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_invariance + loss_redundance + loss_magnitude
-
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
-
-        return loss
-
-       
-
     def _symmetry_loss_mse(self, model, states, states_next, actions):
 
         z = model.forward_features(states, states_next)
@@ -676,30 +627,20 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
     def _aug(self, x): 
-        x = self._aug_random_apply(x, 0.5, self._aug_inverse)
         x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
-        x = self._aug_random_apply(x, 0.5, self._aug_noise)
+        x = self._aug_noise(x)
 
         return x
 
     '''
-    def _aug(self, x, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True):
+    def _aug(self, x):
         
         #this works perfect
-        if resize_2:
-            x = self._aug_random_apply(x, 0.5, self._aug_resize2)
 
-        if resize_4:
-            x = self._aug_random_apply(x, 0.25, self._aug_resize4)
-
-        if mask:
-            x = self._aug_random_apply(x, 0.125, self._aug_mask)
-
-        if mask_tiles:
-            x = self._aug_random_apply(x, 0.125, self._aug_mask_tiles)
-
-        if noise:
-            x = self._aug_noise(x, k = 0.2)
+        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
+        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
+        x = self._aug_random_apply(x, 0.125, self._aug_mask)
+        x = self._aug_noise(x, k = 0.2)
 
         return x
     '''
