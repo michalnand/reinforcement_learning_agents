@@ -105,8 +105,8 @@ class AgentPPOCND():
         self.values_logger.add("symmetry_magnitude", 0.0)
 
     
-        #self.vis_features = []
-        #self.vis_labels   = []
+        self.vis_features = []
+        self.vis_labels   = []
 
 
     def enable_training(self):
@@ -159,35 +159,7 @@ class AgentPPOCND():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-        '''
-        states_norm_t   = self._norm_state(states)
-        features        = self.model_cnd_target(states_norm_t)
-        features        = features.detach().to("cpu").numpy()
-        
-        self.vis_features.append(features[0])
-
-        if "room_id" in infos[0]:
-            self.vis_labels.append(infos[0]["room_id"])
-        else:
-            self.vis_labels.append(0)
-
-        if dones[0]:
-            print("training t-sne")
-
-            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
-
-            print("result shape = ", features_embedded.shape)
-
-            plt.clf()
-            #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
-            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
-            plt.colorbar(ticks=range(16))
-            plt.tight_layout()
-            plt.show()
-
-            self.vis_features   = []
-            self.vis_labels     = []
-        '''
+        #self._add_for_plot(states, infos, dones)
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
@@ -693,4 +665,34 @@ class AgentPPOCND():
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.to(x.device) 
+
+
+    def _add_for_plot(self, states, infos, dones):
+        states_norm_t   = self._norm_state(states)
+        features        = self.model_cnd_target(states_norm_t)
+        features        = features.detach().to("cpu").numpy()
+        
+        self.vis_features.append(features[0])
+
+        if "room_id" in infos[0]:
+            self.vis_labels.append(infos[0]["room_id"])
+        else:
+            self.vis_labels.append(0)
+
+        if dones[0]:
+            print("training t-sne")
+
+            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
+
+            print("result shape = ", features_embedded.shape)
+
+            plt.clf()
+            #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
+            plt.colorbar(ticks=range(16))
+            plt.tight_layout()
+            plt.show()
+
+            self.vis_features   = []
+            self.vis_labels     = []
 
