@@ -253,7 +253,7 @@ class AgentPPOCND():
                     loss_symmetry, magnitude = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
 
                     self.optimizer_ppo.zero_grad()        
-                    (symmetry_loss_coeff*loss_symmetry).backward()
+                    (self.symmetry_loss_coeff*loss_symmetry).backward()
                     torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                     self.optimizer_ppo.step()
 
