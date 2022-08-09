@@ -44,11 +44,11 @@ class AgentPPOCND():
 
 
         if config.ppo_symmetry_loss == "mse":
-            self._ppo_symmetry_loss = self._symmetry_loss_mse
+            self._ppo_symmetry_loss = self._contrastive_loss_mse
         elif config.ppo_symmetry_loss == "nce": 
-            self._ppo_symmetry_loss = self._symmetry_loss_nce
-        elif config.cnd_regularisation_loss == "barlow":
-            self._cnd_regularisation_loss = self._symmetry_loss_barlow
+            self._ppo_symmetry_loss = self._contrastive_loss_nce
+        elif config.ppo_symmetry_loss == "barlow":
+            self._ppo_symmetry_loss = self._contrastive_loss_barlow
         else:
             self._ppo_symmetry_loss = None
 
@@ -217,23 +217,12 @@ class AgentPPOCND():
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                if self._ppo_symmetry_loss is not None:
-                    #small_batch = states.shape[0]//8
-                     
-                    states_         = states[0:small_batch]
-                    states_next_    = states_next[0:small_batch]
-                    actions_        = actions[0:small_batch]
-
-                    loss_symmetry = self._ppo_symmetry_loss(self.model_ppo, states_, states_next_, actions_)
-                    loss_ppo+= loss_symmetry
-
-
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train cnd model, MSE loss
+                #train CND model, MSE loss (same as RND)
                 loss_cnd = self._compute_loss_cnd(states)
 
                 self.optimizer_cnd.zero_grad() 
@@ -242,19 +231,35 @@ class AgentPPOCND():
 
                 #log results
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
+                
+                
               
-                #smaller batch for regularisation
+                #smaller batch for self-supervised regularisation
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
                 #train cnd target model for regularisation (optional)
                 if self._cnd_regularisation_loss is not None:                    
-                    loss = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
+                    loss, magnitude = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
                     self.optimizer_cnd_target.step()
 
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("cnd_magnitude", magnitude)
+
+                #train ppo model features
+                if self._ppo_symmetry_loss is not None:
+                    loss_symmetry, magnitude = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
+
+                    self.optimizer_ppo.zero_grad()        
+                    (symmetry_loss_coeff*loss_symmetry).backward()
+                    torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
+                    self.optimizer_ppo.step()
+
+                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
+                    self.values_logger.add("symmetry_magnitude", magnitude)
+
 
         self.policy_buffer.clear() 
 
@@ -386,9 +391,8 @@ class AgentPPOCND():
 
         loss = loss_mse + loss_magnitude
 
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
-        return loss
+        return loss, magnitude.detach().to("cpu").numpy()
 
 
    
@@ -423,9 +427,8 @@ class AgentPPOCND():
 
         loss = loss_info_max + loss_magnitude
 
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
     
-        return loss
+        return loss, magnitude.detach().to("cpu").numpy()
 
     #barlow twins self supervised
     def _contrastive_loss_barlow(self, model, states_a, states_b, target, normalise, augmentation):
@@ -439,9 +442,8 @@ class AgentPPOCND():
 
         #states augmentation
         if augmentation:
-            xa = self._aug(xa, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
-            xb = self._aug(xb, resize_2 = True, resize_4 = True, mask = True, mask_tiles = False, noise = True)
-
+            xa = self._aug(xa)
+            xb = self._aug(xb)
 
         #obtain features from model
         if hasattr(model, "forward_features"):
@@ -471,89 +473,8 @@ class AgentPPOCND():
 
         loss = loss_invariance + loss_redundance + loss_magnitude
 
-        self.values_logger.add("cnd_magnitude", magnitude.detach().to("cpu").numpy())
+        return loss, magnitude.detach().to("cpu").numpy()
 
-        return loss
-
-    def _symmetry_loss_mse(self, model, states, states_next, actions):
-
-        z = model.forward_features(states, states_next)
-
-        #each by each similarity, dot product and sigmoid to obtain probs
-        distances   = torch.cdist(z, z)/z.shape[1] 
-
-        #true labels are where are the same actions
-        actions_    = actions.unsqueeze(1)
-        labels      = (actions_ == actions_.t()).float().detach()
-
-        #similar features for transitions caused by same action
-        #conservation of rules - the rules are the same, no matters the state
-        required = 1.0 - labels
-
-        loss_symmetry    = (required - distances)**2
-        loss_symmetry    = loss_symmetry.mean()   
-
-        #L2 magnitude regularisation (10**-4) 
-        magnitude   = (z.norm(dim=1, p=2)).mean()
-        loss_mag    = 0.001*magnitude
-
-        loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
- 
-        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
-
-        #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, distances < 0.5).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, distances > 0.5).float().sum()
-        positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12 
-
-        w               = 1.0 - 1.0/self.actions_count
-        acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        acc = acc.detach().to("cpu").numpy() 
-
-        self.values_logger.add("symmetry_accuracy", acc)
-        self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
-
-        return loss
-
-    def _symmetry_loss_nce(self, model, states, states_next, actions):
-        z = model.forward_features(states, states_next)
-
-        #each by each similarity, dot product to obtain logits
-        logits      = torch.matmul(z, z.t())/z.shape[1]
-
-        #true labels are where are the same actions
-        actions_    = actions.unsqueeze(1)
-        labels      = (actions_ == actions_.t()).float().detach()
-
-        #BCE loss from logits, more stable
-        loss_func       = torch.nn.BCEWithLogitsLoss()
-        loss_symmetry   = loss_func(logits, labels)
-
-        #L2 magnitude regularisation (10**-4) 
-        magnitude   = (z.norm(dim=1, p=2)).mean()
-        loss_mag    = self.regularisation_coeff*magnitude
-
-        loss = self.symmetry_loss_coeff*(loss_symmetry + loss_mag)
-
-        self.values_logger.add("loss_symmetry",  loss_symmetry.detach().to("cpu").numpy())
-
-        #compute weighted accuracy
-        true_positive  = torch.logical_and(labels > 0.5, logits > 0.0).float().sum()
-        true_negative  = torch.logical_and(labels < 0.5, logits < 0.0).float().sum()
-        positive       = (labels > 0.5).float().sum() + 10**-12
-        negative       = (labels < 0.5).float().sum() + 10**-12 
-
-        w               = 1.0 - 1.0/self.actions_count
-        acc             = w*true_positive/positive + (1.0 - w)*true_negative/negative
-
-        acc = acc.detach().to("cpu").numpy() 
-
-        self.values_logger.add("symmetry_accuracy", acc)
-        self.values_logger.add("symmetry_magnitude", magnitude.detach().to("cpu").numpy())
-
-        return loss
 
 
     
@@ -667,7 +588,7 @@ class AgentPPOCND():
         return x*mask.to(x.device) 
 
 
-    def _add_for_plot(self, states, infos, dones):
+    #def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
         features        = features.detach().to("cpu").numpy()
@@ -689,7 +610,7 @@ class AgentPPOCND():
             plt.clf()
             #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
             plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
-            plt.colorbar(ticks=range(16))
+            plt.colorbar(ticks=range(25))
             plt.tight_layout()
             plt.show()
 
