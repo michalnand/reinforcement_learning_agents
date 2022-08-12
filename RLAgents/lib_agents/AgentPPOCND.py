@@ -216,6 +216,19 @@ class AgentPPOCND():
 
                 #train PPO model
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                
+                #train ppo model features
+                if self._ppo_symmetry_loss is not None:
+                    #smaller batch for self-supervised regularisation
+                    states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
+
+                    loss_symmetry, magnitude = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
+
+                    loss_ppo+= self.symmetry_loss_coeff*loss_symmetry
+
+                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
+                    self.values_logger.add("symmetry_magnitude", magnitude)
+
 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -233,12 +246,11 @@ class AgentPPOCND():
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 
                 
-              
-                #smaller batch for self-supervised regularisation
-                states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
-
                 #train cnd target model for regularisation (optional)
                 if self._cnd_regularisation_loss is not None:                    
+                    #smaller batch for self-supervised regularisation
+                    states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
+
                     loss, magnitude = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_cnd_target.zero_grad() 
@@ -248,18 +260,7 @@ class AgentPPOCND():
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("cnd_magnitude", magnitude)
 
-                #train ppo model features
-                if self._ppo_symmetry_loss is not None:
-                    loss_symmetry, magnitude = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
-
-                    self.optimizer_ppo.zero_grad()        
-                    (self.symmetry_loss_coeff*loss_symmetry).backward()
-                    torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
-                    self.optimizer_ppo.step()
-
-                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
-                    self.values_logger.add("symmetry_magnitude", magnitude)
-
+               
 
         self.policy_buffer.clear() 
 
@@ -415,7 +416,7 @@ class AgentPPOCND():
         zb, pb = model.forward_features(xb) 
 
         #info NCE loss, CE with target classes on diagonal
-        similarity      = torch.matmul(pa, zb.T)
+        similarity      = torch.matmul(pa, zb.T)/pa.shape[1]
         lf              = torch.nn.CrossEntropyLoss()
         loss_info_max   = lf(similarity, torch.arange(za.shape[0]))
         
@@ -591,7 +592,9 @@ class AgentPPOCND():
     #def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
-        features        = features.detach().to("cpu").numpy()
+
+        #features        = self.model_ppo.forward_features(states)
+        #features        = features.detach().to("cpu").numpy()
         
         self.vis_features.append(features[0])
 
@@ -603,14 +606,16 @@ class AgentPPOCND():
         if dones[0]:
             print("training t-sne")
 
+            max_num = numpy.max(self.vis_labels) 
+
             features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
 
             print("result shape = ", features_embedded.shape)
 
             plt.clf()
             #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
-            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", numpy.max(self.vis_labels)))
-            plt.colorbar(ticks=range(25))
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", max_num - 1))
+            plt.colorbar(ticks=range(max_num))
             plt.tight_layout()
             plt.show()
 
