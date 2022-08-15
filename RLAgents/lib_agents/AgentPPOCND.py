@@ -428,7 +428,7 @@ class AgentPPOCND():
         #info NCE loss, CE with target classes on diagonal
         similarity      = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
         lf              = torch.nn.CrossEntropyLoss()
-        loss_info_max   = lf(similarity, torch.arange(za_norm.shape[0]))
+        loss_info_max   = lf(similarity, torch.arange(za_norm.shape[0]).to(za_norm.device))
         
         #magnitude regularisation, keep magnitude in small numbers
 
