@@ -222,12 +222,14 @@ class AgentPPOCND():
                     #smaller batch for self-supervised regularisation
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_symmetry, magnitude = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
+                    loss_symmetry, magnitude, acc = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
 
                     loss_ppo+= self.symmetry_loss_coeff*loss_symmetry
 
                     self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
+                    self.values_logger.add("symmetry_accuracy", acc)
                     self.values_logger.add("symmetry_magnitude", magnitude)
+                    
 
 
                 self.optimizer_ppo.zero_grad()        
@@ -251,7 +253,7 @@ class AgentPPOCND():
                     #smaller batch for self-supervised regularisation
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
+                    loss, magnitude, _ = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
     
                     self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
@@ -392,8 +394,14 @@ class AgentPPOCND():
 
         loss = loss_mse + loss_magnitude
 
+        #compute accuraccy in [%]
+        hits = torch.logical_and(target > 0.5, predicted > 0.5)
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/predicted.shape[0]
+
     
-        return loss, magnitude.detach().to("cpu").numpy()
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
    
@@ -428,7 +436,8 @@ class AgentPPOCND():
         #info NCE loss, CE with target classes on diagonal
         similarity      = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
         lf              = torch.nn.CrossEntropyLoss()
-        loss_info_max   = lf(similarity, torch.arange(za_norm.shape[0]).to(za_norm.device))
+        target          = torch.arange(za_norm.shape[0]).to(za_norm.device)
+        loss_info_max   = lf(similarity, target)
         
         #magnitude regularisation, keep magnitude in small numbers
 
@@ -438,8 +447,15 @@ class AgentPPOCND():
 
         loss = loss_info_max + loss_magnitude
 
-    
-        return loss, magnitude.detach().to("cpu").numpy()
+        acc = 0.0
+
+        #compute accuraccy in [%]
+        hits = torch.argmax(similarity, dim=1) == target
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/similarity.shape[0]
+
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
     #barlow twins self supervised
     def _contrastive_loss_barlow(self, model, states_a, states_b, target, normalise, augmentation):
@@ -484,7 +500,9 @@ class AgentPPOCND():
 
         loss = loss_invariance + loss_redundance + loss_magnitude
 
-        return loss, magnitude.detach().to("cpu").numpy()
+        acc = 0.0
+
+        return loss, magnitude.detach().to("cpu").numpy(), acc
 
 
 
