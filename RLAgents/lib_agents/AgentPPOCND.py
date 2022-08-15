@@ -245,7 +245,7 @@ class AgentPPOCND():
                 #log results
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 
-                
+
                 #train cnd target model for regularisation (optional)
                 if self._cnd_regularisation_loss is not None:                    
                     #smaller batch for self-supervised regularisation
@@ -412,13 +412,23 @@ class AgentPPOCND():
             xb = self._aug(xb)
  
         #obtain features from model
-        za, pa = model.forward_features(xa)  
-        zb, pb = model.forward_features(xb) 
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
 
+        #normalise
+        eps = 10**-12
+
+        za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
+        zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
+        
         #info NCE loss, CE with target classes on diagonal
-        similarity      = torch.matmul(pa, zb.T)/pa.shape[1]
+        similarity      = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
         lf              = torch.nn.CrossEntropyLoss()
-        loss_info_max   = lf(similarity, torch.arange(za.shape[0]))
+        loss_info_max   = lf(similarity, torch.arange(za_norm.shape[0]))
         
         #magnitude regularisation, keep magnitude in small numbers
 
