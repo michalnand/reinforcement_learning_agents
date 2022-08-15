@@ -597,9 +597,9 @@ class AgentPPOCND():
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.to(x.device) 
+ 
 
-
-    #def _add_for_plot(self, states, infos, dones):
+    def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
 
