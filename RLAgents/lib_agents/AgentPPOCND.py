@@ -35,6 +35,8 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
+        elif config.cnd_regularisation_loss == "mse_all":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_all
         elif config.cnd_regularisation_loss == "nce":
             self._cnd_regularisation_loss = self._contrastive_loss_nce
         elif config.cnd_regularisation_loss == "barlow":
@@ -380,13 +382,13 @@ class AgentPPOCND():
             za = model(xa)  
             zb = model(xb) 
 
-        #predict close distance for similar, far distance for different states
+        #predict close distance for similar, far distance for different states 
         predicted = ((za - zb)**2).mean(dim=1)
 
         #MSE loss
         loss_mse = ((target - predicted)**2).mean()
 
-        #magnitude regularisation, keep magnitude in small numbers
+        #magnitude regularisation, keep magnitude in small numbers (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean() 
@@ -401,6 +403,54 @@ class AgentPPOCND():
         acc  = 100.0*hits/predicted.shape[0]
 
     
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #predict distances, each by each
+        distances = torch.cdist(za, zb)/za.shape[0]
+
+        #zeros on diagonal -> close distances, ones elsewhere
+        target_   = (1.0 - torch.eye(za.shape[1])).to(za.device)
+        
+        #MSE loss
+        loss_mse = ((target_ - distances)**2).mean()
+
+        #magnitude regularisation, keep magnitude in small numbers (optional)
+
+        #L2 magnitude regularisation
+        magnitude       = (za**2).mean() + (zb**2).mean() 
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_mse + loss_magnitude
+
+        #compute accuraccy in [%], smallest distance should be on diagonal 
+        hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/distances.shape[0]
+
         return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
@@ -439,15 +489,13 @@ class AgentPPOCND():
         target          = torch.arange(za_norm.shape[0]).to(za_norm.device)
         loss_info_max   = lf(similarity, target)
         
-        #magnitude regularisation, keep magnitude in small numbers
+        #magnitude regularisation, keep magnitude in small numbers (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean()
         loss_magnitude  = self.regularisation_coeff*magnitude
 
         loss = loss_info_max + loss_magnitude
-
-        acc = 0.0
 
         #compute accuraccy in [%]
         hits = torch.argmax(similarity, dim=1) == target
@@ -494,7 +542,9 @@ class AgentPPOCND():
         loss_invariance = (diag*(1.0 - c)**2).sum()
         loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
 
+        #magnitude regularisation, keep magnitude in small numbers (optional)
 
+        #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean()
         loss_magnitude  = self.regularisation_coeff*magnitude
 
