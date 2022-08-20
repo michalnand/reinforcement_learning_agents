@@ -104,12 +104,16 @@ class TrainingIterations:
                   
                         print("\n\n")
                         print("saving new best with score = ", mean_score_per_episode_best)
-                        self.agent.save(self.saving_path)
+                        
+                        if not os.path.exists(self.saving_path + "/trained"):
+                            os.mkdir(self.saving_path + "/trained")
+
+                        self.agent.save(self.saving_path) 
                         print("\n\n")
 
                 episodes+= 1
 
-
+            '''
             if iteration%100000 == 0:
                 path = self.saving_path + str(iteration) + "_"
 
@@ -117,3 +121,4 @@ class TrainingIterations:
                     os.mkdir(path + "trained")
                 
                 self.agent.save(path)
+            '''
