@@ -639,11 +639,11 @@ class AgentPPOCND():
 
 
     def _aug_random_apply(self, x, p, aug_func):
-        y = x
-        for i in range(x.shape[0]):
-            if numpy.random.rand() < p:
-                y[i] = aug_func(x[i])
-        
+        mask    = (torch.rand(x.shape[0]) < p).float().to(x.device)
+
+        print(">>> ", x.shape, mask.shape)
+        y       = (1.0 - mask)*x + mask*aug_func(x)
+        print(">>> ", y.shape)
         return y
 
     #uniform aditional noise
@@ -656,20 +656,6 @@ class AgentPPOCND():
         tile_sizes  = [1, 2, 4, 8, 12, 16]
         tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
-        size_h  = x.shape[1]//tile_size
-        size_w  = x.shape[2]//tile_size
-
-        mask    = (torch.rand((x.shape[0], size_h, size_w)) < (1.0 - p))
-        mask    = torch.repeat_interleave(mask, tile_size, dim=1)
-        mask    = torch.repeat_interleave(mask, tile_size, dim=2)
-
-        return x*mask.float().to(x.device)   
-
-    '''
-    def _aug_mask_tiles(self, x, p = 0.1):
-        tile_sizes  = [1, 2, 4, 8, 12, 16]
-        tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
-
         size_h  = x.shape[2]//tile_size
         size_w  = x.shape[3]//tile_size
 
@@ -678,7 +664,7 @@ class AgentPPOCND():
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.float().to(x.device)  
-    '''
+    
  
 
     def _add_for_plot(self, states, infos, dones):
