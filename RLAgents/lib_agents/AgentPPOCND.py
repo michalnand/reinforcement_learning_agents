@@ -599,7 +599,7 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
     def _aug(self, x): 
-        x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
+        #x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
         x = self._aug_noise(x, k = 0.2)
 
         return x
@@ -647,10 +647,6 @@ class AgentPPOCND():
     def _aug_noise(self, x, k = 0.2): 
         pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
         return x + pointwise_noise
-
-    #inverse colors
-    def _aug_inverse(self, x): 
-        return 1.0 - x
 
     #random tiled dropout
     def _aug_mask_tiles(self, x, p = 0.1):
