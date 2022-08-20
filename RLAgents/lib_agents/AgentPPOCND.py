@@ -660,8 +660,8 @@ class AgentPPOCND():
         size_w  = x.shape[2]//tile_size
 
         mask    = (torch.rand((x.shape[0], size_h, size_w)) < (1.0 - p))
+        mask    = torch.repeat_interleave(mask, tile_size, dim=1)
         mask    = torch.repeat_interleave(mask, tile_size, dim=2)
-        mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
         return x*mask.float().to(x.device)   
 
