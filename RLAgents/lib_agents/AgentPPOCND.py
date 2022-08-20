@@ -599,7 +599,7 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
     def _aug(self, x): 
-        #x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
+        x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
         x = self._aug_noise(x, k = 0.2)
 
         return x
