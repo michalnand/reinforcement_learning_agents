@@ -639,7 +639,9 @@ class AgentPPOCND():
 
 
     def _aug_random_apply(self, x, p, aug_func):
-        mask    = (torch.rand(x.shape[0]) < p).float().to(x.device)
+        mask    = (torch.rand(x.shape[0]) < p)
+        mask    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+        mask    = mask.float().to(x.device)
 
         print(">>> ", x.shape, mask.shape)
         y       = (1.0 - mask)*x + mask*aug_func(x)
