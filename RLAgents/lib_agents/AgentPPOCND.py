@@ -642,10 +642,8 @@ class AgentPPOCND():
         mask    = (torch.rand(x.shape[0]) < p)
         mask    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
         mask    = mask.float().to(x.device)
-
-        print(">>> ", x.shape, mask.shape)
         y       = (1.0 - mask)*x + mask*aug_func(x)
-        print(">>> ", y.shape)
+
         return y
 
     #uniform aditional noise
@@ -661,7 +659,8 @@ class AgentPPOCND():
         size_h  = x.shape[2]//tile_size
         size_w  = x.shape[3]//tile_size
 
-        mask    = (torch.rand((x.shape[0], x.shape[1], size_h, size_w)) < (1.0 - p))
+        #mask    = (torch.rand((x.shape[0], x.shape[1], size_h, size_w)) < (1.0 - p))
+        mask    = (torch.rand((x.shape[0], 1, size_h, size_w)) < (1.0 - p))
         mask    = torch.repeat_interleave(mask, tile_size, dim=2)
         mask    = torch.repeat_interleave(mask, tile_size, dim=3)
 
