@@ -410,55 +410,6 @@ class AgentPPOCND():
     
         return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-
-    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #predict distances, each by each
-        distances = (torch.cdist(za, zb)**2)/za.shape[1] 
-
-        #zeros on diagonal -> close distances, ones elsewhere
-        target_   = (1.0 - torch.eye(za.shape[1])).to(za.device)
-        
-        #MSE loss
-        loss_mse = ((target_ - distances)**2).mean()
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean() 
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_magnitude
-
-        #compute accuraccy in [%], smallest distance should be on diagonal 
-        hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/distances.shape[0]
-
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
     def _contrastive_loss_mse_equivariance(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_b.clone()
@@ -505,6 +456,56 @@ class AgentPPOCND():
         return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
+    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za = model.forward_features(xa)  
+            zb = model.forward_features(xb) 
+        else:
+            za = model(xa)  
+            zb = model(xb) 
+
+        #predict distances, each by each
+        distances = (torch.cdist(za, zb)**2)/za.shape[1] 
+
+        #zeros on diagonal -> close distances, ones elsewhere
+        target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
+        
+        #MSE loss
+        loss_mse = ((target_ - distances)**2).mean()
+
+        #magnitude regularisation, keep magnitude in small range (optional)
+
+        #L2 magnitude regularisation
+        magnitude       = (za**2).mean() + (zb**2).mean() 
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_mse + loss_magnitude
+
+        #compute accuraccy in [%], smallest distance should be on diagonal 
+        hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/distances.shape[0]
+
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+   
+
     def _contrastive_loss_mse_equivariance_all(self, model, states_a, states_b, target, normalise, augmentation):
         xa = states_a.clone()
         xb = states_a.clone()
@@ -529,9 +530,9 @@ class AgentPPOCND():
 
         #predict distances, each by each
         distances = (torch.cdist(za, pb)**2)/za.shape[1] 
-
+ 
         #zeros on diagonal -> close distances, ones elsewhere
-        target_   = (1.0 - torch.eye(za.shape[1])).to(za.device)
+        target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
         
         #MSE loss
         loss_mse = ((target_ - distances)**2).mean()
