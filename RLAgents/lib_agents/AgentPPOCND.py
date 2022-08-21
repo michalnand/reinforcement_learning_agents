@@ -437,8 +437,8 @@ class AgentPPOCND():
         predicted_b = ((zb - pa)**2).mean(dim=1)
 
         #MSE loss
-        loss_mse = ((target - predicted_a)**2).mean()
-        loss_mse+= ((target - predicted_b)**2).mean()
+        loss_mse = 0.5*((target - predicted_a)**2).mean()
+        loss_mse+= 0.5*((target - predicted_b)**2).mean()
 
         #magnitude regularisation, keep magnitude in small range (optional)
 
@@ -538,8 +538,8 @@ class AgentPPOCND():
         target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
         
         #MSE loss
-        loss_mse = ((target_ - distances_a)**2).mean()
-        loss_mse+= ((target_ - distances_b)**2).mean()
+        loss_mse = 0.5*((target_ - distances_a)**2).mean()
+        loss_mse+= 0.5*((target_ - distances_b)**2).mean()
 
         #magnitude regularisation, keep magnitude in small range (optional)
 
