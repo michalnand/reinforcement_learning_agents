@@ -35,14 +35,19 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = self._contrastive_loss_mse
+        elif config.cnd_regularisation_loss == "mse_equivariance":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_equivariance
         elif config.cnd_regularisation_loss == "mse_all":
             self._cnd_regularisation_loss = self._contrastive_loss_mse_all
+        elif config.cnd_regularisation_loss == "mse_equivariance_all":
+            self._cnd_regularisation_loss = self._contrastive_loss_mse_equivariance_all
         elif config.cnd_regularisation_loss == "nce":
             self._cnd_regularisation_loss = self._contrastive_loss_nce
         elif config.cnd_regularisation_loss == "barlow":
             self._cnd_regularisation_loss = self._contrastive_loss_barlow
         else:
             self._cnd_regularisation_loss = None
+
 
 
         if config.ppo_symmetry_loss == "mse":
@@ -429,7 +434,101 @@ class AgentPPOCND():
             zb = model(xb) 
 
         #predict distances, each by each
-        distances = torch.cdist(za, zb)/za.shape[0]
+        distances = (torch.cdist(za, zb)**2)/za.shape[1] 
+
+        #zeros on diagonal -> close distances, ones elsewhere
+        target_   = (1.0 - torch.eye(za.shape[1])).to(za.device)
+        
+        #MSE loss
+        loss_mse = ((target_ - distances)**2).mean()
+
+        #magnitude regularisation, keep magnitude in small range (optional)
+
+        #L2 magnitude regularisation
+        magnitude       = (za**2).mean() + (zb**2).mean() 
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_mse + loss_magnitude
+
+        #compute accuraccy in [%], smallest distance should be on diagonal 
+        hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/distances.shape[0]
+
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+    def _contrastive_loss_mse_equivariance(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_b.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za, pa = model.forward_features(xa)  
+            zb, pb = model.forward_features(xb) 
+        else:
+            za, pa = model(xa)  
+            zb, pb = model(xb) 
+
+        #predict close distance for similar, far distance for different states 
+        predicted = ((za - pb)**2).mean(dim=1)
+
+        #MSE loss
+        loss_mse = ((target - predicted)**2).mean()
+
+        #magnitude regularisation, keep magnitude in small range (optional)
+
+        #L2 magnitude regularisation
+        magnitude       = (za**2).mean() + (zb**2).mean() 
+        loss_magnitude  = self.regularisation_coeff*magnitude
+
+        loss = loss_mse + loss_magnitude
+
+        #compute accuraccy in [%]
+        hits = torch.logical_and(target > 0.5, predicted > 0.5)
+        hits = torch.sum(hits.float()) 
+
+        acc  = 100.0*hits/predicted.shape[0]
+
+    
+        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+    def _contrastive_loss_mse_equivariance_all(self, model, states_a, states_b, target, normalise, augmentation):
+        xa = states_a.clone()
+        xb = states_a.clone()
+
+        #normalise states
+        if normalise:
+            xa = self._norm_state(xa) 
+            xb = self._norm_state(xb)
+
+        #states augmentation
+        if augmentation:
+            xa = self._aug(xa)
+            xb = self._aug(xb)
+ 
+        #obtain features from model
+        if hasattr(model, "forward_features"):
+            za, pa = model.forward_features(xa)  
+            zb, pb = model.forward_features(xb) 
+        else:
+            za, pa = model(xa)  
+            zb, pb = model(xb) 
+
+        #predict distances, each by each
+        distances = (torch.cdist(za, pb)**2)/za.shape[1] 
 
         #zeros on diagonal -> close distances, ones elsewhere
         target_   = (1.0 - torch.eye(za.shape[1])).to(za.device)
