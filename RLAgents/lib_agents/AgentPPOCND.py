@@ -388,7 +388,7 @@ class AgentPPOCND():
         #MSE loss
         loss_mse = ((target - predicted)**2).mean()
 
-        #magnitude regularisation, keep magnitude in small numbers (optional)
+        #magnitude regularisation, keep magnitude in small range (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean() 
@@ -437,7 +437,7 @@ class AgentPPOCND():
         #MSE loss
         loss_mse = ((target_ - distances)**2).mean()
 
-        #magnitude regularisation, keep magnitude in small numbers (optional)
+        #magnitude regularisation, keep magnitude in small range (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean() 
@@ -489,7 +489,7 @@ class AgentPPOCND():
         target          = torch.arange(za_norm.shape[0]).to(za_norm.device)
         loss_info_max   = lf(similarity, target)
         
-        #magnitude regularisation, keep magnitude in small numbers (optional)
+        #magnitude regularisation, keep magnitude in small range (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean()
@@ -542,7 +542,7 @@ class AgentPPOCND():
         loss_invariance = (diag*(1.0 - c)**2).sum()
         loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
 
-        #magnitude regularisation, keep magnitude in small numbers (optional)
+        #magnitude regularisation, keep magnitude in small range (optional)
 
         #L2 magnitude regularisation
         magnitude       = (za**2).mean() + (zb**2).mean()
