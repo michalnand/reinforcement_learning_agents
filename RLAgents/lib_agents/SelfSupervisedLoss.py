@@ -69,12 +69,10 @@ def contrastive_loss_mse_equivariance( model, states_a, states_b, target, regula
         zb, pb = model(xb) 
 
     #predict close distance for similar, far distance for different states 
-    predicted_a = ((za - pb)**2).mean(dim=1)
-    predicted_b = ((zb - pa)**2).mean(dim=1)
-
+    predicted = ((za - pb)**2).mean(dim=1)
+ 
     #MSE loss
-    loss_mse = 0.5*((target - predicted_a)**2).mean()
-    loss_mse+= 0.5*((target - predicted_b)**2).mean()
+    loss_mse = ((target - predicted)**2).mean()
 
     #magnitude regularisation, keep magnitude in small range (optional)
 
@@ -85,10 +83,10 @@ def contrastive_loss_mse_equivariance( model, states_a, states_b, target, regula
     loss = loss_mse + loss_magnitude
 
     #compute accuraccy in [%]
-    hits = torch.logical_and(target > 0.5, predicted_a > 0.5)
+    hits = torch.logical_and(target > 0.5, predicted > 0.5)
     hits = torch.sum(hits.float()) 
 
-    acc  = 100.0*hits/predicted_a.shape[0]
+    acc  = 100.0*hits/predicted.shape[0] 
 
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
@@ -167,15 +165,13 @@ def contrastive_loss_mse_equivariance_all( model, states_a, states_b, target, re
         zb, pb = model(xb) 
 
     #predict distances, each by each
-    distances_a = (torch.cdist(za, pb)**2)/za.shape[1] 
-    distances_b = (torch.cdist(zb, pa)**2)/za.shape[1] 
+    distances = (torch.cdist(za, pb)**2)/za.shape[1] 
 
     #zeros on diagonal -> close distances, ones elsewhere
     target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
     
     #MSE loss
-    loss_mse = 0.5*((target_ - distances_a)**2).mean()
-    loss_mse+= 0.5*((target_ - distances_b)**2).mean()
+    loss_mse = ((target_ - distances)**2).mean()
 
     #magnitude regularisation, keep magnitude in small range (optional)
 
@@ -186,14 +182,14 @@ def contrastive_loss_mse_equivariance_all( model, states_a, states_b, target, re
     loss = loss_mse + loss_magnitude
 
     #compute accuraccy in [%], smallest distance should be on diagonal 
-    hits = torch.argmin(distances_a, dim=1) == torch.arange(za.shape[0]).to(za.device)
+    hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
     hits = torch.sum(hits.float()) 
 
-    acc  = 100.0*hits/distances_a.shape[0]
+    acc  = 100.0*hits/distances.shape[0]
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-
+ 
 
 def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_a.clone()

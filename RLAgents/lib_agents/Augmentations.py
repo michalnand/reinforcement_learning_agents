@@ -50,11 +50,7 @@ def aug_mask(x, p = 0.1):
     mask = 1.0*(torch.rand_like(x) < (1.0 - p))
     return x*mask  
 
-def aug(x): 
-    x = aug_random_apply(x, 0.5, aug_mask_tiles)
-    x = aug_noise(x, k = 0.2)
 
-    return x
 
 
 '''

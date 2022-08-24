@@ -357,6 +357,13 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
 
+    def _aug(self, x): 
+        x = aug_random_apply(x, 0.5, aug_mask_tiles)
+        x = aug_noise(x, k = 0.2)
+
+        return x
+
+
     def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
