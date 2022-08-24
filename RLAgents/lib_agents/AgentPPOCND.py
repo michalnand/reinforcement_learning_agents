@@ -1,9 +1,13 @@
 import numpy
 import torch 
+
 from .ValuesLogger      import *
 from .RunningStats      import *  
 from .PolicyBufferIM    import *  
 
+from .PPOLoss               import *
+from .SelfSupervisedLoss    import *
+from .Augmentations         import *
 
 import sklearn.manifold
 import matplotlib.pyplot as plt
@@ -34,28 +38,28 @@ class AgentPPOCND():
         self.symmetry_loss_coeff    = config.symmetry_loss_coeff
  
         if config.cnd_regularisation_loss == "mse":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse
+            self._cnd_regularisation_loss = contrastive_loss_mse
         elif config.cnd_regularisation_loss == "mse_equivariance":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_equivariance
+            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance
         elif config.cnd_regularisation_loss == "mse_all":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_all
+            self._cnd_regularisation_loss = contrastive_loss_mse_all
         elif config.cnd_regularisation_loss == "mse_equivariance_all":
-            self._cnd_regularisation_loss = self._contrastive_loss_mse_equivariance_all
+            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance_all
         elif config.cnd_regularisation_loss == "nce":
-            self._cnd_regularisation_loss = self._contrastive_loss_nce
+            self._cnd_regularisation_loss = contrastive_loss_nce
         elif config.cnd_regularisation_loss == "barlow":
-            self._cnd_regularisation_loss = self._contrastive_loss_barlow
+            self._cnd_regularisation_loss = contrastive_loss_barlow
         else:
             self._cnd_regularisation_loss = None
 
-
+ 
 
         if config.ppo_symmetry_loss == "mse":
-            self._ppo_symmetry_loss = self._contrastive_loss_mse
+            self._ppo_symmetry_loss = contrastive_loss_mse
         elif config.ppo_symmetry_loss == "nce": 
-            self._ppo_symmetry_loss = self._contrastive_loss_nce
+            self._ppo_symmetry_loss = contrastive_loss_nce
         elif config.ppo_symmetry_loss == "barlow":
-            self._ppo_symmetry_loss = self._contrastive_loss_barlow
+            self._ppo_symmetry_loss = contrastive_loss_barlow
         else:
             self._ppo_symmetry_loss = None
 
@@ -93,9 +97,9 @@ class AgentPPOCND():
             self.states[e] = self.envs.reset(e).copy()
 
         self.enable_training()
-        self.iterations                     = 0 
+        self.iterations = 0 
 
-        self.values_logger                  = ValuesLogger()
+        self.values_logger = ValuesLogger()
 
         self.values_logger.add("loss_cnd", 0.0)
         self.values_logger.add("loss_cnd_regularization", 0.0)
@@ -124,7 +128,7 @@ class AgentPPOCND():
 
     def main(self): 
         #state to tensor
-        states        = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
+        states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
 
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
@@ -201,7 +205,6 @@ class AgentPPOCND():
 
         cv2.imshow("CND agent", state_im)
         cv2.waitKey(1)
-    
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -229,14 +232,13 @@ class AgentPPOCND():
                     #smaller batch for self-supervised regularisation
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_symmetry, magnitude, acc = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, normalise=False, augmentation=True)                
+                    loss_symmetry, magnitude, acc = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, self.regularisation_coeff, None, self._aug)                
 
                     loss_ppo+= self.symmetry_loss_coeff*loss_symmetry
 
                     self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
                     self.values_logger.add("symmetry_accuracy", acc)
                     self.values_logger.add("symmetry_magnitude", magnitude)
-                    
 
 
                 self.optimizer_ppo.zero_grad()        
@@ -260,7 +262,7 @@ class AgentPPOCND():
                     #smaller batch for self-supervised regularisation
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude, _ = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, normalise=True, augmentation=True)                
+                    loss, magnitude, _ = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, self.regularisation_coeff, self._norm_state, self._aug)                
     
                     self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
@@ -269,8 +271,6 @@ class AgentPPOCND():
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("cnd_magnitude", magnitude)
 
-               
-
         self.policy_buffer.clear() 
 
     
@@ -278,12 +278,12 @@ class AgentPPOCND():
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         #critic loss
-        loss_critic = self._compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
+        loss_critic =  ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss        
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
-        loss_policy, loss_entropy  = self._compute_actor_loss(logits, logits_new, advantages, actions)
+        loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
         loss_actor = loss_policy + loss_entropy
 
@@ -296,56 +296,7 @@ class AgentPPOCND():
 
         return loss 
 
-    #MSE critic loss
-    def _compute_critic_loss(self, values_ext_new, returns_ext, values_int_new, returns_int):
-        ''' 
-        compute external critic loss, as MSE
-        L = (T - V(s))^2
-        '''
-        values_ext_new  = values_ext_new.squeeze(1)
-        loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
-        loss_ext_value  = loss_ext_value.mean()
-
-        '''
-        compute internal critic loss, as MSE
-        L = (T - V(s))^2
-        '''
-        values_int_new  = values_int_new.squeeze(1)
-        loss_int_value  = (returns_int.detach() - values_int_new)**2
-        loss_int_value  = loss_int_value.mean()
-        
-        loss_critic     = loss_ext_value + loss_int_value
-        return loss_critic
-
-    #PPO actor loss
-    def _compute_actor_loss(self, logits, logits_new, advantages, actions):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
-
-        probs_new     = torch.nn.functional.softmax(logits_new, dim = 1)
-        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
-
-        ''' 
-        compute actor loss, surrogate loss
-        '''
-        log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
-        log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
-                        
-        ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
-        loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean()
     
-        ''' 
-        compute entropy loss, to avoid greedy strategy
-        L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
-        '''
-        loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
-        loss_entropy = self.entropy_beta*loss_entropy.mean()
-
-        return loss_policy, loss_entropy
-
-
     #MSE loss for cnd model
     def _compute_loss_cnd(self, states):
         
@@ -364,303 +315,6 @@ class AgentPPOCND():
 
         return loss_cnd
 
-
-    def _contrastive_loss_mse(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #predict close distance for similar, far distance for different states 
-        predicted = ((za - zb)**2).mean(dim=1)
-
-        #MSE loss
-        loss_mse = ((target - predicted)**2).mean()
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean() 
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_magnitude
-
-        #compute accuraccy in [%]
-        hits = torch.logical_and(target > 0.5, predicted > 0.5)
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/predicted.shape[0]
-
-    
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-    def _contrastive_loss_mse_equivariance(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_b.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za, pa = model.forward_features(xa)  
-            zb, pb = model.forward_features(xb) 
-        else:
-            za, pa = model(xa)  
-            zb, pb = model(xb) 
-
-        #predict close distance for similar, far distance for different states 
-        predicted_a = ((za - pb)**2).mean(dim=1)
-        predicted_b = ((zb - pa)**2).mean(dim=1)
-
-        #MSE loss
-        loss_mse = 0.5*((target - predicted_a)**2).mean()
-        loss_mse+= 0.5*((target - predicted_b)**2).mean()
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean() 
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_magnitude
-
-        #compute accuraccy in [%]
-        hits = torch.logical_and(target > 0.5, predicted_a > 0.5)
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/predicted_a.shape[0]
-
-    
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-    def _contrastive_loss_mse_all(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #predict distances, each by each
-        distances = (torch.cdist(za, zb)**2)/za.shape[1] 
-
-        #zeros on diagonal -> close distances, ones elsewhere
-        target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
-        
-        #MSE loss
-        loss_mse = ((target_ - distances)**2).mean()
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean() 
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_magnitude
-
-        #compute accuraccy in [%], smallest distance should be on diagonal 
-        hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/distances.shape[0]
-
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-   
-
-    def _contrastive_loss_mse_equivariance_all(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za, pa = model.forward_features(xa)  
-            zb, pb = model.forward_features(xb) 
-        else:
-            za, pa = model(xa)  
-            zb, pb = model(xb) 
-
-        #predict distances, each by each
-        distances_a = (torch.cdist(za, pb)**2)/za.shape[1] 
-        distances_b = (torch.cdist(zb, pa)**2)/za.shape[1] 
- 
-        #zeros on diagonal -> close distances, ones elsewhere
-        target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
-        
-        #MSE loss
-        loss_mse = 0.5*((target_ - distances_a)**2).mean()
-        loss_mse+= 0.5*((target_ - distances_b)**2).mean()
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean() 
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_mse + loss_magnitude
-
-        #compute accuraccy in [%], smallest distance should be on diagonal 
-        hits = torch.argmin(distances_a, dim=1) == torch.arange(za.shape[0]).to(za.device)
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/distances_a.shape[0]
-
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-   
-    def _contrastive_loss_nce(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
- 
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #normalise
-        eps = 10**-12
-
-        za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
-        zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
-        
-        #info NCE loss, CE with target classes on diagonal
-        similarity      = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
-        lf              = torch.nn.CrossEntropyLoss()
-        target          = torch.arange(za_norm.shape[0]).to(za_norm.device)
-        loss_info_max   = lf(similarity, target)
-        
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_info_max + loss_magnitude
-
-        #compute accuraccy in [%]
-        hits = torch.argmax(similarity, dim=1) == target
-        hits = torch.sum(hits.float()) 
-
-        acc  = 100.0*hits/similarity.shape[0]
-
-        return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-    #barlow twins self supervised
-    def _contrastive_loss_barlow(self, model, states_a, states_b, target, normalise, augmentation):
-        xa = states_a.clone()
-        xb = states_a.clone()
-
-        #normalise states
-        if normalise:
-            xa = self._norm_state(xa) 
-            xb = self._norm_state(xb)
-
-        #states augmentation
-        if augmentation:
-            xa = self._aug(xa)
-            xb = self._aug(xb)
-
-        #obtain features from model
-        if hasattr(model, "forward_features"):
-            za = model.forward_features(xa)  
-            zb = model.forward_features(xb) 
-        else:
-            za = model(xa)  
-            zb = model(xb) 
-
-        #barlow loss
-        eps = 10**-12
-
-        za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
-        zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
-        
-        c = torch.mm(za_norm.T, zb_norm)/za.shape[0]
-
-        diag        = torch.eye(c.shape[0]).to(c.device)
-        off_diag    = 1.0 - diag
-
-        loss_invariance = (diag*(1.0 - c)**2).sum()
-        loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
-
-        #magnitude regularisation, keep magnitude in small range (optional)
-
-        #L2 magnitude regularisation
-        magnitude       = (za**2).mean() + (zb**2).mean()
-        loss_magnitude  = self.regularisation_coeff*magnitude
-
-        loss = loss_invariance + loss_redundance + loss_magnitude
-
-        acc = 0.0
-
-        return loss, magnitude.detach().to("cpu").numpy(), acc
-
-
-
-    
 
     #compute internal motivation
     def _curiosity(self, states):
@@ -702,78 +356,6 @@ class AgentPPOCND():
                 if dones[e]:
                     self.envs.reset(e)
 
-    def _aug(self, x): 
-        x = self._aug_random_apply(x, 0.5, self._aug_mask_tiles)
-        x = self._aug_noise(x, k = 0.2)
-
-        return x
-
-    '''
-    def _aug(self, x):
-        
-        #this works perfect
-
-        x = self._aug_random_apply(x, 0.5, self._aug_resize2)
-        x = self._aug_random_apply(x, 0.25, self._aug_resize4)
-        x = self._aug_random_apply(x, 0.125, self._aug_mask)
-        x = self._aug_noise(x, k = 0.2)
-
-        return x
-    '''
- 
-    '''
-    def _aug_resize(self, x, scale = 2):
-        ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
-        us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
-
-        scaled  = us(ds(x))  
-        return scaled
-
-    def _aug_resize2(self, x):
-        return self._aug_resize(x, 2)
-
-    def _aug_resize4(self, x):
-        return self._aug_resize(x, 4)
-
-    #random pixel-wise dropout
-    def _aug_mask(self, x, p = 0.1):
-        mask = 1.0*(torch.rand_like(x) < (1.0 - p))
-        return x*mask  
-    '''
-
-
-    def _aug_random_apply(self, x, p, aug_func):
-        mask    = (torch.rand(x.shape[0]) < p)
-        mask    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-        mask    = mask.float().to(x.device)
-        y       = (1.0 - mask)*x + mask*aug_func(x)
-
-        return y
-
-    #uniform aditional noise
-    def _aug_noise(self, x, k = 0.2): 
-        pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
-        return x + pointwise_noise
-
-    #random tiled dropout
-    def _aug_mask_tiles(self, x, p = 0.1):
-        tile_sizes  = [1, 2, 4, 8, 12, 16]
-        tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
-
-        size_h  = x.shape[2]//tile_size
-        size_w  = x.shape[3]//tile_size
-
-        #mask    = (torch.rand((x.shape[0], x.shape[1], size_h, size_w)) < (1.0 - p))
-        mask    = (torch.rand((x.shape[0], 1, size_h, size_w)) < (1.0 - p))
-
-        mask    = torch.kron(mask, torch.ones(tile_size, tile_size))
-
-        #mask    = torch.repeat_interleave(mask, tile_size, dim=2)
-        #mask    = torch.repeat_interleave(mask, tile_size, dim=3)
-
-        return x*mask.float().to(x.device)  
-    
- 
 
     def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)
@@ -807,4 +389,3 @@ class AgentPPOCND():
 
             self.vis_features   = []
             self.vis_labels     = []
-
