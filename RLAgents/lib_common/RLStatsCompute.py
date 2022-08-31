@@ -1,12 +1,34 @@
+from importlib.metadata import files
 import re
 import numpy
 from scipy import stats
 import json
 
 class RLStatsCompute:
-    def __init__(self, files_list, confidence = 0.95):
+    def __init__(self, files_list, confidence = 0.68, extended_names = []):
+
         self.data, self.extended = self.load_files(files_list)
+        
         self.mean, self.std, self.lower, self.upper, self.hist = self.compute_stats(self.data, confidence)
+
+
+        if len(extended_names) > 0:
+            extended_stats =[]
+            for ex_idx in range(len(extended_names)):
+                extended = []
+                for f_idx in range(len(self.extended)):
+                    es = [d[extended_names[ex_idx]] for d in self.extended[f_idx]]
+                    extended.append(es)
+
+                extended_stats.append(extended)
+                
+            extended_stats = numpy.array(extended_stats)
+            extended_stats = numpy.moveaxis(extended_stats, 0, 1)
+            
+            self.extended_mean, self.extended_std, self.extended_lower, self.extended_upper, self.extended_hist = self.compute_stats(extended_stats, confidence)
+            
+
+
 
     def load_files(self, files_list):
         data      = []
@@ -40,7 +62,7 @@ class RLStatsCompute:
         
 
 
-    def compute_stats(self, data, confidence = 0.95):
+    def compute_stats(self, data, confidence):
         n       = data.shape[2]
 
         mean    = numpy.mean(data, axis = 0)
