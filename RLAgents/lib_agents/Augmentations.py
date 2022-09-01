@@ -28,6 +28,8 @@ def aug_mask_tiles(x, p = 0.1):
 
     mask    = torch.kron(mask, torch.ones(tile_size, tile_size))
 
+    print("shape = ", x.shape, mask.shape)
+
     return x*mask.float().to(x.device)  
 
 
