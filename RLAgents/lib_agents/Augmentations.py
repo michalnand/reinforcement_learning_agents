@@ -18,7 +18,12 @@ def aug_noise(x, k = 0.2):
 
 #random tiled dropout
 def aug_mask_tiles(x, p = 0.1):
-    tile_sizes  = [1, 2, 4, 8, 12, 16]
+
+    if x.shape[2] == 96:
+        tile_sizes  = [1, 2, 4, 8, 12, 16]
+    else:
+        tile_sizes  = [1, 2, 4, 8, 16]
+
     tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
 
     size_h  = x.shape[2]//tile_size
@@ -27,8 +32,6 @@ def aug_mask_tiles(x, p = 0.1):
     mask    = (torch.rand((x.shape[0], 1, size_h, size_w)) < (1.0 - p))
 
     mask    = torch.kron(mask, torch.ones(tile_size, tile_size))
-
-    print("shape = ", x.shape, mask.shape)
 
     return x*mask.float().to(x.device)  
 
