@@ -255,7 +255,7 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
     if augmentation is not None:
         xa = augmentation(xa) 
         xb = augmentation(xb)
-
+ 
     #obtain features from model
     if hasattr(model, "forward_features"):
         za = model.forward_features(xa)  
