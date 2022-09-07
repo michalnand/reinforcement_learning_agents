@@ -260,7 +260,6 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
     if hasattr(model, "forward_features"):
         za = model.forward_features(xa)  
         zb = model.forward_features(xb) 
-        print("forward features ", za.shape, zb.shape)
     else:
         za = model(xa)  
         zb = model(xb) 
@@ -276,8 +275,6 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
 
     diag        = torch.eye(c.shape[0]).to(c.device)
     off_diag    = 1.0 - diag
-
-    print(">>> ", c.shape, diag.shape)
 
     loss_invariance = (diag*(1.0 - c)**2).sum()
     loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
