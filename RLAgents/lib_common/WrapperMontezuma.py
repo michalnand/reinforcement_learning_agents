@@ -202,46 +202,33 @@ class RawScoreEnv(gym.Wrapper):
         self.steps = 0
         return self.env.reset()
 
-'''
-class RawScoreEnv(gym.Wrapper):
-    def __init__(self, env, max_steps):
+
+class LifeLostEnv(gym.Wrapper):
+    def __init__(self, env):
         gym.Wrapper.__init__(self, env)
-
-        self.steps      = 0
-        self.max_steps  = max_steps
-
-        self.raw_episodes            = 0
-        self.raw_score               = 0.0
-        self.raw_score_per_episode   = 0.0
-        self.raw_score_total         = 0.0
 
     def step(self, action):
         obs, reward, done, info = self.env.step(action)
 
-        self.steps+= 1
-        if self.steps >= self.max_steps:
-            self.steps = 0
-            done = True 
+        lives = self.env.unwrapped.ale.lives()
 
-        self.raw_score+= reward
-        self.raw_score_total+= reward
-        if done:
-            self.steps = 0
-            self.raw_episodes+= 1
-  
-            k = 0.1
-            self.raw_score_per_episode   = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
-            self.raw_score = 0.0
+        if lives > self.lives:
+            self.lives = lives
+
+        if lives < self.lives:
+            self.lives = lives
+            reward = -1.0
         
-        reward = float(numpy.sign(reward))
-
+        if done:
+            self.lives = self.env.unwrapped.ale.lives()
+            
         return obs, reward, done, info
 
     def reset(self):
-        self.steps = 0
+        self.lives = self.env.unwrapped.ale.lives()
         return self.env.reset()
-''' 
-  
+
+
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
     env = NopOpsEnv(env)
@@ -250,6 +237,8 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
     env = RawScoreEnv(env, max_steps)
+
+    env = LifeLostEnv(env)
 
     return env
 
