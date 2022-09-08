@@ -66,6 +66,16 @@ class AgentPPOCND():
         print("cnd_regularisation_loss  = ", self._cnd_regularisation_loss)
         print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
 
+
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy = config.rnn_policy
+        else:
+            self.rnn_policy = False
+
+        if self.rnn_policy:
+            self.hidden_state = torch.zeros((self.envs_count, 512)).to(self.model_ppo.device)
+                
+
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
@@ -131,7 +141,10 @@ class AgentPPOCND():
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
 
         #compute model output
-        logits, values_ext, values_int  = self.model_ppo.forward(states)
+        if self.rnn_policy:
+            logits, values_ext, values_int, self.rnn_policy = self.model_ppo.forward_rnn(states, self.rnn_policy)
+        else:
+            logits, values_ext, values_int  = self.model_ppo.forward(states)
         
         #collect actions
         actions = self._sample_actions(logits)
@@ -169,6 +182,10 @@ class AgentPPOCND():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
+
+                if self.rnn_policy:
+                    self.hidden_state[e] = torch.zeros((512, )).to(self.model_ppo.device)
+
 
         #self._add_for_plot(states, infos, dones)
         
