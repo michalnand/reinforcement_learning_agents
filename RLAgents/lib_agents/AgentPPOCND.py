@@ -72,8 +72,6 @@ class AgentPPOCND():
         else:
             self.rnn_policy = False
 
-        if self.rnn_policy:
-            self.hidden_state = torch.zeros((self.envs_count, 512)).to(self.model_ppo.device)
                 
 
         self.normalise_state_mean = config.normalise_state_mean
@@ -95,6 +93,9 @@ class AgentPPOCND():
  
         for e in range(self.envs_count):
             self.envs.reset(e)
+
+        if self.rnn_policy:
+            self.hidden_state = torch.zeros((self.envs_count, 512)).to(self.model_ppo.device)
         
         self.states_running_stats       = RunningStats(self.state_shape)
 
