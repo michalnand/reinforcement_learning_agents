@@ -143,11 +143,11 @@ class AgentPPOCND():
 
         #compute model output
         if self.rnn_policy:
-            logits, values_ext, values_int, self.rnn_policy = self.model_ppo.forward_rnn(states, self.rnn_policy)
+            logits, values_ext, values_int, self.hidden_state = self.model_ppo.forward_rnn(states, self.hidden_state)
         else:
             logits, values_ext, values_int  = self.model_ppo.forward(states)
         
-        #collect actions
+        #collect actions 
         actions = self._sample_actions(logits)
          
         #execute action
