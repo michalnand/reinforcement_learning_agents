@@ -217,7 +217,7 @@ class LifeLostEnv(gym.Wrapper):
 
         if lives < self.lives:
             self.lives = lives
-            reward = -1.0
+            reward = -0.1
         
         if done:
             self.lives = self.env.unwrapped.ale.lives()
