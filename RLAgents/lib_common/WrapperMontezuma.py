@@ -238,7 +238,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = VisitedRoomsEnv(env)
     env = RawScoreEnv(env, max_steps) 
 
-    env = LifeLostEnv(env)
+    #env = LifeLostEnv(env)
 
     return env
 
