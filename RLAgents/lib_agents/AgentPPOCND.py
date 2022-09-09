@@ -316,7 +316,7 @@ class AgentPPOCND():
 
     
     #MSE loss for cnd model
-    def _compute_loss_cnd(self, states):
+    def _compute_loss_cnd(self, states, random_masking = False):
         
         state_norm_t    = self._norm_state(states).detach()
  
@@ -324,12 +324,15 @@ class AgentPPOCND():
         features_target_t     = self.model_cnd_target(state_norm_t).detach()
 
         loss_cnd = (features_target_t - features_predicted_t)**2
-
+ 
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
-        prob            = 32.0/self.envs_count
-        random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
-        random_mask     = 1.0*(random_mask < prob) 
-        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+        if random_masking:
+            prob            = 32.0/self.envs_count
+            random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
+            random_mask     = 1.0*(random_mask < prob) 
+            loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+        else:
+            loss_cnd        = loss_cnd.mean()
 
         return loss_cnd
 
