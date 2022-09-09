@@ -116,7 +116,7 @@ class ResizeEnv(gym.ObservationWrapper):
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
 
-        return self.state
+        return self.state 
 
 
 
