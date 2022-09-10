@@ -24,6 +24,7 @@ class AgentPPOCND():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
+        self.cnd_dropout        = config.cnd_dropout
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -265,7 +266,7 @@ class AgentPPOCND():
                 self.optimizer_ppo.step()
 
                 #train CND model, MSE loss (same as RND)
-                loss_cnd = self._compute_loss_cnd(states)
+                loss_cnd = self._compute_loss_cnd(states, self.cnd_dropout)
 
                 self.optimizer_cnd.zero_grad() 
                 loss_cnd.backward()
@@ -316,7 +317,7 @@ class AgentPPOCND():
 
     
     #MSE loss for cnd model
-    def _compute_loss_cnd(self, states, random_masking = False):
+    def _compute_loss_cnd(self, states, dropout = 0.75):
         
         state_norm_t    = self._norm_state(states).detach()
  
@@ -326,14 +327,11 @@ class AgentPPOCND():
         loss_cnd = (features_target_t - features_predicted_t)**2
  
         #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
-        if random_masking:
-            prob            = 32.0/self.envs_count
-            random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
-            random_mask     = 1.0*(random_mask < prob) 
-            loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-        else:
-            loss_cnd        = loss_cnd.mean()
-
+        prob            = 1.0 - dropout
+        random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
+        random_mask     = 1.0*(random_mask < prob) 
+        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+    
         return loss_cnd
 
 
