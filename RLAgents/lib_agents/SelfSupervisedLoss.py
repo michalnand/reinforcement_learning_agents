@@ -1,5 +1,18 @@
 import torch
 
+def accuraccy(za, zb):
+    #info NCE loss, CE with target classes on diagonal
+    similarity  = torch.cdist(za, zb)
+    target      = torch.arange(za.shape[0]).to(za.device)
+     
+    #compute accuraccy in [%]
+    hits = torch.argmin(similarity, dim=1) == target
+    hits = torch.sum(hits.float()) 
+
+    acc  = 100.0*hits/similarity.shape[0]
+
+    return acc.detach().to("cpu").numpy()
+
 def contrastive_loss_mse(model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
@@ -264,20 +277,20 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
         za = model(xa)  
         zb = model(xb) 
 
-    #barlow loss
+
     eps = 10**-12
 
-    za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
-    zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
-    
+    za_norm = (za - za.mean(dim = 0, keepdim=True))/(za.std(dim = 0, keepdim=True) + eps)
+    zb_norm = (zb - zb.mean(dim = 0, keepdim=True))/(zb.std(dim = 0, keepdim=True) + eps) 
+ 
     c = torch.mm(za_norm.T, zb_norm)/za.shape[0]
-    
-
+ 
     diag        = torch.eye(c.shape[0]).to(c.device)
-    off_diag    = 1.0 - diag 
+    off_diag    = 1.0 - diag  
 
-    loss_invariance = (diag*(1.0 - c)**2).sum()
-    loss_redundance = (off_diag*(c**2)).sum()/(c.shape[0] - 1)
+    loss_invariance = (diag*(1.0 - c)**2).mean()
+    loss_redundance = (off_diag*(c**2)).mean()/(c.shape[0] - 1)
+ 
 
     #magnitude regularisation, keep magnitude in small range (optional)
 
@@ -285,9 +298,9 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
     magnitude       = (za**2).mean() + (zb**2).mean()
     loss_magnitude  = regularisation_coeff*magnitude
 
-    loss = (loss_invariance + loss_redundance)/za.shape[1] + loss_magnitude
+    loss = loss_invariance + loss_redundance + loss_magnitude
 
-    acc = 0.0
+    acc = accuraccy(za, zb)
 
     return loss, magnitude.detach().to("cpu").numpy(), acc
 
