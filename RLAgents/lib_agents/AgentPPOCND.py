@@ -359,7 +359,7 @@ class AgentPPOCND():
             std  = torch.from_numpy(self.states_running_stats.std).to(states.device).float()            
             states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
 
-        return states_norm 
+        return states_norm.detach() 
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
@@ -380,7 +380,7 @@ class AgentPPOCND():
         x = aug_random_apply(x, 0.5, aug_mask_tiles)
         x = aug_noise(x, k = 0.2)
 
-        return x
+        return x.detach()
 
 
     def _add_for_plot(self, states, infos, dones):
