@@ -61,6 +61,8 @@ class AgentPPOCND():
             self._ppo_symmetry_loss = contrastive_loss_nce
         elif config.ppo_symmetry_loss == "barlow":
             self._ppo_symmetry_loss = contrastive_loss_barlow
+        elif config.ppo_symmetry_loss == "symmetry_loss_mse":
+            self._ppo_symmetry_loss = symmetry_loss_mse
         else:
             self._ppo_symmetry_loss = None
 

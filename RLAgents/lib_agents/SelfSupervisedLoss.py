@@ -306,3 +306,69 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
 
 
 
+
+
+
+
+'''
+this is symmetry loss : 
+same action in different state have same features
+
+f(s_i, a) = const, for all i
+
+imput :
+@param model    : model to train, should contain forward_features method
+@param states_a : batch of states
+@param states_b : not used, can be None
+@param actions  : batch discrete actions (ints) corresponding with states_a
+@param regularisation_coeff : features L2 regularisation rate
+@normalise      : ture/false, if states are normalised using running stats
+@augmentation   : ture/false, if states are augmented before obtaining features
+'''
+def symmetry_loss_mse( model, states_a, states_b, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+    xa = states_a.clone()
+    xb = states_a.clone()
+
+    #normalise states
+    if normalise is not None:
+        xa = normalise(xa) 
+        xb = normalise(xb)
+
+    #states augmentation
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+
+    #obtain features from model
+    if hasattr(model, "forward_features"):
+        za = model.forward_features(xa)  
+        zb = model.forward_features(xb) 
+    else:
+        za = model(xa)  
+        zb = model(xb) 
+
+    #normalise
+    eps = 10**-12
+
+    za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
+    zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
+    
+    #cosine similarity
+    similarity  = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
+
+    #targets matrix, ones where are the same actions
+    target    = (actions.unsqueeze(0) == actions.unsqueeze(1)).float()
+
+    loss_similarity = ((target - similarity)**2).mean()
+
+    #L2 magnitude regularisation
+    magnitude       = (za**2).mean() + (zb**2).mean()
+    loss_magnitude  = regularisation_coeff*magnitude
+
+    loss = loss_similarity + loss_magnitude
+
+    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
+    acc = torch.logical_and(target > 0.5, similarity > 0.5).float().mean()
+    acc  = 100.0*acc
+
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
