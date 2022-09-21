@@ -182,8 +182,6 @@ class AgentPPOCND():
             if self.target_internal_motivation is not None:
                 error = self.target_internal_motivation  - rewards_int_t.std().detach().to("cpu").numpy()
 
-                print("error = ", error)
-
                 self.int_reward_coeff+= 0.0001*error
                 self.int_reward_coeff = numpy.clip(self.int_reward_coeff, 0.01, 10.0)
 
