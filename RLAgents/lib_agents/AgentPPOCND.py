@@ -70,10 +70,10 @@ class AgentPPOCND():
         print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
 
 
-        if hasattr(config, "rnn_policy"):
-            self.rnn_policy = config.rnn_policy
+        if hasattr(config, "target_internal_motivation"):
+            self.target_internal_motivation = config.target_internal_motivation
         else:
-            self.rnn_policy = False
+            self.target_internal_motivation = None
 
                 
 
@@ -96,10 +96,7 @@ class AgentPPOCND():
  
         for e in range(self.envs_count):
             self.envs.reset(e)
-
-        if self.rnn_policy:
-            self.hidden_state = torch.zeros((self.envs_count, 512)).to(self.model_ppo.device)
-        
+ 
         self.states_running_stats       = RunningStats(self.state_shape)
 
         if self.envs_count > 1:
@@ -129,6 +126,11 @@ class AgentPPOCND():
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
+
+        if self.target_internal_motivation is not None:
+            self.values_logger.add("internal_reward_coeff", 0.0)
+
+
     
         self.vis_features = []
         self.vis_labels   = []
@@ -145,10 +147,7 @@ class AgentPPOCND():
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
 
         #compute model output
-        if self.rnn_policy:
-            logits, values_ext, values_int, self.hidden_state = self.model_ppo.forward_rnn(states, self.hidden_state)
-        else:
-            logits, values_ext, values_int  = self.model_ppo.forward(states)
+        logits, values_ext, values_int  = self.model_ppo.forward(states)
         
         #collect actions 
         actions = self._sample_actions(logits)
@@ -178,6 +177,16 @@ class AgentPPOCND():
 
             if self.policy_buffer.is_full():
                 self.train()
+
+            #adaptive internal reward coeff
+            if self.target_internal_motivation is not None:
+                error = self.target_internal_motivation  - rewards_int_t.std().to("cpu")
+
+                self.int_reward_coeff+= 0.0001*error
+                self.int_reward_coeff = numpy.clip(self.int_reward_coeff, 0.01, 10.0)
+
+                self.values_logger.add("internal_reward_coeff" , self.int_reward_coeff)
+
         
         #update new state
         self.states = states_new.copy()
@@ -187,15 +196,14 @@ class AgentPPOCND():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-                if self.rnn_policy:
-                    self.hidden_state[e] = torch.zeros((512, )).to(self.model_ppo.device)
-
-
         #self._add_for_plot(states, infos, dones)
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+
+        
+
 
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]

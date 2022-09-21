@@ -9,6 +9,7 @@ class ValuesLogger:
             self.values[name] = (1.0 - smoothing)*self.values[name] + smoothing*value
         else: 
             self.values[name] = value
+
             
     def get_str(self, decimals = 7): 
         result = "" 
