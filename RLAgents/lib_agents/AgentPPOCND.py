@@ -128,7 +128,7 @@ class AgentPPOCND():
 
 
         if self.target_internal_motivation is not None:
-            self.values_logger.add("internal_reward_coeff", 0.0)
+            self.values_logger.add("internal_reward_coeff", self.int_reward_coeff)
 
 
     
@@ -178,7 +178,7 @@ class AgentPPOCND():
             if self.policy_buffer.is_full():
                 self.train()
 
-            #adaptive internal reward coeff
+            #adaptive internal reward coeff (optional)
             if self.target_internal_motivation is not None:
                 error = self.target_internal_motivation  - rewards_int_t.std().to("cpu")
 
