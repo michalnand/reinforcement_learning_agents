@@ -180,7 +180,7 @@ class AgentPPOCND():
 
             #adaptive internal reward coeff (optional)
             if self.target_internal_motivation is not None:
-                error = self.target_internal_motivation  - rewards_int_t.std().detach().numpy().to("cpu")
+                error = self.target_internal_motivation  - rewards_int_t.std().detach().to("cpu").numpy()
 
                 print("error = ", error)
 
