@@ -203,30 +203,6 @@ class RawScoreEnv(gym.Wrapper):
         return self.env.reset()
 
 
-class LifeLostEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-
-        lives = self.env.unwrapped.ale.lives()
-
-        if lives > self.lives:
-            self.lives = lives
-
-        if lives < self.lives:
-            self.lives = lives
-            reward = -0.1
-        
-        if done:
-            self.lives = self.env.unwrapped.ale.lives()
-            
-        return obs, reward, done, info
-
-    def reset(self):
-        self.lives = self.env.unwrapped.ale.lives()
-        return self.env.reset()
 
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
@@ -237,8 +213,6 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     env = VisitedRoomsEnv(env)
     env = RawScoreEnv(env, max_steps) 
-
-    #env = LifeLostEnv(env)
 
     return env
 

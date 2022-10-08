@@ -372,3 +372,91 @@ def symmetry_loss_mse( model, states_a, states_b, actions, regularisation_coeff 
     acc  = 100.0*acc
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+
+
+def symmetry_loss_rules( model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+    xa = states_now.clone()
+    xb = states_next.clone()
+
+    #normalise states
+    if normalise is not None:
+        xa = normalise(xa) 
+        xb = normalise(xb)
+
+    #states augmentation
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+
+    #obtain features from model
+    if hasattr(model, "forward_features"):
+        za = model.forward_features(xa)  
+        zb = model.forward_features(xb) 
+    else:
+        za = model(xa)  
+        zb = model(xb)
+
+    z = zb - za
+
+    #normalise
+    eps = 10**-12 
+    
+    z_norm = (z - z.mean(dim = 0))/(z.std(dim = 0) + eps)
+
+    pred   = torch.matmul(z_norm, z_norm.T)/z_norm.shape[1]
+
+    #targets matrix, ones where are the same actions
+    target    = (actions.unsqueeze(0) == actions.unsqueeze(1)).float()
+
+    loss_pred = ((target - pred)**2).mean()
+
+    #L2 magnitude regularisation
+    magnitude       = (za**2).mean() + (zb**2).mean()
+    loss_magnitude  = regularisation_coeff*magnitude
+
+    loss = loss_pred + loss_magnitude
+
+    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
+    acc = 100.0*((pred > 0.5) == actions).float().mean()
+    
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+
+def symmetry_loss_actions( model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+    xa = states_now.clone()
+    xb = states_next.clone()
+
+    #normalise states
+    if normalise is not None:
+        xa = normalise(xa) 
+        xb = normalise(xb)
+
+    #states augmentation
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+
+    #obtain features from model
+    y_pred      = model.forward_prediction(xa, xb)
+
+    
+
+    lf          = torch.nn.CrossEntropyLoss()
+    loss_pred   = lf(y_pred, actions)
+    
+
+    #L2 magnitude regularisation
+    magnitude       = (y_pred**2).mean() + (zb**2).mean()
+    loss_magnitude  = regularisation_coeff*magnitude
+
+    loss = loss_pred + loss_magnitude
+
+    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
+    pred = torch.argmax(y_pred, dim=1)
+
+    acc = 100.0*(pred == actions).float().mean()
+    
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
