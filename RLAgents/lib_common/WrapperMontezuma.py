@@ -196,9 +196,6 @@ class RawScoreEnv(gym.Wrapper):
 
         reward = float(numpy.sign(reward))
 
-        if reward < 0.0:
-            reward = 0.0
-
         return obs, reward, done, info
 
     def reset(self):
