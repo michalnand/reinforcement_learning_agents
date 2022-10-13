@@ -59,151 +59,6 @@ def contrastive_loss_mse(model, states_a, states_b, target, regularisation_coeff
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-def contrastive_loss_mse_equivariance( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_b.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
-
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za, pa = model.forward_features(xa)  
-        zb, pb = model.forward_features(xb) 
-    else:
-        za, pa = model(xa)  
-        zb, pb = model(xb) 
-
-    #predict close distance for similar, far distance for different states 
-    predicted = ((za - pb)**2).mean(dim=1)
- 
-    #MSE loss
-    loss_mse = ((target - predicted)**2).mean()
-
-    #magnitude regularisation, keep magnitude in small range (optional)
-
-    #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean() 
-    loss_magnitude  = regularisation_coeff*magnitude
-
-    loss = loss_mse + loss_magnitude
-
-    #compute accuraccy in [%]
-    hits = torch.logical_and(target > 0.5, predicted > 0.5)
-    hits = torch.sum(hits.float()) 
-
-    acc  = 100.0*hits/predicted.shape[0] 
-
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-def contrastive_loss_mse_all( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_a.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
-
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb) 
-
-    #predict distances, each by each
-    distances = (torch.cdist(za, zb)**2)/za.shape[1] 
-
-    #zeros on diagonal -> close distances, ones elsewhere
-    target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
-    
-    #MSE loss
-    loss_mse = ((target_ - distances)**2).mean()
-
-    #magnitude regularisation, keep magnitude in small range (optional)
-
-    #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean() 
-    loss_magnitude  = regularisation_coeff*magnitude
-
-    loss = loss_mse + loss_magnitude
-
-    #compute accuraccy in [%], smallest distance should be on diagonal 
-    hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
-    hits = torch.sum(hits.float()) 
-
-    acc  = 100.0*hits/distances.shape[0]
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-
-
-def contrastive_loss_mse_equivariance_all( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_a.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
-
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za, pa = model.forward_features(xa)  
-        zb, pb = model.forward_features(xb) 
-    else:
-        za, pa = model(xa)  
-        zb, pb = model(xb) 
-
-    #predict distances, each by each
-    distances = (torch.cdist(za, pb)**2)/za.shape[1] 
-
-    #zeros on diagonal -> close distances, ones elsewhere
-    target_   = (1.0 - torch.eye(za.shape[0])).to(za.device)
-    
-    #MSE loss
-    loss_mse = ((target_ - distances)**2).mean()
-
-    #magnitude regularisation, keep magnitude in small range (optional)
-
-    #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean() 
-    loss_magnitude  = regularisation_coeff*magnitude
-
-    loss = loss_mse + loss_magnitude
-
-    #compute accuraccy in [%], smallest distance should be on diagonal 
-    hits = torch.argmin(distances, dim=1) == torch.arange(za.shape[0]).to(za.device)
-    hits = torch.sum(hits.float()) 
-
-    acc  = 100.0*hits/distances.shape[0]
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
- 
-
 def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
@@ -254,7 +109,7 @@ def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coef
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-#barlow twins supervised
+#barlow twins self supervised
 def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
@@ -307,25 +162,7 @@ def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_c
 
 
 
-
-
-
-'''
-this is symmetry loss : 
-same action in different state have same features
-
-f(s_i, a) = const, for all i
-
-imput :
-@param model    : model to train, should contain forward_features method
-@param states_a : batch of states
-@param states_b : not used, can be None
-@param actions  : batch discrete actions (ints) corresponding with states_a
-@param regularisation_coeff : features L2 regularisation rate
-@normalise      : ture/false, if states are normalised using running stats
-@augmentation   : ture/false, if states are augmented before obtaining features
-'''
-def symmetry_loss_mse( model, states_a, states_b, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def contrastive_loss_vicreg(model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
 
@@ -338,7 +175,7 @@ def symmetry_loss_mse( model, states_a, states_b, actions, regularisation_coeff 
     if augmentation is not None:
         xa = augmentation(xa) 
         xb = augmentation(xb)
-
+ 
     #obtain features from model
     if hasattr(model, "forward_features"):
         za = model.forward_features(xa)  
@@ -347,36 +184,38 @@ def symmetry_loss_mse( model, states_a, states_b, actions, regularisation_coeff 
         za = model(xa)  
         zb = model(xb) 
 
-    #normalise
-    eps = 10**-12
+    eps = 0.0001
 
-    za_norm = (za - za.mean(dim = 0))/(za.std(dim = 0) + eps)
-    zb_norm = (zb - zb.mean(dim = 0))/(zb.std(dim = 0) + eps)
+    # invariance loss
+    sim_loss = ((za - zb)**2).mean()
+
+    # variance loss
+    std_za = torch.sqrt(za.var(dim=0) + eps)
+    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
     
-    #cosine similarity
-    similarity  = torch.matmul(za_norm, zb_norm.T)/za_norm.shape[1]
-
-    #targets matrix, ones where are the same actions
-    target    = (actions.unsqueeze(0) == actions.unsqueeze(1)).float()
-
-    loss_similarity = ((target - similarity)**2).mean()
-
+    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+   
+    # covariance loss
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+    
+    #magnitude regularisation, keep magnitude in small range (optional)
+    
     #L2 magnitude regularisation
     magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = regularisation_coeff*magnitude
 
-    loss = loss_similarity + loss_magnitude
+    loss = 10.0*sim_loss + 10.0*std_loss + 1.0*cov_loss + regularisation_coeff*magnitude
 
-    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
-    acc = torch.logical_and(target > 0.5, similarity > 0.5).float().mean()
-    acc  = 100.0*acc
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    return loss, magnitude.detach().to("cpu").numpy(), 0
 
 
-
-
-def symmetry_loss_rules( model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def symmetry_loss_rules(model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
     xa = states_now.clone()
     xb = states_next.clone()
 
@@ -390,73 +229,32 @@ def symmetry_loss_rules( model, states_now, states_next, actions, regularisation
         xa = augmentation(xa) 
         xb = augmentation(xb)
 
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb)
+    #obtain features from model and predict action (inverse model)
+    z, actions_pred = model.forward_features(states_now, states_next)
 
-    z = zb - za
+    #correlation, same actions should have similar features
+    #this is symmetry in actions, same action behaves same across whole state space
+    similarity  = torch.matmul(z, z.T)/z.shape[1]
 
-    #normalise
-    eps = 10**-12 
-    
-    z_norm = (z - z.mean(dim = 0))/(z.std(dim = 0) + eps)
+    target = (actions.unsqueeze(0) == actions.unsqueeze(1)).float()
 
-    pred   = torch.matmul(z_norm, z_norm.T)/z_norm.shape[1]
+    loss_symmetry = ((target - similarity)**2).mean()
 
-    #targets matrix, ones where are the same actions
-    target    = (actions.unsqueeze(0) == actions.unsqueeze(1)).float()
-
-    loss_pred = ((target - pred)**2).mean()
+    #predict action from two consectuctive states
+    lf = torch.nn.CrossEntropyLoss()
+    loss_inverse = lf(actions_pred, actions)
 
     #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = regularisation_coeff*magnitude
+    magnitude = (z**2).mean()
 
-    loss = loss_pred + loss_magnitude
+    loss = loss_symmetry + loss_inverse + regularisation_coeff*magnitude
 
-    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
-    acc = 100.0*((pred > 0.5) == actions).float().mean()
-    
+    #compute accuraccy in [%], use only true positive (since true negative are trivial to hit)
+    hits = torch.argmax(similarity, dim=1) == target
+    hits = torch.sum(hits.float()) 
+
+    acc  = 100.0*hits/similarity.shape[0]
+
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-
-def symmetry_loss_actions( model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
-    xa = states_now.clone()
-    xb = states_next.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
-
-    #obtain features from model
-    y_pred      = model.forward_prediction(xa, xb)
-
-    
-
-    lf          = torch.nn.CrossEntropyLoss()
-    loss_pred   = lf(y_pred, actions)
-    
-
-    #L2 magnitude regularisation
-    magnitude       = (y_pred**2).mean() + (zb**2).mean()
-    loss_magnitude  = regularisation_coeff*magnitude
-
-    loss = loss_pred + loss_magnitude
-
-    #track only true positive (true negative is almost 100% accuraccy when lot of actions)
-    pred = torch.argmax(y_pred, dim=1)
-
-    acc = 100.0*(pred == actions).float().mean()
-    
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()

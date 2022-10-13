@@ -11,7 +11,6 @@ class RLStatsCompute:
         
         self.mean, self.std, self.lower, self.upper, self.hist = self.compute_stats(self.data, confidence)
 
-
         if len(extended_names) > 0:
             extended_stats =[]
             for ex_idx in range(len(extended_names)):

@@ -40,16 +40,12 @@ class AgentPPOCND():
  
         if config.cnd_regularisation_loss == "mse":
             self._cnd_regularisation_loss = contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "mse_equivariance":
-            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance
-        elif config.cnd_regularisation_loss == "mse_all":
-            self._cnd_regularisation_loss = contrastive_loss_mse_all
-        elif config.cnd_regularisation_loss == "mse_equivariance_all":
-            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance_all
         elif config.cnd_regularisation_loss == "nce":
             self._cnd_regularisation_loss = contrastive_loss_nce
         elif config.cnd_regularisation_loss == "barlow":
             self._cnd_regularisation_loss = contrastive_loss_barlow
+        elif config.cnd_regularisation_loss == "vicreg":
+            self._cnd_regularisation_loss = contrastive_loss_vicreg
         else:
             self._cnd_regularisation_loss = None
 
