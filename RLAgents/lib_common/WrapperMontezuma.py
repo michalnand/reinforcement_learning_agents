@@ -185,7 +185,7 @@ class RawScoreEnv(gym.Wrapper):
             done = True 
 
         self.raw_score+= reward
-        if done:
+        if done: 
             self.steps = 0
   
             k = 0.1 
@@ -195,6 +195,8 @@ class RawScoreEnv(gym.Wrapper):
         info["raw_score"] = self.raw_score_per_episode
 
         reward = float(numpy.sign(reward))
+        if reward < 0.0:
+            reward = 0.0
 
         return obs, reward, done, info
 
