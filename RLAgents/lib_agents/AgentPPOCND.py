@@ -383,9 +383,10 @@ class AgentPPOCND():
 
 
     def _aug(self, x): 
+        #x = aug_random_apply(x, 0.5, aug_conv)
         x = aug_random_apply(x, 0.5, aug_mask_tiles)
         x = aug_noise(x, k = 0.2)
-
+        
         return x
 
 
