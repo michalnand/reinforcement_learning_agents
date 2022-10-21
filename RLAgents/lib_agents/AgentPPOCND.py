@@ -35,43 +35,35 @@ class AgentPPOCND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
 
-        self.regularisation_coeff   = config.regularisation_coeff
-        self.symmetry_loss_coeff    = config.symmetry_loss_coeff
- 
-        if config.cnd_regularisation_loss == "mse":
-            self._cnd_regularisation_loss = contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "nce":
-            self._cnd_regularisation_loss = contrastive_loss_nce
-        elif config.cnd_regularisation_loss == "barlow":
-            self._cnd_regularisation_loss = contrastive_loss_barlow
-        elif config.cnd_regularisation_loss == "vicreg":
-            self._cnd_regularisation_loss = contrastive_loss_vicreg
-        else:
-            self._cnd_regularisation_loss = None
-
+        self.ppo_regularization_loss_coeff    = config.ppo_regularization_loss_coeff
  
 
-        if config.ppo_symmetry_loss == "mse":
-            self._ppo_symmetry_loss = contrastive_loss_mse
-        elif config.ppo_symmetry_loss == "nce": 
-            self._ppo_symmetry_loss = contrastive_loss_nce
-        elif config.ppo_symmetry_loss == "barlow":
-            self._ppo_symmetry_loss = contrastive_loss_barlow
-        elif config.ppo_symmetry_loss == "symmetry_loss_mse":
-            self._ppo_symmetry_loss = symmetry_loss_mse
+        if config.ppo_regularization_loss == "mse":
+            self._ppo_regularization_loss = contrastive_loss_mse
         else:
-            self._ppo_symmetry_loss = None
-
-        print("cnd_regularisation_loss  = ", self._cnd_regularisation_loss)
-        print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
-
-
-        if hasattr(config, "target_internal_motivation"):
-            self.target_internal_motivation = config.target_internal_motivation
+            self._ppo_regularization_loss = None
+  
+        if config.cnd_regularization_loss == "mse":
+            self._cnd_regularization_loss = contrastive_loss_mse
+        elif config.cnd_regularization_loss == "nce":
+            self._cnd_regularization_loss = contrastive_loss_nce
+        elif config.cnd_regularization_loss == "vicreg":
+            self._cnd_regularization_loss = contrastive_loss_vicreg
         else:
-            self.target_internal_motivation = None
+            self._cnd_regularization_loss = None
 
-                
+        self.ppo_augmentations = config.ppo_augmentations
+        self.ppo_reg_augmentations = config.ppo_reg_augmentations
+        
+        self.cnd_augmentations = config.cnd_augmentations
+        
+        print("ppo_regularization_loss  = ", self._ppo_regularization_loss)
+        print("cnd_regularization_loss  = ", self._cnd_regularization_loss)
+        print("ppo_augmentations        = ", self.ppo_augmentations)
+        print("ppo_reg_augmentations    = ", self.ppo_reg_augmentations)
+        print("cnd_augmentations        = ", self.cnd_augmentations)
+
+        print("\n\n")
 
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
@@ -118,16 +110,10 @@ class AgentPPOCND():
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
 
-        self.values_logger.add("loss_symmetry", 0.0)
+        self.values_logger.add("loss_ppo_regularization", 0.0)
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
-
-        if self.target_internal_motivation is not None:
-            self.values_logger.add("internal_reward_coeff", self.int_reward_coeff)
-
-
-    
         self.vis_features = []
         self.vis_labels   = []
 
@@ -141,7 +127,10 @@ class AgentPPOCND():
     def main(self): 
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
-
+        
+        #states augmentations, if any
+        states = self._aug_ppo(states)
+        
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -173,15 +162,6 @@ class AgentPPOCND():
 
             if self.policy_buffer.is_full():
                 self.train()
-
-            #adaptive internal reward coeff (optional)
-            if self.target_internal_motivation is not None:
-                error = self.target_internal_motivation  - rewards_int_t.std().detach().to("cpu").numpy()
-
-                self.int_reward_coeff+= 0.01*error
-                self.int_reward_coeff = numpy.clip(self.int_reward_coeff, 0.01, 10.0)
- 
-                self.values_logger.add("internal_reward_coeff" , self.int_reward_coeff)
 
         
         #update new state
@@ -253,15 +233,15 @@ class AgentPPOCND():
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 #train ppo model features
-                if self._ppo_symmetry_loss is not None:
-                    #smaller batch for self-supervised regularisation
+                if self._ppo_regularization_loss is not None:
+                    #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_symmetry, magnitude, acc = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, self.regularisation_coeff, None, self._aug)                
+                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo_reg)                
+ 
+                    loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
-                    loss_ppo+= self.symmetry_loss_coeff*loss_symmetry
-
-                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_ppo_regularization", loss_ppo_regularization.detach().to("cpu").numpy())
                     self.values_logger.add("symmetry_accuracy", acc)
                     self.values_logger.add("symmetry_magnitude", magnitude)
 
@@ -282,12 +262,12 @@ class AgentPPOCND():
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 
 
-                #train cnd target model for regularisation (optional)
-                if self._cnd_regularisation_loss is not None:                    
-                    #smaller batch for self-supervised regularisation
+                #train cnd target model for regularization (optional)
+                if self._cnd_regularization_loss is not None:                    
+                    #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude, _ = self._cnd_regularisation_loss(self.model_cnd_target, states_a, states_b, labels, self.regularisation_coeff, self._norm_state, self._aug)                
+                    loss, magnitude, _ = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, self._norm_state, self._aug_cnd)                
     
                     self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
@@ -332,7 +312,7 @@ class AgentPPOCND():
 
         loss_cnd = (features_target_t - features_predicted_t)**2
  
-        #random loss regularisation, 25% non zero for 128envs, 100% non zero for 32envs
+        #random loss regularization, 25% non zero for 128envs, 100% non zero for 32envs
         prob            = 1.0 - dropout
         random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
         random_mask     = 1.0*(random_mask < prob) 
@@ -382,13 +362,26 @@ class AgentPPOCND():
                     self.envs.reset(e)
 
 
-    def _aug(self, x): 
-        #x = aug_random_apply(x, 0.5, aug_conv)
-        x = aug_random_apply(x, 0.5, aug_mask_tiles)
-        x = aug_noise(x, k = 0.2)
-        
-        return x
+    def _aug(self, x, augmentations): 
+        if "conv" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_conv)
 
+        if "mask" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_mask_tiles)
+
+        if "noise" in augmentations:
+            x = aug_noise(x, k = 0.2)
+        
+        return x.detach() 
+
+    def _aug_ppo(self, x):
+        return self._aug(x, self.ppo_augmentations)
+
+    def _aug_ppo_reg(self, x):
+        return self._aug(x, self.ppo_reg_augmentations)
+
+    def _aug_cnd(self, x):
+        return self._aug(x, self.cnd_augmentations)
 
     def _add_for_plot(self, states, infos, dones):
         states_norm_t   = self._norm_state(states)

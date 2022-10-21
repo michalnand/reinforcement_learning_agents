@@ -13,7 +13,7 @@ def accuraccy(za, zb):
 
     return acc.detach().to("cpu").numpy()
 
-def contrastive_loss_mse(model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
 
@@ -39,15 +39,13 @@ def contrastive_loss_mse(model, states_a, states_b, target, regularisation_coeff
     predicted = ((za - zb)**2).mean(dim=1)
 
     #MSE loss
-    loss_mse = ((target - predicted)**2).mean()
+    loss = ((target - predicted)**2).mean()
 
     #magnitude regularisation, keep magnitude in small range (optional)
 
     #L2 magnitude regularisation
     magnitude       = (za**2).mean() + (zb**2).mean() 
-    loss_magnitude  = regularisation_coeff*magnitude
 
-    loss = loss_mse + loss_magnitude
 
     #compute accuraccy in [%]
     hits = torch.logical_and(target > 0.5, predicted > 0.5)
@@ -59,7 +57,7 @@ def contrastive_loss_mse(model, states_a, states_b, target, regularisation_coeff
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def contrastive_loss_nce( model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
 
@@ -97,9 +95,7 @@ def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coef
 
     #L2 magnitude regularisation
     magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = regularisation_coeff*magnitude
 
-    loss = loss_info_max + loss_magnitude
 
     #compute accuraccy in [%]
     hits = torch.argmax(similarity, dim=1) == target
@@ -107,62 +103,10 @@ def contrastive_loss_nce( model, states_a, states_b, target, regularisation_coef
 
     acc  = 100.0*hits/similarity.shape[0]
 
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-#barlow twins self supervised
-def contrastive_loss_barlow( model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_a.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
- 
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb) 
+    return loss_info_max, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-    eps = 10**-12
-
-    za_norm = (za - za.mean(dim = 0, keepdim=True))/(za.std(dim = 0, keepdim=True) + eps)
-    zb_norm = (zb - zb.mean(dim = 0, keepdim=True))/(zb.std(dim = 0, keepdim=True) + eps) 
- 
-    c = torch.mm(za_norm.T, zb_norm)/za.shape[0]
- 
-    diag        = torch.eye(c.shape[0]).to(c.device)
-    off_diag    = 1.0 - diag  
-
-    loss_invariance = (diag*(1.0 - c)**2).mean()
-    loss_redundance = (off_diag*(c**2)).mean()/(c.shape[0] - 1)
- 
-
-    #magnitude regularisation, keep magnitude in small range (optional)
-
-    #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = regularisation_coeff*magnitude
-
-    loss = loss_invariance + loss_redundance + loss_magnitude
-
-    acc = accuraccy(za, zb)
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc
-
-
-
-
-def contrastive_loss_vicreg(model, states_a, states_b, target, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
 
@@ -210,12 +154,12 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, regularisation_co
     #L2 magnitude regularisation
     magnitude       = (za**2).mean() + (zb**2).mean()
 
-    loss = 10.0*sim_loss + 10.0*std_loss + 1.0*cov_loss + regularisation_coeff*magnitude
+    loss = 10.0*sim_loss + 10.0*std_loss + 1.0*cov_loss
 
     return loss, magnitude.detach().to("cpu").numpy(), 0
 
 
-def symmetry_loss_rules(model, states_now, states_next, actions, regularisation_coeff = 0.0, normalise = None, augmentation = None):
+def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
     xa = states_now.clone()
     xb = states_next.clone()
 
@@ -245,9 +189,9 @@ def symmetry_loss_rules(model, states_now, states_next, actions, regularisation_
     loss_inverse = lf(actions_pred, actions)
 
     #L2 magnitude regularisation
-    magnitude = (z**2).mean()
+    magnitude = (z**2).mean() 
 
-    loss = loss_symmetry + loss_inverse + regularisation_coeff*magnitude
+    loss = loss_symmetry + loss_inverse
 
     #compute accuraccy in [%], use only true positive (since true negative are trivial to hit)
     hits = torch.argmax(similarity, dim=1) == target

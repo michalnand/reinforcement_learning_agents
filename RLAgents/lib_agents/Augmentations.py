@@ -57,11 +57,17 @@ def aug_mask(x, p = 0.1):
 
 
 #apply random convolution filter
-def aug_conv(x, alpha = 0.2, kernel_size = 3, groups = 4):
+def aug_conv(x, alpha = 0.2, kernel_size = 3, groups = None):
     ch  = x.shape[1]
     w   = torch.zeros((ch, ch, kernel_size, kernel_size), device = x.device)
 
     r0  = range(ch) 
+
+    if groups is None:
+        if ch%3 == 0:
+            groups = ch//3
+        else:
+            groups = ch
     
     ch_tmp  = ch//groups
     r1      = ch_tmp*numpy.repeat(numpy.arange(groups), ch_tmp) + numpy.tile(numpy.random.permutation(ch_tmp), groups)
