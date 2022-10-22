@@ -129,7 +129,7 @@ class AgentPPOCND():
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
         
         #states augmentations, if any
-        states = self._aug_ppo(states)
+        #states = self._aug_ppo(states)
         
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
@@ -177,8 +177,6 @@ class AgentPPOCND():
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-
-        
 
 
         self.iterations+= 1
@@ -365,12 +363,15 @@ class AgentPPOCND():
     def _aug(self, x, augmentations): 
         if "conv" in augmentations:
             x = aug_random_apply(x, 0.5, aug_conv)
+            print("conv aug")
 
         if "mask" in augmentations:
             x = aug_random_apply(x, 0.5, aug_mask_tiles)
+            print("mask aug")
 
         if "noise" in augmentations:
             x = aug_noise(x, k = 0.2)
+            print("noise aug")
         
         return x.detach() 
 
