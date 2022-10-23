@@ -40,6 +40,10 @@ class AgentPPOCND():
 
         if config.ppo_regularization_loss == "mse":
             self._ppo_regularization_loss = contrastive_loss_mse
+        elif config.ppo_regularization_loss == "nce":
+            self._ppo_regularization_loss = contrastive_loss_nce
+        elif config.ppo_regularization_loss == "vicreg":
+            self._ppo_regularization_loss = contrastive_loss_vicreg
         else:
             self._ppo_regularization_loss = None
   
@@ -178,7 +182,6 @@ class AgentPPOCND():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-
         self.iterations+= 1
         return rewards_ext[0], dones[0], infos[0]
     
@@ -232,18 +235,27 @@ class AgentPPOCND():
                 
                 #train ppo model features
                 if self._ppo_regularization_loss is not None:
+                    print("ppo self supervised ")
+
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo_reg)                
- 
+                    states_      = states[0:small_batch]
+                    states_next_ = states_next[0:small_batch]
+                    actions_     = actions[0:small_batch]
+
+                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_, states_next_, actions_, None, self._aug_ppo_reg)                
+
+                    print("loss =  ", self.ppo_regularization_loss_coeff*loss_ppo_regularization)
+                    print("\n\n")
+
                     loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
                     self.values_logger.add("loss_ppo_regularization", loss_ppo_regularization.detach().to("cpu").numpy())
                     self.values_logger.add("symmetry_accuracy", acc)
                     self.values_logger.add("symmetry_magnitude", magnitude)
 
-
+ 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
@@ -376,6 +388,7 @@ class AgentPPOCND():
         return self._aug(x, self.ppo_augmentations)
 
     def _aug_ppo_reg(self, x):
+        print("_aug_ppo_reg = ", self.ppo_reg_augmentations)
         return self._aug(x, self.ppo_reg_augmentations)
 
     def _aug_cnd(self, x):

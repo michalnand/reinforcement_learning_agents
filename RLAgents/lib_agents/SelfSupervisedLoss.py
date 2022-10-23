@@ -54,7 +54,7 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-def contrastive_loss_nce( model, states_a, states_b, target, normalise = None, augmentation = None):
+def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
 
@@ -106,8 +106,8 @@ def contrastive_loss_nce( model, states_a, states_b, target, normalise = None, a
 def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
-
-    #normalise states
+ 
+    #normalise states 
     if normalise is not None:
         xa = normalise(xa) 
         xb = normalise(xb)
