@@ -235,8 +235,6 @@ class AgentPPOCND():
                 
                 #train ppo model features
                 if self._ppo_regularization_loss is not None:
-                    print("ppo self supervised ")
-
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
@@ -245,9 +243,6 @@ class AgentPPOCND():
                     actions_     = actions[0:small_batch]
 
                     loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_, states_next_, actions_, None, self._aug_ppo_reg)                
-
-                    print("loss =  ", self.ppo_regularization_loss_coeff*loss_ppo_regularization)
-                    print("\n\n")
 
                     loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
@@ -388,7 +383,6 @@ class AgentPPOCND():
         return self._aug(x, self.ppo_augmentations)
 
     def _aug_ppo_reg(self, x):
-        print("_aug_ppo_reg = ", self.ppo_reg_augmentations)
         return self._aug(x, self.ppo_reg_augmentations)
 
     def _aug_cnd(self, x):
