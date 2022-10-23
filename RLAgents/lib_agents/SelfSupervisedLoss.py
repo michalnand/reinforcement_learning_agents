@@ -13,6 +13,11 @@ def accuraccy(za, zb):
 
     return acc.detach().to("cpu").numpy()
 
+def off_diagonal(x):
+    mask = 1.0 - torch.eye(x.shape[0], device=x.device)
+    return x*mask
+
+
 def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
