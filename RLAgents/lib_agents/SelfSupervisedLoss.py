@@ -114,7 +114,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
  
     #normalise states 
     if normalise is not None:
-        xa = normalise(xa) 
+        xa = normalise(xa)  
         xb = normalise(xb)
 
     #states augmentation

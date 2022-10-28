@@ -235,14 +235,11 @@ class AgentPPOCND():
                 
                 #train ppo model features
                 if self._ppo_regularization_loss is not None:
+
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    states_      = states[0:small_batch]
-                    states_next_ = states_next[0:small_batch]
-                    actions_     = actions[0:small_batch]
-
-                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_, states_next_, actions_, None, self._aug_ppo_reg)                
+                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo_reg)                
 
                     loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
@@ -266,7 +263,6 @@ class AgentPPOCND():
                 #log results
                 self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 
-
                 #train cnd target model for regularization (optional)
                 if self._cnd_regularization_loss is not None:                    
                     #smaller batch for self-supervised regularization
