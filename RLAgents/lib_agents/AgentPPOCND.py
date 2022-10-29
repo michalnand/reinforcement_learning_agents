@@ -365,7 +365,7 @@ class AgentPPOCND():
 
     def _aug(self, x, augmentations): 
         if "conv" in augmentations:
-            x = aug_random_apply(x, 0.1, aug_conv)
+            x = aug_random_apply(x, 0.5, aug_conv)
 
         if "mask" in augmentations:
             x = aug_random_apply(x, 0.5, aug_mask_tiles)

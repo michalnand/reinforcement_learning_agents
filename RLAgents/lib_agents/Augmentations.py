@@ -55,9 +55,9 @@ def aug_mask(x, p = 0.1):
     mask = 1.0*(torch.rand_like(x) < (1.0 - p))
     return x*mask  
 
-
+ 
 #apply random convolution filter
-def aug_conv(x, alpha = 0.5, kernel_size = 3, groups = None):
+def aug_conv(x, alpha = 0.3, kernel_size = 3, groups = None):
     ch  = x.shape[1]
     w   = torch.zeros((ch, ch, kernel_size, kernel_size), device = x.device)
  
