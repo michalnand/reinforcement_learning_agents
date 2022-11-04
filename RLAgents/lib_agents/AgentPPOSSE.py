@@ -1,3 +1,4 @@
+from os import stat
 import numpy
 import torch 
 
@@ -14,8 +15,8 @@ import matplotlib.pyplot as plt
 import cv2
  
        
-class AgentPPOCNDS():   
-    def __init__(self, envs, ModelPPO, ModelCND, config):
+class AgentPPOSSE():   
+    def __init__(self, envs, ModelPPO, ModelSSE, config):
         self.envs = envs  
       
         self.gamma_ext          = config.gamma_ext 
@@ -33,38 +34,37 @@ class AgentPPOCNDS():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
-
-        self.regularisation_coeff   = config.regularisation_coeff
-        self.symmetry_loss_coeff    = config.symmetry_loss_coeff
- 
-        if config.cnd_regularisation_loss == "mse":
-            self._cnd_regularisation_loss = contrastive_loss_mse
-        elif config.cnd_regularisation_loss == "mse_equivariance":
-            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance
-        elif config.cnd_regularisation_loss == "mse_all":
-            self._cnd_regularisation_loss = contrastive_loss_mse_all
-        elif config.cnd_regularisation_loss == "mse_equivariance_all":
-            self._cnd_regularisation_loss = contrastive_loss_mse_equivariance_all
-        elif config.cnd_regularisation_loss == "nce":
-            self._cnd_regularisation_loss = contrastive_loss_nce
-        elif config.cnd_regularisation_loss == "barlow":
-            self._cnd_regularisation_loss = contrastive_loss_barlow
-        else:
-            self._cnd_regularisation_loss = None
-
  
 
-        if config.ppo_symmetry_loss == "mse":
-            self._ppo_symmetry_loss = contrastive_loss_mse
-        elif config.ppo_symmetry_loss == "nce": 
-            self._ppo_symmetry_loss = contrastive_loss_nce
-        elif config.ppo_symmetry_loss == "barlow":
-            self._ppo_symmetry_loss = contrastive_loss_barlow
+        if config.ppo_regularization_loss == "mse":
+            self._ppo_regularization_loss = contrastive_loss_mse
+        elif config.ppo_regularization_loss == "nce":
+            self._ppo_regularization_loss = contrastive_loss_nce
+        elif config.ppo_regularization_loss == "vicreg":
+            self._ppo_regularization_loss = contrastive_loss_vicreg
         else:
-            self._ppo_symmetry_loss = None
+            self._ppo_regularization_loss = None 
+  
+        if config.sse_regularization_loss == "mse":
+            self._sse_regularization_loss = contrastive_loss_mse
+        elif config.sse_regularization_loss == "nce":
+            self._sse_regularization_loss = contrastive_loss_nce
+        elif config.sse_regularization_loss == "vicreg":
+            self._sse_regularization_loss = contrastive_loss_vicreg
+        else:
+            self._sse_regularization_loss = None
 
-        print("cnd_regularisation_loss  = ", self._cnd_regularisation_loss)
-        print("ppo_symmetry_loss        = ", self._ppo_symmetry_loss)
+        self.ppo_augmentations      = config.ppo_augmentations
+        self.sse_augmentations      = config.sse_augmentations
+        self.sse_rounds             = config.sse_rounds
+         
+        print("ppo_regularization_loss  = ", self._ppo_regularization_loss)
+        print("sse_regularization_loss  = ", self._sse_regularization_loss)
+        print("ppo_augmentations        = ", self.ppo_augmentations)
+        print("sse_augmentations        = ", self.sse_augmentations)
+        print("sse_rounds               = ", self.sse_rounds)
+
+        print("\n\n")
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -72,15 +72,15 @@ class AgentPPOCNDS():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-
-        self.model_cnd      = ModelCND.Model(self.state_shape)
-        self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
+        self.model_sse      = ModelSSE.Model(self.state_shape)
+        self.optimizer_sse  = torch.optim.Adam(self.model_sse.parameters(), lr=config.learning_rate_sse)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         for e in range(self.envs_count):
             self.envs.reset(e)
-        
+ 
+
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -89,10 +89,11 @@ class AgentPPOCNDS():
         self.enable_training()
         self.iterations = 0 
 
-        self.values_logger = ValuesLogger()
+        self.values_logger = ValuesLogger() 
 
-        self.values_logger.add("loss_cnd_regularization", 0.0)
-        self.values_logger.add("cnd_magnitude", 0.0)
+        self.values_logger.add("loss_sse", 0.0)
+        self.values_logger.add("loss_sse_regularization", 0.0)
+        self.values_logger.add("sse_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
@@ -100,11 +101,10 @@ class AgentPPOCNDS():
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
 
-        self.values_logger.add("loss_symmetry", 0.0)
+        self.values_logger.add("loss_ppo_regularization", 0.0)
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
-    
         self.vis_features = []
         self.vis_labels   = []
 
@@ -118,15 +118,18 @@ class AgentPPOCNDS():
     def main(self): 
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
-
+          
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
-        #collect actions
+        #collect actions 
         actions = self._sample_actions(logits)
          
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
+
+        #update long term stats (mean and variance)
+        self.states_running_stats.update(self.states)
 
         #curiosity motivation
         rewards_int    = self._curiosity(states)
@@ -147,6 +150,7 @@ class AgentPPOCNDS():
 
             if self.policy_buffer.is_full():
                 self.train()
+
         
         #update new state
         self.states = states_new.copy()
@@ -167,11 +171,11 @@ class AgentPPOCNDS():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_cnd.save(save_path + "trained/")
+        self.model_sse.save(save_path + "trained/")
  
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_cnd.load(load_path + "trained/")
+        self.model_sse.load(load_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
@@ -187,7 +191,7 @@ class AgentPPOCNDS():
         state_im        = cv2.resize(state, (size, size))
         state_im        = numpy.clip(state_im, 0.0, 1.0)
 
-        cv2.imshow("CND simple agent", state_im)
+        cv2.imshow("SSE agent", state_im)
         cv2.waitKey(1)
 
     def _sample_actions(self, logits):
@@ -212,37 +216,38 @@ class AgentPPOCNDS():
                 loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 #train ppo model features
-                if self._ppo_symmetry_loss is not None:
-                    #smaller batch for self-supervised regularisation
+                if self._ppo_regularization_loss is not None:
+
+                    #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_symmetry, magnitude, acc = self._ppo_symmetry_loss(self.model_ppo, states_a, states_b, labels, self.regularisation_coeff, None, self._aug)                
+                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo)                
 
-                    loss_ppo+= self.symmetry_loss_coeff*loss_symmetry
+                    loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
-                    self.values_logger.add("loss_symmetry", loss_symmetry.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_ppo_regularization", loss_ppo_regularization.detach().to("cpu").numpy())
                     self.values_logger.add("symmetry_accuracy", acc)
                     self.values_logger.add("symmetry_magnitude", magnitude)
 
-
+ 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-              
-                #train cnd target model for regularisation (optional)
-                #smaller batch for self-supervised regularisation
-                states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
+                #train sse target model for regularization (optional)
+                if self._sse_regularization_loss is not None:                    
+                    #smaller batch for self-supervised regularization
+                    states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                loss, magnitude, _ = self._cnd_regularisation_loss(self.model_cnd, states_a, states_b, labels, self.regularisation_coeff, self._norm_state, self._aug)                
+                    loss, magnitude, _ = self._sse_regularization_loss(self.model_sse, states_a, states_b, labels, None, self._aug_sse)                
+    
+                    self.optimizer_sse.zero_grad() 
+                    loss.backward()
+                    self.optimizer_sse.step()
 
-                self.optimizer_cnd_target.zero_grad() 
-                loss.backward()
-                self.optimizer_cnd_target.step()
-
-                self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
-                self.values_logger.add("cnd_magnitude", magnitude)
+                    self.values_logger.add("loss_sse_regularization", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("sse_magnitude", magnitude)
 
         self.policy_buffer.clear() 
 
@@ -272,26 +277,42 @@ class AgentPPOCNDS():
 
     #compute internal motivation
     def _curiosity(self, states):
-        states_a = self._aug(states)
-        states_b = self._aug(states)
+        curiosity_t = torch.zeros((self.sse_rounds, states.shape[0]), device=states.device)
+        
+        for i in range(self.sse_rounds):
+            states_a    = self._aug_sse(states)
+            states_b    = self._aug_sse(states)
 
-        features_a = self.model_cnd(states_a)
-        features_b = self.model_cnd(states_b)
+            fa          = self.model_sse(states_a).detach()
+            fb          = self.model_sse(states_b).detach()
 
-        curiosity_t = ((features_a - features_b)**2).mean(dim=1)
+            curiosity_t[i] = ((fa - fb)**2).mean(dim=1)
+
+        curiosity_t = curiosity_t.mean(dim=0)
         
         return curiosity_t
 
 
-    def _aug(self, x): 
-        x = aug_random_apply(x, 0.5, aug_mask_tiles)
-        x = aug_noise(x, k = 0.2)
+    def _aug(self, x, augmentations): 
+        if "conv" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_conv)
 
-        return x
+        if "mask" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_mask_tiles)
 
+        if "noise" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_noise)
+        
+        return x.detach() 
+
+    def _aug_ppo(self, x):
+        return self._aug(x, self.ppo_augmentations)
+
+    def _aug_sse(self, x):
+        return self._aug(x, self.sse_augmentations)
 
     def _add_for_plot(self, states, infos, dones):
-        features        = self.model_cnd(states)
+        features        = self.model_sse(states)
 
         #features        = self.model_ppo.forward_features(states)
         #features        = features.detach().to("cpu").numpy()
