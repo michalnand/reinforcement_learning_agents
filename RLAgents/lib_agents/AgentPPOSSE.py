@@ -25,6 +25,8 @@ class AgentPPOSSE():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
+        
+        self.ppo_regularization_loss_coeff  = config.ppo_regularization_loss_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -53,6 +55,8 @@ class AgentPPOSSE():
             self._sse_regularization_loss = contrastive_loss_vicreg
         else:
             self._sse_regularization_loss = None
+
+        
 
         self.ppo_augmentations      = config.ppo_augmentations
         self.sse_augmentations      = config.sse_augmentations
