@@ -92,7 +92,6 @@ class AgentPPOSSE():
         self.values_logger = ValuesLogger() 
 
         self.values_logger.add("loss_sse", 0.0)
-        self.values_logger.add("loss_sse_regularization", 0.0)
         self.values_logger.add("sse_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
@@ -105,7 +104,7 @@ class AgentPPOSSE():
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
-        self.vis_features = []
+        self.vis_features = [] 
         self.vis_labels   = []
 
 
@@ -246,7 +245,7 @@ class AgentPPOSSE():
                     loss.backward()
                     self.optimizer_sse.step()
 
-                    self.values_logger.add("loss_sse_regularization", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_sse", loss.detach().to("cpu").numpy())
                     self.values_logger.add("sse_magnitude", magnitude)
 
         self.policy_buffer.clear() 
