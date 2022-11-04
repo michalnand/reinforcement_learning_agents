@@ -127,9 +127,6 @@ class AgentPPOSSE():
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        #update long term stats (mean and variance)
-        self.states_running_stats.update(self.states)
-
         #curiosity motivation
         rewards_int    = self._curiosity(states)
         rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
