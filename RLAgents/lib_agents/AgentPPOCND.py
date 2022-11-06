@@ -40,6 +40,8 @@ class AgentPPOCND():
 
         if config.ppo_regularization_loss == "mse":
             self._ppo_regularization_loss = contrastive_loss_mse
+        elif config.ppo_regularization_loss == "icreg":
+            self._ppo_regularization_loss = contrastive_loss_icreg
         elif config.ppo_regularization_loss == "nce":
             self._ppo_regularization_loss = contrastive_loss_nce
         elif config.ppo_regularization_loss == "vicreg":
@@ -49,6 +51,8 @@ class AgentPPOCND():
   
         if config.cnd_regularization_loss == "mse":
             self._cnd_regularization_loss = contrastive_loss_mse
+        elif config.cnd_regularization_loss == "icreg":
+            self._cnd_regularization_loss = contrastive_loss_icreg
         elif config.cnd_regularization_loss == "nce":
             self._cnd_regularization_loss = contrastive_loss_nce
         elif config.cnd_regularization_loss == "vicreg":
@@ -268,7 +272,7 @@ class AgentPPOCND():
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude, _ = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, self._norm_state, self._aug_cnd)                
+                    loss, magnitude, acc = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, self._norm_state, self._aug_cnd)                
     
                     self.optimizer_cnd_target.zero_grad() 
                     loss.backward()
@@ -276,6 +280,9 @@ class AgentPPOCND():
 
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("cnd_magnitude", magnitude)
+
+                    if self._ppo_regularization_loss is None
+                        self.values_logger.add("symmetry_accuracy", acc)
 
         self.policy_buffer.clear() 
 

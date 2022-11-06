@@ -48,15 +48,82 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
 
 
     #compute accuraccy in [%]
-    hits = torch.logical_and(target > 0.5, predicted > 0.5)
-    hits = torch.sum(hits.float()) 
+    true_positive = torch.logical_and(target > 0.5,  predicted > 0.5).float().sum()
+    true_negative = torch.logical_and(target <= 0.5, predicted <= 0.5).float().sum()
 
-    acc  = 100.0*hits/predicted.shape[0]
+    hits          = true_positive + true_negative
+    acc           = 100.0*hits/predicted.shape[0]
 
-    #L2 magnitude regularisation
+    #L2 magnitude
     magnitude       = (za**2).mean() + (zb**2).mean() 
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
+ 
+def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, augmentation = None):
+    xa = states_a.clone()
+    xb = states_b.clone()
+
+    #normalise states
+    if normalise is not None:
+        xa = normalise(xa) 
+        xb = normalise(xb)
+
+    #states augmentation 
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+
+    #obtain features from model
+    if hasattr(model, "forward_features"):
+        za = model.forward_features(xa)  
+        zb = model.forward_features(xb) 
+    else:
+        za = model(xa)  
+        zb = model(xb) 
+
+    #predict close distance for similar, far distance for different states 
+    predicted = ((za - zb)**2).mean(dim=1)
+
+    #MSE loss
+    #loss_mse = ((target - predicted)**2).mean()
+
+    #minimize distance for similar za, zb (target == 0) 
+    loss_sim = (target < 0.5)*predicted
+
+    #maximize distance for different za, zb (target == 1), dont care if value already above 1
+    loss_sim+= (target >= 0.5)*torch.relu(1.0 - predicted)
+
+    loss_sim = loss_sim.mean() 
+  
+    #covariance loss
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+
+    #total loss
+    loss = loss_sim + 0.1*cov_loss
+
+    #debug metrics 
+
+    #compute accuraccy in [%]
+    true_positive = torch.logical_and(target >= 0.5,  predicted >= 0.5).float().sum()
+    true_negative = torch.logical_and(target < 0.5, predicted < 0.5).float().sum()
+
+    hits          = true_positive + true_negative
+    acc           = 100.0*hits/predicted.shape[0]
+
+    #L2 magnitude
+    magnitude       = (za**2).mean() + (zb**2).mean()
+
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
+
 
 
 def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, augmentation = None):
