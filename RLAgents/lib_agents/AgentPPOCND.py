@@ -281,7 +281,7 @@ class AgentPPOCND():
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("cnd_magnitude", magnitude)
 
-                    if self._ppo_regularization_loss is None
+                    if self._ppo_regularization_loss is None:
                         self.values_logger.add("symmetry_accuracy", acc)
 
         self.policy_buffer.clear() 
