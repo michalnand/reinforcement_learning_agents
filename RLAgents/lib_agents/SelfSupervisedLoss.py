@@ -87,13 +87,13 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
     predicted = ((za - zb)**2).mean(dim=1)
 
     #MSE loss
-    loss_sim = ((target - predicted)**2).mean()
+    #loss_sim = ((target - predicted)**2).mean()
 
     #minimize distance for similar za, zb (target == 0) 
-    #loss_sim = (target < 0.5)*predicted
+    loss_sim = (target < 0.5)*predicted
 
     #maximize distance for different za, zb (target == 1), dont care if value already above 1
-    #loss_sim+= (target >= 0.5)*torch.relu(1.0 - predicted)
+    loss_sim+= (target >= 0.5)*torch.relu(1.0 - predicted)
 
     loss_sim = loss_sim.mean() 
   
@@ -107,7 +107,9 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     #total loss
-    loss = loss_sim + 0.1*cov_loss
+    loss = loss_sim + 0.01*cov_loss
+
+    print(">>> loss = ", loss_sim, cov_loss)
 
     #debug metrics 
 
