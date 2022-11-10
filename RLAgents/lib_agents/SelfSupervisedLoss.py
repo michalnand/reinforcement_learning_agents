@@ -105,11 +105,9 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
     
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
-
+ 
     #total loss
     loss = loss_sim + 0.01*cov_loss
-
-    print(">>> loss = ", loss_sim, cov_loss)
 
     #debug metrics 
 
