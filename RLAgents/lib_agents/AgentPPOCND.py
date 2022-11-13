@@ -374,6 +374,9 @@ class AgentPPOCND():
         if "conv" in augmentations:
             x = aug_random_apply(x, 0.5, aug_conv)
 
+        if "pixelate" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_pixelate)
+
         if "mask" in augmentations:
             x = aug_random_apply(x, 0.5, aug_mask_tiles)
 
