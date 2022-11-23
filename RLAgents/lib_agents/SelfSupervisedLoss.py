@@ -105,9 +105,13 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
     
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+
+    #L2 magnitude
+    magnitude       = (za**2).mean() + (zb**2).mean()
+    loss_magnitude  = magnitude
  
     #total loss
-    loss = loss_sim + 0.01*cov_loss
+    loss = loss_sim + 0.01*cov_loss + 0.0001*loss_magnitude
 
     #debug metrics 
 
@@ -118,8 +122,6 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
     hits          = true_positive + true_negative
     acc           = 100.0*hits/predicted.shape[0]
 
-    #L2 magnitude
-    magnitude       = (za**2).mean() + (zb**2).mean()
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
