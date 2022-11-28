@@ -222,7 +222,7 @@ class TrainingIterationsMultiRuns:
                 score_per_episode_buffer[run, episodes%len(score_per_episode_buffer)] = raw_score_per_episode
                 
                 #save the best (if any)
-                if episodes >= len(score_per_episode_buffer[run]):
+                if episodes >= len(score_per_episode_buffer.shape[-1]):
                     mean_score = score_per_episode_buffer[run].mean()
 
                     if mean_score > mean_score_per_episode_best[run]:
