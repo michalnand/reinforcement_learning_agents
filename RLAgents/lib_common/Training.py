@@ -137,5 +137,8 @@ class TrainingIterationsMultiRuns:
             self.workers[i].join()
 
     def process_main(self, idx, env, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes):
+        
         print("process num = ", idx)
-        pass
+
+        train = TrainingIterations(env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
+        train.run()
