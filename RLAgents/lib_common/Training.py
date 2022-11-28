@@ -136,7 +136,8 @@ class TrainingIterationsMultiRuns:
     def run(self):
         
         log_file_names = []
-        log_file_names.append(self.saving_paths[run] + "result/result.log")
+        for run in range(self.runs_count):
+            log_file_names.append(self.saving_paths[run] + "result/result.log")
 
         for run in range(self.runs_count):
             log_f           = open(log_file_names[run], "w+")
@@ -157,7 +158,7 @@ class TrainingIterationsMultiRuns:
 
         filter_k = 0.1
 
-        time_remaining = 0.0
+        time_remaining = 0.0 
 
         for iteration in range(self.iterations_count):
             
