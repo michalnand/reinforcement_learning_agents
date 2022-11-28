@@ -140,5 +140,5 @@ class TrainingIterationsMultiRuns:
         
         print("process num = ", idx)
 
-        train = TrainingIterations(env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
+        train = TrainingIterations(env, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes)
         train.run()
