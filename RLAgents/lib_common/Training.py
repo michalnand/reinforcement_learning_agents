@@ -130,7 +130,7 @@ class TrainingIterationsMultiRuns:
         
         self.saving_paths            = saving_paths
         self.log_period_iterations   = log_period_iterations
-        self.averaging_episodess     = averaging_episodes
+        self.averaging_episodes      = averaging_episodes
        
     
     def run(self):
