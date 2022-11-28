@@ -1,4 +1,3 @@
-from os import stat
 import numpy
 import torch 
 
@@ -25,8 +24,6 @@ class AgentPPOSSE():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
-        
-        self.ppo_regularization_loss_coeff  = config.ppo_regularization_loss_coeff
     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -34,12 +31,17 @@ class AgentPPOSSE():
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
         
-        self.training_epochs    = config.training_epochs
-        self.envs_count         = config.envs_count 
- 
+        self.training_epochs        = config.training_epochs
+        self.envs_count             = config.envs_count 
+        self.features_buffer_size   = config.features_buffer_size 
 
+        self.ppo_regularization_loss_coeff    = config.ppo_regularization_loss_coeff
+ 
+ 
         if config.ppo_regularization_loss == "mse":
             self._ppo_regularization_loss = contrastive_loss_mse
+        elif config.ppo_regularization_loss == "icreg":
+            self._ppo_regularization_loss = contrastive_loss_icreg
         elif config.ppo_regularization_loss == "nce":
             self._ppo_regularization_loss = contrastive_loss_nce
         elif config.ppo_regularization_loss == "vicreg":
@@ -49,6 +51,8 @@ class AgentPPOSSE():
   
         if config.sse_regularization_loss == "mse":
             self._sse_regularization_loss = contrastive_loss_mse
+        elif config.sse_regularization_loss == "icreg":
+            self._sse_regularization_loss = contrastive_loss_icreg
         elif config.sse_regularization_loss == "nce":
             self._sse_regularization_loss = contrastive_loss_nce
         elif config.sse_regularization_loss == "vicreg":
@@ -56,46 +60,44 @@ class AgentPPOSSE():
         else:
             self._sse_regularization_loss = None
 
-        
-
         self.ppo_augmentations      = config.ppo_augmentations
+        self.ppo_reg_augmentations  = config.ppo_reg_augmentations
+        
         self.sse_augmentations      = config.sse_augmentations
-        self.sse_rounds             = config.sse_rounds
-         
+        
         print("ppo_regularization_loss  = ", self._ppo_regularization_loss)
         print("sse_regularization_loss  = ", self._sse_regularization_loss)
         print("ppo_augmentations        = ", self.ppo_augmentations)
+        print("ppo_reg_augmentations    = ", self.ppo_reg_augmentations)
         print("sse_augmentations        = ", self.sse_augmentations)
-        print("sse_rounds               = ", self.sse_rounds)
 
         print("\n\n")
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
-
+ 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_sse      = ModelSSE.Model(self.state_shape)
         self.optimizer_sse  = torch.optim.Adam(self.model_sse.parameters(), lr=config.learning_rate_sse)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.policy_buffer  = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
-        for e in range(self.envs_count):
-            self.envs.reset(e)
- 
-
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e).copy()
 
+        self.sse_features_buffer = torch.zeros((self.features_buffer_size, self.envs_count, 512))
+        self.sse_features_ptr    = 0
+ 
         self.enable_training()
         self.iterations = 0 
 
-        self.values_logger = ValuesLogger() 
+        self.values_logger = ValuesLogger()
 
-        self.values_logger.add("loss_sse", 0.0)
+        self.values_logger.add("loss_sse_regularization", 0.0)
         self.values_logger.add("sse_magnitude", 0.0)
 
         self.values_logger.add("loss_actor", 0.0)
@@ -108,7 +110,7 @@ class AgentPPOSSE():
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
-        self.vis_features = [] 
+        self.vis_features = []
         self.vis_labels   = []
 
 
@@ -121,7 +123,10 @@ class AgentPPOSSE():
     def main(self): 
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
-          
+        
+        #states augmentations, if any
+        #states = self._aug_ppo(states)
+        
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -130,6 +135,7 @@ class AgentPPOSSE():
          
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
+
 
         #curiosity motivation
         rewards_int    = self._curiosity(states)
@@ -158,7 +164,11 @@ class AgentPPOSSE():
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
+                self.states[e]              = self.envs.reset(e).copy()
+
+                s        = torch.from_numpy(self.states[e]).to(self.model_sse.device).unsqueeze(0)
+                features = self.model_sse(s)
+                self.sse_features_buffer[e] = features.squeeze(0).detach().to("cpu")
 
         #self._add_for_plot(states, infos, dones)
         
@@ -221,7 +231,7 @@ class AgentPPOSSE():
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo)                
+                    loss_ppo_regularization, magnitude, acc = self._ppo_regularization_loss(self.model_ppo, states_a, states_b, labels, None, self._aug_ppo_reg)                
 
                     loss_ppo+= self.ppo_regularization_loss_coeff*loss_ppo_regularization
 
@@ -235,19 +245,22 @@ class AgentPPOSSE():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train sse target model for regularization (optional)
+                #train sse model for regularization
                 if self._sse_regularization_loss is not None:                    
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude, _ = self._sse_regularization_loss(self.model_sse, states_a, states_b, labels, None, self._aug_sse)                
+                    loss, magnitude, acc = self._sse_regularization_loss(self.model_sse, states_a, states_b, labels, None, self._aug_sse)                
     
                     self.optimizer_sse.zero_grad() 
                     loss.backward()
                     self.optimizer_sse.step()
 
-                    self.values_logger.add("loss_sse", loss.detach().to("cpu").numpy())
+                    self.values_logger.add("loss_sse_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("sse_magnitude", magnitude)
+ 
+                    if self._ppo_regularization_loss is None:
+                        self.values_logger.add("symmetry_accuracy", acc)
 
         self.policy_buffer.clear() 
 
@@ -269,27 +282,22 @@ class AgentPPOSSE():
         loss = 0.5*loss_critic + loss_actor
 
         #store to log
-        self.values_logger.add("loss_actor", loss_actor.mean().detach().to("cpu").numpy())
-        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_actor",    loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic",   loss_critic.mean().detach().to("cpu").numpy())
 
         return loss 
 
-
+    
+   
     #compute internal motivation
     def _curiosity(self, states):
-        curiosity_t = torch.zeros((self.sse_rounds, states.shape[0]), device=states.device)
+        features_t    = self.model_sse(states)
+
+        self.sse_features_buffer[self.sse_features_ptr] = features_t.detach().to("cpu")
+
+        self.sse_features_ptr = (self.sse_features_ptr + 1)%self.sse_features_buffer.shape[0]
         
-        for i in range(self.sse_rounds):
-            states_a    = self._aug_sse(states)
-            states_b    = self._aug_sse(states)
-
-            fa          = self.model_sse(states_a).detach()
-            fb          = self.model_sse(states_b).detach()
-
-            curiosity_t[i] = ((fa - fb)**2).mean(dim=1)
-
-        curiosity_t = curiosity_t.mean(dim=0)
-        
+        curiosity_t = torch.var(self.sse_features_buffer, dim=0).mean(dim=1)
         return curiosity_t
 
 
@@ -297,16 +305,22 @@ class AgentPPOSSE():
         if "conv" in augmentations:
             x = aug_random_apply(x, 0.5, aug_conv)
 
+        if "pixelate" in augmentations:
+            x = aug_random_apply(x, 0.5, aug_pixelate)
+
         if "mask" in augmentations:
             x = aug_random_apply(x, 0.5, aug_mask_tiles)
 
         if "noise" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_noise)
+            x = aug_noise(x, k = 0.2)
         
         return x.detach() 
 
     def _aug_ppo(self, x):
         return self._aug(x, self.ppo_augmentations)
+
+    def _aug_ppo_reg(self, x):
+        return self._aug(x, self.ppo_reg_augmentations)
 
     def _aug_sse(self, x):
         return self._aug(x, self.sse_augmentations)

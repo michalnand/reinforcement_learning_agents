@@ -25,13 +25,9 @@ from .AgentDQN                      import AgentDQN
 from .AgentDDPG                     import AgentDDPG
 
 from .AgentPPO                      import AgentPPO
-from .AgentPPOSymmetry              import AgentPPOSymmetry
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSSE                   import AgentPPOSSE
-from .AgentPPOEntropy               import AgentPPOEntropy
-from .AgentPPOSNDGoals              import AgentPPOSNDGoals
-from .AgentPPOSNDEntropy            import AgentPPOSNDEntropy
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous

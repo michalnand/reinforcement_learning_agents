@@ -3,6 +3,8 @@ from .MultiEnv import *
 import time
 import os
 
+
+
 class TrainingIterations:
     def __init__(self, env, agent, iterations_count, saving_path, log_period_iterations = 10000, averaging_episodes = 50):
         self.env = env
@@ -112,13 +114,28 @@ class TrainingIterations:
                         print("\n\n")
 
                 episodes+= 1
+      
 
-            '''
-            if iteration%100000 == 0:
-                path = self.saving_path + str(iteration) + "_"
 
-                if not os.path.exists(path + "trained"):
-                    os.mkdir(path + "trained")
-                
-                self.agent.save(path)
-            '''
+class TrainingIterationsMultiRuns:
+
+    def __init__(self, envs, agents, iterations_count, saving_paths, log_period_iterations = 10000, averaging_episodes = 50):
+        
+        self.runs_count = len(agents)
+
+        self.workers    = []
+
+        for i in range(self.runs_count):
+            worker = multiprocessing.Process(target=self.process_main, args=(i, envs[i], agents[i], iterations_count, saving_paths[i], log_period_iterations, averaging_episodes))
+            self.workers.append(worker)
+    
+    def run(self):
+        for i in range(self.runs_count):
+            self.workers[i].start()
+
+        for i in range(self.runs_count):
+            self.workers[i].join()
+
+    def process_main(self, idx, env, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes):
+        print("process num = ", idx)
+        pass
