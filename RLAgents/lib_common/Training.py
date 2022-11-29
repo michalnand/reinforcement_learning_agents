@@ -250,7 +250,7 @@ class TrainingIterationsMultiRuns:
             training = TrainingIterations(envs[i], agents[i], iterations_count, saving_paths[i], log_period_iterations, averaging_episodes)
             self.trainings.append(training)
 
-            worker = multiprocessing.Process(target=self.train_process_main, args=(i))
+            worker = multiprocessing.Process(target=self.train_process_main, args=(i, ))
 
             self.workers.append(worker)
 
