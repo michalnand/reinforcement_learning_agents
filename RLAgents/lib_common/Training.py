@@ -156,7 +156,6 @@ class TrainingIterations:
         self.score_per_episode_buffer = numpy.zeros(self.averaging_episodes)
 
         self.time_now = time.time()
-        self.dt       = 0.0
 
         self.filter_k = 0.1
 
@@ -171,11 +170,11 @@ class TrainingIterations:
         reward, done, info    = self.agent.main()
 
         if iteration%self.log_period_iterations == 0:
-            time_prev  = time_now
-            time_now   = time.time()
+            self.time_prev  = self.time_now
+            self.time_now   = time.time()
 
             #compute fps, and remaining time in hours
-            dt              = (time_now - time_prev)/self.log_period_iterations
+            dt              = (self.time_now - self.time_prev)/self.log_period_iterations
             time_remaining  = (1.0 - self.filter_k)*time_remaining + self.filter_k*((self.iterations_count - iteration)*dt)/3600.0
         
         #episode done, update score per episode
