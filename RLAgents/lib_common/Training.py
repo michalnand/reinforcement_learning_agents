@@ -220,12 +220,12 @@ class TrainingIterations:
             log_f.close() 
 
         #check if agent is done
-        if done or iteration == 256:
+        if done:
             #log score per episode
             self.score_per_episode_buffer[self.episodes%len(self.score_per_episode_buffer)] = raw_score_per_episode
             
             #save the best (if any)
-            if iteration == 256 or self.episodes >= len(self.score_per_episode_buffer):
+            if self.episodes >= len(self.score_per_episode_buffer):
                 mean_score = self.score_per_episode_buffer.mean()
 
                 if mean_score > self.mean_score_per_episode_best:
