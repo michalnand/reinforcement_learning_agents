@@ -18,6 +18,8 @@ class TrainingIterations:
 
     def run(self):
 
+        print("starting training")
+
         log_file_name   = self.saving_path + "result/result.log"
         log_f           = open(log_file_name, "w+")
         log_f.close()
@@ -40,6 +42,7 @@ class TrainingIterations:
         time_remaining = 0.0
         for iteration in range(self.iterations_count):
             
+            print("iteration = ", iteration)
             reward, done, info    = self.agent.main()
 
             if iteration%self.log_period_iterations == 0:
