@@ -132,13 +132,14 @@ class TrainingIterationsMultiRuns:
             self.workers.append(worker) 
 
     def run(self):
-        for i in range(len(self.workers)):
+        for i in range(len(self.workers)): 
             self.workers[i].start()
 
         for i in range(len(self.workers)):
             self.workers[i].join()
         
-    def train_process_main(self, envs, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes):
+    def train_process_main(self, i, envs, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes):
+        print("\n\n\n")
         print("starting run id = ", i)
         training = TrainingIterations(envs, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes)
         training.run()
