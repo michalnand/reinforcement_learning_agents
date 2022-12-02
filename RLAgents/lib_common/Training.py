@@ -128,11 +128,7 @@ class TrainingIterationsMultiRuns:
         self.workers   = []
 
         for i in range(len(agents)):
-            training = TrainingIterations(envs[i], agents[i], iterations_count, saving_paths[i], log_period_iterations, averaging_episodes)
-            self.trainings.append(training)
-
-            worker = multiprocessing.Process(target=self.train_process_main, args=(i, ))
-
+            worker = multiprocessing.Process(target=self.train_process_main, args=(i, envs[i], agents[i], iterations_count, saving_paths[i], log_period_iterations, averaging_episodes))
             self.workers.append(worker) 
 
     def run(self):
@@ -142,5 +138,7 @@ class TrainingIterationsMultiRuns:
         for i in range(len(self.workers)):
             self.workers[i].join()
         
-    def train_process_main(self, id):
-        self.trainings[id].run()
+    def train_process_main(self, envs, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes):
+        print("starting run id = ", i)
+        training = TrainingIterations(envs, agent, iterations_count, saving_path, log_period_iterations, averaging_episodes)
+        training.run()
