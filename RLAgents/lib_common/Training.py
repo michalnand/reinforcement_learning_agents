@@ -124,7 +124,7 @@ class TrainingIterations:
 class TrainingIterationsMultiRuns:
 
     def __init__(self, envs, agents, iterations_count, saving_paths, log_period_iterations = 10000, averaging_episodes = 50):
-        self.trainings = []
+        print("TrainingIterationsMultiRuns = ", len(agents))
         self.workers   = []
 
         for i in range(len(agents)):
