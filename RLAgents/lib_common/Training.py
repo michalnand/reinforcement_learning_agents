@@ -228,11 +228,11 @@ class TrainingIterations:
             if iteration == 256 or self.episodes >= len(self.score_per_episode_buffer):
                 mean_score = self.score_per_episode_buffer.mean()
 
-                if mean_score > mean_score_per_episode_best:
-                    mean_score_per_episode_best = mean_score
-                
+                if mean_score > self.mean_score_per_episode_best:
+                    self.mean_score_per_episode_best = mean_score
+                 
                     print("\n\n")
-                    print("saving new best with score = ", mean_score_per_episode_best)
+                    print("saving new best with score = ", self.mean_score_per_episode_best)
                     
                     if not os.path.exists(self.saving_path + "/trained"):
                         os.mkdir(self.saving_path + "/trained")
