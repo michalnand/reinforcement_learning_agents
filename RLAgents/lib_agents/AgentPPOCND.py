@@ -133,35 +133,28 @@ class AgentPPOCND():
         self.enabled_training = False
 
     def main(self): 
-        print("agent main")
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
         
         #states augmentations, if any
         #states = self._aug_ppo(states)
         
-        print("agent forward")
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
-        print("agent actions")
         #collect actions 
         actions = self._sample_actions(logits)
         
-        print("agent step")
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        print("agent update")
         #update long term stats (mean and variance)
         self.states_running_stats.update(self.states)
 
-        print("agent IM")
         #curiosity motivation
         rewards_int    = self._curiosity(states)
         rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
-        print("agent training")
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
@@ -182,7 +175,6 @@ class AgentPPOCND():
         #update new state
         self.states = states_new.copy()
 
-        print("agent reset")
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
@@ -196,8 +188,7 @@ class AgentPPOCND():
 
         self.iterations+= 1
 
-        print("agent done")
-        
+
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
