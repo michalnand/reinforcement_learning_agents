@@ -220,7 +220,7 @@ class TrainingIterations:
             log_f.close() 
 
         #check if agent is done
-        if done:
+        if done or iteration == 256:
             #log score per episode
             self.score_per_episode_buffer[self.episodes%len(self.score_per_episode_buffer)] = raw_score_per_episode
             
