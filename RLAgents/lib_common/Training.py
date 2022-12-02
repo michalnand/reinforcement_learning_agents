@@ -44,6 +44,7 @@ class TrainingIterations:
             
             print("iteration = ", iteration)
             reward, done, info    = self.agent.main()
+            print("agent main done")
 
             if iteration%self.log_period_iterations == 0:
                 time_prev  = time_now
