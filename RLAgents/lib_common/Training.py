@@ -174,7 +174,7 @@ class TrainingIterations:
 
             #compute fps, and remaining time in hours
             dt              = (self.time_now - self.time_prev)/self.log_period_iterations
-            time_remaining  = (1.0 - self.filter_k)*time_remaining + self.filter_k*((self.iterations_count - iteration)*dt)/3600.0
+            self.time_remaining  = (1.0 - self.filter_k)*self.time_remaining + self.filter_k*((self.iterations_count - iteration)*dt)/3600.0
         
         #episode done, update score per episode
         self.score_per_episode_+= reward
