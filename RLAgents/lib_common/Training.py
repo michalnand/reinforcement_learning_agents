@@ -199,14 +199,14 @@ class TrainingIterations:
         log_agent = "" 
         if hasattr(self.agent, "get_log"):
             log_agent = self.agent.get_log() 
-
+ 
         log_str = ""
         log_str+= str(iteration)                + " "
         log_str+= str(raw_episodes)             + " "
         log_str+= str(self.episodes)                 + " "
         log_str+= str(raw_score_per_episode)    + " "
         log_str+= str(self.score_per_episode)        + " "
-        log_str+= str(round(time_remaining, 2)) + " "
+        log_str+= str(round(self.time_remaining, 2)) + " "
         log_str+= log_agent + " "
         log_str+= str(info) + " "
         
@@ -224,7 +224,7 @@ class TrainingIterations:
             self.score_per_episode_buffer[self.episodes%len(self.score_per_episode_buffer)] = raw_score_per_episode
             
             #save the best (if any)
-            if self.episodes == 0 or self.episodes >= len(self.score_per_episode_buffer):
+            if iteration == 256 or self.episodes >= len(self.score_per_episode_buffer):
                 mean_score = self.score_per_episode_buffer.mean()
 
                 if mean_score > mean_score_per_episode_best:
