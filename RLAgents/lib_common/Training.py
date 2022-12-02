@@ -136,12 +136,6 @@ class TrainingIterations:
         self.averaging_episodes     = averaging_episodes
 
 
-
-        
-    def run(self):
-
-        print("starting training")
-
         self.log_file_name   = self.saving_path + "result/result.log"
         log_f           = open(self.log_file_name, "w+")
         log_f.close()
@@ -160,6 +154,11 @@ class TrainingIterations:
         self.filter_k = 0.1
 
         self.time_remaining = 0.0
+
+        
+    def run(self):
+
+        print("starting training")
 
         for iteration in range(self.iterations_count):
             self.run_step(iteration)
