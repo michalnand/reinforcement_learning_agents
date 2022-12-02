@@ -129,7 +129,7 @@ class TrainingIterationsMultiRuns:
 
             worker = multiprocessing.Process(target=self.train_process_main, args=(i, ))
 
-            self.workers.append(worker)
+            self.workers.append(worker) 
 
     def run(self):
         for i in range(len(self.workers)):
