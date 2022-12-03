@@ -189,7 +189,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     loss_magnitude  = magnitude
  
     #total loss
-    loss = 1.0*loss_sim + 0.001*std_loss + 0.001*cov_loss + (10**-6)*loss_magnitude
+    loss = 1.0*loss_sim + 0.01*std_loss + 0.01*cov_loss + (10**-6)*loss_magnitude
 
     #debug metrics 
   
