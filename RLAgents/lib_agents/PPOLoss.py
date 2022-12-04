@@ -6,7 +6,7 @@ import torch
 def ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int):
     ''' 
     compute external critic loss, as MSE
-    L = (T - V(s))^2
+    L = (T - V(s))^2 
     '''
     values_ext_new  = values_ext_new.squeeze(1)
     loss_ext_value  = (returns_ext.detach() - values_ext_new)**2
