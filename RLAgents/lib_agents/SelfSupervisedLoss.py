@@ -4,7 +4,7 @@ def accuraccy(za, zb):
     #info NCE loss, CE with target classes on diagonal
     similarity  = torch.cdist(za, zb)
     target      = torch.arange(za.shape[0]).to(za.device)
-     
+      
     #compute accuraccy in [%]
     hits = torch.argmin(similarity, dim=1) == target
     hits = torch.sum(hits.float()) 
@@ -151,6 +151,8 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
         za = model(xa)  
         zb = model(xb) 
 
+    eps    = 0.0001
+
     #predict close distance for similar, far distance for different states 
     predicted = ((za - zb)**2).mean(dim=1)
 
@@ -161,14 +163,13 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     loss_sim = (target < 0.5)*predicted
 
     #maximize distance for different za, zb (target == 1), dont care if value already above 1
-    loss_sim+= (target >= 0.5)*torch.relu(1.0 - predicted)
+    loss_sim+= (target >= 0.5)*torch.relu(1.0 - (predicted + eps))
 
     #similarity loss, invariance loss
-    loss_sim = loss_sim.mean() 
+    loss_sim = loss_sim.mean()  
 
 
     #variance loss, push batch-wise features to the big variance
-    eps    = 0.0001
     std_za = torch.sqrt(za.var(dim=0) + eps)
     std_zb = torch.sqrt(zb.var(dim=0) + eps) 
     
@@ -189,8 +190,8 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     loss_magnitude  = magnitude
  
     #total loss
-    loss = 1.0*loss_sim + 0.01*std_loss + 0.01*cov_loss + (10**-6)*loss_magnitude
-
+    loss = 1.0*loss_sim + 1.0*std_loss + 0.01*cov_loss + (10**-6)*loss_magnitude
+ 
     #debug metrics 
   
     #compute accuraccy in [%]
