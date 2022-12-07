@@ -400,8 +400,7 @@ class AgentPPOCND():
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
 
-        #features        = self.model_ppo.forward_features(states)
-        #features        = features.detach().to("cpu").numpy()
+        features        = features.detach().to("cpu").numpy()
         
         self.vis_features.append(features[0])
 

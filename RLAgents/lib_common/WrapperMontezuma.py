@@ -17,7 +17,7 @@ class VideoRecorder(gym.Wrapper):
     def step(self, action):
         state, reward, done, info = self.env.step(action)
         
-        if self.frame_counter%4 == 0:
+        if self.frame_counter%32 == 0:
             im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
 
             resized = cv2.resize(im_bgr, (self.width, self.height), interpolation = cv2.INTER_AREA)
@@ -133,7 +133,7 @@ class VisitedRoomsEnv(gym.Wrapper):
     def step(self, action):
         obs, reward, done, _ = self.env.step(action)
         
-        if self.steps%32 == 0:
+        if self.steps%32 == 0: 
             if len(self.rooms) == 0:
                 self.rooms.append(obs[0].copy())
             else:
