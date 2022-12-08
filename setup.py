@@ -8,7 +8,7 @@ setuptools.setup(
     version="1.0.0",
     author="Michal Chovanec",
     author_email="michal.nand@gmail.com",
-    description="reinfrocement learning agents",
+    description="reinforcement learning agents",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),

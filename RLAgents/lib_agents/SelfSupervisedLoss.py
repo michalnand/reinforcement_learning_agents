@@ -300,7 +300,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     #L2 magnitude regularisation
     loss_magnitude       = (za**2).mean() + (zb**2).mean()
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
  
     #accuracy measuring
     dist            = torch.cdist(za, zb)
