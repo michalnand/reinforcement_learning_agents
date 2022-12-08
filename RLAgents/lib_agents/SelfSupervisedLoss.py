@@ -297,12 +297,18 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
-
     #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean()
+    loss_magnitude       = (za**2).mean() + (zb**2).mean()
 
-    return loss, magnitude.detach().to("cpu").numpy(), 0
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
+ 
+    #accuracy measuring
+    dist            = torch.cdist(za, zb)
+    pred_indices    = torch.argmin(dist, dim=1)
+    tar_indices     = torch.arange(pred_indices.shape[0])
+    acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
+
+    return loss, loss_magnitude.detach().to("cpu").numpy(), acc
 
 
 def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
