@@ -128,7 +128,7 @@ def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, 
 
 
 
-
+'''
 def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
@@ -190,7 +190,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     loss_magnitude  = magnitude
   
     #total loss
-    loss = 10.0*loss_sim + 10.0*std_loss + 1.0*cov_loss + (10**-6)*loss_magnitude
+    loss = 1.0*loss_sim + 1.0*std_loss + 0.1*cov_loss + (10**-6)*loss_magnitude
  
     #debug metrics  
   
@@ -202,7 +202,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     acc           = 100.0*hits/predicted.shape[0]
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
+'''
 
 
 def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, augmentation = None):
@@ -253,7 +253,7 @@ def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, 
 
     return loss_info_max, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-'''
+
 def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_a.clone()
@@ -297,13 +297,13 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
-    loss = 1.0*sim_loss + 1.0*std_loss + 0.1*cov_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     #L2 magnitude regularisation
     magnitude       = (za**2).mean() + (zb**2).mean()
 
     return loss, magnitude.detach().to("cpu").numpy(), 0
-'''
+
 
 def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
     xa = states_now.clone()
