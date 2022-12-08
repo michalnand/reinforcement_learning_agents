@@ -308,7 +308,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    return loss, loss_magnitude.detach().to("cpu").numpy(), acc
+    return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
 def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
