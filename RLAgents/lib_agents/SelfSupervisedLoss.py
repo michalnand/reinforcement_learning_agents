@@ -305,7 +305,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     #accuracy measuring
     dist            = torch.cdist(za, zb)
     pred_indices    = torch.argmin(dist, dim=1)
-    tar_indices     = torch.arange(pred_indices.shape[0])
+    tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
     return loss, loss_magnitude.detach().to("cpu").numpy(), acc
