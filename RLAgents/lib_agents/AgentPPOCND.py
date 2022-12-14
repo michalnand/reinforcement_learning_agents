@@ -13,7 +13,7 @@ import sklearn.manifold
 import matplotlib.pyplot as plt
 import cv2
  
-       
+        
 class AgentPPOCND():   
     def __init__(self, envs, ModelPPO, ModelCNDTarget, ModelCND, config):
         self.envs = envs  
@@ -131,7 +131,7 @@ class AgentPPOCND():
  
     def disable_training(self):
         self.enabled_training = False
-
+ 
     def main(self): 
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
@@ -323,11 +323,15 @@ class AgentPPOCND():
         loss_cnd = (features_target_t - features_predicted_t)**2
  
         #random loss regularization, 25% non zero for 128envs, 100% non zero for 32envs
+        '''
         prob            = 1.0 - dropout
         random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
         random_mask     = 1.0*(random_mask < prob) 
         loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-    
+        '''
+        random_mask     = (torch.rand_like(loss_cnd) > dropout).float()
+        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
+
         return loss_cnd
 
 
@@ -409,7 +413,7 @@ class AgentPPOCND():
         else:
             self.vis_labels.append(0)
 
-        if dones[0]:
+        if dones[0] #or self.iterations > 1000:
             print("training t-sne")
 
             max_num = numpy.max(self.vis_labels) 
