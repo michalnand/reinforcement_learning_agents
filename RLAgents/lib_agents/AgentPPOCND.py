@@ -413,7 +413,7 @@ class AgentPPOCND():
         else:
             self.vis_labels.append(0)
 
-        if dones[0] #or self.iterations > 1000:
+        if dones[0]:
             print("training t-sne")
 
             max_num = numpy.max(self.vis_labels) 
