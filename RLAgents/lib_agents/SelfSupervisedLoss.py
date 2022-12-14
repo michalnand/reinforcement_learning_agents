@@ -61,74 +61,6 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
 
 
  
-def contrastive_loss_icreg(model, states_a, states_b, target, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_b.clone()
-
-    #normalise states
-    if normalise is not None:
-        xa = normalise(xa) 
-        xb = normalise(xb)
-
-    #states augmentation 
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
-
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb) 
-
-    #predict close distance for similar, far distance for different states 
-    predicted = ((za - zb)**2).mean(dim=1)
-
-    #MSE loss
-    #loss_sim = ((target - predicted)**2).mean()
-
-    #minimize distance for similar za, zb (target == 0) 
-    loss_sim = (target < 0.5)*predicted
-
-    #maximize distance for different za, zb (target == 1), dont care if value already above 1
-    loss_sim+= (target >= 0.5)*torch.relu(1.0 - predicted)
-
-    loss_sim = loss_sim.mean() 
-  
-    #covariance loss
-    za_norm = za - za.mean(dim=0)
-    zb_norm = zb - zb.mean(dim=0)
-    cov_za  = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
-    cov_zb  = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
-    
-    cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
-    cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
-
-    #L2 magnitude
-    magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = magnitude
- 
-    #total loss
-    loss = loss_sim + 0.01*cov_loss + 0.0001*loss_magnitude
-
-    #debug metrics 
-
-    #compute accuraccy in [%]
-    true_positive = torch.logical_and(target >= 0.5,  predicted >= 0.5).float().sum()
-    true_negative = torch.logical_and(target < 0.5, predicted < 0.5).float().sum()
-
-    hits          = true_positive + true_negative
-    acc           = 100.0*hits/predicted.shape[0]
-
-
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-
-
-
 
 
 
@@ -237,20 +169,22 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
 
     return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-def contrastive_loss_vicreg_b(model, states_a, states_b, target, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_b.clone()
 
-    #normalise states
+
+def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None, augmentation = None):
+    xa = states_a.clone()
+    xb = states_a.clone()
+ 
+    #normalise states 
     if normalise is not None:
-        xa = normalise(xa) 
+        xa = normalise(xa)  
         xb = normalise(xb)
 
-    #states augmentation 
+    #states augmentation
     if augmentation is not None:
         xa = augmentation(xa) 
         xb = augmentation(xb)
-
+ 
     #obtain features from model
     if hasattr(model, "forward_features"):
         za = model.forward_features(xa)  
@@ -259,14 +193,12 @@ def contrastive_loss_vicreg_b(model, states_a, states_b, target, normalise = Non
         za = model(xa)  
         zb = model(xb) 
 
-    eps    = 0.0001
+    eps = 0.0001
 
+    # invariance loss
     #predict close distance for similar, far distance for different states 
     predicted = ((za - zb)**2).mean(dim=1)
-
-    #MSE loss
-    #loss_sim = ((target - predicted)**2).mean()
-
+    
     #minimize distance for similar za, zb (target == 0) 
     loss_sim = (target < 0.5)*predicted
 
@@ -277,39 +209,36 @@ def contrastive_loss_vicreg_b(model, states_a, states_b, target, normalise = Non
     loss_sim = loss_sim.mean()  
 
 
-    #variance loss, push batch-wise features to the big variance
+    # variance loss
     std_za = torch.sqrt(za.var(dim=0) + eps)
     std_zb = torch.sqrt(zb.var(dim=0) + eps) 
     
     std_loss = torch.mean(torch.relu(1.0 - std_za)) 
     std_loss+= torch.mean(torch.relu(1.0 - std_zb))
-  
-    #covariance loss, avoid features-wise correlation (a.k.a. all features will be unique)
+   
+    # covariance loss
     za_norm = za - za.mean(dim=0)
     zb_norm = zb - zb.mean(dim=0)
-    cov_za  = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
-    cov_zb  = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
     
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
-    #L2 magnitude, helps stabilise
-    magnitude       = (za**2).mean() + (zb**2).mean()
-    loss_magnitude  = magnitude
-  
-    #total loss
-    loss = 1.0*loss_sim + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
+    #L2 magnitude regularisation
+    loss_magnitude       = (za**2).mean() + (zb**2).mean()
+
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
  
-    #debug metrics  
-  
     #compute accuraccy in [%]
-    true_positive = torch.logical_and(target >= 0.5,  predicted >= 0.5).float().sum()
-    true_negative = torch.logical_and(target < 0.5, predicted < 0.5).float().sum()
+    dist            = torch.cdist(za, zb)
+    pred_indices    = torch.argmin(dist, dim=1)
+    tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
+    acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    hits          = true_positive + true_negative
-    acc           = 100.0*hits/predicted.shape[0]
+    return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
 
 def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
     xa = states_now.clone()
