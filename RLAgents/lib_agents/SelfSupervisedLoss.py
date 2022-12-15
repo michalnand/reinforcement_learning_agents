@@ -206,7 +206,7 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     sim_loss+= (target >= 0.5)*torch.relu(1.0 - (predicted + eps))
 
     #similarity loss, invariance loss
-    sim_loss = sim_loss.mean()  
+    sim_loss = 2.0*sim_loss.mean()  
 
 
     # variance loss 
