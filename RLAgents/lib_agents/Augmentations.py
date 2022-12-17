@@ -1,6 +1,6 @@
 import torch
 import numpy
- 
+  
 #apply random agumentation
 def aug_random_apply(x, p, aug_func):
     mask    = (torch.rand(x.shape[0]) < p)
