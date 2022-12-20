@@ -10,7 +10,7 @@ from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
 import sklearn.manifold
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt 
 import cv2
  
         
@@ -180,6 +180,7 @@ class AgentPPOCND():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
+         
         #self._add_for_plot(states, infos, dones)
         
         #collect stats
@@ -378,13 +379,13 @@ class AgentPPOCND():
 
     def _aug(self, x, augmentations): 
         if "conv" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_conv)
+            x = aug_random_apply(x, 0.25, aug_conv)
 
         if "pixelate" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_pixelate)
+            x = aug_random_apply(x, 0.25, aug_pixelate)
 
         if "mask" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_mask_tiles)
+            x = aug_random_apply(x, 0.25, aug_mask_tiles)
 
         if "noise" in augmentations:
             x = aug_noise(x, k = 0.2)
@@ -401,8 +402,13 @@ class AgentPPOCND():
         return self._aug(x, self.cnd_augmentations)
 
     def _add_for_plot(self, states, infos, dones):
+        
         states_norm_t   = self._norm_state(states)
         features        = self.model_cnd_target(states_norm_t)
+        
+        '''
+        features        = self.model_ppo.forward_features(states)
+        '''
 
         features        = features.detach().to("cpu").numpy()
         
