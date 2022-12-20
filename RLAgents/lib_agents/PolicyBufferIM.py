@@ -79,10 +79,8 @@ class PolicyBufferIM:
 
     def sample_batch(self, batch_size, device = "cpu"):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
-        indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
 
         states          = torch.index_select(self.states, dim=0, index=indices).to(device)
-        states_next     = torch.index_select(self.states, dim=0, index=indices_next).to(device)
         logits          = torch.index_select(self.logits, dim=0, index=indices).to(device)
         
         actions         = torch.index_select(self.actions, dim=0, index=indices).to(device)
@@ -94,7 +92,7 @@ class PolicyBufferIM:
         advantages_int  = torch.index_select(self.advantages_int, dim=0, index=indices).to(device)
 
  
-        return states, states_next, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
     
    
     def sample_states(self, batch_size, far_ratio = 0.5, device = "cpu"): 
