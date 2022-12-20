@@ -137,8 +137,8 @@ class TrainingIterations:
 
 
         self.log_file_name   = self.saving_path + "result/result.log"
-        log_f           = open(self.log_file_name, "w+")
-        log_f.close()
+        self.log_f           = open(self.log_file_name, "w+")
+        
 
         self.episodes                        = 0
                 
@@ -162,6 +162,9 @@ class TrainingIterations:
 
         for iteration in range(self.iterations_count):
             self.run_step(iteration)
+
+        self.log_f.flush() 
+        self.log_f.close() 
 
 
     def run_step(self, iteration):
@@ -213,11 +216,8 @@ class TrainingIterations:
         
         if iteration > 0 and iteration%self.log_period_iterations == 0:
             print(log_str)
-
-            log_f = open(self.log_file_name, "a+")
-            log_f.write(log_str + "\n")
-            log_f.flush()
-            log_f.close() 
+            self.log_f.write(log_str + "\n")
+            
 
         #check if agent is done
         if done:
