@@ -217,6 +217,9 @@ class TrainingIterations:
         if iteration > 0 and iteration%self.log_period_iterations == 0:
             print(log_str)
             self.log_f.write(log_str + "\n")
+
+            if iteration%1000 == 0:
+                self.log_f.flush()
             
 
         #check if agent is done
