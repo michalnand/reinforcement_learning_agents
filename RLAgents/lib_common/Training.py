@@ -218,8 +218,8 @@ class TrainingIterations:
             print(log_str)
             self.log_f.write(log_str + "\n")
 
-            if iteration%1000 == 0:
-                self.log_f.flush()
+        if iteration%1024 == 0:
+            self.log_f.flush()
             
 
         #check if agent is done
