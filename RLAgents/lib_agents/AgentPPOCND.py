@@ -149,7 +149,9 @@ class AgentPPOCND():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         #update long term stats (mean and variance)
-        self.states_running_stats.update(self.states)
+
+        if self.normalise_state_mean or self.normalise_state_std:
+            self.states_running_stats.update(self.states)
 
         #curiosity motivation
         rewards_int    = self._curiosity(states)
