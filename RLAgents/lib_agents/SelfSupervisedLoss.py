@@ -173,7 +173,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
 
 def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
-    xb = states_a.clone()
+    xb = states_b.clone()
  
     #normalise states 
     if normalise is not None:
@@ -206,7 +206,7 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     sim_loss+= (target >= 0.5)*torch.relu(1.0 - (predicted + eps))
 
     #similarity loss, invariance loss
-    sim_loss = 2.0*sim_loss.mean()  
+    sim_loss = 2.0*sim_loss.mean()   
 
 
     # variance loss 
@@ -231,14 +231,13 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
  
     #compute accuraccy in [%]
-    dist            = torch.cdist(za, zb)
-    pred_indices    = torch.argmin(dist, dim=1)
-    tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
+    pred_indices    = (predicted < 0.5)
+    tar_indices     = (target < 0.5)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
     return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
-
+ 
 
 def symmetry_loss_rules(model, states_now, states_next, actions, normalise = None, augmentation = None):
     xa = states_now.clone()
