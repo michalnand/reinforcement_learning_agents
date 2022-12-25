@@ -10,16 +10,16 @@ class RunningStats:
         self.var   = numpy.ones(shape)
 
         if initial_value is not None:
-            self.mean   = initial_value.mean(axis=0)
-            self.std    = initial_value.std(axis=0)
+            self.mean           = initial_value.mean(axis=0)
+            self.std            = initial_value.std(axis=0)
 
-        self.mean   = self.mean.astype(numpy.float64)
-        self.var    = self.var.astype(numpy.float64)
-
+        self.mean   = self.mean.astype(numpy.float32)
+        self.var    = self.var.astype(numpy.float32)
         self.std    = (self.var**0.5) + self.eps
 
-
+ 
     def update(self, x): 
+        
         self.count+= 1
 
         mean = self.mean + (x.mean(axis=0) - self.mean)/self.count
@@ -30,77 +30,27 @@ class RunningStats:
 
         self.std  = ((self.var/self.count)**0.5) + self.eps
 
+    
 
-class RunningStatsMultiHead:
-    def __init__(self, shape, initial_value=None, heads_count=1):
-        self.shape          = shape
-        self.heads_count    = heads_count
-        self.stats          = []
 
-        for _ in range(self.heads_count):
-            self.stats.append(RunningStats(self.shape, initial_value))
+class StateMomentum:
 
-    def update(self, x, head_ids):
-        for h in range(self.heads_count):
-            indices = (head_ids == h).nonzero()[0]
+    def __init__(self, batch_size, shape, gammas = [0.99, 0.998]):
 
-            if len(indices) > 0:
-                values  = numpy.take(x, indices, axis=0)
+        self.result_shape = (shape[0] + len(gammas), shape[1], shape[2])
+        self.gammas       = gammas
 
-                self.stats[h].update(values)
+        self.momentum    = numpy.zeros((batch_size, len(gammas), shape[1], shape[2]), dtype=numpy.float32)
 
-    def get(self, batch_size, head_ids):
-        means   = numpy.zeros((batch_size, ) + self.shape)
-        stds    = numpy.zeros((batch_size, ) + self.shape)
+    def update(self, states): 
+        for i in range(len(self.gammas)):
+            g = self.gammas[i]
+            self.momentum[:,i] = g*self.momentum[:,i] + (1.0 - g)*states[:,i]
 
-        for i in range(batch_size):
-            idx      = head_ids[i]
-            means[i] = self.stats[idx].mean
-            stds[i]  = self.stats[idx].std
+        return numpy.concatenate([states, self.momentum], axis=1)
 
-        return means, stds
+    def get(self, env_id, state):
+        return numpy.concatenate([state, self.momentum[env_id]], axis=0)
 
-'''
-class RunningStatsMultiHead:
-    def __init__(self, shape, initial_value=None, heads_count=1):
-        self.shape          = shape
-        self.heads_count    = heads_count
-        self.stats          = []
-
-        for _ in range(self.heads_count):
-            self.stats.append(RunningStats(self.shape, initial_value))
-
-    def update(self, x, head_ids):
-
-        for h in range(self.heads_count):
-            indices = (head_ids == h).nonzero()[0]
-
-            if len(indices) > 0:
-                values  = numpy.take(x, indices, axis=0)
-
-                self.stats[h].update(values)
-
-    def get(self, batch_size, head_ids):
-        means   = numpy.zeros((batch_size, ) + self.shape)
-        stds    = numpy.zeros((batch_size, ) + self.shape)
-
-        ax      = tuple(range(1, len(self.shape) + 1))
-
-        for h in range(self.heads_count):
-            mask    = (head_ids == h)
-
-            mask    = numpy.expand_dims(mask, axis=ax)
-
-            #repeat means across batch
-            means_  = numpy.expand_dims(self.stats[h].mean, 0)
-            stds_   = numpy.expand_dims(self.stats[h].std, 0)
-
-            means_  = numpy.repeat(means_, batch_size, axis=0)
-            stds_   = numpy.repeat(stds_, batch_size, axis=0)
-
-            #add masked mean and std
-            means+= means_*mask
-            stds+=  stds_*mask
-
-        return means, stds
-'''
+    def reset(self, env_id):
+        self.momentum[env_id] = 0.0

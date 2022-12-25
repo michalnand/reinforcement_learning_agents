@@ -10,6 +10,7 @@ from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
 import sklearn.manifold
+import sklearn.decomposition
 import matplotlib.pyplot as plt 
 import cv2
  
@@ -25,7 +26,7 @@ class AgentPPOCND():
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
         self.cnd_dropout        = config.cnd_dropout
-    
+     
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -76,8 +77,21 @@ class AgentPPOCND():
         self.normalise_state_mean = config.normalise_state_mean
         self.normalise_state_std  = config.normalise_state_std
 
-        self.state_shape    = self.envs.observation_space.shape
+        self.use_state_momentum = False
+        if hasattr(config, "use_state_momentum"):
+            self.use_state_momentum = config.use_state_momentum
+
+        self.use_state_momentum = False
+        
+
+        state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
+
+        if self.use_state_momentum:
+            self.state_momentum = StateMomentum(self.envs_count, state_shape)
+            self.state_shape    = self.state_momentum.result_shape
+        else:
+            self.state_shape    = state_shape
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
@@ -92,8 +106,9 @@ class AgentPPOCND():
  
         for e in range(self.envs_count):
             self.envs.reset(e)
- 
-        self.states_running_stats       = RunningStats(self.state_shape)
+
+        
+        self.states_running_stats  = RunningStats(self.state_shape)
 
         if self.envs_count > 1:
             self._init_running_stats()
@@ -101,7 +116,11 @@ class AgentPPOCND():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+            s = self.envs.reset(e).copy()
+            if self.use_state_momentum:
+                self.states[e] = self.state_momentum.get(e, s)
+            else:
+                self.states[e] = s
 
         self.enable_training()
         self.iterations = 0 
@@ -140,7 +159,7 @@ class AgentPPOCND():
         #states = self._aug_ppo(states)
         
         #compute model output
-        logits, values_ext, values_int  = self.model_ppo.forward(states)
+        logits, values_ext, values_int  = self.model_ppo.forward(states[:, 0:4])
         
         #collect actions 
         actions = self._sample_actions(logits)
@@ -148,8 +167,7 @@ class AgentPPOCND():
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        #update long term stats (mean and variance)
-
+        #update long term stats (mean, variance, momentum)
         if self.normalise_state_mean or self.normalise_state_std:
             self.states_running_stats.update(self.states)
 
@@ -175,12 +193,22 @@ class AgentPPOCND():
 
         
         #update new state
-        self.states = states_new.copy()
+        if self.use_state_momentum:
+            self.states = self.state_momentum.update(states_new)
+        else:
+            self.states = states_new.copy()
 
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
+                s = self.envs.reset(e).copy()
+                
+                if self.use_state_momentum:
+                    self.state_momentum.reset(e)
+                    self.states[e] = self.state_momentum.get(e, s)
+                else:
+                    self.states[e] = s
+                
 
          
         #self._add_for_plot(states, infos, dones)
@@ -207,13 +235,13 @@ class AgentPPOCND():
     def get_log(self): 
         return self.values_logger.get_str()
 
-    def render(self, env_id):
+    def render(self, env_id = 0):
         size            = 256
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
 
-        #state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
-        state           = states_t[env_id][0].detach().to("cpu").numpy()
+        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
+        #state           = states_t[env_id][0].detach().to("cpu").numpy()
 
         state_im        = cv2.resize(state, (size, size))
         state_im        = numpy.clip(state_im, 0.0, 1.0)
@@ -366,17 +394,18 @@ class AgentPPOCND():
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
-        for _ in range(steps):
-            #random action
-            actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
-            states, _, dones, _ = self.envs.step(actions)
+        if self.normalise_state_mean or self.normalise_state_std:
+            for _ in range(steps):
+                #random action
+                actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
+                states, _, dones, _ = self.envs.step(actions)
 
-            #update stats
-            self.states_running_stats.update(states)
+                #update stats
+                self.states_running_stats.update(states)
 
-            for e in range(self.envs_count): 
-                if dones[e]:
-                    self.envs.reset(e)
+                for e in range(self.envs_count): 
+                    if dones[e]:
+                        self.envs.reset(e)
 
 
     def _aug(self, x, augmentations): 
@@ -405,12 +434,12 @@ class AgentPPOCND():
 
     def _add_for_plot(self, states, infos, dones):
         
-        states_norm_t   = self._norm_state(states)
+        tates_norm_t   = self._norm_state(states)
+        #
+        #features        = self.model_cnd(states_norm_t)
         features        = self.model_cnd_target(states_norm_t)
+        #features        = self.model_ppo.forward_features(states)
         
-        '''
-        features        = self.model_ppo.forward_features(states)
-        '''
 
         features        = features.detach().to("cpu").numpy()
         
@@ -426,13 +455,16 @@ class AgentPPOCND():
 
             max_num = numpy.max(self.vis_labels) 
 
+            #pca = sklearn.decomposition.PCA(n_components=2)
+            #features_embedded = pca.fit_transform(self.vis_features)
+
             features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
 
             print("result shape = ", features_embedded.shape)
 
             plt.clf()
             #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
-            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", max_num - 1))
+            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", max_num - 0))
             plt.colorbar(ticks=range(max_num))
             plt.tight_layout()
             plt.show()
