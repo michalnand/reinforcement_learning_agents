@@ -157,7 +157,7 @@ class AgentPPOCND():
         #states = self._aug_ppo(states)
         
         #compute model output
-        logits, values_ext, values_int  = self.model_ppo.forward(states[:, 0:4])
+        logits, values_ext, values_int  = self.model_ppo.forward(states)
         
         #collect actions 
         actions = self._sample_actions(logits)
