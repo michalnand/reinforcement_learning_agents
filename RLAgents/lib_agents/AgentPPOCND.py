@@ -80,8 +80,6 @@ class AgentPPOCND():
         self.use_state_momentum = False
         if hasattr(config, "use_state_momentum"):
             self.use_state_momentum = config.use_state_momentum
-
-        self.use_state_momentum = False
         
 
         state_shape    = self.envs.observation_space.shape
