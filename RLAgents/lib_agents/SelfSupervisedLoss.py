@@ -293,8 +293,8 @@ def contrastive_loss_vicreg3(model, states_a, states_b, target, normalise = None
     #L2 magnitude regularisation
     loss_magnitude       = (za**2).mean() + (zb**2).mean()
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
- 
+    loss = 1.0*sim_loss + 0.1*std_loss + 0.1*cov_loss #+ (10**-6)*loss_magnitude
+  
     #compute accuraccy in [%]
     pred_indices    = (predicted < 0.5)
     tar_indices     = (target < 0.5)
