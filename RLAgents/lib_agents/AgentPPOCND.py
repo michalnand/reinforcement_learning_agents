@@ -47,6 +47,8 @@ class AgentPPOCND():
             self._ppo_regularization_loss = contrastive_loss_vicreg
         elif config.ppo_regularization_loss == "vicreg2":
             self._ppo_regularization_loss = contrastive_loss_vicreg2
+        elif config.ppo_regularization_loss == "vicreg3":
+            self._ppo_regularization_loss = contrastive_loss_vicreg3
         else:
             self._ppo_regularization_loss = None 
   
@@ -58,6 +60,8 @@ class AgentPPOCND():
             self._cnd_regularization_loss = contrastive_loss_vicreg
         elif config.cnd_regularization_loss == "vicreg2":
             self._cnd_regularization_loss = contrastive_loss_vicreg2
+        elif config.cnd_regularization_loss == "vicreg3":
+            self._cnd_regularization_loss = contrastive_loss_vicreg3
         else:
             self._cnd_regularization_loss = None
 
