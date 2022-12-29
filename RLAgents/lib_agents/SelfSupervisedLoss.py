@@ -267,10 +267,15 @@ def contrastive_loss_vicreg3(model, states_a, states_b, target, normalise = None
     # invariance loss
     #predict close distance for similar, far distance for different states 
     predicted = ((za - zb)**2).mean(dim=1)
-
-    #MSE loss
+    
     #minimize distance for similar za, zb (target == 0) 
-    sim_loss = ((target - predicted)**2).mean()
+    sim_loss = (target < 0.5)*predicted
+
+    #maximize distance for different za, zb (target == 1), dont care if value already above 1
+    sim_loss+= (target >= 0.5)*torch.relu(1.0 - (predicted + eps))
+
+    #similarity loss, invariance loss
+    sim_loss = 2.0*sim_loss.mean()   
 
 
 
