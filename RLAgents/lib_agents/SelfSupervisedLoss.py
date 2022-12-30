@@ -159,7 +159,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     #L2 magnitude regularisation
     loss_magnitude       = (za**2).mean() + (zb**2).mean()
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ (10**-6)*loss_magnitude
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
  
     #compute accuraccy in [%]
     dist            = torch.cdist(za, zb)
@@ -230,69 +230,6 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
 
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
  
-    #compute accuraccy in [%]
-    pred_indices    = (predicted < 0.5)
-    tar_indices     = (target < 0.5)
-    acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
-
-    return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
-
-
-
-def contrastive_loss_vicreg3(model, states_a, states_b, target, normalise = None, augmentation = None):
-    xa = states_a.clone()
-    xb = states_b.clone()
- 
-    #normalise states 
-    if normalise is not None:
-        xa = normalise(xa)  
-        xb = normalise(xb)
-
-    #states augmentation
-    if augmentation is not None:
-        xa = augmentation(xa) 
-        xb = augmentation(xb)
- 
-    #obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb) 
-
-    eps = 0.0001
-
-
-    # invariance loss
-    #predict close distance for similar, far distance for different states 
-    predicted = ((za - zb)**2).mean(dim=1)
-
-    #similarity loss, invariance loss
-    sim_loss = ((target - predicted)**2).mean()
-
-
-    # variance loss 
-    std_za = torch.sqrt(za.var(dim=0) + eps)
-    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
-    
-    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
-    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
-   
-    # covariance loss
-    za_norm = za - za.mean(dim=0)
-    zb_norm = zb - zb.mean(dim=0)
-    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
-    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
-    
-    cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
-    cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
-
-    #L2 magnitude regularisation
-    loss_magnitude       = (za**2).mean() + (zb**2).mean()
-
-    loss = 1.0*sim_loss + 0.1*std_loss + 0.1*cov_loss + (10**-6)*loss_magnitude
-  
     #compute accuraccy in [%]
     pred_indices    = (predicted < 0.5)
     tar_indices     = (target < 0.5)
