@@ -21,7 +21,7 @@ class AgentPPOCND():
         
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
-            
+             
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
@@ -436,7 +436,7 @@ class AgentPPOCND():
 
     def _add_for_plot(self, states, infos, dones):
         
-        tates_norm_t   = self._norm_state(states)
+        states_norm_t   = self._norm_state(states)
         #
         #features        = self.model_cnd(states_norm_t)
         features        = self.model_cnd_target(states_norm_t)
