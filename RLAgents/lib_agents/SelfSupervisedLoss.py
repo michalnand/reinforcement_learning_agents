@@ -90,15 +90,16 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
     #MSE simialrity loss
     loss_sim = ((target - predicted)**2).mean()
 
-    '''
-    #features variance loss
+    
+    #batch variance loss
     std_za = za.std(dim=0)
     std_zb = zb.std(dim=0)
     
     loss_var = torch.mean(torch.relu(1.0 - std_za)) 
     loss_var+= torch.mean(torch.relu(1.0 - std_zb))
-    '''
+    
 
+    '''
     # covariance loss
     za_norm = za - za.mean(dim=0)
     zb_norm = zb - zb.mean(dim=0)
@@ -107,10 +108,11 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
     
     loss_cov = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     loss_cov+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+    '''
 
-    print(">>> ", loss_sim.detach().cpu().numpy(), loss_cov.detach().cpu().numpy())
+    print(">>> ", loss_sim.detach().cpu().numpy(), loss_var.detach().cpu().numpy())
 
-    loss = loss_sim + loss_cov 
+    loss = loss_sim + loss_var 
 
 
     #compute accuraccy in [%]
