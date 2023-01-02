@@ -317,7 +317,7 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     tar_indices     = (target < 0.5)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
 
