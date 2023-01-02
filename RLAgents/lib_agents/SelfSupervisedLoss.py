@@ -92,8 +92,8 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
 
     
     #batch variance loss
-    std_za = za.std(dim=0)
-    std_zb = zb.std(dim=0)
+    std_za = za.std(dim=1)
+    std_zb = zb.std(dim=1)
     
     loss_var = torch.mean(torch.relu(1.0 - std_za)) 
     loss_var+= torch.mean(torch.relu(1.0 - std_zb))
