@@ -43,9 +43,17 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
     #predict close distance for similar, far distance for different states 
     predicted = ((za - zb)**2).mean(dim=1)
 
-    #MSE loss
-    loss = ((target - predicted)**2).mean()
+    #similarity MSE loss
+    loss_sim = ((target - predicted)**2).mean()
 
+
+    #L2 magnitude regularisation
+    magnitude = (za**2).mean() + (zb**2).mean()
+
+    #care only when magnitude above 100
+    loss_magnitude = torch.relu(magnitude - 100.0)
+
+    loss = loss_sim + loss_magnitude
 
     #compute accuraccy in [%]
     true_positive = torch.logical_and(target > 0.5,  predicted > 0.5).float().sum()
@@ -53,9 +61,6 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
 
     hits          = true_positive + true_negative
     acc           = 100.0*hits/predicted.shape[0]
-
-    #L2 magnitude
-    magnitude       = (za**2).mean() + (zb**2).mean() 
 
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
