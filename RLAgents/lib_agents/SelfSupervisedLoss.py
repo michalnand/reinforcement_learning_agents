@@ -232,9 +232,12 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     #L2 magnitude regularisation
-    loss_magnitude       = (za**2).mean() + (zb**2).mean()
+    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean()
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
+    #care only when magnitude above 100
+    loss_magnitude = torch.relu(magnitude - 100.0)
+
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + loss_magnitude
  
     #compute accuraccy in [%]
     dist            = torch.cdist(za, zb)
@@ -242,7 +245,7 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    return loss, loss_magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
 
@@ -301,9 +304,13 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     #L2 magnitude regularisation
-    loss_magnitude       = (za**2).mean() + (zb**2).mean()
+    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean()
 
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + (10**-6)*loss_magnitude
+    #care only when magnitude above 100
+    loss_magnitude = torch.relu(magnitude - 100.0)
+
+
+    loss = 1.0*sim_loss + 1.0*std_loss + 0.01*cov_loss + loss_magnitude
  
     #compute accuraccy in [%]
     pred_indices    = (predicted < 0.5)
