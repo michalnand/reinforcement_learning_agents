@@ -95,8 +95,16 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
     std_za = za.std(dim=1)
     std_zb = zb.std(dim=1)
     
-    loss_var = torch.mean(torch.relu(1.0 - std_za)) 
-    loss_var+= torch.mean(torch.relu(1.0 - std_zb))
+    loss_var_f = torch.mean(torch.relu(1.0 - std_za)) 
+    loss_var_f+= torch.mean(torch.relu(1.0 - std_zb))
+
+
+    #batch variance loss
+    std_za = za.std(dim=0)
+    std_zb = zb.std(dim=0)
+    
+    loss_var_b = torch.mean(torch.relu(1.0 - std_za)) 
+    loss_var_b+= torch.mean(torch.relu(1.0 - std_zb))
     
 
     '''
@@ -110,9 +118,9 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
     loss_cov+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
     '''
 
-    print(">>> ", loss_sim.detach().cpu().numpy(), loss_var.detach().cpu().numpy())
+    print(">>> ", loss_sim.detach().cpu().numpy(), loss_var_f.detach().cpu().numpy(), loss_var_b.detach().cpu().numpy(),  za.std(dim=1).mean().detach().cpu().numpy(),  za.std(dim=0).mean().detach().cpu().numpy())
 
-    loss = loss_sim + loss_var 
+    loss = loss_sim + loss_var_f + loss_var_b
 
 
     #compute accuraccy in [%]
