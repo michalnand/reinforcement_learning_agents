@@ -21,7 +21,7 @@ class AgentPPOCND():
         
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
-             
+              
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
@@ -41,27 +41,28 @@ class AgentPPOCND():
 
         if config.ppo_regularization_loss == "mse":
             self._ppo_regularization_loss = contrastive_loss_mse
+        elif config.ppo_regularization_loss == "mse2":
+            self._ppo_regularization_loss = contrastive_loss_mse2
         elif config.ppo_regularization_loss == "nce":
             self._ppo_regularization_loss = contrastive_loss_nce
         elif config.ppo_regularization_loss == "vicreg":
             self._ppo_regularization_loss = contrastive_loss_vicreg
         elif config.ppo_regularization_loss == "vicreg2":
             self._ppo_regularization_loss = contrastive_loss_vicreg2
-        elif config.ppo_regularization_loss == "vicreg3":
-            self._ppo_regularization_loss = contrastive_loss_vicreg3
         else:
             self._ppo_regularization_loss = None 
   
         if config.cnd_regularization_loss == "mse":
             self._cnd_regularization_loss = contrastive_loss_mse
+        elif config.cnd_regularization_loss == "mse2":
+            self._cnd_regularization_loss = contrastive_loss_mse2
         elif config.cnd_regularization_loss == "nce":
             self._cnd_regularization_loss = contrastive_loss_nce
         elif config.cnd_regularization_loss == "vicreg":
             self._cnd_regularization_loss = contrastive_loss_vicreg
         elif config.cnd_regularization_loss == "vicreg2":
             self._cnd_regularization_loss = contrastive_loss_vicreg2
-        elif config.cnd_regularization_loss == "vicreg3":
-            self._cnd_regularization_loss = contrastive_loss_vicreg3
+        
         else:
             self._cnd_regularization_loss = None
 

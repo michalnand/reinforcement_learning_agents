@@ -60,6 +60,61 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
+
+
+def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, augmentation = None):
+    xa = states_a.clone()
+    xb = states_b.clone()
+
+    #normalise states
+    if normalise is not None:
+        xa = normalise(xa) 
+        xb = normalise(xb)
+
+    #states augmentation
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+
+    #obtain features from model
+    if hasattr(model, "forward_features"):
+        za = model.forward_features(xa)  
+        zb = model.forward_features(xb) 
+    else:
+        za = model(xa)  
+        zb = model(xb) 
+
+    #predict close distance for similar, far distance for different states 
+    predicted = ((za - zb)**2).mean(dim=1)
+
+    #MSE simialrity loss
+    loss_sim = ((target - predicted)**2).mean()
+
+
+    #features variance loss
+    std_za = za.std(dim=0)
+    std_zb = zb.std(dim=0)
+    
+    loss_var = torch.mean(torch.relu(1.0 - std_za)) 
+    loss_var+= torch.mean(torch.relu(1.0 - std_zb))
+
+    print(">>> ", loss_var, std_za.mean(), std_zb.mean())
+
+    loss = loss_sim + loss_var
+
+
+    #compute accuraccy in [%]
+    true_positive = torch.logical_and(target > 0.5,  predicted > 0.5).float().sum()
+    true_negative = torch.logical_and(target <= 0.5, predicted <= 0.5).float().sum()
+
+    hits          = true_positive + true_negative
+    acc           = 100.0*hits/predicted.shape[0]
+
+    #L2 magnitude
+    magnitude       = (za**2).mean() + (zb**2).mean() 
+
+    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+
  
 
 
