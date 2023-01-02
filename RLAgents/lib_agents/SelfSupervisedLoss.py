@@ -98,7 +98,7 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
     loss_var = torch.mean(torch.relu(1.0 - std_za)) 
     loss_var+= torch.mean(torch.relu(1.0 - std_zb))
 
-    print(">>> ", loss_var, std_za.mean(), std_zb.mean())
+    print(">>> ", loss_sim.detach().cpu().numpy(), loss_var.detach().cpu().numpy(), std_za.mean().detach().cpu().numpy(), std_zb.mean().detach().cpu().numpy())
 
     loss = loss_sim + loss_var
 
