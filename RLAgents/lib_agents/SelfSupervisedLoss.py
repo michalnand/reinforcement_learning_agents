@@ -112,7 +112,7 @@ def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, a
 
     print(">>> ", loss_sim.detach().cpu().numpy(), loss_var.detach().cpu().numpy())
 
-    loss = loss_sim + loss_var 
+    loss = loss_sim + 0*loss_var 
 
 
     #compute accuraccy in [%]
