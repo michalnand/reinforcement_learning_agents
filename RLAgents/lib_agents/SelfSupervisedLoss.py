@@ -50,8 +50,8 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
     #L2 magnitude regularisation
     magnitude = (za**2).mean() + (zb**2).mean()
 
-    #care only when magnitude above 100
-    loss_magnitude = torch.relu(magnitude - 100.0)
+    #care only when magnitude above 200
+    loss_magnitude = torch.relu(magnitude - 200.0)
 
     loss = loss_sim + loss_magnitude
 
@@ -65,7 +65,7 @@ def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, au
     return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
-
+ 
 
 def contrastive_loss_mse2(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
