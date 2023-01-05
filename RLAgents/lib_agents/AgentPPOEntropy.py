@@ -107,22 +107,26 @@ class AgentPPOEntropy():
         self.enabled_training = False
  
     def main(self): 
+        print("main")
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
          
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
+        print("step")
         #collect actions 
         actions = self._sample_actions(logits)
         
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
+        print("IM")
         #curiosity motivation
         rewards_int    = self._curiosity(states)
         rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
+        print("buffer")
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
@@ -142,6 +146,7 @@ class AgentPPOEntropy():
         
         self.states = states_new.copy()
 
+        print("reset")
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
@@ -162,10 +167,6 @@ class AgentPPOEntropy():
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
         self.iterations+= 1
-
-
-        
-        
 
         return rewards_ext[0], dones[0], infos[0]
     
@@ -294,7 +295,6 @@ class AgentPPOEntropy():
 
     def _add_for_plot(self, states, infos, dones):
         
-
         features        = self.model_cnd(states)
         #features        = self.model_ppo.forward_features(states)
         
