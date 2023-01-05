@@ -59,7 +59,7 @@ class AgentPPOEntropy():
         print("\n\n")
     
 
-        state_shape    = self.envs.observation_space.shape
+        self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
 
