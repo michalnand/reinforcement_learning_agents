@@ -221,6 +221,8 @@ class AgentPPOMC():
                 loss_cnd.backward()
                 self.optimizer_cnd.step() 
 
+                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
+
                 
                 #train cnd target model for regularization 
                                    
@@ -229,8 +231,8 @@ class AgentPPOMC():
 
                 loss_cnd_target_b, magnitude, acc = self._cnd_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
 
-                loss_cnd_target = self.mc_weight*loss_cnd_target_a  + 0.0*loss_cnd_target_b
-
+                loss_cnd_target = self.mc_weight*loss_cnd_target_a  + loss_cnd_target_b
+ 
 
                 self.optimizer_cnd_target.zero_grad() 
                 loss_cnd_target.backward() 
