@@ -259,11 +259,13 @@ class AgentPPOEntropy():
 
     #compute internal motivation
     def _curiosity(self, states):
+
+        '''
         z    = self.model_cnd(states)
 
         idx   = self.iterations%self.entropy_buffer.shape[0]
-
         self.entropy_buffer[idx] = z
+        '''
 
         curiosity_t = torch.var(self.entropy_buffer, axis=0).mean(dim=1)
         
