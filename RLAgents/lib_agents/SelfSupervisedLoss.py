@@ -181,8 +181,10 @@ def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, 
     #magnitude regularisation, keep magnitude in small range (optional)
 
     #L2 magnitude regularisation
-    magnitude       = (za**2).mean() + (zb**2).mean()
+    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean(dim=1)
 
+    #care only when magnitude above 100
+    loss_magnitude = torch.relu(magnitude - 100.0).mean()
 
     #compute accuraccy in [%]
     hits = torch.argmax(similarity, dim=1) == target
@@ -237,10 +239,10 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     #L2 magnitude regularisation
-    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean()
+    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean(dim=1)
 
     #care only when magnitude above 100
-    loss_magnitude = torch.relu(magnitude - 100.0)
+    loss_magnitude = torch.relu(magnitude - 100.0).mean()
 
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + loss_magnitude
  
