@@ -220,13 +220,13 @@ class AgentPPOEntropy():
                 #smaller batch for self-supervised regularization
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                loss, magnitude, acc = self._cnd_loss(self.model_cnd_target, states_a, states_b, labels, self._norm_state, self._aug_cnd)                
+                loss_cnd, magnitude, acc = self._cnd_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
 
-                self.optimizer_cnd_target.zero_grad() 
-                loss.backward()
-                self.optimizer_cnd_target.step()
+                self.optimizer_cnd.zero_grad() 
+                loss_cnd.backward() 
+                self.optimizer_cnd.step()
 
-                self.values_logger.add("loss_cnd", loss.detach().to("cpu").numpy())
+                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 self.values_logger.add("magnitude_cnd", magnitude)
                 self.values_logger.add("accuracy_cnd", acc)
 
