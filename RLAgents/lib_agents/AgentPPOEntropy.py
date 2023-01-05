@@ -264,6 +264,7 @@ class AgentPPOEntropy():
         y = z.unsqueeze(0) - self.entropy_buffer
         curiosity_t = (y**2).mean(dim=(0, 2))
 
+        #add new, ring buffer
         idx   = self.iterations%self.entropy_buffer.shape[0]
         self.entropy_buffer[idx] = z.detach().to("cpu")
         
