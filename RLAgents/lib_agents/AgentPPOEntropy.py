@@ -79,7 +79,7 @@ class AgentPPOEntropy():
             self.states[e] = self.envs.reset(e)
 
 
-        self.entropy_buffer = torch.zeros((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32)
+        self.entropy_buffer = 0.01*torch.randn((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32, device="cpu")
 
         self.enable_training()
         self.iterations = 0 
