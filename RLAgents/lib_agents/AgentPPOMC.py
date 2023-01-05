@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import cv2
   
          
-class AgentPPOEntropy():   
-    def __init__(self, envs, ModelPPO, ModelCND, config):
+class AgentPPOMC():   
+    def __init__(self, envs, ModelPPO, ModelCND, ModelCNDTarget, config):
         self.envs = envs  
         
         self.gamma_ext          = config.gamma_ext 
@@ -34,6 +34,7 @@ class AgentPPOEntropy():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count 
+        self.mc_weight          = config.mc_weight
 
  
         if config.cnd_regularization_loss == "mse":
@@ -70,6 +71,10 @@ class AgentPPOEntropy():
         self.model_cnd      = ModelCND.Model(self.state_shape)
         self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
+        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape)
+        self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
+ 
+
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         #reset envs and fill initial state
@@ -78,7 +83,6 @@ class AgentPPOEntropy():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e)
 
-        self.entropy_buffer         = torch.zeros((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32, device="cpu")
 
         self.enable_training()
         self.iterations = 0 
@@ -88,8 +92,9 @@ class AgentPPOEntropy():
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
         self.values_logger.add("loss_cnd", 0.0)
-        self.values_logger.add("magnitude_cnd", 0.0)
-        self.values_logger.add("accuracy_cnd", 0.0)
+        self.values_logger.add("loss_cnd_target", 0.0)
+        self.values_logger.add("magnitude_cnd_target", 0.0)
+        self.values_logger.add("accuracy_cnd_target", 0.0)
 
         self.values_logger.add("internal_motivation_mean", 0.0)
         self.values_logger.add("internal_motivation_std", 0.0)
@@ -146,13 +151,6 @@ class AgentPPOEntropy():
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-                #s = torch.from_numpy(self.states[e]).unsqueeze(0).to(self.model_cnd.device)
-                #z = self.model_cnd(s)
-                #z = z.squeeze(0).to("cpu").detach().numpy()
-
-                self.entropy_buffer[:, e, :] = 0.0
-                
-
          
         #self._add_for_plot(states, infos, dones)
         
@@ -167,10 +165,12 @@ class AgentPPOEntropy():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_cnd.save(save_path + "trained/")
+        self.model_cnd_target.save(save_path + "trained/")
  
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_cnd.load(load_path + "trained/")
+        self.model_cnd_target.load(load_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
@@ -179,7 +179,6 @@ class AgentPPOEntropy():
         size            = 256
 
         states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-
 
         state_im        = cv2.resize(states_t, (size, size))
         state_im        = numpy.clip(state_im, 0.0, 1.0)
@@ -214,20 +213,32 @@ class AgentPPOEntropy():
                 self.optimizer_ppo.step()
 
                 
-                #train cnd model for regularization 
+                #obtain master&commander loss
+                loss_cnd, loss_cnd_target_a = self._compute_loss_cnd(states)
+
+                #train CND model, MSE loss 
+                self.optimizer_cnd.zero_grad() 
+                loss_cnd.backward()
+                self.optimizer_cnd.step() 
+
+                
+                #train cnd target model for regularization 
                                    
                 #smaller batch for self-supervised regularization
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                loss_cnd, magnitude, acc = self._cnd_loss(self.model_cnd, states_a, states_b, labels, None, self._aug_cnd)                
+                loss_cnd_target_b, magnitude, acc = self._cnd_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
 
-                self.optimizer_cnd.zero_grad() 
-                loss_cnd.backward() 
-                self.optimizer_cnd.step()
+                loss_cnd_target = self.mc_weight*loss_cnd_target_a  + 0.0*loss_cnd_target_b
 
-                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
-                self.values_logger.add("magnitude_cnd", magnitude)
-                self.values_logger.add("accuracy_cnd", acc)
+
+                self.optimizer_cnd_target.zero_grad() 
+                loss_cnd_target.backward() 
+                self.optimizer_cnd_target.step()
+
+                self.values_logger.add("loss_cnd_target", loss_cnd_target.detach().to("cpu").numpy())
+                self.values_logger.add("magnitude_cnd_target", magnitude)
+                self.values_logger.add("accuracy_cnd_target", acc)
 
         self.policy_buffer.clear() 
 
@@ -255,19 +266,27 @@ class AgentPPOEntropy():
         return loss 
 
     
+    #MSE loss for cnd model
+    def _compute_loss_cnd(self, states):
+        features_predicted_t  = self.model_cnd(states)
+        features_target_t     = self.model_cnd_target(states)
+
+        #minimize distance
+        loss_cnd        = ((features_target_t.detach() - features_predicted_t)**2).mean()
+        
+        #maximze distance from model_cnd_target to model_cnd
+        loss_cnd_target = ((features_target_t - features_predicted_t.detach())**2).mean(dim=1)
+        loss_cnd_target = torch.relu(1.0 - loss_cnd_target).mean()
+ 
+        return loss_cnd, loss_cnd_target
 
     #compute internal motivation
     def _curiosity(self, states):
-
-        z    = self.model_cnd(states).detach().to("cpu")
-
-        y = z.unsqueeze(0) - self.entropy_buffer
-        curiosity_t = (y**2).mean(dim=(0, 2))
-
-        #add new, ring buffer
-        idx   = self.iterations%self.entropy_buffer.shape[0]
-        self.entropy_buffer[idx] = z.detach().to("cpu")
-        
+        features_predicted_t    = self.model_cnd(states)
+        features_target_t       = self.model_cnd_target(states)
+ 
+        curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+  
         return curiosity_t
  
 
