@@ -107,26 +107,22 @@ class AgentPPOEntropy():
         self.enabled_training = False
  
     def main(self): 
-        print("main")
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
          
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
-        print("step")
         #collect actions 
         actions = self._sample_actions(logits)
         
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
-        print("IM")
         #curiosity motivation
         rewards_int    = self._curiosity(states)
         rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
-        print("buffer")
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
@@ -146,17 +142,16 @@ class AgentPPOEntropy():
         
         self.states = states_new.copy()
 
-        print("reset")
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e] = self.envs.reset(e).copy()
 
-                s = torch.from_numpy(self.states[e]).unsqueeze(0).to(self.model_cnd.device)
-                z = self.model_cnd(s)
-                z = z.squeeze(0).to("cpu").detach().numpy()
+                #s = torch.from_numpy(self.states[e]).unsqueeze(0).to(self.model_cnd.device)
+                #z = self.model_cnd(s)
+                #z = z.squeeze(0).to("cpu").detach().numpy()
 
-                self.entropy_buffer[:, e, :] = z
+                self.entropy_buffer[:, e, :] = 0.0
                 
 
          
