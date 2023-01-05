@@ -78,7 +78,6 @@ class AgentPPOEntropy():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e)
 
-        self.entropy_downsampling   = 8
         self.entropy_buffer         = torch.zeros((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32, device="cpu")
 
         self.enable_training()
@@ -261,8 +260,7 @@ class AgentPPOEntropy():
     def _curiosity(self, states):
 
         z    = self.model_cnd(states)
-
-        idx   = (self.iterations//self.entropy_downsampling)%self.entropy_buffer.shape[0]
+        idx   = self.iterations%self.entropy_buffer.shape[0]
         self.entropy_buffer[idx] = z.detach().to("cpu")
 
         curiosity_t = torch.var(self.entropy_buffer, axis=0).mean(dim=1)
