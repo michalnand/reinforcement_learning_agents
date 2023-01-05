@@ -78,8 +78,8 @@ class AgentPPOEntropy():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e)
 
-
-        self.entropy_buffer = 0.01*torch.randn((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32, device="cpu")
+        self.entropy_downsampling   = 8
+        self.entropy_buffer         = torch.zeros((config.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32, device="cpu")
 
         self.enable_training()
         self.iterations = 0 
@@ -220,7 +220,7 @@ class AgentPPOEntropy():
                 #smaller batch for self-supervised regularization
                 states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                loss_cnd, magnitude, acc = self._cnd_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
+                loss_cnd, magnitude, acc = self._cnd_loss(self.model_cnd, states_a, states_b, labels, None, self._aug_cnd)                
 
                 self.optimizer_cnd.zero_grad() 
                 loss_cnd.backward() 
@@ -260,12 +260,10 @@ class AgentPPOEntropy():
     #compute internal motivation
     def _curiosity(self, states):
 
-        '''
         z    = self.model_cnd(states)
 
-        idx   = self.iterations%self.entropy_buffer.shape[0]
-        self.entropy_buffer[idx] = z
-        '''
+        idx   = (self.iterations//self.entropy_downsampling)%self.entropy_buffer.shape[0]
+        self.entropy_buffer[idx] = z.detach().to("cpu")
 
         curiosity_t = torch.var(self.entropy_buffer, axis=0).mean(dim=1)
         
