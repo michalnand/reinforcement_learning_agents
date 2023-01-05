@@ -259,7 +259,7 @@ class AgentPPOEntropy():
     #compute internal motivation
     def _curiosity(self, states):
 
-        z    = self.model_cnd(states)
+        z    = self.model_cnd(states).detach().to("cpu")
 
         dist = z.unsqueeze(0) - self.entropy_buffer
 
