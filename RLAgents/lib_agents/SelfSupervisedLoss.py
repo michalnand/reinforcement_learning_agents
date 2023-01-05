@@ -186,13 +186,15 @@ def contrastive_loss_nce( model, states_a, states_b, actions, normalise = None, 
     #care only when magnitude above 100
     loss_magnitude = torch.relu(magnitude - 100.0).mean()
 
+    loss = loss_info_max + loss_magnitude
+
     #compute accuraccy in [%]
     hits = torch.argmax(similarity, dim=1) == target
     hits = torch.sum(hits.float()) 
 
     acc  = 100.0*hits/similarity.shape[0]
 
-    return loss_info_max, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    return loss_info_max, magnitude.mean().detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
 
 
 def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None, augmentation = None):
@@ -252,7 +254,9 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    magnitude = magnitude.mean().detach().to("cpu").numpy()
+
+    return loss, magnitude, acc.detach().to("cpu").numpy()
 
 
 
@@ -310,11 +314,13 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
+
     #L2 magnitude regularisation
-    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean()
+    magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean(dim=1)
 
     #care only when magnitude above 100
-    loss_magnitude = torch.relu(magnitude - 100.0)
+    loss_magnitude = torch.relu(magnitude - 100.0).mean()
+
 
 
     loss = 1.0*sim_loss + 1.0*std_loss + 0.01*cov_loss + loss_magnitude
@@ -324,7 +330,9 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
     tar_indices     = (target < 0.5)
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
 
-    return loss, magnitude.detach().to("cpu").numpy(), acc.detach().to("cpu").numpy()
+    magnitude = magnitude.mean().detach().to("cpu").numpy()
+
+    return loss, magnitude, acc.detach().to("cpu").numpy()
 
 
 
