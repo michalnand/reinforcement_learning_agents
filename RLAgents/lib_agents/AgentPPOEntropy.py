@@ -260,10 +260,21 @@ class AgentPPOEntropy():
     def _curiosity(self, states):
 
         z    = self.model_cnd(states)
+
+        dist = z.unsqueeze(0) - self.entropy_buffer
+
+        print(">>>> ", self.entropy_buffer.shape, z.shape, dist.shape)
+        
+        '''
+        curiosity_t = torch.var(self.entropy_buffer, axis=0).mean(dim=1)
+
+
         idx   = self.iterations%self.entropy_buffer.shape[0]
         self.entropy_buffer[idx] = z.detach().to("cpu")
+        '''
 
-        curiosity_t = torch.var(self.entropy_buffer, axis=0).mean(dim=1)
+
+        curiosity_t = torch.rand(self.envs_count)
         
         return curiosity_t
  
