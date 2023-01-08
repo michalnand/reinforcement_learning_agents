@@ -240,7 +240,9 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
+
     #L2 magnitude regularisation
+    
     magnitude = (0.5*(za**2) + 0.5*(zb**2)).mean(dim=1)
 
     #care only when magnitude above 100
