@@ -120,7 +120,7 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 
-'''
+
 class VisitedRoomsEnv(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
@@ -164,9 +164,9 @@ class VisitedRoomsEnv(gym.Wrapper):
         distances   = distances.mean(axis=1)
 
         return numpy.min(distances), numpy.argmin(distances)
+
+
 '''
-
-
 def unwrap(env):
     if hasattr(env, "unwrapped"):
         return env.unwrapped
@@ -218,7 +218,6 @@ class VisitedRoomsEnv(gym.Wrapper):
         if len(self.explored_rooms) > self.max_explored_rooms:
             self.max_explored_rooms = len(self.explored_rooms)
 
-        
 
         info = {}
         info["room_id"]         = list(self.explored_rooms).index(room_id)
@@ -230,7 +229,7 @@ class VisitedRoomsEnv(gym.Wrapper):
 
     def reset(self):
         return self.env.reset()
-
+'''
 
 class RawScoreEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -278,9 +277,9 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = RepeatActionEnv(env) 
     env = ResizeEnv(env, height, width, frame_stacking)
     
-    #env = VisitedRoomsEnv(env)
+    env = VisitedRoomsEnv(env)
 
-    env = VisitedRoomsEnv(env, room_address=3)
+    #env = VisitedRoomsEnv(env, room_address=3)
     
     env = RawScoreEnv(env, max_steps) 
 
