@@ -224,7 +224,7 @@ class VisitedRoomsEnv(gym.Wrapper):
         info["room_id"]         = list(self.explored_rooms).index(room_id)
         info["explored_rooms"]  = self.max_explored_rooms
 
-        print("room_id = ", info["room_id"], self.max_explored_rooms, self.explored_rooms)
+        #print("room_id = ", info["room_id"], self.max_explored_rooms, self.explored_rooms)
 
         return obs, reward, done, info
 
