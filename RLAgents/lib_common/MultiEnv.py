@@ -5,13 +5,16 @@ import numpy
 import gym
 
 class MultiEnvSeq:
-	def __init__(self, env_name, wrapper, envs_count):
+	def __init__(self, env_name, wrapper, envs_count, render = False):
 		self.envs	= [] 
 
 		for i in range(envs_count):
 
 			try:
-				env = gym.make(env_name)
+				if render:
+					env = gym.make(env_name, render_mode = "human")
+				else:
+					env = gym.make(env_name)
 				if wrapper is not None:
 					env 	= wrapper(env)
 			except:
