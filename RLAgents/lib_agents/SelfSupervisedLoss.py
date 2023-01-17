@@ -261,7 +261,6 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     return loss, magnitude, acc.detach().to("cpu").numpy()
 
 
-
 def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
@@ -325,7 +324,7 @@ def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None
 
 
 
-    loss = 1.0*sim_loss + 1.0*std_loss + 0.01*cov_loss + loss_magnitude
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ loss_magnitude
  
     #compute accuraccy in [%]
     pred_indices    = (predicted < 0.5)
