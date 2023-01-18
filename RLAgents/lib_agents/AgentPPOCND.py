@@ -422,7 +422,8 @@ class AgentPPOCND():
             x = aug_random_apply(x, 0.5, aug_mask_tiles)
 
         if "noise" in augmentations:
-            x = aug_noise(x, k = 0.2)
+            x = aug_random_apply(x, 0.5, aug_noise)
+            #x = aug_noise(x, k = 0.2) 
         
         return x.detach() 
 
