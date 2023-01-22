@@ -8,7 +8,7 @@ class RunningStats:
 
         self.count = 0
 
-    def add(self, x):  
+    def update(self, x):  
          
         self.count+= 1
 
