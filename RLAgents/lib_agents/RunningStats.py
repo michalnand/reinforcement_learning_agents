@@ -20,8 +20,6 @@ class RunningStats:
         var = numpy.maximum(var, numpy.zeros_like(var) + 10**-3)
         self.std = var**0.5 
 
-        print("running stats : ", self.mean.mean(), self.std.mean())
-
         return self.mean, self.std
 
 
