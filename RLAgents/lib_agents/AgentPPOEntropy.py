@@ -15,8 +15,8 @@ import matplotlib.pyplot as plt
 import cv2
   
          
-class AgentPPOCND():   
-    def __init__(self, envs, ModelPPO, ModelCNDTarget, ModelCND, config):
+class AgentPPOEntropy():   
+    def __init__(self, envs, ModelPPO, ModelCND, config):
         self.envs = envs  
         
         self.gamma_ext          = config.gamma_ext 
@@ -66,10 +66,10 @@ class AgentPPOCND():
         else:
             self._cnd_regularization_loss = None
 
-        self.ppo_augmentations = config.ppo_augmentations
-        self.ppo_reg_augmentations = config.ppo_reg_augmentations
+        self.ppo_augmentations      = config.ppo_augmentations
+        self.ppo_reg_augmentations  = config.ppo_reg_augmentations
         
-        self.cnd_augmentations = config.cnd_augmentations
+        self.cnd_augmentations      = config.cnd_augmentations
         
         print("ppo_regularization_loss  = ", self._ppo_regularization_loss)
         print("cnd_regularization_loss  = ", self._cnd_regularization_loss)
@@ -78,52 +78,26 @@ class AgentPPOCND():
         print("cnd_augmentations        = ", self.cnd_augmentations)
 
         print("\n\n")
+    
 
-        self.normalise_state_mean = config.normalise_state_mean
-        self.normalise_state_std  = config.normalise_state_std
-
-        self.use_state_momentum = False
-        if hasattr(config, "use_state_momentum"):
-            self.use_state_momentum = config.use_state_momentum
-        
-
-        state_shape    = self.envs.observation_space.shape
+        self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
-
-        if self.use_state_momentum:
-            self.state_momentum = StateMomentum(self.envs_count, state_shape)
-            self.state_shape    = self.state_momentum.result_shape
-        else:
-            self.state_shape    = state_shape
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
-
-        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape)
-        self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
 
         self.model_cnd      = ModelCND.Model(self.state_shape)
         self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
-        for e in range(self.envs_count):
-            self.envs.reset(e)
-
-        
-        self.states_running_stats  = RunningStats(self.state_shape)
-
-        if self.envs_count > 1:
-            self._init_running_stats()
-
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        
         for e in range(self.envs_count):
             s = self.envs.reset(e).copy()
-            if self.use_state_momentum:
-                self.states[e] = self.state_momentum.get(e, s)
-            else:
-                self.states[e] = s
+            self.states[e] = s
+
 
         self.enable_training()
         self.iterations = 0 
@@ -169,10 +143,6 @@ class AgentPPOCND():
         
         #execute action
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
-
-        #update long term stats (mean, variance, momentum)
-        if self.normalise_state_mean or self.normalise_state_std:
-            self.states_running_stats.update(self.states)
 
         #curiosity motivation
         rewards_int    = self._curiosity(states)
@@ -394,7 +364,7 @@ class AgentPPOCND():
             states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
 
         return states_norm
-    
+
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
         if self.normalise_state_mean or self.normalise_state_std:

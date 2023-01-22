@@ -1,7 +1,34 @@
 import numpy
-from numpy.core.fromnumeric import nonzero
+
+class RunningStats:
+
+    def __init__(self, shape):
+        self.mean         = numpy.zeros(shape, dtype=numpy.float32)
+        self.pwr_sum_mean = numpy.zeros(shape, dtype=numpy.float32)
+
+        self.count = 0
+
+    def add(self, x):  
+         
+        self.count+= 1
+
+        self.mean+= (x.mean(axis=0) - self.mean) / self.count
+
+        self.pwr_sum_mean+= (x**2 - self.pwr_sum_mean).mean(axis=0) / self.count
+
+        var = self.pwr_sum_mean - self.mean**2
+        var = numpy.maximum(var, numpy.zeros_like(var) + 10**-3)
+        self.std = var**0.5 
+
+        print("running stats : ", self.mean.shape, self.std.shape)
+
+        return self.mean, self.std
 
 
+
+    
+
+'''
 class RunningStats:
     def __init__(self, shape, initial_value=None):
         self.count = 1
@@ -29,7 +56,7 @@ class RunningStats:
         self.var  = var
 
         self.std  = ((self.var/self.count)**0.5) + self.eps
-
+'''
     
 
 
@@ -54,3 +81,30 @@ class StateMomentum:
 
     def reset(self, env_id):
         self.momentum[env_id] = 0.0
+
+
+'''
+if __name__ == "__main__":
+
+    shape = (4, 96, 96)
+
+    batch = 32
+
+    rs = RunningStats(shape)
+
+    x_all = []
+
+    for i in range(100):
+        x = 3*numpy.random.randn(batch, shape[0], shape[1], shape[2]) + 41
+        x_all.append(x)
+
+        mean_r = numpy.mean(x_all, axis=(0, 1))
+        std_r  = numpy.std(x_all, axis=(0, 1))
+        mean_t, std_t = rs.add(x)
+
+        dff_m = ((mean_r - mean_t)**2).mean()
+        dff_s = ((std_r - std_t)**2).mean()
+
+        print(dff_m, dff_s, mean_r.shape, std_r.shape)
+
+'''
