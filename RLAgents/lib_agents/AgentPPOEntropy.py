@@ -2,7 +2,7 @@ import numpy
 import torch 
 
 from .ValuesLogger      import *
-from .RunningStats      import *  
+from .RunningVariance   import *  
 from .PolicyBufferIM    import *  
 
 from .PPOLoss               import *
@@ -95,16 +95,15 @@ class AgentPPOEntropy():
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         
         for e in range(self.envs_count):
-            s = self.envs.reset(e).copy()
-            self.states[e] = s
+            self.states[e] = self.envs.reset(e).copy()
 
+        self.running_variance = RunningVariance(self.envs_count, 512)
 
         self.enable_training()
         self.iterations = 0 
 
         self.values_logger = ValuesLogger()
 
-        self.values_logger.add("loss_cnd", 0.0)
         self.values_logger.add("loss_cnd_regularization", 0.0)
         self.values_logger.add("cnd_magnitude", 0.0)
 
@@ -146,7 +145,7 @@ class AgentPPOEntropy():
 
         #curiosity motivation
         rewards_int    = self._curiosity(states)
-        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
+        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -165,22 +164,15 @@ class AgentPPOEntropy():
                 self.train()
 
         
-        #update new state
-        if self.use_state_momentum:
-            self.states = self.state_momentum.update(states_new)
-        else:
-            self.states = states_new.copy()
+     
+        self.states = states_new.copy()
 
-        #or reset env if done
+        #reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                s = self.envs.reset(e).copy()
-                
-                if self.use_state_momentum:
-                    self.state_momentum.reset(e)
-                    self.states[e] = self.state_momentum.get(e, s)
-                else:
-                    self.states[e] = s
+                self.states[e] = self.envs.reset(e).copy()
+                self.running_variance.reset(e)
+          
                 
 
          
@@ -198,29 +190,14 @@ class AgentPPOEntropy():
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_cnd.save(save_path + "trained/")
-        self.model_cnd_target.save(save_path + "trained/")
  
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_cnd.load(load_path + "trained/")
-        self.model_cnd_target.load(load_path + "trained/")
  
     def get_log(self): 
         return self.values_logger.get_str()
 
-    def render(self, env_id = 0):
-        size            = 256
-
-        states_t        = torch.tensor(self.states, dtype=torch.float).detach().to(self.model_ppo.device)
-
-        state           = self._norm_state(states_t)[env_id][0].detach().to("cpu").numpy()
-        #state           = states_t[env_id][0].detach().to("cpu").numpy()
-
-        state_im        = cv2.resize(state, (size, size))
-        state_im        = numpy.clip(state_im, 0.0, 1.0)
-
-        cv2.imshow("CND agent", state_im)
-        cv2.waitKey(1)
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -263,26 +240,17 @@ class AgentPPOEntropy():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                #train CND model, MSE loss (same as RND)
-                loss_cnd = self._compute_loss_cnd(states, self.cnd_dropout)
-
-                self.optimizer_cnd.zero_grad() 
-                loss_cnd.backward()
-                self.optimizer_cnd.step() 
-
-                #log results
-                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
-                
+               
                 #train cnd target model for regularization (optional)
                 if self._cnd_regularization_loss is not None:                    
                     #smaller batch for self-supervised regularization
                     states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
 
-                    loss, magnitude, acc = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, self._norm_state, self._aug_cnd)                
+                    loss, magnitude, acc = self._cnd_regularization_loss(self.model_cnd, states_a, states_b, labels, None, self._aug_cnd)                
     
-                    self.optimizer_cnd_target.zero_grad() 
+                    self.optimizer_cnd.zero_grad() 
                     loss.backward()
-                    self.optimizer_cnd_target.step()
+                    self.optimizer_cnd.step()
 
                     self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
                     self.values_logger.add("cnd_magnitude", magnitude)
@@ -316,54 +284,28 @@ class AgentPPOEntropy():
         return loss 
 
     
-    #MSE loss for cnd model
-    def _compute_loss_cnd(self, states, dropout = 0.75):
-        
-        state_norm_t    = self._norm_state(states).detach()
- 
-        features_predicted_t  = self.model_cnd(state_norm_t)
-        features_target_t     = self.model_cnd_target(state_norm_t).detach()
-
-        loss_cnd = (features_target_t - features_predicted_t)**2
- 
-        #random loss regularization, 25% non zero for 128envs, 100% non zero for 32envs
-        '''
-        prob            = 1.0 - dropout
-        random_mask     = torch.rand(loss_cnd.shape).to(loss_cnd.device)
-        random_mask     = 1.0*(random_mask < prob) 
-        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-        '''
-        random_mask     = (torch.rand_like(loss_cnd) > dropout).float()
-        loss_cnd        = (loss_cnd*random_mask).sum() / (random_mask.sum() + 0.00000001)
-
-        return loss_cnd
-
+  
 
     #compute internal motivation
     def _curiosity(self, states):
-        states_norm            = self._norm_state(states)
+        
+        #obtain features
+        features_t  = self.model_cnd(states)
 
-        features_predicted_t    = self.model_cnd(states_norm)
-        features_target_t       = self.model_cnd_target(states_norm)
+        #old variance
+        var_prev    = self.running_variance.var.mean(axis=1)
+
+        self.running_variance.update(features_t)
+
+        #current variance
+        var_now     = self.running_variance.var.mean(axis=1)
+
+        #differential entropy
+        h_dif       = var_now - var_prev
+        return h_dif
  
-        curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
-  
-        return curiosity_t
- 
 
-    #normalise mean and std for state
-    def _norm_state(self, states):
-        states_norm = states
-
-        if self.normalise_state_mean:
-            mean = torch.from_numpy(self.states_running_stats.mean).to(states.device).float()
-            states_norm = states_norm - mean
-
-        if self.normalise_state_std:
-            std  = torch.from_numpy(self.states_running_stats.std).to(states.device).float()            
-            states_norm = torch.clamp(states_norm/std, -1.0, 1.0)
-
-        return states_norm
+   
 
     #random policy for stats init
     def _init_running_stats(self, steps = 256):
@@ -408,10 +350,7 @@ class AgentPPOEntropy():
 
     def _add_for_plot(self, states, infos, dones):
         
-        states_norm_t   = self._norm_state(states)
-        #
-        #features        = self.model_cnd(states_norm_t)
-        features        = self.model_cnd_target(states_norm_t)
+        features        = self.model_cnd(states)
         #features        = self.model_ppo.forward_features(states)
         
 
