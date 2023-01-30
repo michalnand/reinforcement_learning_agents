@@ -261,10 +261,9 @@ class RawScoreEnv(gym.Wrapper):
 
         #reward = max(0.0, float(numpy.sign(reward)))
 
-        
         reward = max(0.0, float(reward))
-        #reward = numpy.sign(reward)
-        reward = numpy.log10(1.0 + reward)
+        reward = numpy.sign(reward)
+        #reward = numpy.log10(1.0 + reward)
         
         return obs, reward, done, info
 
