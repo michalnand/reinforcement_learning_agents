@@ -26,7 +26,7 @@ class AgentPPOCND():
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
         self.cnd_dropout        = config.cnd_dropout
-     
+      
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
