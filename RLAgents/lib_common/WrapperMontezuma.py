@@ -31,6 +31,60 @@ class VideoRecorder(gym.Wrapper):
     def reset(self):
         return self.env.reset()
 
+class ColectStatesEnv(gym.Wrapper):
+
+    def __init__(self, env, result_path = "states/"):
+        super(ColectStatesEnv, self).__init__(env)
+
+        self.result_path = result_path
+        self.frame_ptr = 0
+
+        self.room_id_prev   = 1
+        self.room_id        = 1
+        self.level_id       = 0
+
+    def reset(self):
+        self.room_id_prev   = 1
+        self.room_id        = 1
+        self.level_id       = 0
+
+        return self.env.reset()
+
+    def step(self, action):
+        state, reward, done, info = self.env.step(action)
+
+        self.room_id_prev   = self.room_id
+        self.room_id        = self.get_current_room()
+
+        #next level
+        if self.room_id == 1 and self.room_id_prev == 15:
+            self.level_id+= 1
+
+        file_name = self.result_path + str(self.frame_ptr) + "_" + str(self.level_id) + "_" + str(self.room_id) + ".png"
+
+        im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
+        print("saving frame ", file_name, state.shape)
+
+        cv2.imwrite(file_name, im_bgr)
+
+        self.frame_ptr+= 1
+
+        return state, reward, done, info
+
+    def get_current_room(self, room_address = 3):
+        ram = self._unwrap(self.env).ale.getRAM()
+        assert len(ram) == 128
+        return int(ram[room_address])
+
+    def _unwrap(self, env):
+        if hasattr(env, "unwrapped"):
+            return env.unwrapped
+        elif hasattr(env, "env"):
+            return unwrap(env.env)
+        elif hasattr(env, "leg_env"):
+            return unwrap(env.leg_env)
+        else:
+            return env
 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -166,70 +220,6 @@ class VisitedRoomsEnv(gym.Wrapper):
         return numpy.min(distances), numpy.argmin(distances)
 
 
-'''
-def unwrap(env):
-    if hasattr(env, "unwrapped"):
-        return env.unwrapped
-    elif hasattr(env, "env"):
-        return unwrap(env.env)
-    elif hasattr(env, "leg_env"):
-        return unwrap(env.leg_env)
-    else:
-        return env
-
-class VisitedRoomsEnv(gym.Wrapper):
-    def __init__(self, env, room_address):
-        gym.Wrapper.__init__(self, env)
-        self.room_address   = room_address
-
-        self.explored_rooms = {}
-
-        self.max_explored_rooms = 0
-
-        self.room_id_prev   = 1
-        self.room_id        = 1
-        self.level_id       = 0
-
-    def get_current_room(self):
-        ram = unwrap(self.env).ale.getRAM()
-        assert len(ram) == 128
-        return int(ram[self.room_address])
-
-    def step(self, action):
-        obs, reward, done, info = self.env.step(action)
-
-        self.room_id_prev   = self.room_id
-        self.room_id        = self.get_current_room()
-
-        #next level
-        if self.room_id == 1 and self.room_id_prev == 15:
-            self.level_id+= 1
-
-        if done:
-            self.level_id = 0
-
-        room_id = self.room_id + 24*self.level_id
-
-        if room_id in self.explored_rooms:
-            self.explored_rooms[room_id]+= 1
-        else:
-            self.explored_rooms[room_id] = 1
-
-        if len(self.explored_rooms) > self.max_explored_rooms:
-            self.max_explored_rooms = len(self.explored_rooms)
-
-
-        info = {}
-        info["room_id"]         = list(self.explored_rooms).index(room_id)
-        info["explored_rooms"]  = self.max_explored_rooms
-
-        #print("room_id = ", info["room_id"], self.max_explored_rooms, self.explored_rooms)
-
-        return obs, reward, done, info
-
-    def reset(self):
-        return self.env.reset()
-'''
 
 class RawScoreEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -279,12 +269,10 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
+    #env = ColectStatesEnv(env, "states/")
     env = ResizeEnv(env, height, width, frame_stacking)
     
-    env = VisitedRoomsEnv(env)
-
-    #env = VisitedRoomsEnv(env, room_address=3)
-    
+    env = VisitedRoomsEnv(env)    
     env = RawScoreEnv(env, max_steps) 
 
     return env
@@ -296,4 +284,3 @@ def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_
     env = WrapperMontezuma(env, height, width, frame_stacking, max_steps)
 
     return env
-
