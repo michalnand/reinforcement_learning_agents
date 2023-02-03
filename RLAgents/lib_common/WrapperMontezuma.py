@@ -60,7 +60,7 @@ class ColectStatesEnv(gym.Wrapper):
         if self.room_id == 1 and self.room_id_prev == 15:
             self.level_id+= 1
 
-        file_name = self.result_path + str(self.frame_ptr) + "_" + str(self.level_id) + "_" + str(self.room_id) + ".png"
+        file_name = self.result_path + str(self.frame_ptr).zfill(5) + "_" + str(self.level_id) + "_" + str(self.room_id) + ".png"
 
         im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
         print("saving frame ", file_name, state.shape)
