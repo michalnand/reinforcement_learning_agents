@@ -139,23 +139,12 @@ class AgentPPOCNDSA():
 
         
         #update new state
-        if self.use_state_momentum:
-            self.states = self.state_momentum.update(states_new)
-        else:
-            self.states = states_new.copy()
+        self.states = states_new.copy()
 
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                s = self.envs.reset(e).copy()
-                
-                if self.use_state_momentum:
-                    self.state_momentum.reset(e)
-                    self.states[e] = self.state_momentum.get(e, s)
-                else:
-                    self.states[e] = s
-                
-
+                self.states[e] = self.envs.reset(e).copy()
          
         #self._add_for_plot(states, infos, dones)
         
