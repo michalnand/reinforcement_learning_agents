@@ -81,6 +81,7 @@ class AgentPPOCND():
         print("ppo_augmentations        = ", self.ppo_augmentations)
         print("ppo_reg_augmentations    = ", self.ppo_reg_augmentations)
         print("cnd_augmentations        = ", self.cnd_augmentations)
+        print("augmentations_probs      = ", self.augmentations_probs)
 
         print("\n\n")
 
