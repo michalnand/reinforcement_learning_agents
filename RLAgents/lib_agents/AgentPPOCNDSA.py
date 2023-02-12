@@ -230,10 +230,11 @@ class AgentPPOCNDSA():
                 #smaller batch for inverse model training
                 states_now, states_next, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
                 
-                loss_action, action_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
+                #loss_action, action_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
 
+                action_acc = 1234
                 #final loss for target model
-                loss = loss_reg + self.action_loss_coeff*loss_action
+                loss = loss_reg #+ self.action_loss_coeff*loss_action
 
                 self.optimizer_cnd_target.zero_grad() 
                 loss.backward()
@@ -289,7 +290,7 @@ class AgentPPOCNDSA():
         loss = loss_func(action_pred, action)
 
         #compute accuracy
-        acc = 100.0*(torch.argmax(action_pred, dim=1) == action).float().mean()
+        acc = 100.0*(torch.argmax(action_pred.detach(), dim=1) == action).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
