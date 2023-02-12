@@ -12,7 +12,9 @@ def aug_random_apply(x, p, aug_func):
 
 #pixelate, downsample, and upsample back
 def aug_pixelate(x): 
-    scale   = 2**numpy.random.randint(0, 4)
+
+    #downsample 2x or 4x
+    scale   = int(2**numpy.random.randint(1, 3))
     ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
     us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
 
