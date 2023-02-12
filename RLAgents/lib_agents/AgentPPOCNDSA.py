@@ -211,7 +211,7 @@ class AgentPPOCNDSA():
                 self.optimizer_ppo.step()
 
                 #train CND model, MSE loss (same as RND)
-                loss_cnd = self._compute_loss_cnd(states, self.cnd_dropout)
+                loss_cnd = self._compute_loss_cnd(states)
 
                 self.optimizer_cnd.zero_grad() 
                 loss_cnd.backward()
