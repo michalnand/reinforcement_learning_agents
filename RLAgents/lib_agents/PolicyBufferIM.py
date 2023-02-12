@@ -131,8 +131,10 @@ class PolicyBufferIM:
     
 
     def sample_states_action_pairs(self, batch_size, device = "cpu"):
-        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
-        indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
+        count = self.envs_count*self.buffer_size
+
+        indices         = torch.randint(0, count, size=(batch_size, ))
+        indices_next    = torch.clip(indices + 1, 0, count-1)
       
         states_now      = (self.states[indices]).to(device)
         states_next     = (self.states[indices_next]).to(device)
