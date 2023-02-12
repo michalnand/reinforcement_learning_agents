@@ -21,6 +21,12 @@ def aug_pixelate(x):
     scaled  = us(ds(x))  
     return scaled
 
+#random zeroing mask with p
+def aug_pixel_dropout(x, p = 0.1):
+    mask = 1.0 - (torch.rand_like(x) < p)
+    return x*mask  
+
+
 #apply random convolution filter
 def aug_conv(x, alpha = 0.5, kernel_size = 3, groups = None):
     ch  = x.shape[1]
