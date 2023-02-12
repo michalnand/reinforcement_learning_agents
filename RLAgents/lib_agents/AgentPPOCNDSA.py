@@ -43,15 +43,10 @@ class AgentPPOCNDSA():
             self._cnd_regularization_loss = contrastive_loss_vicreg
         else:
             self._cnd_regularization_loss = None
-
-        self.ppo_augmentations      = config.ppo_augmentations
-        self.ppo_reg_augmentations  = config.ppo_reg_augmentations
         
         self.cnd_augmentations = config.cnd_augmentations
         
         print("cnd_regularization_loss  = ", self._cnd_regularization_loss)
-        print("ppo_augmentations        = ", self.ppo_augmentations)
-        print("ppo_reg_augmentations    = ", self.ppo_reg_augmentations)
         print("cnd_augmentations        = ", self.cnd_augmentations)
 
         print("\n\n")
