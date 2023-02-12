@@ -62,7 +62,7 @@ class AgentPPOCNDSA():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape)
+        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape, self.actions_count)
         self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
 
         self.model_cnd      = ModelCND.Model(self.state_shape)

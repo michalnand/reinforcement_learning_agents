@@ -8,7 +8,7 @@ class PolicyBufferIM:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
       
-        self.clear()   
+        self.clear()    
  
     def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done):
         
@@ -130,7 +130,7 @@ class PolicyBufferIM:
         return states_a, states_b, labels_t
     
 
-     def sample_states_action_pairs(self, batch_size, device = "cpu"):
+    def sample_states_action_pairs(self, batch_size, device = "cpu"):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
         indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size-1)
       
