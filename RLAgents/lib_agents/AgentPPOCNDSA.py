@@ -232,7 +232,6 @@ class AgentPPOCNDSA():
                 
                 loss_action, action_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
 
-                action_acc = 1234
                 #final loss for target model
                 loss = loss_reg + self.action_loss_coeff*loss_action
 
