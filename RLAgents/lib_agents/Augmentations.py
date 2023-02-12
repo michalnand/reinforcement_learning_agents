@@ -23,7 +23,7 @@ def aug_pixelate(x):
 
 #random zeroing mask with p
 def aug_pixel_dropout(x, p = 0.1):
-    mask = 1.0 - (torch.rand_like(x) < p)
+    mask = 1.0 - (torch.rand_like(x) < p).float()
     return x*mask  
 
 
