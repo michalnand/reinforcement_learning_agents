@@ -70,6 +70,11 @@ class AgentPPOCND():
         self.ppo_reg_augmentations = config.ppo_reg_augmentations
         
         self.cnd_augmentations = config.cnd_augmentations
+
+        if hasattr(config, "augmentations_probs"):
+            self.augmentations_probs = config.augmentations_probs
+        else:
+            self.augmentations_probs = 0.5
         
         print("ppo_regularization_loss  = ", self._ppo_regularization_loss)
         print("cnd_regularization_loss  = ", self._cnd_regularization_loss)
@@ -413,16 +418,16 @@ class AgentPPOCND():
 
     def _aug(self, x, augmentations): 
         if "conv" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_conv)
+            x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
         if "pixelate" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_pixelate)
+            x = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
 
         if "mask" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_mask_tiles)
+            x = aug_random_apply(x, self.augmentations_probs, aug_mask_tiles)
 
         if "noise" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_noise)
+            x = aug_random_apply(x, self.augmentations_probs, aug_noise)
             #x = aug_noise(x, k = 0.2) 
         
         return x.detach() 
