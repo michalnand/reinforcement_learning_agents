@@ -335,9 +335,8 @@ class AgentPPOCNDSA():
         if "pixel_dropout" in augmentations:
             print("aug_pixel_dropout")
             x = aug_random_apply(x, self.augmentations_probs, aug_pixel_dropout)
-
-        
-        if "aug_random_tiles" in augmentations:
+ 
+        if "random_tiles" in augmentations:
             print("aug_random_tiles")
             x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
 
