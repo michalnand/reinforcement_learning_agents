@@ -71,11 +71,11 @@ def aug_mask_tiles(x, p = 0.1):
     return x*mask.float().to(x.device)  
 
 
-#random spot noise
-def aug_random_tiles(x, max_loops = 5, p_base=0.1): 
+#random spot noise 
+def aug_random_tiles(x, max_loops = 4, p_base=0.1): 
     loops   = numpy.random.randint(0, max_loops+1)
 
-    p       = p_base**((loops+1)**0.5)
+    p       = p_base/((2*loops + 1)**2)
 
     mask    = (torch.rand((x.shape[0], 1, x.shape[2], x.shape[3])) < p).float()
 
@@ -83,8 +83,11 @@ def aug_random_tiles(x, max_loops = 5, p_base=0.1):
 
     for i in range(loops):
         mask = pool(mask)
-    
-    return x*(1 - mask.to(x.device)) 
+
+    mask = (1.0 - mask.to(x.device))
+    return x*mask
+
+
 
 #uniform aditional noise
 def aug_noise(x, k = 0.2): 
