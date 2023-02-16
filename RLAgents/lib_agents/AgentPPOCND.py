@@ -427,12 +427,14 @@ class AgentPPOCND():
         if "pixel_dropout" in augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_pixel_dropout)
 
+        if "aug_random_tiles" in augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
+
         if "mask" in augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_mask_tiles)
 
         if "noise" in augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            #x = aug_noise(x, k = 0.2) 
         
         return x.detach() 
 

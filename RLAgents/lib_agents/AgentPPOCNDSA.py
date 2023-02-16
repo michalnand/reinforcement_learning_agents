@@ -34,7 +34,7 @@ class AgentPPOCNDSA():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
-  
+   
         if config.cnd_regularization_loss == "mse":
             self._cnd_regularization_loss = contrastive_loss_mse
         elif config.cnd_regularization_loss == "nce":
@@ -227,13 +227,17 @@ class AgentPPOCNDSA():
 
                 loss_reg, magnitude, sim_acc = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
 
+                loss_aux, aux_acc = self._compute_cnd_constructor_loss(states_a, states_b, 1 - labels)                
+
+                '''
                 #smaller batch for inverse model training
                 states_now, states_next, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
                 
-                loss_action, action_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
+                loss_aux, aux_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
+                '''
 
                 #final loss for target model
-                loss = loss_reg + self.action_loss_coeff*loss_action
+                loss = loss_reg + self.action_loss_coeff*loss_aux
 
                 self.optimizer_cnd_target.zero_grad() 
                 loss.backward()
@@ -243,7 +247,7 @@ class AgentPPOCNDSA():
                 self.values_logger.add("cnd_magnitude", magnitude)
 
                 self.values_logger.add("reg_similarity_accuracy", sim_acc)
-                self.values_logger.add("reg_action_accuracy", action_acc)
+                self.values_logger.add("reg_action_accuracy", aux_acc)
 
         self.policy_buffer.clear() 
 
@@ -294,6 +298,19 @@ class AgentPPOCNDSA():
 
         return loss, acc
 
+    def _compute_cnd_constructor_loss(self, states_a, states_b, transition_label):
+
+        loss_func       = torch.nn.BCELoss()
+        transition_pred = self.model_cnd_target.predict_transition(states_a, states_b)
+
+        loss            = loss_func(transition_pred, transition_label)
+
+        #compute accuracy
+        acc = 100.0*(torch.argmax(transition_pred.detach(), dim=1) == transition_label).float().mean()
+        acc = acc.detach().to("cpu").numpy()
+
+        return loss, acc
+
     #compute internal motivation
     def _curiosity(self, states):
         features_predicted_t    = self.model_cnd(states)
@@ -305,19 +322,32 @@ class AgentPPOCNDSA():
  
 
 
-
     def _aug(self, x, augmentations): 
+        print(">>> ", augmentations)
         if "conv" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_conv)
+            print("aug_conv")
+            x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
         if "pixelate" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_pixelate)
+            print("aug_pixelate")
+            x = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
+
+        if "pixel_dropout" in augmentations:
+            print("aug_pixel_dropout")
+            x = aug_random_apply(x, self.augmentations_probs, aug_pixel_dropout)
+
+        
+        if "aug_random_tiles" in augmentations:
+            print("aug_random_tiles")
+            x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
 
         if "mask" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_mask_tiles)
+            print("aug_mask_tiles")
+            x = aug_random_apply(x, self.augmentations_probs, aug_mask_tiles)
 
         if "noise" in augmentations:
-            x = aug_random_apply(x, 0.5, aug_noise)
+            print("aug_noise")
+            x = aug_random_apply(x, self.augmentations_probs, aug_noise)
         
         return x.detach() 
 
