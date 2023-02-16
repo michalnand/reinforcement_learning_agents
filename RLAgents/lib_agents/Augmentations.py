@@ -84,7 +84,7 @@ def aug_random_tiles(x, max_loops = 5, p_base=0.1):
     for i in range(loops):
         mask = pool(mask)
     
-    return x*(1 - mask)
+    return x*(1 - mask.to(x.device)) 
 
 #uniform aditional noise
 def aug_noise(x, k = 0.2): 
