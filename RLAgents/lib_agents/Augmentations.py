@@ -11,15 +11,20 @@ def aug_random_apply(x, p, aug_func):
     return y 
 
 #pixelate, downsample, and upsample back
-def aug_pixelate(x): 
+def aug_pixelate(x, p = 0.5): 
 
     #downsample 2x or 4x
     scale   = int(2**numpy.random.randint(1, 3))
     ds      = torch.nn.AvgPool2d(scale, scale).to(x.device)
     us      = torch.nn.Upsample(scale_factor=scale).to(x.device)
 
+    #tiles mask
+    mask    = 1.0 - torch.rand((x.shape[0], 1, x.shape[2]//scale, x.shape[3]//scale))
+    mask    = (mask < p).float().to(x.device)
+    mask    = us(mask)
+
     scaled  = us(ds(x))  
-    return scaled
+    return mask*scaled + (1.0 - mask)*x
 
 #random zeroing mask with p
 def aug_pixel_dropout(x, p = 0.1):
