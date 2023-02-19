@@ -48,10 +48,12 @@ class AgentPPOCNDSA():
             self._target_aux_loss = None
         
         self.augmentations                  = config.augmentations
+        self.augmentations_probs            = config.augmentations
         
         print("target_regularization_loss   = ", self._target_regularization_loss)
         print("target_aux_loss              = ", self._target_aux_loss)
         print("augmentations                = ", self.augmentations)
+        print("augmentations_probs          = ", self.augmentations_probs)
         print("int_reward_coeff             = ", self.int_reward_coeff)
         print("aux_loss_coeff               = ", self.aux_loss_coeff)
 
