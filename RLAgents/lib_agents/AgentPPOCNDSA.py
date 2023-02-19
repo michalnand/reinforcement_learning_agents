@@ -307,7 +307,9 @@ class AgentPPOCNDSA():
         loss        = loss_func(action_pred, action)
 
         #compute accuracy
-        acc = 100.0*(torch.argmax(action_pred.detach(), dim=1) == action).float().mean()
+        pred = torch.argmax(action_pred.detach(), dim=1)
+        print(">>>> ", pred.shape, action.shape)
+        acc = 100.0*(pred == action).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
