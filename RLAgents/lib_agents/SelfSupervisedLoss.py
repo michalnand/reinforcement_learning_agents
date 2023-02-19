@@ -308,8 +308,8 @@ def loss_vicreg(model, states_a, states_b, augmentation = None):
     magnitude       = 0.5*((za**2) + (zb**2)).mean(dim=1)
     magnitude_std   = torch.std(magnitude)
 
+    magnitude       = magnitude.mean().detach().to("cpu").numpy()
     magnitude_std   = magnitude_std.mean().detach().to("cpu").numpy()
-    magnitude_std   = magnitude_std.detach().to("cpu").numpy() 
  
     # compute accuraccy in [%] stats
     dist            = torch.cdist(za, zb)
