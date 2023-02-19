@@ -42,6 +42,8 @@ class AgentPPOCNDSA():
 
         if config.target_aux_loss == "action_loss":
             self._target_aux_loss = self._action_loss
+        elif config.target_aux_loss == "constructor_loss":
+             self._target_aux_loss = self._constructor_loss
         else:
             self._target_aux_loss = None
         
@@ -92,7 +94,7 @@ class AgentPPOCNDSA():
         self.values_logger.add("loss_target_aux",               0.0)
 
         self.values_logger.add("target_magnitude",              0.0)
-        self.values_logger.add("target_magnitude_var",          0.0)
+        self.values_logger.add("target_magnitude_std",          0.0)
         self.values_logger.add("target_similarity_accuracy",    0.0)
         self.values_logger.add("target_action_accuracy",        0.0)
 
@@ -223,17 +225,17 @@ class AgentPPOCNDSA():
                 #train cnd target model for regularization
 
                 #sample smaller batch for self-supervised regularization
-                states_a, states_b, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
 
                 #target regularization loss
                 #uses two similar states and augmentations (augmentations are optional)
-                loss_target_regularization, target_magnitude, target_magnitude_var, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_b, self._augmentations)                
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_b, self._augmentations)                
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, target_action_accuracy = self._target_aux_loss(states_a, states_b, action)                
+                    loss_target_aux, target_action_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)
                     target_action_accuracy  = 0.0
@@ -253,7 +255,7 @@ class AgentPPOCNDSA():
                 self.values_logger.add("loss_target_aux",               loss_target_aux.detach().to("cpu").numpy())
 
                 self.values_logger.add("target_magnitude",              target_magnitude)
-                self.values_logger.add("target_magnitude_var",          target_magnitude_var)
+                self.values_logger.add("target_magnitude_std",          target_magnitude_std)
                 self.values_logger.add("target_similarity_accuracy",    target_similarity_accuracy)
                 self.values_logger.add("target_action_accuracy",        target_action_accuracy)
 
@@ -296,7 +298,7 @@ class AgentPPOCNDSA():
         return loss_cnd
 
     #inverse model for action prediction
-    def _action_loss(self, states_now, states_next, action):
+    def _action_loss(self, states_now, states_next, states_random, action):
         loss_func   = torch.nn.CrossEntropyLoss()
         action_pred = self.model_cnd_target.predict_action(states_now, states_next)
         
@@ -308,10 +310,16 @@ class AgentPPOCNDSA():
 
         return loss, acc
 
-    def _constructor_loss(self, states_a, states_b, transition_label):
+    #constructor theory loss
+    #inverse model for action prediction
+    def _constructor_loss(self, states_now, states_next, states_random, action):
+        transition_label = (torch.rand((states_now.shape[0])) > 0.5).float().to(states_now.device)
 
+        #mix states : consectuctive or random
+        states_other = transition_label*states_next + (1.0 - transition_label)*states_random
+    
         loss_func       = torch.nn.BCELoss()
-        transition_pred = self.model_cnd_target.predict_transition(states_a, states_b)
+        transition_pred = self.model_cnd_target.predict_transition(states_now, states_other)
 
         loss            = loss_func(transition_pred, transition_label)
 
@@ -320,6 +328,8 @@ class AgentPPOCNDSA():
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
+
+  
 
     #compute internal motivation
     def _curiosity(self, states):

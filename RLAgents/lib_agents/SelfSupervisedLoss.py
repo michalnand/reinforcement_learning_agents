@@ -304,12 +304,12 @@ def loss_vicreg(model, states_a, states_b, augmentation = None):
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
 
-    # L2 magnitude and magnitude variance stats
-    magnitude           = 0.5*((za**2) + (zb**2)).mean(dim=1)
-    magnitude_variance  = torch.var(magnitude)
+    # L2 magnitude and magnitude standart deviation stats
+    magnitude       = 0.5*((za**2) + (zb**2)).mean(dim=1)
+    magnitude_std   = torch.std(magnitude)
 
-    magnitude_variance  = magnitude_variance.mean().detach().to("cpu").numpy()
-    variance            = variance.detach().to("cpu").numpy() 
+    magnitude_std   = magnitude_std.mean().detach().to("cpu").numpy()
+    variance        = variance.detach().to("cpu").numpy() 
  
     # compute accuraccy in [%] stats
     dist            = torch.cdist(za, zb)
@@ -318,7 +318,7 @@ def loss_vicreg(model, states_a, states_b, augmentation = None):
     acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
     acc             = acc.detach().to("cpu").numpy()
 
-    return loss, magnitude, magnitude_variance, acc
+    return loss, magnitude, magnitude_std, acc
 
 
 def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None, augmentation = None):

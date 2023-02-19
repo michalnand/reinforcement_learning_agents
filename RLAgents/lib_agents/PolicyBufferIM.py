@@ -131,17 +131,19 @@ class PolicyBufferIM:
     
 
     def sample_states_action_pairs(self, batch_size, device = "cpu"):
-        count = self.envs_count*self.buffer_size
+        count           = self.envs_count*self.buffer_size
 
         indices         = torch.randint(0, count, size=(batch_size, ))
         indices_next    = torch.clip(indices + 1, 0, count-1)
+        indices_random  = torch.randint(0, count, size=(batch_size, ))
       
         states_now      = (self.states[indices]).to(device)
         states_next     = (self.states[indices_next]).to(device)
+        states_random   = (self.states[indices_random]).to(device)
         
         actions         = (self.actions[indices]).to(device)
          
-        return states_now, states_next, actions
+        return states_now, states_next, states_random, actions
     
    
  
