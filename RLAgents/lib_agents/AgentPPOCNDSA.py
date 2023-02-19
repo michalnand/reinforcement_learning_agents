@@ -24,7 +24,7 @@ class AgentPPOCNDSA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
-        self.action_loss_coeff  = config.action_loss_coeff
+        self.aux_loss_coeff     = config.aux_loss_coeff
       
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -35,19 +35,23 @@ class AgentPPOCNDSA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
    
-        if config.cnd_regularization_loss == "mse":
-            self._cnd_regularization_loss = contrastive_loss_mse
-        elif config.cnd_regularization_loss == "nce":
-            self._cnd_regularization_loss = contrastive_loss_nce
-        elif config.cnd_regularization_loss == "vicreg":
-            self._cnd_regularization_loss = contrastive_loss_vicreg
+        if config.target_regularization_loss == "vicreg":
+            self._target_regularization_loss = loss_vicreg
         else:
-            self._cnd_regularization_loss = None
+            self._target_regularization_loss = None
+
+        if config.target_aux_loss == "action_loss":
+            self._target_aux_loss = self._action_loss
+        else:
+            self._target_aux_loss = None
         
-        self.cnd_augmentations = config.cnd_augmentations
+        self.augmentations                  = config.augmentations
         
-        print("cnd_regularization_loss  = ", self._cnd_regularization_loss)
-        print("cnd_augmentations        = ", self.cnd_augmentations)
+        print("target_regularization_loss   = ", self._target_regularization_loss)
+        print("target_aux_loss              = ", self._target_aux_loss)
+        print("augmentations                = ", self.augmentations)
+        print("int_reward_coeff             = ", self.int_reward_coeff)
+        print("aux_loss_coeff               = ", self.aux_loss_coeff)
 
         print("\n\n")
 
@@ -74,22 +78,23 @@ class AgentPPOCNDSA():
             self.states[e] = self.envs.reset(e).copy()
             
         self.enable_training()
-        self.iterations = 0 
+        self.iterations     = 0 
 
-        self.values_logger = ValuesLogger()
+        self.values_logger  = ValuesLogger() 
 
-        self.values_logger.add("loss_cnd", 0.0)
-        self.values_logger.add("loss_cnd_regularization", 0.0)
-        self.values_logger.add("cnd_magnitude", 0.0)
+        self.values_logger.add("internal_motivation_mean",      0.0)
+        self.values_logger.add("internal_motivation_std" ,      0.0)
 
-        self.values_logger.add("loss_actor", 0.0)
-        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_ppo_actor",                0.0)
+        self.values_logger.add("loss_ppo_critic",               0.0)
+        self.values_logger.add("loss_distillation",             0.0)
+        self.values_logger.add("loss_target_regularization",    0.0)
+        self.values_logger.add("loss_target_aux",               0.0)
 
-        self.values_logger.add("internal_motivation_mean", 0.0)
-        self.values_logger.add("internal_motivation_std", 0.0)
-
-        self.values_logger.add("reg_similarity_accuracy", 0.0)
-        self.values_logger.add("reg_action_accuracy", 0.0)
+        self.values_logger.add("target_magnitude",              0.0)
+        self.values_logger.add("target_magnitude_var",          0.0)
+        self.values_logger.add("target_similarity_accuracy",    0.0)
+        self.values_logger.add("target_action_accuracy",        0.0)
 
         self.vis_features = []
         self.vis_labels   = []
@@ -104,9 +109,6 @@ class AgentPPOCNDSA():
     def main(self): 
         #state to tensor
         states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
-        
-        #states augmentations, if any
-        #states = self._aug_ppo(states)
         
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
@@ -203,7 +205,7 @@ class AgentPPOCNDSA():
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
-                loss_ppo     = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -211,48 +213,56 @@ class AgentPPOCNDSA():
                 self.optimizer_ppo.step()
 
                 #train CND model, MSE loss (same as RND)
-                loss_cnd = self._compute_loss_cnd(states)
+                loss_distillation = self._loss_distillation(states)
 
                 self.optimizer_cnd.zero_grad() 
-                loss_cnd.backward()
+                loss_distillation.backward()
                 self.optimizer_cnd.step() 
 
-                #log results
-                self.values_logger.add("loss_cnd", loss_cnd.detach().to("cpu").numpy())
                 
                 #train cnd target model for regularization
 
-                #smaller batch for self-supervised regularization
-                states_a, states_b, labels = self.policy_buffer.sample_states(small_batch, 0.5, self.model_ppo.device)
+                #sample smaller batch for self-supervised regularization
+                states_a, states_b, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                loss_reg, magnitude, sim_acc = self._cnd_regularization_loss(self.model_cnd_target, states_a, states_b, labels, None, self._aug_cnd)                
 
-                loss_aux, aux_acc = self._compute_cnd_constructor_loss(states_a, states_b, 1 - labels)                
+                #target regularization loss
+                #uses two similar states and augmentations (augmentations are optional)
+                loss_target_regularization, target_magnitude, target_magnitude_var, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_b, self._augmentations)                
 
-                '''
-                #smaller batch for inverse model training
-                states_now, states_next, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
-                
-                loss_aux, aux_acc = self._compute_cnd_action_loss(states_now, states_next, action)                
-                '''
+                #optional auxliary loss
+                #e.g. inverse model : action prediction from two consectuctive states
+                if self._target_aux_loss is not None:
+                    loss_target_aux, target_action_accuracy = self._target_aux_loss(states_a, states_b, action)                
+                else:
+                    loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)
+                    target_action_accuracy  = 0.0
+
 
                 #final loss for target model
-                loss = loss_reg + self.action_loss_coeff*loss_aux
+                loss_target = loss_target_regularization + self.action_loss_coeff*loss_target_aux
 
                 self.optimizer_cnd_target.zero_grad() 
-                loss.backward()
+                loss_target.backward()
                 self.optimizer_cnd_target.step()
 
-                self.values_logger.add("loss_cnd_regularization", loss.detach().to("cpu").numpy())
-                self.values_logger.add("cnd_magnitude", magnitude)
+                #log results
+                self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
+                
+                self.values_logger.add("loss_target_regularization",    loss_target_regularization.detach().to("cpu").numpy())
+                self.values_logger.add("loss_target_aux",               loss_target_aux.detach().to("cpu").numpy())
 
-                self.values_logger.add("reg_similarity_accuracy", sim_acc)
-                self.values_logger.add("reg_action_accuracy", aux_acc)
+                self.values_logger.add("target_magnitude",              target_magnitude)
+                self.values_logger.add("target_magnitude_var",          target_magnitude_var)
+                self.values_logger.add("target_similarity_accuracy",    target_similarity_accuracy)
+                self.values_logger.add("target_action_accuracy",        target_action_accuracy)
+
+
 
         self.policy_buffer.clear() 
 
     
-    def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
         logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         #critic loss
@@ -269,14 +279,14 @@ class AgentPPOCNDSA():
         loss = 0.5*loss_critic + loss_actor
 
         #store to log
-        self.values_logger.add("loss_actor", loss_actor.mean().detach().to("cpu").numpy())
-        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_ppo_actor", loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_ppo_critic", loss_critic.mean().detach().to("cpu").numpy())
 
         return loss 
 
     
-    #MSE loss for cnd model
-    def _compute_loss_cnd(self, states): 
+    #MSE loss for networks distillation model
+    def _loss_distillation(self, states): 
         features_predicted_t  = self.model_cnd(states)
         features_target_t     = self.model_cnd_target(states).detach()
 
@@ -286,11 +296,11 @@ class AgentPPOCNDSA():
         return loss_cnd
 
     #inverse model for action prediction
-    def _compute_cnd_action_loss(self, states_now, states_next, action):
+    def _action_loss(self, states_now, states_next, action):
         loss_func   = torch.nn.CrossEntropyLoss()
         action_pred = self.model_cnd_target.predict_action(states_now, states_next)
         
-        loss = loss_func(action_pred, action)
+        loss        = loss_func(action_pred, action)
 
         #compute accuracy
         acc = 100.0*(torch.argmax(action_pred.detach(), dim=1) == action).float().mean()
@@ -298,7 +308,7 @@ class AgentPPOCNDSA():
 
         return loss, acc
 
-    def _compute_cnd_constructor_loss(self, states_a, states_b, transition_label):
+    def _constructor_loss(self, states_a, states_b, transition_label):
 
         loss_func       = torch.nn.BCELoss()
         transition_pred = self.model_cnd_target.predict_transition(states_a, states_b)
@@ -322,37 +332,28 @@ class AgentPPOCNDSA():
  
 
 
-    def _aug(self, x, augmentations): 
-        print(">>> ", augmentations)
-        if "conv" in augmentations:
-            print("aug_conv")
+    def _augmentations(self, x): 
+        if "conv" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
-        if "pixelate" in augmentations:
-            print("aug_pixelate")
+        if "pixelate" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
 
-        if "pixel_dropout" in augmentations:
-            print("aug_pixel_dropout")
+        if "pixel_dropout" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_pixel_dropout)
  
-        if "random_tiles" in augmentations:
-            print("aug_random_tiles")
+        if "random_tiles" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
 
-        if "mask" in augmentations:
-            print("aug_mask_tiles")
+        if "mask" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_mask_tiles)
 
-        if "noise" in augmentations:
-            print("aug_noise")
+        if "noise" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_noise)
         
         return x.detach() 
 
-    def _aug_cnd(self, x):
-        return self._aug(x, self.cnd_augmentations)
-
+   
     def _add_for_plot(self, states, infos, dones):
         
         states_norm_t   = self._norm_state(states)

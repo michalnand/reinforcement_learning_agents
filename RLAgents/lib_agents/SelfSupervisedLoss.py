@@ -261,6 +261,66 @@ def contrastive_loss_vicreg(model, states_a, states_b, target, normalise = None,
     return loss, magnitude, acc.detach().to("cpu").numpy()
 
 
+
+def loss_vicreg(model, states_a, states_b, augmentation = None):
+    xa = states_a.clone()
+    xb = states_b.clone()
+ 
+    # states augmentation
+    if augmentation is not None:
+        xa = augmentation(xa) 
+        xb = augmentation(xb)
+ 
+    # obtain features from model
+    if hasattr(model, "forward_features"):
+        za = model.forward_features(xa)  
+        zb = model.forward_features(xb) 
+    else:
+        za = model(xa)  
+        zb = model(xb) 
+
+    eps = 0.0001
+
+    # invariance loss
+    sim_loss = ((za - zb)**2).mean()
+
+    # variance loss
+    std_za = torch.sqrt(za.var(dim=0) + eps)
+    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
+    
+    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+   
+    # covariance loss
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+
+    # L2 magnitude and magnitude variance stats
+    magnitude           = 0.5*((za**2) + (zb**2)).mean(dim=1)
+    magnitude_variance  = torch.var(magnitude)
+
+    magnitude_variance  = magnitude_variance.mean().detach().to("cpu").numpy()
+    variance            = variance.detach().to("cpu").numpy() 
+ 
+    # compute accuraccy in [%] stats
+    dist            = torch.cdist(za, zb)
+    pred_indices    = torch.argmin(dist, dim=1)
+    tar_indices     = torch.arange(pred_indices.shape[0]).to(pred_indices.device)
+    acc             = 100.0*(tar_indices == pred_indices).sum()/pred_indices.shape[0]
+    acc             = acc.detach().to("cpu").numpy()
+
+    return loss, magnitude, magnitude_variance, acc
+
+
 def contrastive_loss_vicreg2(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
     xb = states_b.clone()
