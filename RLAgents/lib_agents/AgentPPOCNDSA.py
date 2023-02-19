@@ -239,7 +239,7 @@ class AgentPPOCNDSA():
                 if self._target_aux_loss is not None:
                     loss_target_aux, target_action_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                
                 else:
-                    loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)
+                    loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     target_action_accuracy  = 0.0
 
 
