@@ -244,7 +244,7 @@ class AgentPPOCNDSA():
 
 
                 #final loss for target model
-                loss_target = loss_target_regularization + self.action_loss_coeff*loss_target_aux
+                loss_target = loss_target_regularization + self.aux_loss_coeff*loss_target_aux
 
                 self.optimizer_cnd_target.zero_grad() 
                 loss_target.backward()
