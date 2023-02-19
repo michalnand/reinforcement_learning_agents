@@ -228,11 +228,11 @@ class AgentPPOCNDSA():
 
                 #sample smaller batch for self-supervised regularization
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
-
+ 
 
                 #target regularization loss
                 #uses two similar states and augmentations (augmentations are optional)
-                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_b, self._augmentations)                
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
