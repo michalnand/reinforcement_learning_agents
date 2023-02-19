@@ -46,9 +46,9 @@ class AgentPPOCNDSA():
              self._target_aux_loss = self._constructor_loss
         else:
             self._target_aux_loss = None
-        
+         
         self.augmentations                  = config.augmentations
-        self.augmentations_probs            = config.augmentations
+        self.augmentations_probs            = config.augmentations_probs
         
         print("target_regularization_loss   = ", self._target_regularization_loss)
         print("target_aux_loss              = ", self._target_aux_loss)
