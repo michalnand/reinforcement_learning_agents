@@ -104,7 +104,7 @@ class AgentPPOCNDSA():
         self.vis_labels   = []
 
 
-    def enable_training(self):
+    def enable_training(self): 
         self.enabled_training = True
  
     def disable_training(self):
