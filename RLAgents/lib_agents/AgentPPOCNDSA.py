@@ -308,7 +308,6 @@ class AgentPPOCNDSA():
 
         #compute accuracy
         pred = torch.argmax(action_pred.detach(), dim=1)
-        print(">>>> ", pred.shape, action.shape)
         acc = 100.0*(pred == action).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
@@ -332,7 +331,7 @@ class AgentPPOCNDSA():
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
-
+ 
   
 
     #compute internal motivation
