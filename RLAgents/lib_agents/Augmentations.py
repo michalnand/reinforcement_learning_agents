@@ -8,7 +8,7 @@ def aug_random_apply(x, p, aug_func):
     mask    = mask.float().to(x.device)
     y       = (1.0 - mask)*x + mask*aug_func(x)
 
-    return y 
+    return y  
 
 #pixelate, downsample, and upsample back
 def aug_pixelate(x, p = 0.5): 
