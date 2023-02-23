@@ -143,10 +143,7 @@ class PolicyBufferIM:
         
         actions         = (self.actions[indices]).to(device)
 
-        print(indices[0:10])
-        print(indices_next[0:10])
-        print("\n\n")
-         
+     
         return states_now, states_next, states_random, actions
     
    
