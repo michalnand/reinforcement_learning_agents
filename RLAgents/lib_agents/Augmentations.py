@@ -102,7 +102,6 @@ def aug_noise(x, k = 0.2):
 #random choice from xa or xb, 50:50 prob default
 def choice_augmentation(xa, xb, pa_prob = 0.5):
     s = (torch.rand(xa.shape[0], 1, 1, 1).to(xa.device) < pa_prob).float()
-    print(s)
     return s*xa + (1.0 - s)*xb
 
 
