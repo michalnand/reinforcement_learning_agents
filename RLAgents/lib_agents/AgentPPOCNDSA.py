@@ -214,7 +214,7 @@ class AgentPPOCNDSA():
                 #target regularization loss
                 #uses two similar states and augmentations (augmentations are optional)
 
-                if "temporal" in self.augmentations
+                if "temporal" in self.augmentations:
                     states_a_tmp = choice_augmentation(states_a, states_b)
                 else:
                     states_a_tmp = states_a
