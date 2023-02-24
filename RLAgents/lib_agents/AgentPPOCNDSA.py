@@ -281,6 +281,8 @@ class AgentPPOCNDSA():
 
             advantages  = advantages/((var**0.5) + 1e-10)
 
+            print(self.var)
+
         print(advantages.mean(), advantages.std())
 
         print("\n")
