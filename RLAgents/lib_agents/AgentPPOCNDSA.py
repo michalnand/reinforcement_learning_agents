@@ -29,6 +29,14 @@ class AgentPPOCNDSA():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
+
+        if hasattr(config, "beta_var"):
+            self.beta_var           = config.beta_var
+            self.var                = 0.0
+            self.beta_product       = 1.0
+        else:
+            self.beta_var = None
+
    
         if config.target_regularization_loss == "vicreg":
             self._target_regularization_loss = loss_vicreg
@@ -262,6 +270,21 @@ class AgentPPOCNDSA():
         #actor loss        
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
+
+        print(advantages.mean(), advantages.std())
+        
+        if self.beta_var is not None:
+            self.var          = self.beta_var*self.var + (1.0 - self.beta_var)*(advantages**2).mean()
+            self.beta_product = self.beta_product*self.beta_var
+
+            var = self.var/(1.0 - self.beta_product) 
+
+            advantages  = advantages/((var**0.5) + 1e-10)
+
+        print(advantages.mean(), advantages.std())
+
+        print("\n")
+
         loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
         loss_actor = loss_policy + loss_entropy
