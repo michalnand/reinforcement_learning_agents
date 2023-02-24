@@ -271,8 +271,7 @@ class AgentPPOCNDSA():
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
 
-        print(advantages.mean(), advantages.std())
-        
+        #advantages viariance normalisation (optional)
         if self.beta_var is not None:
             self.var          = self.beta_var*self.var + (1.0 - self.beta_var)*(advantages**2).mean()
             self.beta_product = self.beta_product*self.beta_var
@@ -280,10 +279,6 @@ class AgentPPOCNDSA():
             var = self.var/(1.0 - self.beta_product) 
 
             advantages  = advantages/((var**0.5) + 1e-10)
-
-        print(advantages.mean(), advantages.std(), self.var**0.5, var**0.5)
-
-        print("\n")
 
         loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
