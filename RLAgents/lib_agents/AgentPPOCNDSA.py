@@ -271,7 +271,7 @@ class AgentPPOCNDSA():
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
 
-        #advantages viariance normalisation (optional)
+        #advantages viariance normalisation (optional), mean is already almost zero
         if self.beta_var is not None:
             self.var          = self.beta_var*self.var + (1.0 - self.beta_var)*(advantages**2).mean()
             self.beta_product = self.beta_product*self.beta_var
