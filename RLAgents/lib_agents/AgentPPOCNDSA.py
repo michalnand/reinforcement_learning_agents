@@ -306,10 +306,10 @@ class AgentPPOCNDSA():
 
     #inverse model for action prediction
     def _action_loss(self, states_now, states_next, states_random, action):
-        loss_func   = torch.nn.CrossEntropyLoss()
-        action_pred = self.model_cnd_target.predict_action(states_now, states_next)
-        
-        loss        = loss_func(action_pred, action)
+        action_pred     = self.model_cnd_target.predict_action(states_now, states_next)
+
+        action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
+        loss            =  ((action_one_hot - action_pred)**2).mean()
 
         #compute accuracy
         pred = torch.argmax(action_pred.detach(), dim=1)
