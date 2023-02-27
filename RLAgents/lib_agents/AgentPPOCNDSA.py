@@ -336,12 +336,10 @@ class AgentPPOCNDSA():
         transition_pred = self.model_cnd_target.forward_aux(states_now_a, states_other_a)
 
         loss            = (transition_label - transition_pred)**2
-
-
-        loss = loss.mean() 
+        loss            = loss.mean() 
 
         #compute accuracy
-        acc = 100.0*(torch.argmax(transition_pred.detach(), dim=1) == transition_label).float().mean()
+        acc = 100.0*((transition_label > 0.5) == (transition_pred > 0.5)).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
