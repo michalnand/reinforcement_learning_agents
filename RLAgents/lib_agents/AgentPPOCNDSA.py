@@ -325,6 +325,7 @@ class AgentPPOCNDSA():
 
         #mix states : consectuctive or random
         transition_label_ = transition_label.unsqueeze(0).unsqueeze(0)
+        print(">>>> ", transition_label_.shape, states_next.shape, states_random.shape)
         states_other    = transition_label_*states_next + (1.0 - transition_label_)*states_random
         
         transition_pred = self.model_cnd_target.predict_transition(states_now, states_other)
