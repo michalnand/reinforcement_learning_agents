@@ -101,7 +101,7 @@ class AgentPPOCNDSA():
         self.values_logger.add("target_magnitude",              0.0)
         self.values_logger.add("target_magnitude_std",          0.0)
         self.values_logger.add("target_similarity_accuracy",    0.0)
-        self.values_logger.add("target_action_accuracy",        0.0)
+        self.values_logger.add("target_aux_accuracy",        0.0)
 
         self.vis_features = []
         self.vis_labels   = []
@@ -232,10 +232,10 @@ class AgentPPOCNDSA():
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, target_action_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
+                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
-                    target_action_accuracy  = 0.0
+                    target_aux_accuracy     = 0.0
 
 
                 #final loss for target model
@@ -254,7 +254,7 @@ class AgentPPOCNDSA():
                 self.values_logger.add("target_magnitude",              target_magnitude)
                 self.values_logger.add("target_magnitude_std",          target_magnitude_std)
                 self.values_logger.add("target_similarity_accuracy",    target_similarity_accuracy)
-                self.values_logger.add("target_action_accuracy",        target_action_accuracy)
+                self.values_logger.add("target_aux_accuracy",        target_aux_accuracy)
 
 
 
@@ -324,12 +324,15 @@ class AgentPPOCNDSA():
         transition_label = (torch.rand((states_now.shape[0])) > 0.5).float().to(states_now.device)
 
         #mix states : consectuctive or random
-        states_other = transition_label*states_next + (1.0 - transition_label)*states_random
-    
-        loss_func       = torch.nn.BCELoss()
+        states_other    = transition_label*states_next + (1.0 - transition_label)*states_random
+        
         transition_pred = self.model_cnd_target.predict_transition(states_now, states_other)
 
-        loss            = loss_func(transition_pred, transition_label)
+        loss            = (transition_label - transition_pred)**2
+
+        print(">>> loss_shape = ", transition_label.shape, transition_pred.shape, loss.shape)
+
+        loss = loss.mean() 
 
         #compute accuracy
         acc = 100.0*(torch.argmax(transition_pred.detach(), dim=1) == transition_label).float().mean()
