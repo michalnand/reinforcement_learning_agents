@@ -325,14 +325,12 @@ class AgentPPOCNDSA():
 
         #mix states : consectuctive or random
         transition_label_ = transition_label.unsqueeze(2).unsqueeze(3)
-        print(">>>> ", transition_label_.shape, states_next.shape, states_random.shape)
         states_other    = transition_label_*states_next + (1.0 - transition_label_)*states_random
         
         transition_pred = self.model_cnd_target.forward_aux(states_now, states_other)
 
         loss            = (transition_label - transition_pred)**2
 
-        print(">>> loss_shape = ", transition_label.shape, transition_pred.shape, loss.shape)
 
         loss = loss.mean() 
 
