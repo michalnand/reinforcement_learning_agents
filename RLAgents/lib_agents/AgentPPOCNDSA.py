@@ -306,7 +306,7 @@ class AgentPPOCNDSA():
 
     #inverse model for action prediction
     def _action_loss(self, states_now, states_next, states_random, action):
-        action_pred     = self.model_cnd_target.predict_action(states_now, states_next)
+        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
         loss            =  ((action_one_hot - action_pred)**2).mean()
@@ -328,7 +328,7 @@ class AgentPPOCNDSA():
         print(">>>> ", transition_label_.shape, states_next.shape, states_random.shape)
         states_other    = transition_label_*states_next + (1.0 - transition_label_)*states_random
         
-        transition_pred = self.model_cnd_target.predict_transition(states_now, states_other)
+        transition_pred = self.model_cnd_target.forward_aux(states_now, states_other)
 
         loss            = (transition_label - transition_pred)**2
 
