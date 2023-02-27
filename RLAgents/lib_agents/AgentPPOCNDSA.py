@@ -324,7 +324,8 @@ class AgentPPOCNDSA():
         transition_label = (torch.rand((states_now.shape[0])) > 0.5).float().to(states_now.device)
 
         #mix states : consectuctive or random
-        states_other    = transition_label*states_next + (1.0 - transition_label)*states_random
+        transition_label_ = transition_label.unsqueeze(0).unsqueeze(0)
+        states_other    = transition_label_*states_next + (1.0 - transition_label_)*states_random
         
         transition_pred = self.model_cnd_target.predict_transition(states_now, states_other)
 
