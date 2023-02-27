@@ -214,24 +214,16 @@ class AgentPPOCNDSA():
 
                 
                 #train cnd target model for regularization
-
                 #sample smaller batch for self-supervised regularization
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
  
-
-                #target regularization loss
-                #uses two similar states and augmentations (augmentations are optional)
-
-                if "temporal" in self.augmentations:
-                    states_a_tmp = choice_augmentation(states_a, states_b)
-                else:
-                    states_a_tmp = states_a
-
-                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a_tmp, self._augmentations)                
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
+                    #sample smaller batch for self-supervised regularization
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
                     loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action, self._augmentations)                 
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
