@@ -232,7 +232,7 @@ class AgentPPOCNDSA():
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
+                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action, self._augmentations)                 
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     target_aux_accuracy     = 0.0
@@ -305,8 +305,11 @@ class AgentPPOCNDSA():
         return loss_cnd
 
     #inverse model for action prediction
-    def _action_loss(self, states_now, states_next, states_random, action):
-        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
+    def _action_loss(self, states_now, states_next, states_random, action, augmentations):
+        states_now_a    = augmentations(states_now)
+        states_next_a   = augmentations(states_next)
+
+        action_pred     = self.model_cnd_target.forward_aux(states_now_a, states_next_a)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
         loss            =  ((action_one_hot - action_pred)**2).mean()
@@ -320,14 +323,17 @@ class AgentPPOCNDSA():
 
     #constructor theory loss
     #inverse model for action prediction
-    def _constructor_loss(self, states_now, states_next, states_random, action):
+    def _constructor_loss(self, states_now, states_next, states_random, action, augmentations):
         transition_label = (torch.rand((states_now.shape[0])) > 0.5).float().to(states_now.device).unsqueeze(1)
 
         #mix states : consectuctive or random
         transition_label_ = transition_label.unsqueeze(2).unsqueeze(3)
         states_other    = transition_label_*states_next + (1.0 - transition_label_)*states_random
+
+        states_now_a    = augmentations(states_now)
+        states_other_a  = augmentations(states_other)
         
-        transition_pred = self.model_cnd_target.forward_aux(states_now, states_other)
+        transition_pred = self.model_cnd_target.forward_aux(states_now_a, states_other_a)
 
         loss            = (transition_label - transition_pred)**2
 
