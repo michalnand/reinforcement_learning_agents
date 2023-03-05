@@ -324,8 +324,14 @@ class AgentPPOCNDSA():
         loss            = loss.mean() 
 
         #compute accuracy
-        acc = 100.0*((transition_label > 0.5) == (transition_pred > 0.5)).float().mean()
+        tp  = ((transition_label > 0.5) == (transition_pred > 0.5)).float().sum()
+        tn  = ((transition_label < 0.5) == (transition_pred < 0.5)).float().sum()
+        acc = 100.0*(tp + tn).float().mean()
         acc = acc.detach().to("cpu").numpy()
+
+        print((transition_label > 0.5)[0:10])
+        print((transition_pred > 0.5)[0:10])
+        print("\n\n")
 
         return loss, acc
  
