@@ -10,6 +10,11 @@ def aug_random_apply(x, p, aug_func):
 
     return y  
 
+#invert colors
+def aug_inverse(x): 
+    return 1.0 - x
+
+ 
 #pixelate, downsample, and upsample back
 def aug_pixelate(x, p = 0.5): 
 

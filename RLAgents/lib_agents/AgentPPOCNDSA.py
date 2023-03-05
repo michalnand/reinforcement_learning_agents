@@ -343,6 +343,9 @@ class AgentPPOCNDSA():
 
 
     def _augmentations(self, x): 
+        if "inverse" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
+
         if "conv" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
