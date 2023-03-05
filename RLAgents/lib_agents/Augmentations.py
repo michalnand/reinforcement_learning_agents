@@ -12,7 +12,6 @@ def aug_random_apply(x, p, aug_func):
 
 #invert colors
 def aug_inverse(x): 
-    print("inverse ", x.mean(), (1.0 - x).mean())
     return 1.0 - x
 
  
