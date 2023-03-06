@@ -311,12 +311,11 @@ class AgentPPOCNDSA():
     #constructor theory loss
     #inverse model for action prediction
     def _constructor_loss(self, states_now, states_next, states_random, action):
-        transition_label    = (torch.rand((states_now.shape[0])) > 0.5).float().to(states_now.device).unsqueeze(1)
+        batch_size          = states_now.shape[0]
+        transition_label    = torch.cat([torch.ones((batch_size//2, 1)), torch.zeros((batch_size//2, 1))], dim=0).to(states_now.device)
 
         #mix states : consectuctive or random
-        transition_label_   = transition_label.unsqueeze(2).unsqueeze(3)
-        states_other        = transition_label_*states_next + (1.0 - transition_label_)*states_random
-
+        states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2, :]], dim=0)
         
         transition_pred = self.model_cnd_target.forward_aux(states_now, states_other)
 
