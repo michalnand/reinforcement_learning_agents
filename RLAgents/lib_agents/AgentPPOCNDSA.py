@@ -319,7 +319,11 @@ class AgentPPOCNDSA():
         #mix states : consectuctive or random
         states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2:]], dim=0)
         
-        transition_pred = self.model_cnd_target.forward_aux(states_now, states_other)
+        #process augmentation
+        states_now_aug   = self._augmentations(states_now)
+        states_other_aug = self._augmentations(states_other)
+
+        transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
 
         loss            = (transition_label - transition_pred)**2
         loss            = loss.mean() 
