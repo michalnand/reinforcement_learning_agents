@@ -300,10 +300,6 @@ class AgentPPOCNDSA():
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
 
-        print(">>> ")
-        print(action_one_hot[0:3])
-        print(action_pred[0:3])
-        print("\n\n")
         loss            =  ((action_one_hot - action_pred)**2).mean()
 
         #compute accuracy
