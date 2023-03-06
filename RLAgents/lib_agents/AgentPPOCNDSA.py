@@ -299,6 +299,8 @@ class AgentPPOCNDSA():
         action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
+
+        print(">>> ", action_one_hot.shape, action_pred.shape)
         loss            =  ((action_one_hot - action_pred)**2).mean()
 
         #compute accuracy
