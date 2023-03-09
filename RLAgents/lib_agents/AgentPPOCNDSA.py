@@ -335,8 +335,8 @@ class AgentPPOCNDSA():
         
         
         print(transition_label.shape, transition_pred.shape)
-        print((transition_label > 0.5)[0:10, 0])
-        print((transition_pred > 0.5)[0:10, 0])
+        print(transition_label[0:10, 0])
+        print(transition_pred_label[0:10, 0])
         print(acc[0:10, 0])
         print("\n\n")
         
