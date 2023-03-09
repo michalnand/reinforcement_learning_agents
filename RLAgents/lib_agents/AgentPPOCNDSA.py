@@ -329,8 +329,8 @@ class AgentPPOCNDSA():
         loss            = (transition_label - transition_pred)**2
         loss            = loss.mean() 
 
-        transition_pred_label = (transition_pred > 0.5)
         #compute accuracy
+        transition_pred_label = (transition_pred > 0.5).float()
         acc = (transition_label == transition_pred_label)
         
         
@@ -339,6 +339,7 @@ class AgentPPOCNDSA():
         print(transition_pred_label[0:10, 0])
         print(acc[0:10, 0])
         print("\n\n")
+        
         
 
         acc = 100.0*acc.float().mean()
