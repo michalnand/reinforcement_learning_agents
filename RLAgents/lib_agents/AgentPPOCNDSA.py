@@ -335,13 +335,13 @@ class AgentPPOCNDSA():
         
         acc = (label == pred)
         
-        
+        '''
         print(transition_label.shape, transition_pred.shape)
         print(label[0:10, 0])
         print(pred[0:10, 0])
         print(acc[0:10, 0])
         print("\n\n")
-        
+        '''
         
 
         acc = 100.0*acc.float().mean()
