@@ -384,7 +384,7 @@ class AgentPPOCNDSA():
     #compute internal motivation
     def _curiosity(self, states):
         if self.state_average_en:
-            states_norm = states - self.state_average
+            states_norm = states - torch.from_numpy(self.state_average, device=states.device)
         else:
             states_norm = states
 
