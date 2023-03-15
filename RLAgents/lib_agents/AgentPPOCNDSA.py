@@ -233,10 +233,11 @@ class AgentPPOCNDSA():
                 #sample smaller batch for self-supervised regularization
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                if self.state_average_en:
-                    states_a_norm = states_a - self.state_average
-                    states_b_norm = states_b - self.state_average
-                    states_c_norm = states_c - self.state_average
+                if self.state_average_en: 
+                    s = torch.from_numpy(self.state_average).to(states.device)
+                    states_a_norm = states_a - s
+                    states_b_norm = states_b - s
+                    states_c_norm = states_c - s
                 else:
                     states_a_norm = states_a
                     states_b_norm = states_b
@@ -384,7 +385,7 @@ class AgentPPOCNDSA():
     #compute internal motivation
     def _curiosity(self, states):
         if self.state_average_en:
-            states_norm = states - torch.from_numpy(self.state_average, device=states.device)
+            states_norm = states - torch.from_numpy(self.state_average).to(states.device)
         else:
             states_norm = states
 
