@@ -37,6 +37,12 @@ class AgentPPOCNDSA():
         else:
             self.beta_var = None
 
+        if hasattr(config, "state_average_en"):
+            self.state_average_en = config.state_average_en
+        else:
+            self.state_average_en = False
+            
+
    
         if config.target_regularization_loss == "vicreg":
             self._target_regularization_loss = loss_vicreg
@@ -59,6 +65,7 @@ class AgentPPOCNDSA():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("int_reward_coeff             = ", self.int_reward_coeff)
         print("aux_loss_coeff               = ", self.aux_loss_coeff)
+        print("state_average_en             = ", self.state_average_en)
 
         print("\n\n")
 
@@ -79,10 +86,14 @@ class AgentPPOCNDSA():
         for e in range(self.envs_count):
             self.envs.reset(e)
 
+
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e).copy()
+            self.states[e]  = self.envs.reset(e)
+        
+        self.state_average  = self.states.mean(axis=0)
+
             
         self.enable_training()
         self.iterations     = 0 
@@ -150,10 +161,15 @@ class AgentPPOCNDSA():
         #update new state
         self.states = states_new.copy()
 
+        #update state averaging
+        alpha = 0.998
+        self.state_average = alpha*self.state_average + (1.0 - alpha)*self.states.mean(axis=0)
+
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e] = self.envs.reset(e).copy()
+                self.states[e]  = self.envs.reset(e)
+               
          
         #self._add_for_plot(states, infos, dones)
         
@@ -216,13 +232,22 @@ class AgentPPOCNDSA():
                 #train cnd target model for regularization
                 #sample smaller batch for self-supervised regularization
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+
+                if self.state_average_en:
+                    states_a_norm = states_a - self.state_average
+                    states_b_norm = states_b - self.state_average
+                    states_c_norm = states_c - self.state_average
+                else:
+                    states_a_norm = states_a
+                    states_b_norm = states_b
+                    states_c_norm = states_c
  
-                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a_norm, states_a_norm, self._augmentations)                
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
+                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a_norm, states_b_norm, states_c_norm, action)                 
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     target_aux_accuracy     = 0.0
@@ -286,8 +311,13 @@ class AgentPPOCNDSA():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states): 
-        features_predicted_t  = self.model_cnd(states)
-        features_target_t     = self.model_cnd_target(states).detach()
+        if self.state_average_en:
+            states_norm = states - self.state_average
+        else:
+            states_norm = states
+
+        features_predicted_t  = self.model_cnd(states_norm)
+        features_target_t     = self.model_cnd_target(states_norm).detach()
 
         loss_cnd = (features_target_t - features_predicted_t)**2
 
@@ -353,8 +383,13 @@ class AgentPPOCNDSA():
 
     #compute internal motivation
     def _curiosity(self, states):
-        features_predicted_t    = self.model_cnd(states)
-        features_target_t       = self.model_cnd_target(states)
+        if self.state_average_en:
+            states_norm = states - self.state_average
+        else:
+            states_norm = states
+
+        features_predicted_t    = self.model_cnd(states_norm)
+        features_target_t       = self.model_cnd_target(states_norm)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
   
