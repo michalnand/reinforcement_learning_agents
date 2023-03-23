@@ -339,22 +339,10 @@ class AgentPPOCNDSA():
         labels              = torch.randint(0, 1, (batch_size, )).to(states_now.device)
 
         transition_label    = labels.unsqueeze(1)
-
         select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
-
-        print(">>>> ", transition_label.shape, select.shape)
 
         states_other        = select*states_next + (1 - select)*states_random
 
-        #create labels : half consectuctive, half random
-        #transition_label    = torch.cat([torch.ones((batch_size//2, 1)), torch.zeros((batch_size//2, 1))], dim=0).to(states_now.device)
-
-        #mix states : consectuctive or random
-        #states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2:]], dim=0)
-
-        da = ((states_now - states_next)**2).mean()
-        db = ((states_now - states_random)**2).mean()
-        
         #process augmentation
         states_now_aug   = self._augmentations(states_now)
         states_other_aug = self._augmentations(states_other)
@@ -363,11 +351,14 @@ class AgentPPOCNDSA():
 
         loss            = ((transition_label - transition_pred)**2).mean()
         
-        print(da, db, transition_label.shape, transition_pred.shape)
-
         #compute accuracy
         label = (transition_label > 0.5)
         pred  = (transition_pred > 0.5)
+
+        print(">>> ", label.float().mean(), pred.float().mean())
+        print(label[0:10])
+        print(pred[0:10])
+        print("\n\n")
                 
         acc = 100.0*(label == pred).float().mean()
         acc = acc.detach().to("cpu").numpy()
