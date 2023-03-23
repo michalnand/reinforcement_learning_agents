@@ -340,7 +340,11 @@ class AgentPPOCNDSA():
 
         transition_label    = labels.unsqueeze(0)
 
-        states_other        = labels*states_next + (1 - labels)*states_random
+        select              = labels.unsqueeze(0).unsqueeze(1).unsqueeze(2)
+
+        print(">>>> ", select.shape)
+
+        states_other        = select*states_next + (1 - select)*states_random
 
         #create labels : half consectuctive, half random
         #transition_label    = torch.cat([torch.ones((batch_size//2, 1)), torch.zeros((batch_size//2, 1))], dim=0).to(states_now.device)
@@ -360,7 +364,7 @@ class AgentPPOCNDSA():
         loss            = ((transition_label - transition_pred)**2).mean()
         
         print(da, db, transition_label.shape, transition_pred.shape)
-        
+
         #compute accuracy
         label = (transition_label > 0.5)
         pred  = (transition_pred > 0.5)
