@@ -336,7 +336,7 @@ class AgentPPOCNDSA():
     def _constructor_loss(self, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
-        labels              = torch.randint(0, 1, (batch_size, )).to(states_now.device)
+        labels              = torch.randint(0, 2, (batch_size, )).to(states_now.device)
 
         transition_label    = labels.unsqueeze(1)
         select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
