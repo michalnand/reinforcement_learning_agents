@@ -351,8 +351,9 @@ class AgentPPOCNDSA():
         #mix states : consectuctive or random
         states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2:]], dim=0)
 
-        d = ((states_now - states_other)**2).mean(dim=(1, 2, 3))
-        print(d)
+        da = ((states_now - states_next)**2).mean()
+        db = ((states_now - states_random)**2).mean()
+        print(da, db)
         
         #process augmentation
         states_now_aug   = self._augmentations(states_now)
