@@ -340,9 +340,9 @@ class AgentPPOCNDSA():
 
         transition_label    = labels.unsqueeze(0)
 
-        select              = labels.unsqueeze(0).unsqueeze(1).unsqueeze(2)
+        select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
-        print(">>>> ", select.shape)
+        print(">>>> ", transition_label.shape, select.shape)
 
         states_other        = select*states_next + (1 - select)*states_random
 
