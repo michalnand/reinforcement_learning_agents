@@ -357,25 +357,13 @@ class AgentPPOCNDSA():
 
         transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
 
-        loss            = (transition_label - transition_pred)**2
-        loss            = loss.mean() 
-
+        loss            = ((transition_label - transition_pred)**2).mean()
+        
         #compute accuracy
-        label = (transition_label > 0.5).float()
-        pred  = (transition_pred > 0.5).float()
-        
-        acc = (label == pred)
-        
-        '''
-        print(transition_label.shape, transition_pred.shape)
-        print(label[0:10, 0])
-        print(pred[0:10, 0])
-        print(acc[0:10, 0])
-        print("\n\n")
-        '''
-        
-
-        acc = 100.0*acc.float().mean()
+        label = (transition_label > 0.5)
+        pred  = (transition_pred > 0.5)
+                
+        acc = 100.0*(label == pred).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
