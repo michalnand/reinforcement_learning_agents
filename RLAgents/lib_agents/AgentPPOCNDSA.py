@@ -356,8 +356,8 @@ class AgentPPOCNDSA():
         pred  = (transition_pred > 0.5)
 
         print(">>> ", label.float().mean(), pred.float().mean())
-        print(label[0:10])
-        print(pred[0:10])
+        print(label[0:10, 0].float())
+        print(pred[0:10, 0].float())
         print("\n\n")
                 
         acc = 100.0*(label == pred).float().mean()
