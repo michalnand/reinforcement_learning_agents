@@ -359,6 +359,10 @@ class AgentPPOCNDSA():
 
         loss            = ((transition_label - transition_pred)**2).mean()
         
+
+        print(">>>> ", transition_label.shape, transition_pred.shape)
+
+        
         #compute accuracy
         label = (transition_label > 0.5)
         pred  = (transition_pred > 0.5)
