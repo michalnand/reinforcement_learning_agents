@@ -338,7 +338,7 @@ class AgentPPOCNDSA():
 
         labels              = torch.randint(0, 1, (batch_size, )).to(states_now.device)
 
-        transition_label    = labels.unsqueeze(0)
+        transition_label    = labels.unsqueeze(1)
 
         select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
