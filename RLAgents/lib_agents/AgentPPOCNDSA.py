@@ -233,22 +233,13 @@ class AgentPPOCNDSA():
                 #sample smaller batch for self-supervised regularization
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                if self.state_average_en: 
-                    s = torch.from_numpy(self.state_average).to(states.device)
-                    states_a_norm = states_a - s
-                    states_b_norm = states_b - s
-                    states_c_norm = states_c - s
-                else:
-                    states_a_norm = states_a
-                    states_b_norm = states_b
-                    states_c_norm = states_c
- 
-                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a_norm, states_a_norm, self._augmentations)                
+              
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a_norm, states_b_norm, states_c_norm, action)                 
+                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
                 else:
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     target_aux_accuracy     = 0.0
@@ -345,15 +336,20 @@ class AgentPPOCNDSA():
     def _constructor_loss(self, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
+        labels              = torch.randint(0, 1, (batch_size, )).to(states_now.device)
+
+        transition_label    = labels.unsqueeze(0)
+
+        states_other        = labels*states_next + (1 - labels)*states_random
+
         #create labels : half consectuctive, half random
-        transition_label    = torch.cat([torch.ones((batch_size//2, 1)), torch.zeros((batch_size//2, 1))], dim=0).to(states_now.device)
+        #transition_label    = torch.cat([torch.ones((batch_size//2, 1)), torch.zeros((batch_size//2, 1))], dim=0).to(states_now.device)
 
         #mix states : consectuctive or random
-        states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2:]], dim=0)
+        #states_other        = torch.cat([states_next[0:batch_size//2], states_random[batch_size//2:]], dim=0)
 
         da = ((states_now - states_next)**2).mean()
         db = ((states_now - states_random)**2).mean()
-        print(da, db)
         
         #process augmentation
         states_now_aug   = self._augmentations(states_now)
@@ -363,7 +359,8 @@ class AgentPPOCNDSA():
 
         loss            = ((transition_label - transition_pred)**2).mean()
         
-
+        print(da, db, transition_label.shape, transition_pred.shape)
+        
         #compute accuracy
         label = (transition_label > 0.5)
         pred  = (transition_pred > 0.5)
