@@ -338,7 +338,7 @@ class AgentPPOCNDSA():
 
         #0 : state_now,  state_random, two different states
         #1 : state_now,  state_next, two consecutive states
-        #2 : state_next, state_now, two inverse consecutive states
+        #2 : state_next, state_now, two inverted consecutive states
         labels                   = torch.randint(0, 3, (batch_size, )).to(states_now.device)
         transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
 
