@@ -336,33 +336,31 @@ class AgentPPOCNDSA():
     def _constructor_loss(self, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
-        labels              = torch.randint(0, 2, (batch_size, )).to(states_now.device)
+        #0 : state_now,  state_random, two different states
+        #1 : state_now,  state_next
+        #2 : state_next, state_now
+        labels              = torch.randint(0, 3, (batch_size, )).to(states_now.device)
+        transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
 
-        transition_label    = labels.unsqueeze(1)
+        #mix states
         select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
-        states_other        = select*states_next + (1 - select)*states_random
+        states_now_         = (select == 0)*states_now    + (select == 1)*states_now  + (select == 2)*states_next
+        states_other        = (select == 0)*states_random + (select == 1)*states_next + (select == 2)*states_now
+
 
         #process augmentation
-        states_now_aug   = self._augmentations(states_now)
+        states_now_aug   = self._augmentations(states_now_)
         states_other_aug = self._augmentations(states_other)
 
         transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
 
-        loss            = ((transition_label - transition_pred)**2).mean()
+        loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
         #compute accuracy
-        label = (transition_label > 0.5)
-        pred  = (transition_pred > 0.5)
-
-        '''
-        print(">>> ", label.float().mean(), pred.float().mean())
-        print(label[0:10, 0].float())
-        print(pred[0:10, 0].float())
-        print("\n\n")
-        '''
-                
-        acc = 100.0*(label == pred).float().mean()
+        #compute accuracy
+        labels_pred = torch.argmax(transition_pred.detach(), dim=1)
+        acc = 100.0*(labels == labels_pred).float().mean()
         acc = acc.detach().to("cpu").numpy()
 
         return loss, acc
