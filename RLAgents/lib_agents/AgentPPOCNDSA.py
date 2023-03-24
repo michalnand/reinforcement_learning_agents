@@ -339,7 +339,7 @@ class AgentPPOCNDSA():
         #0 : state_now,  state_random, two different states
         #1 : state_now,  state_next
         #2 : state_next, state_now
-        labels              = torch.randint(0, 3, (batch_size, )).to(states_now.device)
+        labels                   = torch.randint(0, 3, (batch_size, )).to(states_now.device)
         transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
 
         #mix states
@@ -355,7 +355,14 @@ class AgentPPOCNDSA():
 
         transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
 
-        loss            = ((transition_label_one_hot - transition_pred)**2).mean()
+        loss            = ((transition_label_one_hot - transition_pred)**2)
+
+        print(">>> ", loss.shape)
+        print(labels[0:10])
+        print(transition_label_one_hot[0:10])
+        print(transition_pred[0:10])
+
+        loss = loss.mean()
         
         #compute accuracy
         #compute accuracy
