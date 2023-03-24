@@ -337,23 +337,23 @@ class AgentPPOCNDSA():
         batch_size          = states_now.shape[0]
 
         #0 : state_now,  state_random, two different states
-        #1 : state_now,  state_next
-        #2 : state_next, state_now
+        #1 : state_now,  state_next, two consecutive states
+        #2 : state_next, state_now, two inverse consecutive states
         labels                   = torch.randint(0, 3, (batch_size, )).to(states_now.device)
         transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
 
         #mix states
-        select              = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        select  = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
-        states_now_         = (select == 0)*states_now    + (select == 1)*states_now  + (select == 2)*states_next
-        states_other        = (select == 0)*states_random + (select == 1)*states_next + (select == 2)*states_now
+        sa      = (select == 0)*states_now    + (select == 1)*states_now  + (select == 2)*states_next
+        sb      = (select == 0)*states_random + (select == 1)*states_next + (select == 2)*states_now
 
 
         #process augmentation
-        states_now_aug   = self._augmentations(states_now_)
-        states_other_aug = self._augmentations(states_other)
+        sa_aug  = self._augmentations(sa)
+        sb_aug  = self._augmentations(sb)
 
-        transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
+        transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
 
         loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
