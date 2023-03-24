@@ -355,14 +355,7 @@ class AgentPPOCNDSA():
 
         transition_pred = self.model_cnd_target.forward_aux(states_now_aug, states_other_aug)
 
-        loss            = ((transition_label_one_hot - transition_pred)**2)
-
-        print(">>> ", loss.shape)
-        print(labels[0:10])
-        print(transition_label_one_hot[0:10])
-        print(transition_pred[0:10])
-
-        loss = loss.mean()
+        loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
         #compute accuracy
         #compute accuracy
