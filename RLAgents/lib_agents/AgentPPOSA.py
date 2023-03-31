@@ -167,8 +167,8 @@ class AgentPPOSA():
                     sa_accuracy         = 0.0
 
 
-                self.values_logger.add("loss_self_supervised", loss_self_supervised)
-                self.values_logger.add("loss_self_aware", loss_self_aware)
+                self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().to("cpu").numpy())
+                self.values_logger.add("loss_self_aware", loss_self_aware.detach().to("cpu").numpy())
 
                 self.values_logger.add("ss_accuracy", ss_accuracy)
                 self.values_logger.add("sa_accuracy", sa_accuracy)
