@@ -12,7 +12,7 @@ def aug_random_apply(x, p, aug_func):
 
 #random invert colors
 def aug_inverse(x): 
-    r = torch.randint(0, 2, (x.shape[0], x.shape[1])).unsqueeze(2).unsqueeze(3)
+    r = torch.randint(0, 2, (x.shape[0], x.shape[1])).unsqueeze(2).unsqueeze(3).to(x.device)
     return r*(1.0 - x) + (1.0 - r)*x
 
  
