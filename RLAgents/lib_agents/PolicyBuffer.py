@@ -79,26 +79,21 @@ class PolicyBuffer:
         return states, states_next, logits, actions, returns, advantages
     
    
-    def sample_states(self, batch_size, far_ratio = 0.5, device = "cpu"): 
-        count = self.envs_count*self.buffer_size
- 
-        indices_a       = torch.randint(0, count, size=(batch_size, ))
-        
-        indices_close   = indices_a 
- 
-        indices_far     = torch.randint(0, count, size=(batch_size, ))
+    def sample_states_action_pairs(self, batch_size, device = "cpu"):
+        count           = self.buffer_size*self.envs_count
 
-        labels          = (torch.rand(batch_size) > far_ratio)
+        indices         = torch.randint(0, count, size=(batch_size, ))
+        indices_next    = torch.clip(indices + self.envs_count, 0, count-1)
+        indices_random  = torch.randint(0, count, size=(batch_size, )) 
+      
+        states_now      = (self.states[indices]).to(device)
+        states_next     = (self.states[indices_next]).to(device)
+        states_random   = (self.states[indices_random]).to(device)
         
-        #label 0 = close states
-        #label 1 = distant states
-        indices_b       = torch.logical_not(labels)*indices_close + labels*indices_far
+        actions         = (self.actions[indices]).to(device)
 
-        states_a        = torch.index_select(self.states, dim=0, index=indices_a).float().to(device)
-        states_b        = torch.index_select(self.states, dim=0, index=indices_b).float().to(device)
-        labels_t        = labels.float().to(device) 
-        
-        return states_a, states_b, labels_t
+     
+        return states_now, states_next, states_random, actions
     
  
     def _gae(self, rewards, values, dones, gamma, lam):
