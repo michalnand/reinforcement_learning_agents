@@ -8,11 +8,12 @@ def aug_random_apply(x, p, aug_func):
     mask    = mask.float().to(x.device)
     y       = (1.0 - mask)*x + mask*aug_func(x)
 
-    return y  
+    return y   
 
-#invert colors
+#random invert colors
 def aug_inverse(x): 
-    return 1.0 - x
+    r = torch.randint(0, 2, (x.shape[0], x.shape[1])).unsqueeze(2).unsqueeze(3)
+    return r*(1.0 - x) + (1.0 - r)*x
 
  
 #pixelate, downsample, and upsample back
