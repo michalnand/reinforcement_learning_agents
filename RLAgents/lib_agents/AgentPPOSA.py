@@ -150,18 +150,18 @@ class AgentPPOSA():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages)
 
                 #sample smaller batch for self-supervised regularization
-                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model.device)
 
                 #self supervised regularisation   
                 if self._self_supervised_loss is not None:
-                    loss_self_supervised, _, _, ss_accuracy = self._self_supervised_loss(self.model_cnd_target, states_a, states_a, self._augmentations)
+                    loss_self_supervised, _, _, ss_accuracy = self._self_supervised_loss(self.model, states_a, states_a, self._augmentations)
                 else:
                     loss_self_supervised = 0.0
                     ss_accuracy = 0.0
 
                 #self aware loss 
                 if self._self_aware_loss is not None:
-                    loss_self_aware, sa_accuracy = self._self_aware_loss(states_a, states_b, states_c, action)                 
+                    loss_self_aware, sa_accuracy = self._self_aware_loss(self.model, states_a, states_b, states_c, action)                 
                 else:
                     loss_self_aware     = 0.0
                     sa_accuracy         = 0.0
@@ -283,8 +283,8 @@ class AgentPPOSA():
         return loss
     
      #inverse model for action prediction
-    def _action_loss(self, states_now, states_next, states_random, action):
-        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
+    def _action_loss(self, model, states_now, states_next, states_random, action):
+        action_pred     = model.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
 
@@ -299,7 +299,7 @@ class AgentPPOSA():
 
     #constructor theory loss
     #inverse model for action prediction
-    def _constructor_loss(self, states_now, states_next, states_random, action):
+    def _constructor_loss(self, model, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
         #0 : state_now,  state_random, two different states
@@ -319,7 +319,7 @@ class AgentPPOSA():
         sa_aug  = self._augmentations(sa)
         sb_aug  = self._augmentations(sb)
 
-        transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
+        transition_pred = model.forward_aux(sa_aug, sb_aug)
 
         loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
