@@ -279,10 +279,10 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
 
 
 def WrapperProcgenEasy(env_name): 
-    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="easy")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="easy")
 
 def WrapperProcgenHard(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="hard")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="hard")
  
 def WrapperProcgenExploration(env_name):
     return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="exploration")
