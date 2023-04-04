@@ -233,13 +233,13 @@ def get_reward_range(env_name, mode = "easy"):
 
 '''
 env_name        : default "procgen-climber-v0",  generic "procgen-GameName-v0"
-frame_stacking  : default 1, can experiment with 4 (4 rgb planes input, 12 channels total)
-mode            : default "easy", ("hard")
+frame_stacking  : default 1, can experiment with 2 (2 rgb planes input, 6 channels total)
+mode            : default "easy", "hard" or exploration
 
 easy mode       : quick testing, training options : 64  paralel envs, 500k steps for trainig (total 64*500k samples), approx 6hours on RTX3060
-hard mode       : prefered for benchmarking, training options : 200 paralel envs, 1M steps for training (total 200*1M samples)
+hard mode       : prefered for benchmarking, training options : 128 paralel envs, 1M steps for training (total 128*1M samples)
 exploration mode: hard exploration, where PPO baseline reach 0 points
-
+ 
 wrapper adds into info :
 
 info["raw_score"]           : rewards sum per episode, averaged over 100episodes
@@ -279,11 +279,11 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
 
 
 def WrapperProcgenEasy(env_name): 
-    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="easy")
+    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="easy")
 
 def WrapperProcgenHard(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="hard")
-
+    return WrapperProcgen(env_name, frame_stacking = 1, render=False, mode="hard")
+ 
 def WrapperProcgenExploration(env_name):
     return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="exploration")
 
