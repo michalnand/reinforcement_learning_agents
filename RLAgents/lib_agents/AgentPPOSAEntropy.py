@@ -341,16 +341,20 @@ class AgentPPOSA():
         return x.detach() 
 
    
-
+    '''
+    differential entropy intrinsic motivation
+    postivie entropy change - more new states discovered
+    negative entropy change - visting repeating old states
+    '''
     def _internal_motivation(self, states):
         
-        entropy_prev = numpy.std(self.im_buffer, axis=1)
+        entropy_prev = numpy.std(self.im_buffer, axis=0)
 
         features = self.model_im.forward(states)
         self.im_buffer[self.im_ptr] = features.detach().to("cpu").numpy()
         self.im_ptr = (self.im_ptr + 1)%self.im_buffer_size
 
-        entropy_now  = numpy.std(self.im_buffer, axis=1)
+        entropy_now  = numpy.std(self.im_buffer, axis=0)
 
         d_entropy    = entropy_now - entropy_prev
 
