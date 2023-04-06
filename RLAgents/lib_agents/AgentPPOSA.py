@@ -3,7 +3,7 @@ import torch
 import time
 
 from .ValuesLogger      import *
-from .PolicyBufferIM    import *
+from .PolicyBuffer      import *
 
 from .Augmentations         import *
 from .SelfSupervisedLoss    import *
@@ -50,7 +50,7 @@ class AgentPPOSA():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
