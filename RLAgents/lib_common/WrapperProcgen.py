@@ -92,14 +92,12 @@ class ScoreWrapper(gym.Wrapper):
 
         self.ptr = 0 
 
-        print("score min max ", self.min_score, self.max_score)
-
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
-        reward_normalised = self._normalise(reward)
 
         self.reward_sum+= reward
+
 
         if done:
             self.score_raw[self.ptr]        = self.reward_sum
@@ -112,8 +110,7 @@ class ScoreWrapper(gym.Wrapper):
         info["raw_score"]        = round(self.score_raw.mean(), 5)
         info["normalised_score"] = round(self.score_normalised.mean(), 5)
 
-    
-        return state, reward_normalised, done, info
+        return state, reward, done, info
         
     def reset(self):
         self.reward_sum = 0.0

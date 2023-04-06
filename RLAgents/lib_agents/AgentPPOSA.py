@@ -205,8 +205,8 @@ class AgentPPOSA():
         compute actor loss, surrogate loss
         '''
         advantages       = advantages.detach() 
-        #this normalisation has no effect
-        #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+
+        advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
         log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
