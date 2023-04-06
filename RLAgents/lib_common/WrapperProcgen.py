@@ -92,6 +92,8 @@ class ScoreWrapper(gym.Wrapper):
 
         self.ptr = 0 
 
+        print("score min max ", self.min_score, self.max_score)
+
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
