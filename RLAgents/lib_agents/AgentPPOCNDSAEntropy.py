@@ -3,7 +3,7 @@ import torch
 import time
 
 from .ValuesLogger      import *
-from .PolicyBufferIM    import *
+from .PolicyBuffer      import *
 
 from .Augmentations         import *
 from .SelfSupervisedLoss    import *
@@ -11,10 +11,13 @@ from .SelfSupervisedLoss    import *
 
  
 class AgentPPOSA():
-    def __init__(self, envs, Model, config):
+    def __init__(self, envs, ModelPPO, ModelIM, config):
         self.envs = envs
 
-        self.gamma              = config.gamma
+        self.gamma_ext          = config.gamma_ext
+        self.gamma_int          = config.gamma_int
+        self.int_reward_coeff   = config.int_reward_coeff
+
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
  
@@ -33,39 +36,60 @@ class AgentPPOSA():
 
         if config.self_aware_loss == "action_loss":
             self._self_aware_loss = self._action_loss
+            aux_count             = self.actions_count
         elif config.self_aware_loss == "constructor_loss":
-             self._self_aware_loss = self._constructor_loss
+            self._self_aware_loss = self._constructor_loss
+            aux_count             = 3
         else:
             self._self_aware_loss = None
+            aux_count             = 1
 
         self.self_supervised_loss_coeff     = config.self_supervised_loss_coeff
         self.self_aware_loss_coeff          = config.self_aware_loss_coeff
+        self.im_self_supervised_loss_coeff  = config.im_self_supervised_loss_coeff
+        self.im_self_aware_loss_coeff       = config.im_self_aware_loss_coeff
          
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
 
+        self.im_buffer_size                 = config.im_buffer_size
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        self.model          = Model.Model(self.state_shape, self.actions_count)
-        self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
+        self.model_ppo          = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.optimizer_ppo      = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+
+        features_count          = 256
+        
+        self.model_im           = ModelIM.Model(self.state_shape, features_count, aux_count)
+        self.optimizer_im       = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+
+
+        self.policy_buffer      = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.im_buffer          = numpy.zeros((self.im_buffer_size, self.envs_count, features_count), dtype=numpy.float32)
+        self.im_ptr             = 0
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e) 
 
+        for e in range(self.envs_count):
+            self._im_buffer_clear(e)
+
         self.enable_training()
         self.iterations = 0 
 
 
-        print("self_supervised_loss         = ", self._self_supervised_loss)
-        print("self_aware_loss              = ", self._self_aware_loss)
-        print("augmentations                = ", self.augmentations)
-        print("augmentations_probs          = ", self.augmentations_probs)
-        print("self_supervised_loss_coeff   = ", self.self_supervised_loss_coeff)
-        print("self_aware_loss_coeff        = ", self.self_aware_loss_coeff)
+        print("self_supervised_loss                 = ", self._self_supervised_loss)
+        print("self_aware_loss                      = ", self._self_aware_loss)
+        print("augmentations                        = ", self.augmentations)
+        print("augmentations_probs                  = ", self.augmentations_probs)
+        print("self_supervised_loss_coeff           = ", self.self_supervised_loss_coeff)
+        print("self_aware_loss_coeff                = ", self.self_aware_loss_coeff)
+        print("im_self_supervised_loss_coeff_im     = ", self.im_self_supervised_loss_coeff)
+        print("im_self_aware_loss_coeff             = ", self.im_self_aware_loss_coeff)
 
         print("\n\n")
 
@@ -77,8 +101,14 @@ class AgentPPOSA():
         self.values_logger.add("loss_self_supervised", 0.0)
         self.values_logger.add("loss_self_aware", 0.0)
 
+        self.values_logger.add("im_loss_self_supervised", 0.0)
+        self.values_logger.add("im_loss_self_aware", 0.0)
+
         self.values_logger.add("ss_accuracy", 0.0)
         self.values_logger.add("sa_accuracy", 0.0)
+
+        self.values_logger.add("im_ss_accuracy", 0.0)
+        self.values_logger.add("im_sa_accuracy", 0.0)
 
         
 
@@ -92,37 +122,48 @@ class AgentPPOSA():
         states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
     
         logits, values  = self.model.forward(states)
+
+        #internal motivation
+        rewards_int    = self._internal_motivation(states)
+        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
+        
  
         actions = self._sample_actions(logits)
         
-        states_new, rewards, dones, infos = self.envs.step(actions)
-    
+        states_new, rewards_ext, dones, infos = self.envs.step(actions)
+
+        
+        #put into policy buffer
         if self.enabled_training:
-            states      = states.detach().to("cpu")
-            logits      = logits.detach().to("cpu")
-            values      = values.squeeze(1).detach().to("cpu") 
-            actions     = torch.from_numpy(actions).to("cpu")
-            rewards_t   = torch.from_numpy(rewards).to("cpu")
-            dones       = torch.from_numpy(dones).to("cpu")
+            states          = states.detach().to("cpu")
+            logits          = logits.detach().to("cpu")
+            values_ext      = values_ext.squeeze(1).detach().to("cpu") 
+            values_int      = values_int.squeeze(1).detach().to("cpu")
+            actions         = torch.from_numpy(actions).to("cpu")
+            rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
+            rewards_int_t   = rewards_int.detach().to("cpu")
+            dones           = torch.from_numpy(dones).to("cpu")
 
-            self.policy_buffer.add(states, logits, values, actions, rewards_t, dones)
+            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
 
-            if self.policy_buffer.is_full():
-                self.train()
     
         self.states = states_new.copy()
         for e in range(self.envs_count):
             if dones[e]:
                 self.states[e] = self.envs.reset(e)
+
+                self._im_buffer_clear(e)
            
         self.iterations+= 1
-        return rewards[0], dones[0], infos[0]
+        return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
-        self.model.save(save_path + "trained/")
+        self.model_ppo.save(save_path + "trained/")
+        self.model_im.save(save_path + "trained/")
 
     def load(self, save_path):
-        self.model.load(save_path + "trained/")
+        self.model_ppo.load(save_path + "trained/")
+        self.model_im.load(save_path + "trained/")
 
     def get_log(self):
         return self.values_logger.get_str()
@@ -300,3 +341,30 @@ class AgentPPOSA():
         return x.detach() 
 
    
+
+    def _internal_motivation(self, states):
+        
+        entropy_prev = numpy.std(self.im_buffer, axis=1)
+
+        features = self.model_im.forward(states)
+        self.im_buffer[self.im_ptr] = features.detach().to("cpu").numpy()
+        self.im_ptr = (self.im_ptr + 1)%self.im_buffer_size
+
+        entropy_now  = numpy.std(self.im_buffer, axis=1)
+
+        d_entropy    = entropy_now - entropy_prev
+
+        d_entropy    = d_entropy.mean(axis=1)
+
+        return d_entropy
+    
+
+    def _im_buffer_clear(self, env_id):
+        state    = torch.from_numpy(self.states).to(self.model_im.device).unsqueeze(0)
+        features = self.model_im.forward(state)
+        features = features.squeeze(0).detach().to("cpu").numpy()
+
+        self.im_buffer[:, env_id, :] = features
+
+
+
