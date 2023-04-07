@@ -23,8 +23,6 @@ class StateWrapper(gym.Wrapper):
 
         state_shape = (3, 64, 64)
 
-        self.state = numpy.zeros(state_shape, dtype=numpy.float32)
-
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=numpy.float32)
 
     def step(self, action):
@@ -98,6 +96,7 @@ class ScoreWrapper(gym.Wrapper):
 
         self.reward_sum+= reward
 
+        reward = numpy.tanh(reward)
 
         if done:
             self.score_raw[self.ptr]        = self.reward_sum
@@ -269,7 +268,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
     else:
         env = gym.make(env_name, render=render, start_level = 0, num_levels = 0, use_sequential_levels=False, distribution_mode=mode)
     
-    env = RandomAction(env) 
+    #env = RandomAction(env) 
     env = StateWrapper(env)  
 
     if frame_stacking > 1:
