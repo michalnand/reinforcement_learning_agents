@@ -117,6 +117,13 @@ class AgentPPOCNDSA():
 
         self.vis_features = []
         self.vis_labels   = []
+        
+        numpy.save("state_mean.npy", self.state_mean)
+        numpy.save("state_var.npy", self.state_var)
+
+        with open("state_mean_var.npy", "wb") as f:
+            numpy.save(f, self.state_mean) 
+            numpy.save(f, self.state_var)
 
 
     def enable_training(self): 
@@ -180,18 +187,30 @@ class AgentPPOCNDSA():
 
         self.iterations+= 1
 
-
+        
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
         self.model_cnd.save(save_path + "trained/")
         self.model_cnd_target.save(save_path + "trained/")
- 
+
+        with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
+            numpy.save(f, self.state_mean)
+            numpy.save(f, self.state_var)
+
+        
+      
+
+
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_cnd.load(load_path + "trained/")
         self.model_cnd_target.load(load_path + "trained/")
+
+        with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
+            self.state_mean = numpy.load(f)
+            self.state_var  = numpy.load(f)
  
     def get_log(self): 
         return self.values_logger.get_str()
