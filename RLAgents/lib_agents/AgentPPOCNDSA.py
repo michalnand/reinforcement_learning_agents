@@ -37,10 +37,10 @@ class AgentPPOCNDSA():
         else:
             self.beta_var = None
 
-        if hasattr(config, "mean_normalise"):
-            self.mean_normalise = config.mean_normalise
+        if hasattr(config, "state_normalise"):
+            self.state_normalise = config.state_normalise
         else:
-            self.mean_normalise = False
+            self.state_normalise = False
             
 
    
@@ -65,7 +65,7 @@ class AgentPPOCNDSA():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("int_reward_coeff             = ", self.int_reward_coeff)
         print("aux_loss_coeff               = ", self.aux_loss_coeff)
-        print("mean_normalise               = ", self.mean_normalise)
+        print("state_normalise              = ", self.state_normalise)
 
         print("\n\n")
 
@@ -125,9 +125,12 @@ class AgentPPOCNDSA():
         self.enabled_training = False
  
     def main(self): 
-        #state to tensor
-        states = torch.tensor(self.states, dtype=torch.float).to(self.model_ppo.device)
+        #normalise state
+        if self.state_normalise:
+            states = self._state_normalise(self.states)
         
+        #state to tensor
+        states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -161,10 +164,7 @@ class AgentPPOCNDSA():
         #update new state
         self.states = states_new.copy()
 
-        #update state averaging
-        alpha = 0.99 
-        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*self.states.mean(axis=0)
-
+        
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
@@ -234,7 +234,7 @@ class AgentPPOCNDSA():
                 states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
               
-                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._normalise, self._augmentations)                
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
  
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
@@ -303,10 +303,8 @@ class AgentPPOCNDSA():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states): 
-        states_norm = self._normalise(states)
-
-        features_predicted_t  = self.model_cnd(states_norm)
-        features_target_t     = self.model_cnd_target(states_norm).detach()
+        features_predicted_t  = self.model_cnd(states)
+        features_target_t     = self.model_cnd_target(states).detach()
 
         loss_cnd = (features_target_t - features_predicted_t)**2
 
@@ -315,12 +313,7 @@ class AgentPPOCNDSA():
 
     #inverse model for action prediction
     def _action_loss(self, states_now, states_next, states_random, action):
-
-        #normalisation
-        states_now_norm  = self._normalise(states_now)
-        states_next_norm = self._normalise(states_next)
-
-        action_pred     = self.model_cnd_target.forward_aux(states_now_norm, states_next_norm)
+        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
 
@@ -350,14 +343,10 @@ class AgentPPOCNDSA():
         sa      = (select == 0)*states_now    + (select == 1)*states_now  + (select == 2)*states_next
         sb      = (select == 0)*states_random + (select == 1)*states_next + (select == 2)*states_now
 
-        #normalisation
-        sa_norm = self._normalise(sa)
-        sb_norm = self._normalise(sb)
-
 
         #process augmentation
-        sa_aug  = self._augmentations(sa_norm)
-        sb_aug  = self._augmentations(sb_norm)
+        sa_aug  = self._augmentations(sa)
+        sb_aug  = self._augmentations(sb)
 
         transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
 
@@ -371,14 +360,11 @@ class AgentPPOCNDSA():
 
         return loss, acc
  
-  
 
     #compute internal motivation
-    def _curiosity(self, states):
-        states_norm = self._normalise(states)
-        
-        features_predicted_t    = self.model_cnd(states_norm)
-        features_target_t       = self.model_cnd_target(states_norm)
+    def _curiosity(self, states):        
+        features_predicted_t    = self.model_cnd(states)
+        features_target_t       = self.model_cnd_target(states)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
   
@@ -410,12 +396,18 @@ class AgentPPOCNDSA():
         
         return x.detach() 
     
-    def _normalise(self, states):
-        if self.mean_normalise:
-            states_norm = states - torch.from_numpy(self.state_mean).to(states.device)
-        else:
-            states_norm = states
+    def _state_normalise(self, states, alpha = 0.99):
+            
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(axis=0)
 
+        dif = states - self.state_mean
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*(dif**2).mean(axis=0)
+
+        
+        states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-5)
+
+        states_norm = numpy.clip(states_norm, -4.0, 4.0)
+        
         return states_norm
 
    
