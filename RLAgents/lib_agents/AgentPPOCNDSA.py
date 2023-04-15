@@ -397,7 +397,7 @@ class AgentPPOCNDSA():
         
         return x.detach() 
     
-    def _state_normalise(self, states, alpha = 0.99):
+    def _state_normalise(self, states, alpha = 0.9): 
             
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(axis=0)
 
