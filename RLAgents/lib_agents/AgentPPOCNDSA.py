@@ -397,7 +397,7 @@ class AgentPPOCNDSA():
         
         return x.detach() 
     
-    def _state_normalise(self, states, alpha = 0.9): 
+    def _state_normalise(self, states, alpha = 0.99): 
         #update running stats
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(axis=0)
 
@@ -409,7 +409,7 @@ class AgentPPOCNDSA():
 
         print(">>> before : ", states.mean(), states.std())
         print(">>> after : ", states_norm.mean(), states_norm.std())
-        print(">>> ", self.state_mean.shape, self.state_var.shape)
+        print(">>> ", states_norm.shape)
         print("\n\n")
         
         return states_norm
