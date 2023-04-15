@@ -395,9 +395,9 @@ class AgentPPOCNDSA():
         if "noise" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_noise)
         
-        return x.detach() 
+        return x.detach()  
     
-    def _state_normalise(self, states, alpha = 0.9): 
+    def _state_normalise(self, states, alpha = 0.99): 
         #update running stats
         mean = states.mean(axis=0)
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
@@ -405,13 +405,9 @@ class AgentPPOCNDSA():
         var = ((states - mean)**2).mean(axis=0)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
         
+        #normalise mean and variance
         states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
         states_norm = numpy.clip(states_norm, -4.0, 4.0)
-
-        print(">>> before : ", states.mean(), states.std())
-        print(">>> after : ", states_norm.mean(), states_norm.std())
-        print(">>> ", states_norm.shape)
-        print("\n\n")
         
         return states_norm
 
