@@ -93,6 +93,7 @@ class AgentPPOCNDSA():
             self.states[e]  = self.envs.reset(e)
         
         self.state_mean  = self.states.mean(axis=0)
+        self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
             
         self.enable_training()
@@ -401,6 +402,9 @@ class AgentPPOCNDSA():
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(axis=0)
 
         dif = states - self.state_mean
+
+        print(">>> ", states.shape, self.state_mean.shape, dif.shape)
+        
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*(dif**2).mean(axis=0)
 
         
