@@ -398,11 +398,10 @@ class AgentPPOCNDSA():
         return x.detach() 
     
     def _state_normalise(self, states, alpha = 0.9): 
-            
+        #update running stats
         self.state_mean = alpha*self.state_mean + (1.0 - alpha)*states.mean(axis=0)
 
-        var = ((states - self.state_mean)**2).mean(axis=0)
-        
+        var = ((states - states.mean(axis=0))**2).mean(axis=0)
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
         
         states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-5)
