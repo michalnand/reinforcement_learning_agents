@@ -403,7 +403,7 @@ class AgentPPOCNDSA():
 
         dif = states - self.state_mean
 
-        print(">>> ", states.shape, self.state_mean.shape, dif.shape)
+        print(">>> before : ", states.mean(), states.std())
         
         self.state_var  = alpha*self.state_var + (1.0 - alpha)*(dif**2).mean(axis=0)
 
@@ -411,6 +411,9 @@ class AgentPPOCNDSA():
         states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-5)
 
         states_norm = numpy.clip(states_norm, -4.0, 4.0)
+
+        print(">>> after : ", states_norm.mean(), states_norm.std())
+        print("\n\n")
         
         return states_norm
 
