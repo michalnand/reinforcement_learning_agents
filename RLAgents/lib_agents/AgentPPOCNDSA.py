@@ -118,12 +118,6 @@ class AgentPPOCNDSA():
         self.vis_features = []
         self.vis_labels   = []
         
-        numpy.save("state_mean.npy", self.state_mean)
-        numpy.save("state_var.npy", self.state_var)
-
-        with open("state_mean_var.npy", "wb") as f:
-            numpy.save(f, self.state_mean) 
-            numpy.save(f, self.state_var)
 
 
     def enable_training(self): 
