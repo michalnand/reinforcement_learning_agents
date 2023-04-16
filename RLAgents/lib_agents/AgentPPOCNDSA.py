@@ -113,7 +113,7 @@ class AgentPPOCNDSA():
         self.values_logger.add("target_magnitude",              0.0)
         self.values_logger.add("target_magnitude_std",          0.0)
         self.values_logger.add("target_similarity_accuracy",    0.0)
-        self.values_logger.add("target_aux_accuracy",        0.0)
+        self.values_logger.add("target_aux_accuracy",           0.0)
 
         self.vis_features = []
         self.vis_labels   = []
@@ -257,7 +257,7 @@ class AgentPPOCNDSA():
                     loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     target_aux_accuracy     = 0.0
 
-
+ 
                 #final loss for target model
                 loss_target = loss_target_regularization + self.aux_loss_coeff*loss_target_aux
 
