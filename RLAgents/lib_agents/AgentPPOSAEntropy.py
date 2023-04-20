@@ -5,6 +5,8 @@ import time
 from .ValuesLogger      import *
 from .PolicyBuffer      import *
 
+
+from .PPOLoss               import *
 from .Augmentations         import *
 from .SelfSupervisedLoss    import *
 
@@ -28,6 +30,7 @@ class AgentPPOSA():
         self.envs_count         = config.envs_count
 
       
+        self.state_normalise = config.state_normalise
 
         if config.self_supervised_loss == "vicreg":
             self._self_supervised_loss = loss_vicreg
@@ -75,6 +78,9 @@ class AgentPPOSA():
         for e in range(self.envs_count):
             self.states[e] = self.envs.reset(e) 
 
+        self.state_mean  = self.states.mean(axis=0)
+        self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
+
         for e in range(self.envs_count):
             self._im_buffer_clear(e)
 
@@ -90,6 +96,7 @@ class AgentPPOSA():
         print("self_aware_loss_coeff                = ", self.self_aware_loss_coeff)
         print("im_self_supervised_loss_coeff_im     = ", self.im_self_supervised_loss_coeff)
         print("im_self_aware_loss_coeff             = ", self.im_self_aware_loss_coeff)
+        print("state_normalise                      = ", self.state_normalise)
 
         print("\n\n")
 
@@ -119,9 +126,15 @@ class AgentPPOSA():
         self.enabled_training = False
 
     def main(self):        
-        states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+        #normalise state
+        if self.state_normalise:
+            states = self._state_normalise(self.states)
+        else:
+            states = self.states
+        
+        states  = torch.tensor(states, dtype=torch.float).detach().to(self.model.device)
     
-        logits, values  = self.model.forward(states)
+        logits, values_ext, values_int = self.model.forward(states)
 
         #internal motivation
         rewards_int    = self._internal_motivation(states)
@@ -161,9 +174,19 @@ class AgentPPOSA():
         self.model_ppo.save(save_path + "trained/")
         self.model_im.save(save_path + "trained/")
 
-    def load(self, save_path):
-        self.model_ppo.load(save_path + "trained/")
-        self.model_im.load(save_path + "trained/")
+        with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
+            numpy.save(f, self.state_mean)
+            numpy.save(f, self.state_var)
+
+
+    def load(self, load_path):
+        self.model_ppo.load(load_path + "trained/")
+        self.model_im.load(load_path + "trained/")
+
+        with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
+            self.state_mean = numpy.load(f)
+            self.state_var  = numpy.load(f) 
+ 
 
     def get_log(self):
         return self.values_logger.get_str()
@@ -183,24 +206,26 @@ class AgentPPOSA():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model.device)
 
-                #common PPO loss
-                loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
+                #train PPO model
+                loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
+                
+                
                 #sample smaller batch for self-supervised regularization
-                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model.device)
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
                 #self supervised regularisation   
                 if self._self_supervised_loss is not None:
-                    loss_self_supervised, _, _, ss_accuracy = self._self_supervised_loss(self.model, states_a, states_a, self._augmentations)
+                    loss_self_supervised, _, _, ss_accuracy = self._self_supervised_loss(self.model_ppo, states_a, states_a, self._augmentations)
                 else:
                     loss_self_supervised = 0.0
                     ss_accuracy = 0.0
 
                 #self aware loss 
                 if self._self_aware_loss is not None:
-                    loss_self_aware, sa_accuracy = self._self_aware_loss(self.model, states_a, states_b, states_c, action)                 
+                    loss_self_aware, sa_accuracy = self._self_aware_loss(self.model_ppo, states_a, states_b, states_c, action)                 
                 else:
                     loss_self_aware     = 0.0
                     sa_accuracy         = 0.0
@@ -215,62 +240,73 @@ class AgentPPOSA():
 
                 loss = loss_ppo + self.self_supervised_loss_coeff*loss_self_supervised + self.self_aware_loss_coeff*loss_self_aware
 
-                self.optimizer.zero_grad()        
+                self.optimizer_ppo.zero_grad()        
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-                self.optimizer.step() 
+                torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
+                self.optimizer_ppo.step() 
+
+
+
+                #train IM model for regularization
+
+                if self._self_supervised_loss is not None:
+                    im_loss_self_supervised, _, _, im_ss_accuracy = self._self_supervised_loss(self.model_im, states_a, states_a, self._augmentations)                
+                else:
+                    im_loss_self_supervised = torch.zeros((1, ), dtype=torch.float32, device=self.model_ppo.device)
+                    im_ss_accuracy          = 0.0
+ 
+                #optional auxliary loss
+                #e.g. inverse model : action prediction from two consectuctive states
+                if self._self_aware_loss is not None:
+                    im_loss_self_aware, im_sa_accuracy = self._self_aware_loss(states_a, states_b, states_c, action)                 
+                else:
+                    im_loss_self_aware = torch.zeros((1, ), dtype=torch.float32, device=self.model_ppo.device)
+                    im_sa_accuracy     = 0.0
+
+ 
+                #final loss for target model
+                loss_im = self.im_self_supervised_loss_coeff*im_loss_self_supervised + self.im_self_aware_loss_coeff*im_loss_self_aware
+
+                self.optimizer_im.zero_grad() 
+                loss_im.backward()
+                self.optimizer_im.step()
+
+
+                self.values_logger.add("im_loss_self_supervised", im_loss_self_supervised.detach().to("cpu").numpy())
+                self.values_logger.add("loss_self_aware", loss_self_aware.detach().to("cpu").numpy())
+
+                self.values_logger.add("im_ss_accuracy", im_ss_accuracy)
+                self.values_logger.add("im_sa_accuracy", im_sa_accuracy)
+
 
         self.policy_buffer.clear()   
 
    
 
     
-    def _loss_ppo(self, states, logits, actions, returns, advantages):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
+        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        logits_new, values_new   = self.model.forward(states)
+        #critic loss
+        loss_critic =  ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
-        probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
-        log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
+        #actor loss        
+        advantages  = 2.0*advantages_ext + 1.0*advantages_int
+        advantages  = advantages.detach() 
 
+        loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
-        '''
-        compute critic loss, as MSE
-        L = (T - V(s))^2
-        '''
-        values_new = values_new.squeeze(1)
-        loss_value = (returns.detach() - values_new)**2
-        loss_value = loss_value.mean()
+        loss_actor = loss_policy + loss_entropy
 
-        ''' 
-        compute actor loss, surrogate loss
-        '''
-        advantages       = advantages.detach() 
-        #this normalisation has no effect
-        #advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
+        #total loss
+        loss = 0.5*loss_critic + loss_actor
 
-        log_probs_new_  = log_probs_new[range(len(log_probs_new)), actions]
-        log_probs_old_  = log_probs_old[range(len(log_probs_old)), actions]
-                        
-        ratio       = torch.exp(log_probs_new_ - log_probs_old_)
-        p1          = ratio*advantages
-        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
-        loss_policy = -torch.min(p1, p2)  
-        loss_policy = loss_policy.mean()  
-    
-        '''
-        compute entropy loss, to avoid greedy strategy
-        L = beta*H(pi(s)) = beta*pi(s)*log(pi(s))
-        '''
-        loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
-        loss_entropy = self.entropy_beta*loss_entropy.mean()
+        #store to log
+        self.values_logger.add("loss_actor",  loss_actor.mean().detach().to("cpu").numpy())
+        self.values_logger.add("loss_critic", loss_critic.mean().detach().to("cpu").numpy())
 
-        loss = loss_value + loss_policy + loss_entropy
+        return loss 
 
-        self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
-        self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
-
-        return loss
     
      #inverse model for action prediction
     def _action_loss(self, model, states_now, states_next, states_random, action):
@@ -325,20 +361,28 @@ class AgentPPOSA():
 
 
     def _augmentations(self, x): 
-
-        if "aug_inverse" in self.augmentations:
+        if "inverse" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
+
+        if "conv" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
         if "pixelate" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
 
+        if "pixel_dropout" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_pixel_dropout)
+ 
         if "random_tiles" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
+
+        if "mask" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_mask_tiles)
 
         if "noise" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_noise)
         
-        return x.detach() 
+        return x.detach()  
 
    
     '''
@@ -370,5 +414,16 @@ class AgentPPOSA():
 
         self.im_buffer[:, env_id, :] = features
 
-
-
+    def _state_normalise(self, states, alpha = 0.99): 
+        #update running stats
+        mean = states.mean(axis=0)
+        self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
+ 
+        var = ((states - mean)**2).mean(axis=0)
+        self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+        
+        #normalise mean and variance
+        states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
+        states_norm = numpy.clip(states_norm, -4.0, 4.0)
+        
+        return states_norm

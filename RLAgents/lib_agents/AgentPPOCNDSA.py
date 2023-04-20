@@ -128,7 +128,12 @@ class AgentPPOCNDSA():
     def main(self): 
         #normalise state
         if self.state_normalise:
-            states = self._state_normalise(self.states)
+            if self.enabled_training:
+                states = self._state_normalise(self.states)
+            else:
+                states = self._state_normalise(self.states, 1.0)
+        else:
+            states = self.states
         
         #state to tensor
         states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
@@ -192,15 +197,11 @@ class AgentPPOCNDSA():
             numpy.save(f, self.state_mean)
             numpy.save(f, self.state_var)
 
-        
-      
-
-
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
         self.model_cnd.load(load_path + "trained/")
         self.model_cnd_target.load(load_path + "trained/")
-
+   
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
             self.state_var  = numpy.load(f)
