@@ -110,7 +110,7 @@ class AgentPPOEE():
 
         #internal motivation buffer and its entropy
         self.entropy_buffer = numpy.zeros((self.entropy_buffer_size, self.envs_count, 512), dtype=numpy.float32)
-        self.entropy        = numpy.zeros((self.envs_count, 512), dtype=numpy.float32)
+        self.entropy        = numpy.zeros((self.envs_count, ), dtype=numpy.float32)
             
         self.enable_training()
         self.iterations     = 0 
