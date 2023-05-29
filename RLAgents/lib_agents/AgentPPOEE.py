@@ -271,7 +271,7 @@ class AgentPPOEE():
                     #sample smaller batch for semi supervised aux loss
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                    loss_ppo_aux , _, _, acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action)  
+                    loss_ppo_aux , acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action)  
                 else:
                     loss_ppo_aux    = torch.zeros((1, ))[0]
                     acc_ppo_aux     = 0.0
@@ -303,7 +303,7 @@ class AgentPPOEE():
                     #sample smaller batch for semi supervised aux loss
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
 
-                    loss_im_aux, _, _, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
+                    loss_im_aux, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
                 else:
                     loss_im_aux    = torch.zeros((1, ))[0]
                     acc_im_aux     = 0.0
