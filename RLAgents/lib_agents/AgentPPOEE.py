@@ -470,7 +470,7 @@ class AgentPPOEE():
 
     def _internal_motivation(self, states):
 
-        entropy_prev = self.entropy.copy()
+        entropy_prev = self.entropy.clone()
 
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
