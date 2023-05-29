@@ -482,6 +482,8 @@ class AgentPPOEE():
         #buffer entropy a.k.a. variance (for normal distribution)
         self.entropy = numpy.std(self.entropy_buffer, axis=0).mean(-1)
 
+        print(">>> buffer shape = ", self.entropy_buffer.shape, self.entropy.shape, entropy_prev.shape)
+
         dif_entropy = self.entropy - entropy_prev
 
         return dif_entropy
