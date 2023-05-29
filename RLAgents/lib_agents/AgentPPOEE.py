@@ -483,7 +483,6 @@ class AgentPPOEE():
         self.entropy = torch.std(self.entropy_buffer, axis=0)
         self.entropy = self.entropy.mean(-1)
 
-        print(">>> buffer shape = ", self.entropy_buffer.shape, self.entropy.shape, entropy_prev.shape)
 
         dif_entropy = self.entropy - entropy_prev
 
