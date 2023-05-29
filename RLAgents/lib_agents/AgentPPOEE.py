@@ -13,7 +13,7 @@ from .Augmentations         import *
 class RunningStats:
 
     def __init__(self, envs_count, features_count):
-        self.n      = torch.zeros((envs_count, 1), dtype=torch.float32)
+        self.n      = 2 + torch.zeros((envs_count, 1), dtype=torch.float32)
         self.k      = torch.zeros((envs_count, features_count), dtype=torch.float32)
         self.ex     = torch.zeros((envs_count, features_count), dtype=torch.float32)
         self.ex2    = torch.zeros((envs_count, features_count), dtype=torch.float32)
@@ -512,7 +512,5 @@ class AgentPPOEE():
 
         #differential entropy        
         dif_entropy = entropy_now - entropy_prev
-
-        print(entropy_prev)
 
         return dif_entropy
