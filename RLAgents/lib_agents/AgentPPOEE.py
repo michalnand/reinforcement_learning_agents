@@ -91,7 +91,7 @@ class AgentPPOEE():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_im       = ModelIM.Model(self.state_shape)
+        self.model_im       = ModelIM.Model(self.state_shape,  self.actions_count)
         self.optimizer_im   = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
