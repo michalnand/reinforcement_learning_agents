@@ -241,7 +241,7 @@ class AgentPPOEE():
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
 
-                self.running_stats.reset(e, torch.from_numpy(states[e]))
+                self.running_stats.reset(e, states[e])
                
          
         #self._add_for_plot(states, infos, dones)
