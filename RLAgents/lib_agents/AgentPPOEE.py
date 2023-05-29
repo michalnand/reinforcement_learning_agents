@@ -513,4 +513,6 @@ class AgentPPOEE():
         #differential entropy        
         dif_entropy = entropy_now - entropy_prev
 
+        print(entropy_prev)
+
         return dif_entropy
