@@ -174,7 +174,7 @@ class AgentPPOEE():
 
         #curiosity motivation
         rewards_int   = self._internal_motivation(states)
-        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
+        rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -464,7 +464,7 @@ class AgentPPOEE():
     def _reset_buffer(self, env_id, states):
         states_t    = torch.tensor(states[env_id], dtype=torch.float).to(self.model_ppo.device).unsqueeze(0)
         features    = self.model_im(states_t)
-        features    = features.squeeze(0).detach().to("cpu").numpy()
+        features    = features.squeeze(0).detach().to("cpu")
 
         self.entropy_buffer[:, env_id, :] = features
 
@@ -473,14 +473,15 @@ class AgentPPOEE():
         entropy_prev = self.entropy.copy()
 
         features  = self.model_im(states)
-        features  = features.detach().to("cpu").numpy()
+        features  = features.detach().to("cpu")
 
         #add new features to buffer
         ptr = self.steps%self.entropy_buffer.shape[0]
         self.entropy_buffer[ptr] = features
 
         #buffer entropy a.k.a. variance (for normal distribution)
-        self.entropy = numpy.std(self.entropy_buffer, axis=0).mean(-1)
+        self.entropy = torch.std(self.entropy_buffer, axis=0)
+        self.entropy = self.entropy.mean(-1)
 
         print(">>> buffer shape = ", self.entropy_buffer.shape, self.entropy.shape, entropy_prev.shape)
 
