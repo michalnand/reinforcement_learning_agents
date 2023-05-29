@@ -271,7 +271,7 @@ class AgentPPOEE():
                     #sample smaller batch for semi supervised aux loss
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                    loss_ppo_aux , _, _, acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action, self._augmentations)                
+                    loss_ppo_aux , _, _, acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action)  
                 else:
                     loss_ppo_aux    = torch.zeros((1, ))[0]
                     acc_ppo_aux     = 0.0
@@ -303,7 +303,7 @@ class AgentPPOEE():
                     #sample smaller batch for semi supervised aux loss
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
 
-                    loss_im_aux, _, _, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action, self._augmentations)                
+                    loss_im_aux, _, _, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
                 else:
                     loss_im_aux    = torch.zeros((1, ))[0]
                     acc_im_aux     = 0.0
@@ -362,8 +362,8 @@ class AgentPPOEE():
   
 
     #inverse model for action prediction
-    def _action_loss(self, states_now, states_next, states_random, action):
-        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
+    def _action_loss(self, model, states_now, states_next, states_random, action):
+        action_pred     = model.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
 
@@ -378,7 +378,7 @@ class AgentPPOEE():
 
     #constructor theory loss
     #inverse model for action prediction
-    def _constructor_loss(self, states_now, states_next, states_random, action):
+    def _constructor_loss(self, model, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
         #0 : state_now,  state_random, two different states
@@ -398,7 +398,7 @@ class AgentPPOEE():
         sa_aug  = self._augmentations(sa)
         sb_aug  = self._augmentations(sb)
 
-        transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
+        transition_pred = model.forward_aux(sa_aug, sb_aug)
 
         loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
