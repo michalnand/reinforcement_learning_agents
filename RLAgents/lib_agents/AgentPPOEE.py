@@ -310,7 +310,7 @@ class AgentPPOEE():
  
  
                 #final loss for internal motivation model
-                loss_im = loss_im_self_supervised + acc_im_aux
+                loss_im = loss_im_self_supervised + loss_im_aux
 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
