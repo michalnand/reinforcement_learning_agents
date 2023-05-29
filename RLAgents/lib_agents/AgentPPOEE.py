@@ -295,7 +295,7 @@ class AgentPPOEE():
 
                     loss_im_self_supervised , im_features_mag, im_features_std, acc_im_self_supervised = self.im_self_supervised_loss(self.model_im, states_a, states_a, self._augmentations)                
                 else:
-                    loss_im_self_supervised    = torch.zeros((1, ))[0]
+                    loss_im_self_supervised    = torch.zeros((1, ), device=self.model_im.device)[0]
                     acc_im_self_supervised     = 0.0
 
 
@@ -305,7 +305,7 @@ class AgentPPOEE():
 
                     loss_im_aux, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
                 else:
-                    loss_im_aux    = torch.zeros((1, ))[0]
+                    loss_im_aux    = torch.zeros((1, ), device=self.model_im.device)[0]
                     acc_im_aux     = 0.0
  
  
