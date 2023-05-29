@@ -119,7 +119,6 @@ class AgentPPOEE():
 
         print("int_reward_coeff             = ", self.int_reward_coeff)
         print("state_normalise              = ", self.state_normalise)
-        print("entropy_buffer_size          = ", self.entropy_buffer_size)
 
         print("\n\n")
 
