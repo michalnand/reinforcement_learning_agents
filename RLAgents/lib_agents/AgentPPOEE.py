@@ -69,8 +69,6 @@ class AgentPPOEE():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
-        self.entropy_buffer_size = config.entropy_buffer_size
-
  
         #self supervised + AUX loss for PPO model
         if config.ppo_self_supervised_loss == "vicreg":
@@ -241,7 +239,11 @@ class AgentPPOEE():
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
 
-                self.running_stats.reset(e, states[e])
+                state = torch.tensor(self.states[e], dtype=torch.float).to(self.model_ppo.device).unsqueeze(0)
+                features  = self.model_im(state)
+                features  = features.detach().to("cpu").squeeze(0)
+
+                self.running_stats.reset(e, features)
                
          
         #self._add_for_plot(states, infos, dones)
