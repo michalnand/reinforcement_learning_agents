@@ -317,7 +317,7 @@ class AgentPPOEE():
                     acc_ppo_aux     = 0.0
                 
                 #final loss
-                loss = loss_ppo + loss_ppo_self_supervised + loss_ppo_aux
+                loss = loss_ppo + loss_ppo_self_supervised + 0.1*loss_ppo_aux
 
                 #PPO model training
                 self.optimizer_ppo.zero_grad()        
@@ -350,7 +350,7 @@ class AgentPPOEE():
  
  
                 #final loss for internal motivation model
-                loss_im = loss_im_self_supervised + loss_im_aux
+                loss_im = loss_im_self_supervised + 0.1*loss_im_aux
 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
