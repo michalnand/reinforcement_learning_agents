@@ -346,15 +346,6 @@ class AgentPPOEE():
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
 
-        #advantages viariance normalisation (optional), mean is already almost zero
-        if self.beta_var is not None:
-            self.var          = self.beta_var*self.var + (1.0 - self.beta_var)*(advantages**2).mean()
-            self.beta_product = self.beta_product*self.beta_var
-
-            var = self.var/(1.0 - self.beta_product) 
-
-            advantages  = advantages/((var**0.5) + 1e-10)
-
         loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
         loss_actor = loss_policy + loss_entropy
