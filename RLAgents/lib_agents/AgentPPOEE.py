@@ -8,7 +8,47 @@ from .PPOLoss               import *
 from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
-         
+
+
+class RunningStats:
+
+    def __init__(self, envs_count, features_count):
+        self.n      = torch.zeros((envs_count, 1), dtype=torch.float32)
+        self.k      = torch.zeros((envs_count, features_count), dtype=torch.float32)
+        self.ex     = torch.zeros((envs_count, features_count), dtype=torch.float32)
+        self.ex2    = torch.zeros((envs_count, features_count), dtype=torch.float32)
+
+    def reset(self, env_id, x):
+        self.n[env_id] = 2
+        self.k[env_id] = x
+
+        d = x - self.k[env_id]
+    
+        self.ex[env_id]  = d
+        self.ex2[env_id] = d**2
+
+
+    def add(self, x):
+        self.n += 1
+
+        d = x - self.k
+
+        self.ex+=  d
+        self.ex2+= d** 2
+
+
+    def get_mean(self):
+        mean = self.k + self.ex/self.n
+        mean = mean.mean(-1)
+
+        return mean
+    
+    def get_variance(self):
+        var = (self.ex2 - self.ex**2 / self.n) / (self.n - 1)
+        var = var.mean(-1)
+
+        return var
+             
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
         self.envs = envs  
@@ -109,8 +149,7 @@ class AgentPPOEE():
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
         #internal motivation buffer and its entropy
-        self.entropy_buffer = torch.zeros((self.entropy_buffer_size, self.envs_count, 512), dtype=torch.float32)
-        self.entropy        = torch.zeros((self.envs_count, ), dtype=torch.float32)
+        self.running_stats  = RunningStats(self.envs_count, 512)
             
         self.enable_training()  
         self.iterations     = 0 
@@ -202,7 +241,7 @@ class AgentPPOEE():
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
 
-                self._reset_buffer(e, states)
+                self.running_stats.reset(e, torch.from_numpy(states[e]))
                
          
         #self._add_for_plot(states, infos, dones)
@@ -461,20 +500,17 @@ class AgentPPOEE():
 
     def _internal_motivation(self, states):
 
-        entropy_prev = self.entropy.clone()
+        entropy_prev = self.running_stats.get_variance()
 
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
 
         #add new features to buffer
-        ptr = self.steps%self.entropy_buffer.shape[0]
-        self.entropy_buffer[ptr] = features
+        self.running_stats.add(features)
 
-        #buffer entropy a.k.a. variance (for normal distribution)
-        self.entropy = torch.std(self.entropy_buffer, axis=0)
-        self.entropy = self.entropy.mean(-1)
+        entropy_now = self.running_stats.get_variance()
 
-
-        dif_entropy = self.entropy - entropy_prev
+        #differential entropy        
+        dif_entropy = entropy_now - entropy_prev
 
         return dif_entropy
