@@ -10,6 +10,45 @@ from .Augmentations         import *
 
 
 
+class RunningStats:
+
+    def __init__(self, envs_count, features_count):
+        self.n      = 2 + torch.zeros((envs_count, 1), dtype=torch.float32)
+        self.k      = torch.zeros((envs_count, features_count), dtype=torch.float32)
+        self.ex     = torch.zeros((envs_count, features_count), dtype=torch.float32)
+        self.ex2    = torch.zeros((envs_count, features_count), dtype=torch.float32)
+
+    def reset(self, env_id, x, initial_steps_count = 256):
+        self.n[env_id] = initial_steps_count
+        self.k[env_id] = initial_steps_count*x
+
+        d = x - self.k[env_id]
+    
+        self.ex[env_id]  = initial_steps_count*d
+        self.ex2[env_id] = initial_steps_count*(d**2)
+
+
+    def add(self, x):
+        self.n += 1
+
+        d = x - self.k
+
+        self.ex+=  d
+        self.ex2+= d** 2
+
+
+    def get_mean(self):
+        mean = self.k + self.ex/self.n
+        mean = mean.mean(-1)
+
+        return mean
+    
+    def get_variance(self):
+        var = (self.ex2 - self.ex**2 / self.n) / (self.n - 1)
+        var = var.mean(-1)
+
+        return var
+             
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
         self.envs = envs  
@@ -29,8 +68,6 @@ class AgentPPOEE():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
-
-        self.novelty_buffer_size = config.novelty_buffer_size
 
  
         #self supervised + AUX loss for PPO model
@@ -109,8 +146,7 @@ class AgentPPOEE():
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), dtype=numpy.float32)
-        self.novelty_buffer_ptr = 0
+        self.running_stats  = RunningStats(self.envs_count, 512)
             
         self.enable_training()  
         self.iterations     = 0 
@@ -173,9 +209,10 @@ class AgentPPOEE():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         #curiosity motivation
-        rewards_int = self._internal_motivation(states)
+        rewards_int_a, rewards_int_b = self._internal_motivation(states)
         
-        rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
+        rewards_int   = rewards_int_a + rewards_int_b
+        rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -202,6 +239,12 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
+
+                state = torch.tensor(self.states[e], dtype=torch.float).to(self.model_ppo.device).unsqueeze(0)
+                features  = self.model_im(state)
+                features  = features.detach().to("cpu").squeeze(0)
+
+                self.running_stats.reset(e, features)
                
          
         #self._add_for_plot(states, infos, dones)
@@ -453,17 +496,22 @@ class AgentPPOEE():
 
     def _internal_motivation(self, states):
 
+        entropy_prev = self.running_stats.get_variance()
+
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
 
-        d           = torch.cdist(features, self.novelty_buffer)/features.shape[1]
+        #add new features to buffer
+        self.running_stats.add(features)
+
+        entropy_now = self.running_stats.get_variance()
+
+        #differential entropy        
+        dif_entropy = entropy_now - entropy_prev
+
+        #trajectory originality
+        d = torch.cdist(features, features)/features.shape[1]
+        d = d + torch.eye(d.shape[0])*10**6
         originality = torch.min(d, axis=0)[0]
 
-        print(">>> ", d.shape, originality.shape)
-
-        #add new features into buffer
-        for i in range(features.shape[0]):
-            self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
-            self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
-
-        return originality
+        return dif_entropy, originality
