@@ -459,8 +459,6 @@ class AgentPPOEE():
         d           = torch.cdist(features, self.novelty_buffer)/features.shape[1]
         originality = torch.min(d, axis=1)[0]
 
-        print(">>> ", d.shape, originality.shape)
-
         #add new features into buffer
         for i in range(features.shape[0]):
             self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
