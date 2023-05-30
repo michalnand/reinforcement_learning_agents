@@ -209,7 +209,11 @@ class AgentPPOEE():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         #curiosity motivation
-        rewards_int   = self._internal_motivation(states)
+        rewards_int_a, rewards_int_b = self._internal_motivation(states)
+
+        print(">>> ", rewards_int_a.mean(), rewards_int_b.mean())
+        
+        rewards_int   = rewards_int_a + rewards_int_b
         rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
         
         #put into policy buffer
@@ -492,13 +496,6 @@ class AgentPPOEE():
         return states_norm
     
 
-    def _reset_buffer(self, env_id, states):
-        states_t    = torch.tensor(states[env_id], dtype=torch.float).to(self.model_ppo.device).unsqueeze(0)
-        features    = self.model_im(states_t)
-        features    = features.squeeze(0).detach().to("cpu")
-
-        self.entropy_buffer[:, env_id, :] = features
-
     def _internal_motivation(self, states):
 
         entropy_prev = self.running_stats.get_variance()
@@ -514,4 +511,9 @@ class AgentPPOEE():
         #differential entropy        
         dif_entropy = entropy_now - entropy_prev
 
-        return dif_entropy
+        #trajectory originality
+        d = torch.cdist(features, features)/features.shape[1]
+        d = d + torch.eye(d.shape[0])*10**6
+        originality = torch.min(d, axis=0)[0]
+
+        return dif_entropy, originality
