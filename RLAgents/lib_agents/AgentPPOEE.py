@@ -109,7 +109,7 @@ class AgentPPOEE():
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), dtype=numpy.float32)
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), dtype=torch.float32)
         self.novelty_buffer_ptr = 0
             
         self.enable_training()  
