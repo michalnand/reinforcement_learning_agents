@@ -210,8 +210,6 @@ class AgentPPOEE():
 
         #curiosity motivation
         rewards_int_a, rewards_int_b = self._internal_motivation(states)
-
-        print(">>> ", rewards_int_a.mean(), rewards_int_b.mean())
         
         rewards_int   = rewards_int_a + rewards_int_b
         rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
