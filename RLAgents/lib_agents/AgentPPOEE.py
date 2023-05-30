@@ -457,7 +457,7 @@ class AgentPPOEE():
         features  = features.detach().to("cpu")
 
         d           = torch.cdist(features, self.novelty_buffer)/features.shape[1]
-        originality = torch.min(d, axis=0)[0]
+        originality = torch.min(d, axis=1)[0]
 
         print(">>> ", d.shape, originality.shape)
 
