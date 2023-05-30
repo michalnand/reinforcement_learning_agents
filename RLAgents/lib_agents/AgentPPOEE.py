@@ -18,14 +18,14 @@ class RunningStats:
         self.ex     = torch.zeros((envs_count, features_count), dtype=torch.float32)
         self.ex2    = torch.zeros((envs_count, features_count), dtype=torch.float32)
 
-    def reset(self, env_id, x):
-        self.n[env_id] = 2
-        self.k[env_id] = x
+    def reset(self, env_id, x, initial_steps_count = 256):
+        self.n[env_id] = initial_steps_count
+        self.k[env_id] = initial_steps_count*x
 
         d = x - self.k[env_id]
     
-        self.ex[env_id]  = d
-        self.ex2[env_id] = d**2
+        self.ex[env_id]  = initial_steps_count*d
+        self.ex2[env_id] = initial_steps_count*(d**2)
 
 
     def add(self, x):
