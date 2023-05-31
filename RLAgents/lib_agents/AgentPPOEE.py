@@ -100,6 +100,11 @@ class AgentPPOEE():
             self.envs.reset(e)
 
 
+        #internal motivation buffer and its entropy
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32)
+        self.novelty_buffer_ptr = 0
+        
+        
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -110,9 +115,6 @@ class AgentPPOEE():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-        #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32)
-        self.novelty_buffer_ptr = 0
             
         self.enable_training()  
         self.iterations     = 0 
