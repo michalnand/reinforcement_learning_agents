@@ -101,7 +101,7 @@ class AgentPPOEE():
 
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), requires_grad=False, device=self.model_im.device)
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float16, requires_grad=False, device=self.model_im.device)
         self.novelty_buffer_ptr = 0 
         
 
@@ -110,6 +110,7 @@ class AgentPPOEE():
         for e in range(self.envs_count):
             self.states[e]  = self.envs.reset(e)
 
+            self._reset_internal_motivation(e, self.states[e])
         
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
@@ -205,6 +206,8 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
+
+                self._reset_internal_motivation(e, self.states[e])
                
          
         #self._add_for_plot(states, infos, dones)
@@ -455,21 +458,28 @@ class AgentPPOEE():
     
 
     def _internal_motivation(self, states):
-        #get features from model
-        features  = self.model_im(states)
-        features  = features.detach()
 
-        originality = torch.zeros((self.envs_count, ), dtype=torch.float32)
-        
+        features  = self.model_im(states)
+        features  = features.detach().to(torch.float16)
+
+        #measure distances
+        d         = self.novelty_buffer - features.unsqueeze(0)
+        d         = (d**2).mean(dim=-1)
+
         #find closest
-        for i in range(features.shape[0]):
-            d              = ((features[i].unsqueeze(0) - self.novelty_buffer)**2).mean(dim=-1)
-            originality[i] = torch.min(d)
+        originality = torch.min(d, axis=0)[0]
 
         #add new features into buffer
-        for i in range(features.shape[0]):
-            self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
-            self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
+        self.novelty_buffer[self.novelty_buffer_ptr] = features
+        self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
 
-        return originality.to("cpu")
-    
+        return originality.to(torch.float32).to("cpu")
+     
+    def _reset_internal_motivation(self, env_id, state):
+
+        state_t   = torch.from_numpy(state).unsqueeze(0).to(self.model_im.device)
+        features  = self.model_im(state_t)
+
+        features  = features.squeeze(0).detach().to(torch.float16)
+
+        self.novelty_buffer[self.novelty_buffer_ptr, env_id, :] = features
