@@ -462,16 +462,12 @@ class AgentPPOEE():
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
 
-        print(">>>> ", self.novelty_buffer.shape, features.unsqueeze(1).shape)
-
         #measure distances
         d         = self.novelty_buffer - features.unsqueeze(0)
         d         = (d**2).mean(dim=-1)
 
         #find closest
         originality = torch.min(d, axis=0)[0]
-
-        print("originality = ", d.shape, originality.shape)
 
         #add new features into buffer
         self.novelty_buffer[self.novelty_buffer_ptr] = features
