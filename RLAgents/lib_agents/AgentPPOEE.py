@@ -104,12 +104,14 @@ class AgentPPOEE():
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e]  = self.envs.reset(e)
+
+            self._reset_internal_motivation(e, self.states[e])
         
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), dtype=torch.float32)
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32)
         self.novelty_buffer_ptr = 0
             
         self.enable_training()  
@@ -202,6 +204,8 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
+
+                self._reset_internal_motivation(e, self.states[e])
                
          
         #self._add_for_plot(states, infos, dones)
@@ -456,12 +460,24 @@ class AgentPPOEE():
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
 
-        d           = torch.cdist(features, self.novelty_buffer)/features.shape[1]
+        #measure distances
+        d         = self.novelty_buffer - features.unsqueeze(1)
+        d         = (d**2).mean(dim=-1)
+
+        #find closest
         originality = torch.min(d, axis=1)[0]
 
         #add new features into buffer
-        for i in range(features.shape[0]):
-            self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
-            self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
+        self.novelty_buffer[self.novelty_buffer_ptr] = features
+        self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
 
         return originality
+    
+    def _reset_internal_motivation(self, env_id, state):
+
+        state_t   = torch.from_numpy(state).unsqueeze(0).to(self.model_im.device)
+        features  = self.model_im(state_t)
+
+        features  = features.squeeze(0).detach().to("cpu")
+
+        self.novelty_buffer[self.novelty_buffer_ptr, env_id, :] = features
