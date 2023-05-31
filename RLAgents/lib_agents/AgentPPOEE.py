@@ -104,7 +104,7 @@ class AgentPPOEE():
         self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32)
         self.novelty_buffer_ptr = 0
         
-        
+
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -461,6 +461,8 @@ class AgentPPOEE():
 
         features  = self.model_im(states)
         features  = features.detach().to("cpu")
+
+        print(">>>> ", self.novelty_buffer.shape, features.unsqueeze(1).shape)
 
         #measure distances
         d         = self.novelty_buffer - features.unsqueeze(1)
