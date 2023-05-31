@@ -101,8 +101,8 @@ class AgentPPOEE():
 
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32)
-        self.novelty_buffer_ptr = 0
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, self.envs_count, 512), dtype=torch.float32, device=self.model_im.device)
+        self.novelty_buffer_ptr = 0 
         
 
         #reset envs and fill initial state
@@ -460,7 +460,7 @@ class AgentPPOEE():
     def _internal_motivation(self, states):
 
         features  = self.model_im(states)
-        features  = features.detach().to("cpu")
+        features  = features.detach()
 
         #measure distances
         d         = self.novelty_buffer - features.unsqueeze(0)
@@ -473,13 +473,13 @@ class AgentPPOEE():
         self.novelty_buffer[self.novelty_buffer_ptr] = features
         self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
 
-        return originality
+        return originality.to("cpu")
     
     def _reset_internal_motivation(self, env_id, state):
 
         state_t   = torch.from_numpy(state).unsqueeze(0).to(self.model_im.device)
         features  = self.model_im(state_t)
 
-        features  = features.squeeze(0).detach().to("cpu")
+        features  = features.squeeze(0).detach()
 
         self.novelty_buffer[self.novelty_buffer_ptr, env_id, :] = features
