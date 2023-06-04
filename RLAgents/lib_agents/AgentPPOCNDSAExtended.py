@@ -8,49 +8,9 @@ from .PPOLoss               import *
 from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
-
-
-class RunningStats:
-
-    def __init__(self, envs_count, features_count):
-        self.n      = 2 + torch.zeros((envs_count, 1), dtype=torch.float32)
-        self.k      = torch.zeros((envs_count, features_count), dtype=torch.float32)
-        self.ex     = torch.zeros((envs_count, features_count), dtype=torch.float32)
-        self.ex2    = torch.zeros((envs_count, features_count), dtype=torch.float32)
-
-    def reset(self, env_id, x, initial_steps_count = 256):
-        self.n[env_id] = initial_steps_count
-        self.k[env_id] = initial_steps_count*x
-
-        d = x - self.k[env_id]
-    
-        self.ex[env_id]  = initial_steps_count*d
-        self.ex2[env_id] = initial_steps_count*(d**2)
-
-
-    def add(self, x):
-        self.n += 1
-
-        d = x - self.k
-
-        self.ex+=  d
-        self.ex2+= d** 2
-
-
-    def get_mean(self):
-        mean = self.k + self.ex/self.n
-        mean = mean.mean(-1)
-
-        return mean
-    
-    def get_variance(self):
-        var = (self.ex2 - self.ex**2 / self.n) / (self.n - 1)
-        var = var.mean(-1)
-
-        return var
-             
-class AgentPPOEE():   
-    def __init__(self, envs, ModelPPO, ModelIM, config):
+         
+class AgentPPOCNDSAExtended():   
+    def __init__(self, envs, ModelPPO, ModelCNDTarget, ModelCND, config):
         self.envs = envs  
          
         self.gamma_ext          = config.gamma_ext 
@@ -59,7 +19,8 @@ class AgentPPOEE():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.int_reward_coeff   = config.int_reward_coeff
-        
+        self.aux_loss_coeff     = config.aux_loss_coeff
+      
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -69,55 +30,47 @@ class AgentPPOEE():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
- 
-        #self supervised + AUX loss for PPO model
-        if config.ppo_self_supervised_loss == "vicreg":
-            self.ppo_self_supervised_loss = loss_vicreg
+        if hasattr(config, "beta_var"):
+            self.beta_var           = config.beta_var
+            self.var                = 0.0
+            self.beta_product       = 1.0
         else:
-            self.ppo_self_supervised_loss = None
-
-        if config.ppo_aux_loss == "action_loss":
-            self.ppo_aux_loss = self._action_loss
-        elif config.ppo_aux_loss == "constructor_loss":
-             self.ppo_aux_loss = self._constructor_loss
-        else:
-            self.ppo_aux_loss = None
-
-       
-
-        #self supervised + AUX loss for internal motivation model
-        if config.im_self_supervised_loss == "vicreg":
-            self.im_self_supervised_loss = loss_vicreg
-        else:
-            self.im_self_supervised_loss = None
-
-        if config.im_aux_loss == "action_loss":
-            self.im_aux_loss = self._action_loss
-        elif config.im_aux_loss == "constructor_loss":
-             self.im_aux_loss = self._constructor_loss
-        else:
-            self.im_aux_loss = None
-
+            self.beta_var = None
 
         if hasattr(config, "state_normalise"):
             self.state_normalise = config.state_normalise
         else:
             self.state_normalise = False
-        
+            
+
+
+        if config.ppo_regularization_loss == "vicreg":
+            self._ppo_regularization_loss = loss_vicreg
+        else:
+            self._ppo_regularization_loss = None
+   
+        if config.target_regularization_loss == "vicreg":
+            self._target_regularization_loss = loss_vicreg
+        else:
+            self._target_regularization_loss = None
+
+        if config.target_aux_loss == "action_loss":
+            self._target_aux_loss = self._action_loss
+        elif config.target_aux_loss == "constructor_loss":
+             self._target_aux_loss = self._constructor_loss
+        else:
+            self._target_aux_loss = None
          
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
         
-        print("ppo_self_supervised_loss      = ", self.ppo_self_supervised_loss)
-        print("ppo_aux_loss                 = ", self.ppo_aux_loss)
-
-        print("im_self_supervised_loss       = ", self.im_self_supervised_loss)
-        print("im_aux_loss                  = ", self.im_aux_loss)
-
+        print("ppo_regularization_loss      = ", self._ppo_regularization_loss)
+        print("target_regularization_loss   = ", self._target_regularization_loss)
+        print("target_aux_loss              = ", self._target_aux_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-
         print("int_reward_coeff             = ", self.int_reward_coeff)
+        print("aux_loss_coeff               = ", self.aux_loss_coeff)
         print("state_normalise              = ", self.state_normalise)
 
         print("\n\n")
@@ -128,8 +81,11 @@ class AgentPPOEE():
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        self.model_im       = ModelIM.Model(self.state_shape,  self.actions_count)
-        self.optimizer_im   = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
+        self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape, self.actions_count)
+        self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
+
+        self.model_cnd      = ModelCND.Model(self.state_shape)
+        self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
@@ -145,10 +101,8 @@ class AgentPPOEE():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-        #internal motivation buffer and its entropy
-        self.running_stats  = RunningStats(self.envs_count, 512)
             
-        self.enable_training()  
+        self.enable_training()
         self.iterations     = 0 
 
         self.values_logger  = ValuesLogger() 
@@ -158,27 +112,18 @@ class AgentPPOEE():
 
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
+        self.values_logger.add("loss_ppo_regularization",       0.0)
+        self.values_logger.add("loss_distillation",             0.0)
+        self.values_logger.add("loss_target_regularization",    0.0)
+        self.values_logger.add("loss_target_aux",               0.0)
 
-        self.values_logger.add("loss_ppo_self_supervised",      0.0)
-        self.values_logger.add("loss_ppo_aux",                  0.0)
-        self.values_logger.add("acc_ppo_self_supervised",       0.0)
-        self.values_logger.add("acc_ppo_aux",                   0.0)
-
-        self.values_logger.add("loss_im_self_supervised",       0.0)
-        self.values_logger.add("loss_im_aux",                   0.0)
-        self.values_logger.add("acc_im_self_supervised",        0.0)
-        self.values_logger.add("acc_im_aux",                    0.0)
-
-        self.values_logger.add("im_magnitude",                  0.0)
-        self.values_logger.add("im_magnitude_std",              0.0)
-
+        self.values_logger.add("target_magnitude",              0.0)
+        self.values_logger.add("target_magnitude_std",          0.0)
+        self.values_logger.add("target_similarity_accuracy",    0.0)
+        self.values_logger.add("target_aux_accuracy",           0.0)
 
         self.vis_features = []
         self.vis_labels   = []
-
-
-         
-
         
 
     def enable_training(self): 
@@ -209,10 +154,8 @@ class AgentPPOEE():
         states_new, rewards_ext, dones, infos = self.envs.step(actions)
 
         #curiosity motivation
-        rewards_int_a, rewards_int_b = self._internal_motivation(states)
-        
-        rewards_int   = rewards_int_a + rewards_int_b
-        rewards_int   = torch.clip(self.int_reward_coeff*rewards_int, -1.0, 1.0)
+        rewards_int    = self._curiosity(states)
+        rewards_int    = torch.clip(self.int_reward_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -239,12 +182,6 @@ class AgentPPOEE():
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
-
-                state = torch.tensor(self.states[e], dtype=torch.float).to(self.model_ppo.device).unsqueeze(0)
-                features  = self.model_im(state)
-                features  = features.detach().to("cpu").squeeze(0)
-
-                self.running_stats.reset(e, features)
                
          
         #self._add_for_plot(states, infos, dones)
@@ -253,14 +190,15 @@ class AgentPPOEE():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-
         self.iterations+= 1
 
+        
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_im.save(save_path + "trained/")
+        self.model_cnd.save(save_path + "trained/")
+        self.model_cnd_target.save(save_path + "trained/")
 
         with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
             numpy.save(f, self.state_mean)
@@ -268,7 +206,8 @@ class AgentPPOEE():
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_im.load(load_path + "trained/")
+        self.model_cnd.load(load_path + "trained/")
+        self.model_cnd_target.load(load_path + "trained/")
    
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
@@ -295,85 +234,76 @@ class AgentPPOEE():
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
-                #actor + critic PPO loss
+                #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
-                #features self supervised loss
-                if self.ppo_self_supervised_loss is not None:
-                    #sample smaller batch for for self supervised loss
+
+                #train ppo model for regularization
+                #sample smaller batch for self-supervised regularization
+
+                if self._ppo_regularization_loss is not None:
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
-
-                    loss_ppo_self_supervised , _, _, acc_ppo_self_supervised = self.ppo_self_supervised_loss(self.model_ppo, states_a, states_a, self._augmentations)                
+                    loss_ppo_regularization, _, _, _ = self._ppo_regularization_loss(self.model_ppo, states_a, states_a, self._augmentations)                
                 else:
-                    loss_ppo_self_supervised    = torch.zeros((1, ))[0]
-                    acc_ppo_self_supervised     = 0.0
+                    loss_ppo_regularization = torch.zeros((1, ), device=self.model_ppo.device)[0]
 
 
-                if self.ppo_aux_loss is not None:
-                    #sample smaller batch for semi supervised aux loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
-
-                    loss_ppo_aux , acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action)  
-                else:
-                    loss_ppo_aux    = torch.zeros((1, ))[0]
-                    acc_ppo_aux     = 0.0
+                loss_ppo = loss_ppo + loss_ppo_regularization
                 
-                #final loss
-                loss = loss_ppo + loss_ppo_self_supervised + 0.1*loss_ppo_aux
-
-                #PPO model training
                 self.optimizer_ppo.zero_grad()        
-                loss.backward()
+                loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
 
-                #internal motivation model training
 
-                #features self supervised loss
-                if self.im_self_supervised_loss is not None:
-                    #sample smaller batch for for self supervised loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
+                #train CND model, MSE loss (same as RND)
+                loss_distillation = self._loss_distillation(states)
 
-                    loss_im_self_supervised , im_features_mag, im_features_std, acc_im_self_supervised = self.im_self_supervised_loss(self.model_im, states_a, states_a, self._augmentations)                
-                else:
-                    loss_im_self_supervised    = torch.zeros((1, ), device=self.model_im.device)[0]
-                    acc_im_self_supervised     = 0.0
+                self.optimizer_cnd.zero_grad() 
+                loss_distillation.backward()
+                self.optimizer_cnd.step() 
 
+                
+                #train cnd target model for regularization
+                #sample smaller batch for self-supervised regularization
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
 
-                if self.im_aux_loss is not None:
-                    #sample smaller batch for semi supervised aux loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
-
-                    loss_im_aux, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
-                else:
-                    loss_im_aux    = torch.zeros((1, ), device=self.model_im.device)[0]
-                    acc_im_aux     = 0.0
+              
+                loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
  
- 
-                #final loss for internal motivation model
-                loss_im = loss_im_self_supervised + 0.1*loss_im_aux
+                #optional auxliary loss
+                #e.g. inverse model : action prediction from two consectuctive states
+                if self._target_aux_loss is not None:
+                    loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
+                else:
+                    loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
+                    target_aux_accuracy     = 0.0
 
-                self.optimizer_im.zero_grad() 
-                loss_im.backward()
-                self.optimizer_im.step()
+ 
+                #final loss for target model
+                loss_target = loss_target_regularization + self.aux_loss_coeff*loss_target_aux
+
+                self.optimizer_cnd_target.zero_grad() 
+                loss_target.backward()
+                self.optimizer_cnd_target.step()
+
+                
 
                 #log results
+                self.values_logger.add("loss_ppo_regularization",             loss_ppo_regularization.detach().to("cpu").numpy())
+
+                self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
                 
-                self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_ppo_aux",                  loss_ppo_aux.detach().to("cpu").numpy())
-                self.values_logger.add("acc_ppo_self_supervised",       acc_ppo_self_supervised)
-                self.values_logger.add("acc_ppo_aux",                   acc_ppo_aux)
+                self.values_logger.add("loss_target_regularization",    loss_target_regularization.detach().to("cpu").numpy())
+                self.values_logger.add("loss_target_aux",               loss_target_aux.detach().to("cpu").numpy())
 
-                self.values_logger.add("loss_im_self_supervised",       loss_im_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_im_aux",                   loss_im_aux.detach().to("cpu").numpy())
-                self.values_logger.add("acc_im_self_supervised",        acc_im_self_supervised)
-                self.values_logger.add("acc_im_aux",                    acc_im_aux)
+                self.values_logger.add("target_magnitude",              target_magnitude)
+                self.values_logger.add("target_magnitude_std",          target_magnitude_std)
+                self.values_logger.add("target_similarity_accuracy",    target_similarity_accuracy)
+                self.values_logger.add("target_aux_accuracy",        target_aux_accuracy)
 
-                self.values_logger.add("im_magnitude",                  im_features_mag)
-                self.values_logger.add("im_magnitude_std" ,             im_features_std)
 
-            
 
         self.policy_buffer.clear() 
 
@@ -388,6 +318,15 @@ class AgentPPOEE():
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
         advantages  = advantages.detach() 
 
+        #advantages viariance normalisation (optional), mean is already almost zero
+        if self.beta_var is not None:
+            self.var          = self.beta_var*self.var + (1.0 - self.beta_var)*(advantages**2).mean()
+            self.beta_product = self.beta_product*self.beta_var
+
+            var = self.var/(1.0 - self.beta_product) 
+
+            advantages  = advantages/((var**0.5) + 1e-10)
+
         loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages, actions, self.eps_clip, self.entropy_beta)
 
         loss_actor = loss_policy + loss_entropy
@@ -401,11 +340,20 @@ class AgentPPOEE():
 
         return loss 
 
-  
+    
+    #MSE loss for networks distillation model
+    def _loss_distillation(self, states): 
+        features_predicted_t  = self.model_cnd(states)
+        features_target_t     = self.model_cnd_target(states).detach()
+
+        loss_cnd = (features_target_t - features_predicted_t)**2
+
+        loss_cnd  = loss_cnd.mean() 
+        return loss_cnd
 
     #inverse model for action prediction
-    def _action_loss(self, model, states_now, states_next, states_random, action):
-        action_pred     = model.forward_aux(states_now, states_next)
+    def _action_loss(self, states_now, states_next, states_random, action):
+        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
 
         action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
 
@@ -420,7 +368,7 @@ class AgentPPOEE():
 
     #constructor theory loss
     #inverse model for action prediction
-    def _constructor_loss(self, model, states_now, states_next, states_random, action):
+    def _constructor_loss(self, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
         #0 : state_now,  state_random, two different states
@@ -440,7 +388,7 @@ class AgentPPOEE():
         sa_aug  = self._augmentations(sa)
         sb_aug  = self._augmentations(sb)
 
-        transition_pred = model.forward_aux(sa_aug, sb_aug)
+        transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
 
         loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
@@ -453,6 +401,15 @@ class AgentPPOEE():
         return loss, acc
  
 
+    #compute internal motivation
+    def _curiosity(self, states):        
+        features_predicted_t    = self.model_cnd(states)
+        features_target_t       = self.model_cnd_target(states)
+ 
+        curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+  
+        return curiosity_t
+ 
 
 
     def _augmentations(self, x): 
@@ -492,26 +449,5 @@ class AgentPPOEE():
         states_norm = numpy.clip(states_norm, -4.0, 4.0)
         
         return states_norm
-    
 
-    def _internal_motivation(self, states):
-
-        entropy_prev = self.running_stats.get_variance()
-
-        features  = self.model_im(states)
-        features  = features.detach().to("cpu")
-
-        #add new features to buffer
-        self.running_stats.add(features)
-
-        entropy_now = self.running_stats.get_variance()
-
-        #differential entropy        
-        dif_entropy = entropy_now - entropy_prev
-
-        #trajectory originality
-        d = torch.cdist(features, features)/features.shape[1]
-        d = d + torch.eye(d.shape[0])*10**6
-        originality = torch.min(d, axis=0)[0]
-
-        return dif_entropy, originality
+   
