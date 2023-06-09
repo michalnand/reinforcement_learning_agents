@@ -9,8 +9,10 @@ from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
          
-class AgentPPOCNDSAExtended():   
+class AgentPPOCNDSAExtendedNew():   
     def __init__(self, envs, ModelPPO, ModelCND, config):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.envs = envs  
          
         self.gamma_ext          = config.gamma_ext 
@@ -75,9 +77,11 @@ class AgentPPOCNDSAExtended():
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_cnd      = ModelCND.Model(self.state_shape)
+        self.model_cnd.to(self.device)
         self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
@@ -132,7 +136,7 @@ class AgentPPOCNDSAExtended():
             states = self.states
         
         #state to tensor
-        states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
+        states = torch.tensor(states, dtype=torch.float).to(self.device)
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -185,16 +189,16 @@ class AgentPPOCNDSAExtended():
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
-        self.model_ppo.save(save_path + "trained/")
-        self.model_cnd.save(save_path + "trained/")
+        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
+        torch.save(self.model_cnd.state_dict(), save_path + "trained/model_cnd.pt")
 
         with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
             numpy.save(f, self.state_mean)
             numpy.save(f, self.state_var)
 
     def load(self, load_path):
-        self.model_ppo.load(load_path + "trained/")
-        self.model_cnd.load(load_path + "trained/")
+        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
+        self.model_cnd.load_state_dict(torch.load(load_path + "trained/model_cnd.pt", map_location = self.device))
    
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
@@ -219,7 +223,7 @@ class AgentPPOCNDSAExtended():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -227,23 +231,23 @@ class AgentPPOCNDSAExtended():
 
                 #train ppo model for regularization
                 #sample smaller batch for self-supervised regularization
-
                 if self._self_supervised_loss is not None:
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
                     loss_ppo_self_supervised, _, _, ppo_similarity_accuracy = self._self_supervised_loss(self.model_ppo, states_a, states_a, self._augmentations)                
                 else:
-                    loss_ppo_self_supervised = torch.zeros((1, ), device=self.model_ppo.device)[0]
+                    loss_ppo_self_supervised = torch.zeros((1, ), device=self.device)[0]
 
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._aux_loss is not None:
-                    loss_aux, aux_accuracy = self._aux_loss(states_a, states_b, states_c, action)                 
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+                    loss_ppo_aux, ppo_aux_accuracy = self._aux_loss(states_a, states_b, states_c, action)                 
                 else:
-                    loss_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
-                    aux_accuracy     = 0.0
+                    loss_ppo_aux         = torch.zeros((1, ), device=self.device)[0]
+                    ppo_aux_accuracy     = 0.0
 
-                loss_ppo = loss_ppo + loss_ppo_self_supervised + self.aux_loss_coeff*loss_aux
+                loss_ppo = loss_ppo + loss_ppo_self_supervised + self.aux_loss_coeff*loss_ppo_aux
                 
                 self.optimizer_ppo.zero_grad()        
                 loss_ppo.backward()
@@ -263,15 +267,12 @@ class AgentPPOCNDSAExtended():
                 
 
                 #log results
-
                 self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_ppo_aux",                  loss_aux.detach().to("cpu").numpy())
+                self.values_logger.add("loss_ppo_aux",                  loss_ppo_aux.detach().to("cpu").numpy())
                 self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
 
                 self.values_logger.add("ppo_similarity_accuracy",       ppo_similarity_accuracy.detach().to("cpu").numpy())
-                self.values_logger.add("ppo_aux_accuracy",              aux_accuracy)
-
-
+                self.values_logger.add("ppo_aux_accuracy",              ppo_aux_accuracy)
 
 
         self.policy_buffer.clear() 
@@ -312,7 +313,7 @@ class AgentPPOCNDSAExtended():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states): 
-        features_target_t     = self.model_ppo.features(states).detach()
+        features_target_t     = self.model_ppo.forward_features(states).detach()
         features_predicted_t  = self.model_cnd(states)
 
         loss_cnd = (features_target_t - features_predicted_t)**2
@@ -321,10 +322,10 @@ class AgentPPOCNDSAExtended():
         return loss_cnd
 
     #inverse model for action prediction
-    def _action_loss(self, states_now, states_next, states_random, action):
-        action_pred     = self.model_cnd_target.forward_aux(states_now, states_next)
+    def _action_loss(self, model, states_now, states_next, states_random, action):
+        action_pred     = model.forward_aux(states_now, states_next)
 
-        action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(states_now.device)
+        action_one_hot  = torch.nn.functional.one_hot(action, self.actions_count).to(self.device)
 
         loss            =  ((action_one_hot - action_pred)**2).mean()
 
@@ -337,13 +338,13 @@ class AgentPPOCNDSAExtended():
 
     #constructor theory loss
     #inverse model for action prediction
-    def _constructor_loss(self, states_now, states_next, states_random, action):
+    def _constructor_loss(self, model, states_now, states_next, states_random, action):
         batch_size          = states_now.shape[0]
 
         #0 : state_now,  state_random, two different states
         #1 : state_now,  state_next, two consecutive states
         #2 : state_next, state_now, two inverted consecutive states
-        labels                   = torch.randint(0, 3, (batch_size, )).to(states_now.device)
+        labels                   = torch.randint(0, 3, (batch_size, )).to(self.device)
         transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
 
         #mix states
@@ -357,7 +358,7 @@ class AgentPPOCNDSAExtended():
         sa_aug  = self._augmentations(sa)
         sb_aug  = self._augmentations(sb)
 
-        transition_pred = self.model_cnd_target.forward_aux(sa_aug, sb_aug)
+        transition_pred = model.forward_aux(sa_aug, sb_aug)
 
         loss            = ((transition_label_one_hot - transition_pred)**2).mean()
         
@@ -372,15 +373,13 @@ class AgentPPOCNDSAExtended():
 
     #compute internal motivation
     def _curiosity(self, states):        
-        features_target_t       = self.model_ppo.features(states)
+        features_target_t       = self.model_ppo.forward_features(states)
         features_predicted_t    = self.model_cnd(states)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
   
         return curiosity_t
  
-
-
     def _augmentations(self, x): 
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
