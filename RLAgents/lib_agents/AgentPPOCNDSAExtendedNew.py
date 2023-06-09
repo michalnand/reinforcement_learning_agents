@@ -242,7 +242,7 @@ class AgentPPOCNDSAExtendedNew():
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._aux_loss is not None:
                     states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
-                    loss_ppo_aux, ppo_aux_accuracy = self._aux_loss(states_a, states_b, states_c, action)                 
+                    loss_ppo_aux, ppo_aux_accuracy = self._aux_loss(self.model_ppo, states_a, states_b, states_c, action)                 
                 else:
                     loss_ppo_aux         = torch.zeros((1, ), device=self.device)[0]
                     ppo_aux_accuracy     = 0.0
