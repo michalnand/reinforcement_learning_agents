@@ -228,11 +228,11 @@ class AgentPPOCNDSAExtendedNew():
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
 
+                #sample smaller batch for self-supervised training
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
                 #train ppo model for regularization
-                #sample smaller batch for self-supervised regularization
                 if self._self_supervised_loss is not None:
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
                     loss_ppo_self_supervised, _, _, ppo_similarity_accuracy = self._self_supervised_loss(self.model_ppo, states_a, states_a, self._augmentations)                
                 else:
                     loss_ppo_self_supervised = torch.zeros((1, ), device=self.device)[0]
@@ -240,8 +240,7 @@ class AgentPPOCNDSAExtendedNew():
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
-                if self._aux_loss is not None:
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+                if self._aux_loss is not None and False:
                     loss_ppo_aux, ppo_aux_accuracy = self._aux_loss(self.model_ppo, states_a, states_b, states_c, action)                 
                 else:
                     loss_ppo_aux         = torch.zeros((1, ), device=self.device)[0]
