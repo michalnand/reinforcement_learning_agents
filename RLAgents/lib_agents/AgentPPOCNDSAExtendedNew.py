@@ -240,7 +240,7 @@ class AgentPPOCNDSAExtendedNew():
 
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
-                if self._aux_loss is not None and False:
+                if self._aux_loss is not None:
                     loss_ppo_aux, ppo_aux_accuracy = self._aux_loss(self.model_ppo, states_a, states_b, states_c, action)                 
                 else:
                     loss_ppo_aux         = torch.zeros((1, ), device=self.device)[0]
