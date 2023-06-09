@@ -271,7 +271,7 @@ class AgentPPOCNDSAExtendedNew():
                 self.values_logger.add("loss_ppo_aux",                  loss_ppo_aux.detach().to("cpu").numpy())
                 self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
 
-                self.values_logger.add("ppo_similarity_accuracy",       ppo_similarity_accuracy.detach().to("cpu").numpy())
+                self.values_logger.add("ppo_similarity_accuracy",       ppo_similarity_accuracy)
                 self.values_logger.add("ppo_aux_accuracy",              ppo_aux_accuracy)
 
 
