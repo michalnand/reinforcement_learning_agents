@@ -11,6 +11,8 @@ from .Augmentations         import *
          
 class AgentPPOCNDSAExtended():   
     def __init__(self, envs, ModelPPO, ModelCNDTarget, ModelCND, config):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.envs = envs  
          
         self.gamma_ext          = config.gamma_ext 
@@ -79,12 +81,15 @@ class AgentPPOCNDSAExtended():
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_cnd_target      = ModelCNDTarget.Model(self.state_shape, self.actions_count)
+        self.model_cnd_target.to(self.device)
         self.optimizer_cnd_target  = torch.optim.Adam(self.model_cnd_target.parameters(), lr=config.learning_rate_cnd_target)
 
         self.model_cnd      = ModelCND.Model(self.state_shape)
+        self.model_cnd.to(self.device)
         self.optimizer_cnd  = torch.optim.Adam(self.model_cnd.parameters(), lr=config.learning_rate_cnd)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
@@ -143,7 +148,7 @@ class AgentPPOCNDSAExtended():
             states = self.states
         
         #state to tensor
-        states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
+        states = torch.tensor(states, dtype=torch.float).to(self.device)
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -196,18 +201,19 @@ class AgentPPOCNDSAExtended():
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
-        self.model_ppo.save(save_path + "trained/")
-        self.model_cnd.save(save_path + "trained/")
-        self.model_cnd_target.save(save_path + "trained/")
+        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
+        torch.save(self.model_cnd.state_dict(), save_path + "trained/model_cnd.pt")
+        torch.save(self.model_cnd_target.state_dict(), save_path + "trained/model_cnd_target.pt")
 
         with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
             numpy.save(f, self.state_mean)
             numpy.save(f, self.state_var)
 
     def load(self, load_path):
-        self.model_ppo.load(load_path + "trained/")
-        self.model_cnd.load(load_path + "trained/")
-        self.model_cnd_target.load(load_path + "trained/")
+        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
+        self.model_cnd.load_state_dict(torch.load(load_path + "trained/model_cnd.pt", map_location = self.device))
+        self.model_cnd_target.load_state_dict(torch.load(load_path + "trained/model_cnd_target.pt", map_location = self.device))
+
    
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
