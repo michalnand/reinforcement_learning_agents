@@ -238,7 +238,7 @@ class AgentPPOCNDSAExtended():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -248,10 +248,10 @@ class AgentPPOCNDSAExtended():
                 #sample smaller batch for self-supervised regularization
 
                 if self._ppo_regularization_loss is not None:
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
                     loss_ppo_regularization, _, _, _ = self._ppo_regularization_loss(self.model_ppo, states_a, states_a, self._augmentations)                
                 else:
-                    loss_ppo_regularization = torch.zeros((1, ), device=self.model_ppo.device)[0]
+                    loss_ppo_regularization = torch.zeros((1, ), device=self.device)[0]
 
 
                 loss_ppo = loss_ppo + loss_ppo_regularization
@@ -273,7 +273,7 @@ class AgentPPOCNDSAExtended():
                 
                 #train cnd target model for regularization
                 #sample smaller batch for self-supervised regularization
-                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
               
                 loss_target_regularization, target_magnitude, target_magnitude_std, target_similarity_accuracy = self._target_regularization_loss(self.model_cnd_target, states_a, states_a, self._augmentations)                
@@ -283,7 +283,7 @@ class AgentPPOCNDSAExtended():
                 if self._target_aux_loss is not None:
                     loss_target_aux, target_aux_accuracy = self._target_aux_loss(states_a, states_b, states_c, action)                 
                 else:
-                    loss_target_aux         = torch.zeros((1, ), device=self.model_ppo.device)[0]
+                    loss_target_aux         = torch.zeros((1, ), device=self.device)[0]
                     target_aux_accuracy     = 0.0
 
  
