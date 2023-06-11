@@ -105,7 +105,7 @@ class AgentPPOEE():
 
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), requires_grad=False, device=self.device)
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), requires_grad=False, device="cpu")
         self.novelty_buffer_ptr = 0 
         
 
@@ -458,16 +458,25 @@ class AgentPPOEE():
     def _internal_motivation(self, states):
         #get features from model
         features  = self.model_im(states)
-        features  = features.detach()
+        features  = features.detach().to("cpu")
 
+        '''
         d_mean = torch.zeros((self.envs_count, ), dtype=torch.float32)
         d_var  = torch.zeros((self.envs_count, ), dtype=torch.float32)
         
+
         #find statistics
         for i in range(features.shape[0]):
             d              = ((features[i].unsqueeze(0) - self.novelty_buffer)**2).mean(dim=-1)
             d_mean[i]      = torch.mean(d)
             d_var[i]       = torch.var(d)
+        '''
+
+        d = torch.cdist(features, self.novelty_buffer)
+        d_mean = torch.mean(d, dim=1)
+        d_var  = torch.var(d, dim=1)
+
+        print(">>> ", d.shape, d_mean.shape, d_var.shape)
 
         #add new features into buffer
         for i in range(features.shape[0]):
