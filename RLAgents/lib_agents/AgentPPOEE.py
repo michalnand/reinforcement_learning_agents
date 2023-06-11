@@ -12,6 +12,8 @@ from .Augmentations         import *
 
 class AgentPPOEE():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.envs = envs  
          
         self.gamma_ext          = config.gamma_ext 
@@ -89,9 +91,11 @@ class AgentPPOEE():
         self.actions_count  = self.envs.action_space.n
 
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         self.model_im       = ModelIM.Model(self.state_shape,  self.actions_count)
+        self.model_im.to(self.device)
         self.optimizer_im   = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
@@ -101,7 +105,7 @@ class AgentPPOEE():
 
 
         #internal motivation buffer and its entropy
-        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), requires_grad=False, device=self.model_im.device)
+        self.novelty_buffer     = torch.zeros((self.novelty_buffer_size, 512), requires_grad=False, device=self.device)
         self.novelty_buffer_ptr = 0 
         
 
@@ -165,7 +169,7 @@ class AgentPPOEE():
             states = self.states
         
         #state to tensor
-        states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
+        states = torch.tensor(states, dtype=torch.float).to(self.device)
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -206,30 +210,27 @@ class AgentPPOEE():
             if dones[e]:
                 self.states[e]  = self.envs.reset(e)
                
-         
-        #self._add_for_plot(states, infos, dones)
-        
+                 
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-
 
         self.iterations+= 1
 
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
-        self.model_ppo.save(save_path + "trained/")
-        self.model_im.save(save_path + "trained/")
+        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
+        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
 
         with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
             numpy.save(f, self.state_mean)
             numpy.save(f, self.state_var)
 
     def load(self, load_path):
-        self.model_ppo.load(load_path + "trained/")
-        self.model_im.load(load_path + "trained/")
-   
+        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
+        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
+       
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
             self.state_var  = numpy.load(f)
@@ -253,7 +254,7 @@ class AgentPPOEE():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
                 #actor + critic PPO loss
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -261,7 +262,7 @@ class AgentPPOEE():
                 #features self supervised loss
                 if self.ppo_self_supervised_loss is not None:
                     #sample smaller batch for for self supervised loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
                     loss_ppo_self_supervised , _, _, acc_ppo_self_supervised = self.ppo_self_supervised_loss(self.model_ppo, states_a, states_a, self._augmentations)                
                 else:
@@ -271,7 +272,7 @@ class AgentPPOEE():
 
                 if self.ppo_aux_loss is not None:
                     #sample smaller batch for semi supervised aux loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
                     loss_ppo_aux , acc_ppo_aux = self.ppo_aux_loss(self.model_ppo, states_a, states_b, states_c, action)  
                 else:
@@ -279,7 +280,7 @@ class AgentPPOEE():
                     acc_ppo_aux     = 0.0
                 
                 #final loss
-                loss = loss_ppo + loss_ppo_self_supervised + 0.1*loss_ppo_aux
+                loss = loss_ppo + loss_ppo_self_supervised + 0.01*loss_ppo_aux
 
                 #PPO model training
                 self.optimizer_ppo.zero_grad()        
@@ -293,26 +294,26 @@ class AgentPPOEE():
                 #features self supervised loss
                 if self.im_self_supervised_loss is not None:
                     #sample smaller batch for for self supervised loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
                     loss_im_self_supervised , im_features_mag, im_features_std, acc_im_self_supervised = self.im_self_supervised_loss(self.model_im, states_a, states_a, self._augmentations)                
                 else:
-                    loss_im_self_supervised    = torch.zeros((1, ), device=self.model_im.device)[0]
+                    loss_im_self_supervised    = torch.zeros((1, ), device=self.device)[0]
                     acc_im_self_supervised     = 0.0
 
 
                 if self.im_aux_loss is not None:
                     #sample smaller batch for semi supervised aux loss
-                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_im.device)
+                    states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
                     loss_im_aux, acc_im_aux = self.im_aux_loss(self.model_im, states_a, states_b, states_c, action)                
                 else:
-                    loss_im_aux    = torch.zeros((1, ), device=self.model_im.device)[0]
+                    loss_im_aux    = torch.zeros((1, ), device=self.device)[0]
                     acc_im_aux     = 0.0
  
  
                 #final loss for internal motivation model
-                loss_im = loss_im_self_supervised + 0.1*loss_im_aux
+                loss_im = loss_im_self_supervised + 0.01*loss_im_aux
 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
@@ -459,17 +460,21 @@ class AgentPPOEE():
         features  = self.model_im(states)
         features  = features.detach()
 
-        originality = torch.zeros((self.envs_count, ), dtype=torch.float32)
+        d_mean = torch.zeros((self.envs_count, ), dtype=torch.float32)
+        d_var  = torch.zeros((self.envs_count, ), dtype=torch.float32)
         
-        #find closest
+        #find statistics
         for i in range(features.shape[0]):
             d              = ((features[i].unsqueeze(0) - self.novelty_buffer)**2).mean(dim=-1)
-            originality[i] = torch.min(d)
+            d_mean[i]      = torch.mean(d)
+            d_var[i]       = torch.var(d)
 
         #add new features into buffer
         for i in range(features.shape[0]):
             self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
             self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
 
-        return originality.to("cpu")
+        result = d_mean
+
+        return result.to("cpu")
     
