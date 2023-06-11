@@ -474,7 +474,7 @@ class AgentPPOEE():
             self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
             self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer.shape[0]
 
-        result = d_mean
+        result = d_mean/(d_var + 10**-10) 
 
         return result.to("cpu")
     
