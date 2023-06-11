@@ -476,8 +476,6 @@ class AgentPPOEE():
         d_mean = torch.mean(d, dim=1)
         d_var  = torch.var(d, dim=1)
 
-        print(">>> ", d.shape, d_mean.shape, d_var.shape)
-
         #add new features into buffer
         for i in range(features.shape[0]):
             self.novelty_buffer[self.novelty_buffer_ptr] = features[i]
