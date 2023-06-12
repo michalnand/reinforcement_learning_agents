@@ -10,7 +10,7 @@ from .Augmentations         import *
 
          
 class AgentPPOSND():   
-    def __init__(self, envs, ModelPPO, ModelSND, config):
+    def __init__(self, envs, ModelPPO, ModelIM, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -72,9 +72,9 @@ class AgentPPOSND():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         
-        self.model_snd      = ModelSND.Model(self.state_shape)
-        self.model_snd.to(self.device)
-        self.optimizer_cnd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
+        self.model_im      = ModelIM.Model(self.state_shape)
+        self.model_im.to(self.device)
+        self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
@@ -182,7 +182,7 @@ class AgentPPOSND():
     
     def save(self, save_path):
         self.model_ppo.save(save_path + "trained/")
-        self.model_snd.save(save_path + "trained/")
+        self.model_im.save(save_path + "trained/")
 
         with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
             numpy.save(f, self.state_mean)
@@ -190,7 +190,7 @@ class AgentPPOSND():
 
     def load(self, load_path):
         self.model_ppo.load(load_path + "trained/")
-        self.model_snd.load(load_path + "trained/")
+        self.model_im.load(load_path + "trained/")
    
         with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
             self.state_mean = numpy.load(f)
@@ -254,9 +254,9 @@ class AgentPPOSND():
                 #train SND model, MSE loss (same as RND)
                 loss_distillation = self._loss_distillation(states)
 
-                self.optimizer_cnd.zero_grad() 
+                self.optimizer_im.zero_grad() 
                 loss_distillation.backward()
-                self.optimizer_cnd.step() 
+                self.optimizer_im.step() 
 
                
                 #log results
@@ -302,7 +302,7 @@ class AgentPPOSND():
     #MSE loss for networks distillation model
     def _loss_distillation(self, states): 
         features_predicted_t  = self.model_ppo.forward_features(states)
-        features_target_t     = self.model_snd(states).detach()
+        features_target_t     = self.model_im(states).detach()
 
         loss_cnd = (features_target_t - features_predicted_t)**2
 
@@ -362,7 +362,7 @@ class AgentPPOSND():
     #compute internal motivation
     def _curiosity(self, states):        
         features_predicted_t    = self.model_ppo.forward_features(states)
-        features_target_t       = self.model_snd(states)
+        features_target_t       = self.model_im(states)
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
   
