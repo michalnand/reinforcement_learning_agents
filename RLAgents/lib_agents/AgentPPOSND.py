@@ -350,8 +350,9 @@ class AgentPPOSND():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states): 
-        features_predicted_t  = self.model_ppo.forward_features(states)
-        features_target_t     = self.model_im(states).detach()
+        features_target_t     = self.model_snd_target(states).detach()
+        features_predicted_t  = self.model_snd(states)
+        
 
         loss_cnd = (features_target_t - features_predicted_t)**2
 
@@ -410,8 +411,9 @@ class AgentPPOSND():
 
     #compute internal motivation
     def _curiosity(self, states):        
-        features_predicted_t    = self.model_ppo.forward_features(states)
-        features_target_t       = self.model_im(states)
+        features_target_t       = self.model_snd_target(states)
+        features_predicted_t    = self.model_snd(states)
+        
  
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
   
