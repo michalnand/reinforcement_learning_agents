@@ -55,6 +55,8 @@ class PolicyBufferIM:
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
+
+        self.relations                        = self._relations(self.reward_ext, self.dones)
         
         #reshape buffer for faster batch sampling
         self.states           = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
@@ -143,8 +145,11 @@ class PolicyBufferIM:
         
         actions         = (self.actions[indices]).to(device)
 
+        relations_now   = (self.relations[indices]).to(device)
+        relations_next  = (self.relations[indices_next]).to(device)
+
      
-        return states_now, states_next, states_random, actions
+        return states_now, states_next, states_random, actions, relations_now, relations_next
     
    
  
@@ -166,3 +171,22 @@ class PolicyBufferIM:
             advantages[n]   = last_gae
  
         return returns, advantages
+    
+    def _relations(self, rewards, dones):
+        buffer_size = rewards.shape[0]
+        envs_count  = rewards.shape[1]
+        
+        relations = torch.zeros((buffer_size, envs_count), dtype=int)
+
+        r = torch.zeros((envs_count), dtype=int)
+        for n in reversed(range(buffer_size-1)):
+            negative_idx   = torch.where(dones[n] > 0)[0]
+            positive_idx   = torch.where(rewards[n] > 0)[0]
+
+            r[negative_idx] = -1
+
+            r[positive_idx] =  1
+
+            relations[n] = r
+
+        return relations
