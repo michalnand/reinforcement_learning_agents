@@ -128,7 +128,7 @@ class AgentPPOSND():
             states = self.states
         
         #state to tensor
-        states = torch.tensor(states, dtype=torch.float).to(self.model_ppo.device)
+        states = torch.tensor(states, dtype=torch.float).to(self.device)
         #compute model output
         logits, values_ext, values_int  = self.model_ppo.forward(states)
         
@@ -215,7 +215,7 @@ class AgentPPOSND():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -223,7 +223,7 @@ class AgentPPOSND():
 
                 
                 #sample smaller batch
-                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.model_ppo.device)
+                states_a, states_b, states_c, action = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
 
 
                 #train ppo features, self supervised
