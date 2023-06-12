@@ -33,6 +33,8 @@ from .AgentPPOCNDSA                 import AgentPPOCNDSA
 from .AgentPPOCNDSAExtended         import AgentPPOCNDSAExtended
 from .AgentPPOCNDSAExtendedNew      import AgentPPOCNDSAExtendedNew
 
+from .AgentPPOSND                   import AgentPPOSND
+
 from .AgentPPOEE                    import AgentPPOEE
 
 
