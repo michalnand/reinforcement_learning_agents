@@ -308,11 +308,11 @@ class AgentPPOSND():
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised.detach().to("cpu").numpy())
                 self.values_logger.add("loss_ppo_aux",                  loss_ppo_aux.detach().to("cpu").numpy())
-                self.values_logger.add("acc_ppo_aux",                   acc_ppo_aux.detach().to("cpu").numpy())
+                self.values_logger.add("acc_ppo_aux",                   acc_ppo_aux)
 
                 self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised.detach().to("cpu").numpy())
                 self.values_logger.add("loss_target_aux",               loss_target_aux.detach().to("cpu").numpy())
-                self.values_logger.add("acc_target_aux",                acc_target_aux.detach().to("cpu").numpy())
+                self.values_logger.add("acc_target_aux",                acc_target_aux)
 
                 self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
 
