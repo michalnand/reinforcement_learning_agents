@@ -90,7 +90,7 @@ class AgentPPOSND():
         self.model_snd.to(self.device)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
 
-        self.model_snd_target      = ModelSNDTarget.Model(self.state_shape)
+        self.model_snd_target      = ModelSNDTarget.Model(self.state_shape, self.actions_count)
         self.model_snd_target.to(self.device)
         self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_snd_target)
  
