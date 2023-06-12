@@ -281,7 +281,7 @@ class AgentPPOSND():
                 #optional auxliary loss
                 #e.g. inverse model : action prediction from two consectuctive states
                 if self._target_aux_loss is not None:
-                    loss_target_aux, acc_target_aux = self._target_aux_loss(states_a, states_b, states_c, action)                 
+                    loss_target_aux, acc_target_aux = self._target_aux_loss(states_a, states_b, states_c, action, relations_now, relations_next)                 
                 else:
                     loss_target_aux     = torch.zeros((1, ), device=self.model_ppo.device)[0]
                     acc_target_aux      = 0.0
