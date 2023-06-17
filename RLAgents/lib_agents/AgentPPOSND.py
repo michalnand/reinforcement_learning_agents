@@ -200,7 +200,7 @@ class AgentPPOSND():
         #update new state
         self.states = states_new.copy()
 
-        self.hidden_state = hidden_state_new.copy()
+        self.hidden_state = hidden_state_new.clone()
 
         
         #or reset env if done
