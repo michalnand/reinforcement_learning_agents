@@ -275,7 +275,7 @@ class AgentPPOSND():
 
 
 
-                #train snd target model for regularization              
+                #train snd target model, self supervised    
                 loss_target_self_supervised, _, _, _ = self._target_self_supervised_loss(self.model_snd_target, states_a, states_a, self._augmentations)                
  
                 #optional auxliary loss
@@ -283,7 +283,7 @@ class AgentPPOSND():
                 if self._target_aux_loss is not None:
                     loss_target_aux, acc_target_aux = self._target_aux_loss(self.model_snd_target, states_a, states_b, states_c, action, relations_now, relations_next)                 
                 else:
-                    loss_target_aux     = torch.zeros((1, ), device=self.model_ppo.device)[0]
+                    loss_target_aux     = torch.zeros((1, ), device=self.device)[0]
                     acc_target_aux      = 0.0
 
  
