@@ -10,7 +10,7 @@ class PolicyBufferIM:
       
         self.clear()    
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done):
+    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None):
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
@@ -24,6 +24,13 @@ class PolicyBufferIM:
         self.reward_int[self.ptr]  = reward_int.clone()
 
         self.dones[self.ptr]       = (1.0*done).clone()
+
+        if hidden_state is not None:
+            
+            if self.hidden_state is None:
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+            
+            self.hidden_state[self.ptr] = hidden_state.clone()
         
         self.ptr = self.ptr + 1 
 
@@ -49,6 +56,9 @@ class PolicyBufferIM:
 
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
+        self.hidden_state   = None
+        
+
         self.ptr = 0  
  
 
@@ -72,6 +82,9 @@ class PolicyBufferIM:
 
         self.dones            = self.dones.reshape((self.buffer_size*self.envs_count, ))
 
+        if self.hidden_state is not None:
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
+
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
 
@@ -80,22 +93,12 @@ class PolicyBufferIM:
 
         self.relations        = self.relations.reshape((self.buffer_size*self.envs_count, ))
 
+
+
     def sample_batch(self, batch_size, device = "cpu"):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
 
-        '''
-        states          = torch.index_select(self.states, dim=0, index=indices).to(device)
-        logits          = torch.index_select(self.logits, dim=0, index=indices).to(device)
-        
-        actions         = torch.index_select(self.actions, dim=0, index=indices).to(device)
-        
-        returns_ext     = torch.index_select(self.returns_ext, dim=0, index=indices).to(device)
-        returns_int     = torch.index_select(self.returns_int, dim=0, index=indices).to(device)
-
-        advantages_ext  = torch.index_select(self.advantages_ext, dim=0, index=indices).to(device)
-        advantages_int  = torch.index_select(self.advantages_int, dim=0, index=indices).to(device)
-        '''
-
+       
         states          = (self.states[indices]).to(device)
         logits          = (self.logits[indices]).to(device)
         
@@ -106,8 +109,13 @@ class PolicyBufferIM:
 
         advantages_ext  = (self.advantages_ext[indices]).to(device)
         advantages_int  = (self.advantages_int[indices]).to(device)
+
+        if self.hidden_state is not None:
+            hidden_state  = (self.hidden_state[indices]).to(device)
+        else:
+            hidden_state  = None
  
-        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int 
+        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state
     
    
     def sample_states(self, batch_size, far_ratio = 0.5, device = "cpu"): 
