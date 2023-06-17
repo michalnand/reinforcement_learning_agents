@@ -200,9 +200,9 @@ class AgentPPOSND():
         #update new state
         self.states = states_new.copy()
 
-        self.hidden_state = hidden_state_new.clone()
+        self.hidden_state = hidden_state_new.detach().clone()
 
-        
+         
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
