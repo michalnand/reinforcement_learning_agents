@@ -49,6 +49,8 @@ def aug_conv(x):
     #apply filter
     y   = torch.nn.functional.conv2d(x, w, padding=kernel_size//2, groups=x.shape[1])
 
+    print(">>>> ", x.shape, y.shape)
+
     return y
 
 
