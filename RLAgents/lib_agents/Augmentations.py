@@ -39,28 +39,19 @@ def aug_pixel_dropout(x, p = 0.1):
 
 
 #apply random convolution filter
-def aug_conv(x, alpha = 0.5, kernel_size = 3, groups = None):
-    ch  = x.shape[1]
-    w   = torch.zeros((ch, ch, kernel_size, kernel_size), device = x.device)
- 
-    r0  = range(ch) 
- 
-    if groups is None:
-        if ch%3 == 0:
-            groups = ch//3
-        else:
-            groups = ch
-    
-    ch_tmp  = ch//groups
-    r1      = ch_tmp*numpy.repeat(numpy.arange(groups), ch_tmp) + numpy.tile(numpy.random.permutation(ch_tmp), groups)
-    
-    w[r0, r1, kernel_size//2, kernel_size//2] = 1.0
+def aug_conv(x):
+    #random kernel size : 1, 3, 5, 7
+    kernel_size =  2*numpy.random.randint(0, 4, 10) + 1
 
-    w   = (1.0 - alpha)*w + alpha*torch.randn_like(w)
+    #random weights
+    w   = torch.randn((1, 1, kernel_size, kernel_size), dtype=torch.float32, device = x.device)
 
-    y   = torch.nn.functional.conv2d(x, w, padding=kernel_size//2)
+    #apply filter
+    y   = torch.nn.functional.conv2d(x, w, padding=kernel_size//2, groups=x.shape[1])
 
     return y
+
+
 
 #random tiled dropout
 def aug_mask_tiles(x, p = 0.1):

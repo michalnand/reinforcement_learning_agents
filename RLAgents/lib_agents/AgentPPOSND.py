@@ -200,7 +200,8 @@ class AgentPPOSND():
         #update new state
         self.states = states_new.copy()
 
-        self.hidden_state = hidden_state_new.detach().clone()
+        if self.rnn_policy:
+            self.hidden_state = hidden_state_new.detach().clone()
 
          
         #or reset env if done
@@ -447,7 +448,7 @@ class AgentPPOSND():
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
 
-        if "conv" in self.augmentations:
+        if "random_filter" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
         if "pixelate" in self.augmentations:
