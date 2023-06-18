@@ -42,6 +42,7 @@ def aug_pixel_dropout(x, p = 0.1):
 def aug_conv(x):
     #random kernel size : 1, 3, 5, 7
     kernel_size =  2*numpy.random.randint(0, 4, 10) + 1
+    kernel_size = int(kernel_size)
 
     #random weights
     w   = torch.randn((1, 1, kernel_size, kernel_size), dtype=torch.float32, device = x.device)
