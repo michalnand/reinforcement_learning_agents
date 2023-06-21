@@ -174,6 +174,32 @@ class ResizeEnv(gym.ObservationWrapper):
 
 
 
+class ResizeEnvColor(gym.ObservationWrapper):
+    def __init__(self, env, height = 96, width = 96, frame_stacking = 4):
+        super(ResizeEnvColor, self).__init__(env)
+        self.height = height
+        self.width  = width
+        self.frame_stacking = frame_stacking
+
+        state_shape = (self.frame_stacking*3, self.height, self.width)
+        self.dtype  = numpy.float32
+
+        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
+        self.state = numpy.zeros(state_shape, dtype=self.dtype)
+
+    def observation(self, state):
+        img = Image.fromarray(state)
+        img = img.resize((self.height, self.width))
+        img = numpy.array(img).astype(self.dtype)/255.0
+        img = numpy.rollaxis(img, 2, 0)
+        img = numpy.array(img)
+
+        self.state      = numpy.roll(self.state, 3, axis=0)
+        self.state[0:3] = img
+
+        return self.state 
+
+
 
 class VisitedRoomsEnv(gym.Wrapper):
     def __init__(self, env):
@@ -271,6 +297,20 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = RepeatActionEnv(env) 
     #env = ColectStatesEnv(env, "states/")
     env = ResizeEnv(env, height, width, frame_stacking)
+    
+    env = VisitedRoomsEnv(env)    
+    env = RawScoreEnv(env, max_steps) 
+
+    return env
+
+
+def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    env = NopOpsEnv(env)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    #env = ColectStatesEnv(env, "states/")
+    env = ResizeEnvColor(env, height, width, frame_stacking)
     
     env = VisitedRoomsEnv(env)    
     env = RawScoreEnv(env, max_steps) 
