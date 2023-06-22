@@ -222,16 +222,16 @@ class AgentPPOSNDHierarchy():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
-
-                #sample smaller batch for self supervised loss
-                states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
-
+                
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state)
                 
                 
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
+                    #sample smaller batch for self supervised loss
+                    states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+
                     loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo, self._augmentations, states_now, states_next, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
@@ -283,12 +283,6 @@ class AgentPPOSNDHierarchy():
         else:
             logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
-        print("shape = ")
-        print("logits_new = ", logits_new.shape)
-        print("values_ext_new = ", values_ext_new.shape)
-        print("values_int_new = ", values_int_new.shape)
-        print("actions = ", actions.shape)
-        
 
         #critic loss
         loss_critic =  ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
