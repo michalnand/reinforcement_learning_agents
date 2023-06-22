@@ -141,7 +141,7 @@ class PolicyBufferIM:
         return states_a, states_b, labels_t
     
 
-    def sample_states_action_pairs(self, batch_size, device = "cpu", max_distance = 1):
+    def sample_states_action_pairs(self, batch_size, device = "cpu", max_distance = 0):
         count           = self.buffer_size*self.envs_count
 
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
