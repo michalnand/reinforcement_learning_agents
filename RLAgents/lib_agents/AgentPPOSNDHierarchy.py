@@ -283,6 +283,13 @@ class AgentPPOSNDHierarchy():
         else:
             logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
+        print("shape = ")
+        print("logits_new = ", logits_new.shape)
+        print("values_ext_new = ", values_ext_new.shape)
+        print("values_int_new = ", values_int_new.shape)
+        print("actions = ", actions.shape)
+        
+
         #critic loss
         loss_critic =  ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
