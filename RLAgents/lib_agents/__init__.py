@@ -10,7 +10,7 @@ from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
-
+ 
 
 from .PolicyBufferContinuous        import PolicyBufferContinuous
 
@@ -29,13 +29,8 @@ from .AgentPPOSA                    import AgentPPOSA
 
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
-from .AgentPPOCNDSA                 import AgentPPOCNDSA
-from .AgentPPOCNDSAExtended         import AgentPPOCNDSAExtended
-from .AgentPPOCNDSAExtendedNew      import AgentPPOCNDSAExtendedNew
-
 from .AgentPPOSND                   import AgentPPOSND
-
-from .AgentPPOEE                    import AgentPPOEE
+from .AgentPPOSNDHierarchy          import AgentPPOSNDHierarchy
 
 
 
