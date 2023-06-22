@@ -270,7 +270,7 @@ class AgentPPOSNDHierarchy():
                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised_all.detach().to("cpu").numpy())
+                self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised_all)
                 self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
 
         self.policy_buffer.clear() 
