@@ -45,6 +45,12 @@ class AgentPPOSNDHierarchy():
             self._target_self_supervised_loss = None
 
         self.similar_states_distances = config.similar_states_distances
+        
+
+        if hasattr(config, "state_normalise"):
+            self.state_normalise = config.state_normalise
+        else:
+            self.state_normalise = False
 
          
         self.augmentations                  = config.augmentations
@@ -57,6 +63,7 @@ class AgentPPOSNDHierarchy():
         print("int_reward_coeff             = ", self.int_reward_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distances     = ", self.similar_states_distances)
+        print("state_normalise              = ", self.state_normalise)
 
         print("\n\n")
 
@@ -96,7 +103,12 @@ class AgentPPOSNDHierarchy():
             self.states[e]  = self.envs.reset(e)
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
-        
+
+        #optional, for state mean and variance normalisation        
+        self.state_mean  = self.states.mean(axis=0)
+        self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
+
+
         self.enable_training()
         self.iterations     = 0 
 
@@ -122,8 +134,13 @@ class AgentPPOSNDHierarchy():
         self.enabled_training = False
  
     def main(self):         
+        
+        #normalise if any
+        states = self._state_normalise(self.states)
+        
         #state to tensor
-        states = torch.tensor(self.states, dtype=torch.float).to(self.device)
+        states = torch.tensor(states, dtype=torch.float).to(self.device)
+        
         #compute model output
 
         if self.rnn_policy:
@@ -192,6 +209,10 @@ class AgentPPOSNDHierarchy():
         for i in range(len(self.model_snd_targets)):
             torch.save(self.model_snd_targets[i].state_dict(), save_path + "trained/model_snd_target_" + str(i) + ".pt")
         
+        if self.state_normalise:
+            with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
+                numpy.save(f, self.state_mean)
+                numpy.save(f, self.state_var)
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
@@ -200,8 +221,11 @@ class AgentPPOSNDHierarchy():
         for i in range(len(self.model_snd_targets)):
             self.model_snd_targets[i].load_state_dict(torch.load(load_path + "trained/model_snd_target_" + str(i) + ".pt", map_location = self.device))
         
-        
- 
+        if self.state_normalise:
+            with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
+                self.state_mean = numpy.load(f) 
+                self.state_var  = numpy.load(f)
+    
     def get_log(self): 
         return self.values_logger.get_str()
 
@@ -358,4 +382,24 @@ class AgentPPOSNDHierarchy():
             x = aug_random_apply(x, self.augmentations_probs, aug_noise)
         
         return x.detach()  
+    
+    def _state_normalise(self, states, alpha = 0.99): 
+
+        if self.state_normalise:
+            #update running stats only during training
+            if self.enabled_training:
+                mean = states.mean(axis=0)
+                self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
+        
+                var = ((states - mean)**2).mean(axis=0)
+                self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
+            
+            #normalise mean and variance
+            states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
+            states_norm = numpy.clip(states_norm, -4.0, 4.0)
+        
+        else:
+            states_norm = states
+        
+        return states_norm
    
