@@ -146,8 +146,6 @@ class PolicyBufferIM:
 
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 
-        print(max_distance_)
-
         indices         = torch.randint(0, count, size=(batch_size, ))
         indices_next    = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
         indices_random  = torch.randint(0, count, size=(batch_size, )) 
