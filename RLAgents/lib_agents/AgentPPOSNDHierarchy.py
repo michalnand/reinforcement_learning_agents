@@ -272,7 +272,7 @@ class AgentPPOSNDHierarchy():
                 loss_target_self_supervised_all = 0
  
                 for i in range(len(self.model_snd_targets)):
-                    #sample smaller batch for self supervised loss
+                    #sample smaller batch for self supervised loss, different distances for different models
                     states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distances[i])
 
                     #train snd target model, self supervised    
@@ -337,6 +337,7 @@ class AgentPPOSNDHierarchy():
     def _loss_distillation(self, states): 
         features_target_t = 0
         
+        #sumarise target for all models
         for i in range(len(self.model_snd_targets)):
             features_target_t+= self.model_snd_targets[i](states)
 
@@ -353,6 +354,7 @@ class AgentPPOSNDHierarchy():
     def _internal_motivation(self, states):        
         features_target_t = 0
         
+        #sumarise target for all models
         for i in range(len(self.model_snd_targets)):
             features_target_t+= self.model_snd_targets[i](states)
 
