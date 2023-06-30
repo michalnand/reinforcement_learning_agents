@@ -254,7 +254,7 @@ class AgentPPOSNDHierarchy():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+                    states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
                     loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo, self._augmentations, states_now, states_next, states_random, actions, relations)                
                 else:
@@ -270,10 +270,10 @@ class AgentPPOSNDHierarchy():
 
 
                 loss_target_self_supervised_all = 0
-
+ 
                 for i in range(len(self.model_snd_targets)):
                     #sample smaller batch for self supervised loss
-                    states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+                    states_now, states_next, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distances[i])
 
                     #train snd target model, self supervised    
                     loss_target_self_supervised = self._target_self_supervised_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_random, actions, relations)                
