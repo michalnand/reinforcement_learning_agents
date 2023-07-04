@@ -341,7 +341,7 @@ class AgentPPOSNDHierarchy():
         for i in range(len(self.model_snd_targets)):
             features_target_t+= self.model_snd_targets[i](states)
 
-        features_target_t = features_target_t/len(self.model_snd_targets)
+        #features_target_t = features_target_t/len(self.model_snd_targets)
         
         features_predicted_t  = self.model_snd(states)
         
@@ -358,7 +358,7 @@ class AgentPPOSNDHierarchy():
         for i in range(len(self.model_snd_targets)):
             features_target_t+= self.model_snd_targets[i](states)
 
-        features_target_t = features_target_t/len(self.model_snd_targets)
+        #features_target_t = features_target_t/len(self.model_snd_targets)
 
         features_predicted_t = self.model_snd(states)
         curiosity_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
