@@ -147,19 +147,21 @@ class PolicyBufferIM:
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 
         indices         = torch.randint(0, count, size=(batch_size, ))
-        indices_next    = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
+        indices_next    = torch.clip(indices + self.envs_count, 0, count-1)
+        indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
         indices_random  = torch.randint(0, count, size=(batch_size, )) 
       
         states_now      = (self.states[indices]).to(device)
         states_next     = (self.states[indices_next]).to(device)
+        states_similar  = (self.states[indices_similar]).to(device)
         states_random   = (self.states[indices_random]).to(device)
         
         actions         = (self.actions[indices]).to(device)
 
         relations       = (self.relations[indices]).to(device)
-
+ 
      
-        return states_now, states_next, states_random, actions, relations
+        return states_now, states_next, states_similar, states_random, actions, relations
     
    
  
