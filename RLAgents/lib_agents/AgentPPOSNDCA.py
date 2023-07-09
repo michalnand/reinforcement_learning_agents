@@ -302,7 +302,7 @@ class AgentPPOSNDCA():
                     loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
                     #TODO : do we need loss scaling ?
-                    loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
+                    loss_target = loss_target_self_supervised + 0.01*loss_target_self_awareness
 
                     self.optimizer_snd_targets[i].zero_grad() 
                     loss_target.backward()
