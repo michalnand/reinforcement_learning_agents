@@ -52,34 +52,34 @@ def loss_vicreg(model, augmentations, states_now, states_next, states_similar, s
 
 
 #constructor theory loss
-#inverse model for action prediction
+#for phylosophical stuff read https://www.constructortheory.org
+#train model for causality prediction, a.k.a. if state transition is posible
 def loss_constructor(model, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
-    batch_size          = states_now.shape[0]
+    batch_size  = states_now.shape[0]
 
+    #classes target IDs
     #0 : state_now,  state_random, two different states
     #1 : state_now,  state_next, two consecutive states
     #2 : state_next, state_now, two inverted consecutive states
-    labels                   = torch.randint(0, 3, (batch_size, )).to(states_now.device)
-    transition_label_one_hot = torch.nn.functional.one_hot(labels, 3)
-
-    #mix states
+    labels  = torch.randint(0, 3, (batch_size, ), dtype=torch.long).to(states_now.device)
+ 
+    #mix states coresponding to three cases
     select  = labels.unsqueeze(1).unsqueeze(2).unsqueeze(3)
 
     xa      = (select == 0)*states_now    + (select == 1)*states_now  + (select == 2)*states_next
     xb      = (select == 0)*states_random + (select == 1)*states_next + (select == 2)*states_now
 
- 
     #states augmentation
     if augmentations is not None:
         xa = augmentations(xa) 
         xb = augmentations(xb)
 
-
     transition_pred = model.forward_aux(xa, xb)
 
-    loss            = ((transition_label_one_hot - transition_pred)**2).mean()
+    #classification loss
+    loss_func       = torch.nn.CrossEntropyLoss()
+    loss            = loss_func(transition_pred, labels)
     
-    #compute accuracy
     #compute accuracy
     labels_pred = torch.argmax(transition_pred.detach(), dim=1)
     acc = 100.0*(labels == labels_pred).float().mean()

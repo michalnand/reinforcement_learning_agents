@@ -15,7 +15,7 @@ class AgentPPOSNDCA():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.envs = envs  
-         
+          
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
               
@@ -170,11 +170,11 @@ class AgentPPOSNDCA():
         #internal motivation
         rewards_int_a, rewards_int_b  = self._internal_motivation(states_prev, states)
 
-        rewards_int_a    = torch.clip(self.reward_int_a_coeff*rewards_int_a, 0.0, 1.0)
-        rewards_int_b    = torch.clip(self.reward_int_b_coeff*rewards_int_b, 0.0, 1.0)
-
+        rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
+        rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
+ 
         #total motivation
-        rewards_int      = rewards_int_a + rewards_int_b
+        rewards_int      = torch.clip(rewards_int_a + rewards_int_b, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -272,7 +272,6 @@ class AgentPPOSNDCA():
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state)
                 
-                
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
@@ -302,6 +301,7 @@ class AgentPPOSNDCA():
 
                     loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
+                    #TODO : do we need loss scaling ?
                     loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
 
                     self.optimizer_snd_targets[i].zero_grad() 
@@ -349,7 +349,7 @@ class AgentPPOSNDCA():
         advantages_norm  = (advantages - advantages.mean())/(advantages.std() + 1e-8)
 
         #PPO main actor loss
-        loss_policy, loss_entropy  = ppo_compute_actor_loss(logits, logits_new, advantages_norm, actions, self.eps_clip, self.entropy_beta)
+        loss_policy, loss_entropy = ppo_compute_actor_loss(logits, logits_new, advantages_norm, actions, self.eps_clip, self.entropy_beta)
 
         loss_actor = loss_policy + loss_entropy
 
@@ -382,28 +382,30 @@ class AgentPPOSNDCA():
    
     #compute internal motivation
     def _internal_motivation(self, states_prev, states):        
-        #sumarise target for all models
+        #sumarise for all partial models
         features_target_t = 0
         for i in range(len(self.model_snd_targets)):
             features_target_t+= self.model_snd_targets[i](states)
-
-        #features_target_t = features_target_t/len(self.model_snd_targets)
-
+        
+        #distilation novelty motivation
         features_predicted_t = self.model_snd(states)
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
 
-        #sumarise accuracy for all models
+        #sumarise for all partial models
         prediction = 0.0
         for i in range(len(self.model_snd_targets)):
             prediction+= self.model_snd_targets[i].forward_aux(states_prev, states)
 
+        #motivation is given by how accurate model predict causality
         prediction = torch.softmax(prediction, dim=1)
 
-        #extract 1st column
-        #representing confidedence for state_prev -> state_now consequence 
+        #input is always case : states_prev, states_now transition (class_id = 1)
+        #see loss_constructor implementation : 
+        #class (column) 0 : different states
+        #class (column) 1 : state_prev, state_now
+        #class (column) 2 : state_now, state_prev
         causality_t = prediction[:, 1].unsqueeze(0)
         
-
         return novelty_t, causality_t
     
  
