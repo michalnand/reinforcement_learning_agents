@@ -405,8 +405,6 @@ class AgentPPOSNDCA():
         #class (column) 1 : state_prev, state_now
         #class (column) 2 : state_now, state_prev
         causality_t = prediction[:, 1]
-
-        print(">>>> ",novelty_t.shape, causality_t.shape)
         
         return novelty_t, causality_t
     
