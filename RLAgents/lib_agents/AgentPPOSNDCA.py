@@ -394,7 +394,7 @@ class AgentPPOSNDCA():
             prediction+= self.model_snd_targets[i].forward_aux(states_prev, states)
 
         #motivation is given by how accurate model predict causality
-        prediction = torch.softmax(prediction, dim=1)
+        #prediction = torch.softmax(prediction, dim=1)
 
         #input is always case : states_prev, states_now transition (class_id = 1)
         #see loss_constructor implementation : 
