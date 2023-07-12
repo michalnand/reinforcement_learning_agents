@@ -144,9 +144,9 @@ class AgentPPOSNDCA():
         states = self._state_normalise(self.states)
         
         #state to tensor
-        states = torch.tensor(states, dtype=torch.float).to(self.device)
-
         states_prev = torch.tensor(self.states_prev, dtype=torch.float).to(self.device)
+        states      = torch.tensor(states, dtype=torch.float).to(self.device)
+
         
         #compute model output
 
@@ -398,7 +398,7 @@ class AgentPPOSNDCA():
 
 
         prediction = torch.argmax(prediction.detach(), dim=1)
-        causality_t = (prediction == 0).float()
+        causality_t = (prediction == 1).float()
 
 
         #input is always case : states_prev, states_now transition (class_id = 1)
