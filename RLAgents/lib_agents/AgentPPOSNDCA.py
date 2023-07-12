@@ -322,7 +322,7 @@ class AgentPPOSNDCA():
                 self.values_logger.add("loss_target",   loss_target_all)
                 self.values_logger.add("loss_distillation", loss_distillation.detach().to("cpu").numpy())
 
-                self.info_logger["accuracy"] = accuracy_all
+                self.info_logger["accuracy"] = list(accuracy_all)
                 
         self.policy_buffer.clear() 
 
