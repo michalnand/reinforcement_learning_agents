@@ -398,7 +398,9 @@ class AgentPPOSNDCA():
 
 
         prediction = torch.argmax(prediction.detach(), dim=1)
-        causality_t = (prediction == 0)
+        causality_t = (prediction == 0).float()
+
+        print(causality_t)
 
         #input is always case : states_prev, states_now transition (class_id = 1)
         #see loss_constructor implementation : 
