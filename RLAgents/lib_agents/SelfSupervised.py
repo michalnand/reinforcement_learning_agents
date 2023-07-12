@@ -1,4 +1,5 @@
 import torch
+import numpy
 
 def off_diagonal(x):
     mask = 1.0 - torch.eye(x.shape[0], device=x.device)
@@ -80,9 +81,16 @@ def loss_constructor(model, augmentations, states_now, states_next, states_simil
     loss_func       = torch.nn.CrossEntropyLoss()
     loss            = loss_func(transition_pred, labels)
     
-    #compute accuracy
+    
+    #compute accuracy, per class
     labels_pred = torch.argmax(transition_pred.detach(), dim=1)
-    acc = 100.0*(labels == labels_pred).float().mean()
-    acc = acc.detach().to("cpu").numpy()
+
+    acc = numpy.zeros((3, ))
+
+    for class_id in range(acc.shape[0]):
+        total_count = (labels == class_id).sum()
+        hits_count  = ((labels == class_id)*(labels_pred == class_id)).sum()
+
+        acc[class_id] = 100.0*hits_count/(total_count + 10**-6)
 
     return loss, acc

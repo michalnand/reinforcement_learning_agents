@@ -94,13 +94,11 @@ class AgentPPOSNDHierarchy():
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
-        for e in range(self.envs_count):
-            self.envs.reset(e)
 
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e]  = self.envs.reset(e)
+            self.states[e], _  = self.envs.reset(e)
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
 
@@ -121,11 +119,6 @@ class AgentPPOSNDHierarchy():
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         self.values_logger.add("loss_target_self_supervised",   0.0)
         self.values_logger.add("loss_distillation",             0.0)
-
-
-        self.vis_features = []
-        self.vis_labels   = []
-        
 
     def enable_training(self): 
         self.enabled_training = True
@@ -152,7 +145,7 @@ class AgentPPOSNDHierarchy():
         actions = self._sample_actions(logits)
         
         #execute action
-        states_new, rewards_ext, dones, infos = self.envs.step(actions)
+        states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #curiosity motivation
         rewards_int    = self._internal_motivation(states)
@@ -187,12 +180,10 @@ class AgentPPOSNDHierarchy():
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e]       = self.envs.reset(e)
+                self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
                
          
-        #self._add_for_plot(states, infos, dones)
-        
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())

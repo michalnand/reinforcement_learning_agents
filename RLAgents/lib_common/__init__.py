@@ -10,6 +10,6 @@ from .TrainingLog           import TrainingLog
 
 from .WrapperAtari          import WrapperAtari, WrapperAtariNoRewards
 from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaColor, WrapperMontezumaVideo
-from .WrapperPybullet       import *
+#from .WrapperPybullet       import *
 
 from .WrapperProcgen        import WrapperProcgenEasy, WrapperProcgenHard, WrapperProcgenExploration, WrapperProcgenEasyRender, WrapperProcgenHardRender, WrapperProcgenExplorationRender

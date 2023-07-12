@@ -146,9 +146,6 @@ class AgentPPOSND():
         self.values_logger.add("loss_distillation",             0.0)
        
 
-        self.vis_features = []
-        self.vis_labels   = []
-        
 
     def enable_training(self): 
         self.enabled_training = True
@@ -217,9 +214,7 @@ class AgentPPOSND():
                 self.states[e]       = self.envs.reset(e)
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
                
-         
-        #self._add_for_plot(states, infos, dones)
-        
+                 
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())

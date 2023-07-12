@@ -2,7 +2,7 @@ import threading
 import multiprocessing
 import time
 import numpy
-import gym
+import gymnasium as gym
 
 class MultiEnvSeq:
 	def __init__(self, env_name, wrapper, envs_count, render = False):
@@ -35,17 +35,19 @@ class MultiEnvSeq:
 		obs 	= numpy.zeros((len(self.envs), ) + self.observation_space.shape, dtype=numpy.float32)
 		reward 	= numpy.zeros((len(self.envs), ), dtype=numpy.float32)
 		done 	= numpy.zeros((len(self.envs), ), dtype=bool)
+		truncated = []
 		info 	= []
 
 		for e in range(len(self.envs)):
-			_obs, _reward, _done, _info = self.envs[e].step(actions[e])
+			_obs, _reward, _done, _truncated, _info = self.envs[e].step(actions[e])
 
 			obs[e] 		= _obs
 			reward[e] 	= _reward
+			truncated.append(_truncated)
 			done[e] 	= _done
 			info.append(_info)
 			
-		return obs, reward, done, info
+		return obs, reward, done, truncated, info
 
 	def render(self, env_id):
 		self.envs[env_id].render()
@@ -85,9 +87,9 @@ def env_process_main(id, child_conn, env_name, wrapper):
 		if val[0] == "step":
 			action = val[1]
 
-			_obs, _reward, _done, _info = env.step(action)
+			_obs, _reward, _done, _truncated, _info = env.step(action)
 
-			child_conn.send((_obs, _reward, _done, _info))
+			child_conn.send((_obs, _reward, _done, _truncated, _info))
 		
 		elif val[0] == "end":
 			break
@@ -175,14 +177,17 @@ class MultiEnvParallel:
 		obs 	= numpy.zeros((self.envs_count, ) + self.observation_space.shape, dtype=numpy.float32)
 		rewards = numpy.zeros((self.envs_count, ), dtype=numpy.float32)
 		dones 	= numpy.zeros((self.envs_count, ), dtype=bool)
+		truncated= []
 		infos 	= []
  
 		for i in range(self.envs_count):
-			_obs, _reward, _done, _info = self.parent_conn[i].recv()
+			_obs, _reward, _done, _truncated, _info = self.parent_conn[i].recv()
 
 			obs[i] 		= _obs
 			rewards[i] 	= _reward
 			dones[i] 	= _done
+
+			truncated.append(_truncated)
 			infos.append(_info)
 			
 		return obs, rewards, dones, infos
@@ -229,19 +234,22 @@ def env_process_main_optimised(id, envs_count, child_conn, env_name, wrapper):
 
 	while True:
 		val 	= child_conn.recv()
+		truncated = []
 		infos 	= []
 		
+
 		if val[0] == "step":
 			actions = val[1]
 
 			for i in range(envs_count):
-				obs, reward, done, info = envs[i].step(actions[i])
+				obs, reward, done, truncated_, info = envs[i].step(actions[i])
 				observations[i] = obs.copy()
 				rewards[i] 		= reward
 				dones[i] 		= done
+				truncated.append(truncated_)
 				infos.append(info)
 
-			child_conn.send((observations, rewards, dones, infos))
+			child_conn.send((observations, rewards, dones, truncated, infos))
 		
 		elif val[0] == "end":
 			for i in range(envs_count):
@@ -350,14 +358,19 @@ class MultiEnvParallelOptimised:
 		observations 	= numpy.zeros((self.threads_count, self.envs_per_thread) + self.observation_space.shape, dtype=numpy.float32)
 		rewards 		= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=numpy.float32)
 		dones 			= numpy.zeros((self.threads_count, self.envs_per_thread), dtype=bool)
+		truncated		= []
 		infos 			= []
  
 		for i in range(self.threads_count):
-			_obs, _reward, _done, _info = self.parent_conn[i].recv()
+			_obs, _reward, _done, _truncated, _info = self.parent_conn[i].recv()
 
 			observations[i]	= _obs
 			rewards[i] 		= _reward
+			
 			dones[i] 		= _done
+
+			for j in range(len(_truncated)):
+				truncated.append(_truncated[j])
 
 			for j in range(len(_info)):
 				infos.append(_info[j])
@@ -366,7 +379,7 @@ class MultiEnvParallelOptimised:
 		rewards = numpy.reshape(rewards, (self.envs_count, ))
 		dones 	= numpy.reshape(dones, (self.envs_count, ))
 			
-		return obs, rewards, dones, infos
+		return obs, rewards, dones, truncated, infos
 
 	def get(self, env_id):
 		thread_id, thread_env = self._get_ids(env_id)
@@ -399,7 +412,7 @@ if __name__ == "__main__":
 	for j in range(2000):
 		actions = numpy.random.randint(18, size=envs_count)
 		ts = time.time()
-		states, rewards, dones, infos = envs.step(actions)
+		states, rewards, dones, truncated, infos = envs.step(actions)
 		te = time.time() 
 
 		for i in range(envs_count):

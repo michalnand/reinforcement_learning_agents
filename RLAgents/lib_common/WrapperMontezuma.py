@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import numpy
 from PIL import Image
 import cv2
@@ -15,7 +15,7 @@ class VideoRecorder(gym.Wrapper):
         self.frame_counter = 0
 
     def step(self, action):
-        state, reward, done, info = self.env.step(action)
+        state, reward, done, truncated, info = self.env.step(action)
         
         if self.frame_counter%32 == 0:
             im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
@@ -26,9 +26,9 @@ class VideoRecorder(gym.Wrapper):
 
         self.frame_counter+= 1
 
-        return state, reward, done, info
+        return state, reward, done, truncated, info
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         return self.env.reset()
 
 class ColectStatesEnv(gym.Wrapper):
@@ -43,15 +43,15 @@ class ColectStatesEnv(gym.Wrapper):
         self.room_id        = 1
         self.level_id       = 0
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         self.room_id_prev   = 1
         self.room_id        = 1
         self.level_id       = 0
 
-        return self.env.reset()
+        return self.env.reset(kwargs)
 
     def step(self, action):
-        state, reward, done, info = self.env.step(action)
+        state, reward, done, truncated, info = self.env.step(action)
 
         self.room_id_prev   = self.room_id
         self.room_id        = self.get_current_room()
@@ -69,7 +69,7 @@ class ColectStatesEnv(gym.Wrapper):
 
         self.frame_ptr+= 1
 
-        return state, reward, done, info
+        return state, reward, done, truncated, info
 
     def get_current_room(self, room_address = 3):
         ram = self._unwrap(self.env).ale.getRAM()
@@ -91,18 +91,18 @@ class NopOpsEnv(gym.Wrapper):
         super(NopOpsEnv, self).__init__(env)
         self.max_count = max_count
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         self.env.reset()
 
         noops = numpy.random.randint(1, self.max_count + 1)
          
         for _ in range(noops):
-            obs, _, done, _ = self.env.step(0)
+            obs, _, done, _, _ = self.env.step(0)
 
             if done:
                 obs = self.env.reset()
            
-        return obs
+        return obs, None
 
     def step(self, action):
         return self.env.step(action)
@@ -120,7 +120,7 @@ class StickyActionEnv(gym.Wrapper):
         self.last_action = action
         return self.env.step(action)
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         self.last_action = 0
         return self.env.reset()
  
@@ -130,13 +130,13 @@ class RepeatActionEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self.successive_frame = numpy.zeros((2,) + self.env.observation_space.shape, dtype=numpy.uint8)
 
-    def reset(self, **kwargs):
-        return self.env.reset(**kwargs)
+    def reset(self, seed = None, options = None):
+        return self.env.reset()
 
     def step(self, action):
         reward, done = 0, False
         for t in range(4):
-            state, r, done, info = self.env.step(action)
+            state, r, done, truncated, info = self.env.step(action)
             if t == 2:
                 self.successive_frame[0] = state
             elif t == 3:
@@ -146,7 +146,7 @@ class RepeatActionEnv(gym.Wrapper):
                 break
 
         state = self.successive_frame.max(axis=0)
-        return state, reward, done, info
+        return state, reward, done, truncated, info
 
 
 class ResizeEnv(gym.ObservationWrapper):
@@ -211,7 +211,7 @@ class VisitedRoomsEnv(gym.Wrapper):
         self.explored_rooms     = 0
         
     def step(self, action):
-        obs, reward, done, _ = self.env.step(action)
+        obs, reward, done, truncated, _ = self.env.step(action)
         
         if self.steps%32 == 0: 
             if len(self.rooms) == 0:
@@ -230,9 +230,9 @@ class VisitedRoomsEnv(gym.Wrapper):
         info["room_id"]         = self.room_id
         info["explored_rooms"]  = self.explored_rooms
         
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         return self.env.reset()
 
     def _distance(self, obs):
@@ -258,7 +258,7 @@ class RawScoreEnv(gym.Wrapper):
         self.raw_score_per_episode   = 0.0
         
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, done, truncated, info = self.env.step(action)
 
         self.steps+= 1
         if self.steps >= self.max_steps:
@@ -281,9 +281,9 @@ class RawScoreEnv(gym.Wrapper):
         reward = numpy.sign(reward)
         #reward = numpy.log10(1.0 + reward)
         
-        return obs, reward, done, info
+        return obs, reward, done, truncated, info
 
-    def reset(self):
+    def reset(self, seed = None, options = None):
         self.steps = 0
         return self.env.reset()
 

@@ -131,7 +131,9 @@ class AgentPPOSNDCA():
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         self.values_logger.add("loss_target",                   0.0)
         self.values_logger.add("loss_distillation",             0.0)
-        self.values_logger.add("accuracy",                      0.0)
+        self.values_logger.add("accuracy_0",                    0.0)
+        self.values_logger.add("accuracy_1",                    0.0)
+        self.values_logger.add("accuracy_2",                    0.0)
 
 
         self.vis_features = []
@@ -165,7 +167,7 @@ class AgentPPOSNDCA():
         actions = self._sample_actions(logits)
         
         #execute action
-        states_new, rewards_ext, dones, infos = self.envs.step(actions)
+        states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
         rewards_int_a, rewards_int_b  = self._internal_motivation(states_prev, states)
@@ -206,8 +208,8 @@ class AgentPPOSNDCA():
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                self.states[e]       = self.envs.reset(e)
-                self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
+                self.states[e], _       = self.envs.reset(e)
+                self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
                
          
         #self._add_for_plot(states, infos, dones)
@@ -313,6 +315,8 @@ class AgentPPOSNDCA():
 
                 accuracy_all = accuracy_all/len(self.model_snd_targets)
 
+
+
             
                 #train SND model, MSE loss (same as RND)
                 loss_distillation = self._loss_distillation(states)
@@ -325,7 +329,9 @@ class AgentPPOSNDCA():
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().to("cpu").numpy())
                 self.values_logger.add("loss_target",   loss_target_all)
                 self.values_logger.add("loss_distillation", loss_distillation.detach().to("cpu").numpy())
-                self.values_logger.add("accuracy", accuracy_all)
+                self.values_logger.add("accuracy_0", accuracy_all[0])
+                self.values_logger.add("accuracy_1", accuracy_all[1])
+                self.values_logger.add("accuracy_2", accuracy_all[2])
 
         self.policy_buffer.clear() 
 

@@ -9,9 +9,6 @@ from .PPOLoss               import *
 from .SelfSupervisedLoss    import *
 from .Augmentations         import *
 
-import sklearn.manifold
-import sklearn.decomposition
-import matplotlib.pyplot as plt 
 import cv2
   
          
@@ -150,10 +147,7 @@ class AgentPPOCND():
         self.values_logger.add("symmetry_accuracy", 0.0)
         self.values_logger.add("symmetry_magnitude", 0.0)
 
-        self.vis_features = []
-        self.vis_labels   = []
-
-
+       
     def enable_training(self):
         self.enabled_training = True
  
@@ -256,7 +250,7 @@ class AgentPPOCND():
         state_im        = numpy.clip(state_im, 0.0, 1.0)
 
         cv2.imshow("CND agent", state_im)
-        cv2.waitKey(1)
+        cv2.waitKey(1) 
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -446,43 +440,3 @@ class AgentPPOCND():
 
     def _aug_cnd(self, x):
         return self._aug(x, self.cnd_augmentations)
-
-    def _add_for_plot(self, states, infos, dones):
-        
-        states_norm_t   = self._norm_state(states)
-        #
-        #features        = self.model_cnd(states_norm_t)
-        features        = self.model_cnd_target(states_norm_t)
-        #features        = self.model_ppo.forward_features(states)
-        
-
-        features        = features.detach().to("cpu").numpy()
-        
-        self.vis_features.append(features[0])
-
-        if "room_id" in infos[0]:
-            self.vis_labels.append(infos[0]["room_id"])
-        else:
-            self.vis_labels.append(0)
-
-        if dones[0]:
-            print("training t-sne")
-
-            max_num = numpy.max(self.vis_labels) 
-
-            #pca = sklearn.decomposition.PCA(n_components=2)
-            #features_embedded = pca.fit_transform(self.vis_features)
-
-            features_embedded = sklearn.manifold.TSNE(n_components=2).fit_transform(self.vis_features)
-
-            print("result shape = ", features_embedded.shape)
-
-            plt.clf()
-            #plt.scatter(features_embedded[:, 0], features_embedded[:, 1])
-            plt.scatter(features_embedded[:, 0], features_embedded[:, 1], c=self.vis_labels, cmap=plt.cm.get_cmap("jet", max_num - 0))
-            plt.colorbar(ticks=range(max_num))
-            plt.tight_layout()
-            plt.show()
-
-            self.vis_features   = []
-            self.vis_labels     = []
