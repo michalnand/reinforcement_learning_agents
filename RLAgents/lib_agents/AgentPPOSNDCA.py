@@ -396,12 +396,16 @@ class AgentPPOSNDCA():
         #motivation is given by how accurate model predict causality
         #prediction = torch.softmax(prediction, dim=1)
 
+
+        prediction = torch.argmax(prediction.detach(), dim=1)
+        causality_t = (prediction == 0)
+
         #input is always case : states_prev, states_now transition (class_id = 1)
         #see loss_constructor implementation : 
         #class (column) 0 : different states
         #class (column) 1 : state_prev, state_now
         #class (column) 2 : state_now, state_prev
-        causality_t = prediction[:, 0]
+        #causality_t = prediction[:, 0]
         
         return novelty_t, causality_t
     
