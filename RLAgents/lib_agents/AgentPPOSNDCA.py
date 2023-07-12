@@ -99,14 +99,12 @@ class AgentPPOSNDCA():
 
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
- 
-        for e in range(self.envs_count):
-            self.envs.reset(e)
+
 
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e]  = self.envs.reset(e)
+            self.states[e], _  = self.envs.reset(e)
 
         self.states_prev = self.states.copy()
 
