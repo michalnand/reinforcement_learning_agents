@@ -120,6 +120,7 @@ class AgentPPOSNDHierarchy():
         self.values_logger.add("loss_target_self_supervised",   0.0)
         self.values_logger.add("loss_distillation",             0.0)
 
+
     def enable_training(self): 
         self.enabled_training = True
  

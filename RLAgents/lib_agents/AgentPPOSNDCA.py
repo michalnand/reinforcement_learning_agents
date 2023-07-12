@@ -129,14 +129,8 @@ class AgentPPOSNDCA():
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         self.values_logger.add("loss_target",                   0.0)
         self.values_logger.add("loss_distillation",             0.0)
-        self.values_logger.add("accuracy_0",                    0.0)
-        self.values_logger.add("accuracy_1",                    0.0)
-        self.values_logger.add("accuracy_2",                    0.0)
-
-
-        self.vis_features = []
-        self.vis_labels   = []
         
+        self.info_logger = {}
 
     def enable_training(self): 
         self.enabled_training = True
@@ -249,7 +243,7 @@ class AgentPPOSNDCA():
                 self.state_var  = numpy.load(f)
     
     def get_log(self): 
-        return self.values_logger.get_str()
+        return self.values_logger.get_str() + str(self.info_logger)
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -327,10 +321,9 @@ class AgentPPOSNDCA():
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().to("cpu").numpy())
                 self.values_logger.add("loss_target",   loss_target_all)
                 self.values_logger.add("loss_distillation", loss_distillation.detach().to("cpu").numpy())
-                self.values_logger.add("accuracy_0", accuracy_all[0])
-                self.values_logger.add("accuracy_1", accuracy_all[1])
-                self.values_logger.add("accuracy_2", accuracy_all[2])
 
+                self.info_logger["accuracy"] = accuracy_all
+                
         self.policy_buffer.clear() 
 
     
