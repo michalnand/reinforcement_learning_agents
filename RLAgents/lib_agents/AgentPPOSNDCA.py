@@ -45,7 +45,13 @@ class AgentPPOSNDCA():
         else:
             self._target_self_supervised_loss = None
 
-        self._target_self_awareness_loss = loss_constructor
+        if config.target_self_awareness_loss == "constructor":
+            self._target_self_awareness_loss = loss_constructor
+        else:
+            self._target_self_awareness_loss = None
+
+
+        
 
         self.similar_states_distances = config.similar_states_distances
         
@@ -294,7 +300,11 @@ class AgentPPOSNDCA():
                     #train snd target model, self supervised    
                     loss_target_self_supervised = self._target_self_supervised_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    if self._target_self_awareness_loss is not None:
+                        loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_snd_targets[i], self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    else:
+                        loss_target_self_awareness  = 0
+                        accuracy                    = numpy.zeros((1, ))
 
                     #TODO : do we need loss scaling ?
                     loss_target = loss_target_self_supervised + 0.01*loss_target_self_awareness
@@ -307,8 +317,6 @@ class AgentPPOSNDCA():
                     accuracy_all+= accuracy
 
                 accuracy_all = accuracy_all/len(self.model_snd_targets)
-
-
 
             
                 #train SND model, MSE loss (same as RND)
