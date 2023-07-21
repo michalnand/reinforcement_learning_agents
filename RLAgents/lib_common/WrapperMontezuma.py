@@ -12,17 +12,17 @@ class VideoRecorder(gym.Wrapper):
 
         fourcc = cv2.VideoWriter_fourcc(*'XVID') 
         self.writer = cv2.VideoWriter(file_name, fourcc, 25.0, (self.width, self.height)) 
-        self.frame_counter = 0
+        self.frame_counter = 0 
 
     def step(self, action):
         state, reward, done, truncated, info = self.env.step(action)
         
-        if self.frame_counter%32 == 0:
+        if self.frame_counter%8 == 0:
             im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
 
             resized = cv2.resize(im_bgr, (self.width, self.height), interpolation = cv2.INTER_AREA)
 
-            self.writer.write(resized)
+            self.writer.write(resized) 
 
         self.frame_counter+= 1
 
@@ -200,7 +200,39 @@ class ResizeEnvColor(gym.ObservationWrapper):
         return self.state 
 
 
+class VisitedRoomsEnv(gym.Wrapper):
+    def __init__(self, env):
+        gym.Wrapper.__init__(self, env)
+        self.room_address = 3
+        #self.room_address = 1
 
+        self.visited_rooms = {}
+
+    def step(self, action):
+        obs, reward, done, truncated, _ = self.env.step(action)
+
+        room_id = self._get_current_room_id()
+
+        if room_id not in self.visited_rooms:
+            self.visited_rooms[room_id] = 1
+        else:
+            self.visited_rooms[room_id]+= 1
+
+        info = {}
+        info["room_id"]         = room_id
+        info["explored_rooms"]  = len(self.visited_rooms)
+
+        #print("room_id = ", room_id, len(self.visited_rooms))
+
+        return obs, reward, done, truncated, info
+    
+
+    def _get_current_room_id(self):
+        ram = self.env.unwrapped.ale.getRAM()
+        return int(ram[self.room_address])
+
+
+'''
 class VisitedRoomsEnv(gym.Wrapper):
     def __init__(self, env):
         gym.Wrapper.__init__(self, env)
@@ -244,7 +276,7 @@ class VisitedRoomsEnv(gym.Wrapper):
         distances   = distances.mean(axis=1)
 
         return numpy.min(distances), numpy.argmin(distances)
-
+'''
 
 
 class RawScoreEnv(gym.Wrapper):
@@ -322,5 +354,14 @@ def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_
     env = VideoRecorder(env)    
 
     env = WrapperMontezuma(env, height, width, frame_stacking, max_steps)
+
+    return env
+
+
+
+def WrapperMontezumaColorVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    env = VideoRecorder(env)    
+
+    env = WrapperMontezumaColor(env, height, width, frame_stacking, max_steps)
 
     return env
