@@ -5,7 +5,7 @@ from .ValuesLogger      import *
 from .PolicyBufferIM    import *  
 
 from .PPOLoss               import *
-from .SelfSupervised        import *
+from .SelfSupervised        import * 
 from .Augmentations         import *
  
          
@@ -37,11 +37,15 @@ class AgentPPOSNDCA():
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
+        elif config.ppo_self_supervised_loss == "vicreg_spatial":
+            self._ppo_self_supervised_loss = loss_vicreg_spatial
         else:
             self._ppo_self_supervised_loss = None
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
+        elif config.target_self_supervised_loss == "vicreg_spatial":
+            self._target_self_supervised_loss = loss_vicreg_spatial
         else:
             self._target_self_supervised_loss = None
 
