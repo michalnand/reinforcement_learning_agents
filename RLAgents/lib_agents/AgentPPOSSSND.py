@@ -91,7 +91,7 @@ class AgentPPOSSSND():
         self.model_snd      = ModelSND.Model(self.state_shape)
         self.model_snd.to(self.device)
         self.optimizer_snd  = torch.optim.Adam(self.model_snd.parameters(), lr=config.learning_rate_snd)
-
+ 
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
@@ -296,9 +296,9 @@ class AgentPPOSSSND():
                 #TODO : do we need loss scaling ?
                 loss_target = loss_target_self_supervised + 0.01*loss_target_self_awareness
 
-                self.model_snd.zero_grad() 
+                self.optimizer_snd.zero_grad() 
                 loss_target.backward()
-                self.model_snd.step()
+                self.optimizer_snd.step()
 
                 accuracy_all+= accuracy
                 loss_target  = loss_target.detach().to("cpu").numpy()
