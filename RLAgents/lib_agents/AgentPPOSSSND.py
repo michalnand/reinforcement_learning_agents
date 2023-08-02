@@ -216,10 +216,7 @@ class AgentPPOSSSND():
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
         torch.save(self.model_snd.state_dict(), save_path + "trained/model_snd.pt")
-
-        for i in range(len(self.model_snd_targets)):
-            torch.save(self.model_snd_targets[i].state_dict(), save_path + "trained/model_snd_target_" + str(i) + ".pt")
-        
+  
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
                 numpy.save(f, self.state_mean)
@@ -228,10 +225,7 @@ class AgentPPOSSSND():
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
         self.model_snd.load_state_dict(torch.load(load_path + "trained/model_snd.pt", map_location = self.device))
-
-        for i in range(len(self.model_snd_targets)):
-            self.model_snd_targets[i].load_state_dict(torch.load(load_path + "trained/model_snd_target_" + str(i) + ".pt", map_location = self.device))
-        
+     
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
                 self.state_mean = numpy.load(f) 
