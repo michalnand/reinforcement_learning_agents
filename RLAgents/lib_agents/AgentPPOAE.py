@@ -335,7 +335,7 @@ class AgentPPOAE():
 
             attn                = z@z.T
   
-            attn                = attn/(attn.shape[1]**0.5)
+            attn                = attn/(z.shape[1]**0.5)
             attn                = torch.softmax(attn, dim=1)
             novelty_result[e]   = torch.std(attn)
 
