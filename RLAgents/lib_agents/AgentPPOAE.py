@@ -270,7 +270,7 @@ class AgentPPOAE():
 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_descriptor",   loss_descriptor)
+                self.values_logger.add("loss_descriptor",   loss_descriptor.detach().to("cpu").numpy())
                 
         self.policy_buffer.clear() 
 
@@ -320,17 +320,19 @@ class AgentPPOAE():
         self.novelty_buffer_ptr = (self.novelty_buffer_ptr + 1)%self.novelty_buffer_size
 
         #compute attentive novelty
-        novelty_result = torch.zeros(self.envs_count, dtype=torch.float32)
+        novelty_result = torch.zeros(self.envs_count, dtype=torch.float32, device=self.device)
         for e in range(self.envs_count):
-            attn                = torch.cdist(self.novelty_buffer[e], self.novelty_buffer[e])
-            max_value, _        = torch.max(self.novelty_buffer[e], dim=1)
+            z                   = self.novelty_buffer[e].to(self.device)
+
+            attn                = torch.cdist(z, z)
+            max_value, _        = torch.max(z, dim=1)
             attn                = 1.0 - attn/(max_value.unsqueeze(1) + 10**-10)
             attn                = torch.softmax(attn, dim=0)
 
-            novelty_result[e]   = torch.std(attn) 
+            novelty_result[e]   = torch.std(attn)
 
 
-        return novelty_result
+        return novelty_result.to("cpu")
 
             
 
