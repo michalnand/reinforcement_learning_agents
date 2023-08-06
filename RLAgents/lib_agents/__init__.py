@@ -35,6 +35,8 @@ from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOSNDHierarchy          import AgentPPOSNDHierarchy
 
 
+from .AgentPPOAE                    import AgentPPOAE
+
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

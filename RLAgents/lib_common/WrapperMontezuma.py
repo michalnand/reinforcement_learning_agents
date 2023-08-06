@@ -33,58 +33,29 @@ class VideoRecorder(gym.Wrapper):
 
 class ColectStatesEnv(gym.Wrapper):
 
-    def __init__(self, env, result_path = "states/"):
+    def __init__(self, env, result_file_name = "states.npy"):
         super(ColectStatesEnv, self).__init__(env)
 
-        self.result_path = result_path
-        self.frame_ptr = 0
-
-        self.room_id_prev   = 1
-        self.room_id        = 1
-        self.level_id       = 0
+        self.result_file_name = result_file_name
+        self.states = []
 
     def reset(self, seed = None, options = None):
-        self.room_id_prev   = 1
-        self.room_id        = 1
-        self.level_id       = 0
+        if len(self.states) > 0:
+            print("saving states into ", self.result_file_name)
+            self.states = numpy.array(self.states, dtype=numpy.float32)
+            with open(self.result_file_name, 'wb') as f:
+                numpy.save(f, self.states) 
 
-        return self.env.reset(kwargs)
+            self.states = []
+        return self.env.reset(seed, options)
 
     def step(self, action):
         state, reward, done, truncated, info = self.env.step(action)
 
-        self.room_id_prev   = self.room_id
-        self.room_id        = self.get_current_room()
-
-        #next level
-        if self.room_id == 1 and self.room_id_prev == 15:
-            self.level_id+= 1
-
-        file_name = self.result_path + str(self.frame_ptr).zfill(5) + "_" + str(self.level_id) + "_" + str(self.room_id) + ".png"
-
-        im_bgr = cv2.cvtColor(state, cv2.COLOR_RGB2BGR)
-        print("saving frame ", file_name, state.shape)
-
-        cv2.imwrite(file_name, im_bgr)
-
-        self.frame_ptr+= 1
+        self.states.append(state)
 
         return state, reward, done, truncated, info
 
-    def get_current_room(self, room_address = 3):
-        ram = self._unwrap(self.env).ale.getRAM()
-        assert len(ram) == 128
-        return int(ram[room_address])
-
-    def _unwrap(self, env):
-        if hasattr(env, "unwrapped"):
-            return env.unwrapped
-        elif hasattr(env, "env"):
-            return unwrap(env.env)
-        elif hasattr(env, "leg_env"):
-            return unwrap(env.leg_env)
-        else:
-            return env
 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
@@ -327,7 +298,7 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
-    #env = ColectStatesEnv(env, "states/")
+    #env = ColectStatesEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     
     env = VisitedRoomsEnv(env)    
@@ -341,7 +312,7 @@ def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
-    #env = ColectStatesEnv(env, "states/")
+    #env = ColectStatesEnv(env)
     env = ResizeEnvColor(env, height, width, frame_stacking)
     
     env = VisitedRoomsEnv(env)    
