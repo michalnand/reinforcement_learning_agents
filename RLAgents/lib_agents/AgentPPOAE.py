@@ -333,11 +333,11 @@ class AgentPPOAE():
             novelty_result[e]   = torch.std(attn)
             '''
 
-            attn    = z@z.T
+            attn                = z@z.T
   
-            attn    = attn/(attn.shape[1]**0.5)
-            attn    = torch.softmax(attn, dim=1)
-            y       = torch.std(attn)
+            attn                = attn/(attn.shape[1]**0.5)
+            attn                = torch.softmax(attn, dim=1)
+            novelty_result[e]   = torch.std(attn)
 
         return novelty_result.to("cpu")
 
