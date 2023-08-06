@@ -144,7 +144,7 @@ class AgentPPOAE():
 
         #internal motivation
         rewards_int     = self._internal_motivation(states)
-        rewards_int     = torch.clip(rewards_int, 0.0, 1.0)
+        rewards_int     = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
