@@ -324,13 +324,20 @@ class AgentPPOAE():
         for e in range(self.envs_count):
             z                   = self.novelty_buffer[e].to(self.device)
 
+            '''
             attn                = torch.cdist(z, z)
             max_value, _        = torch.max(z, dim=1)
             attn                = 1.0 - attn/(max_value.unsqueeze(1) + 10**-10)
             attn                = torch.softmax(attn, dim=0)
 
             novelty_result[e]   = torch.std(attn)
+            '''
 
+            attn    = z@z.T
+  
+            attn    = attn/(attn.shape[1]**0.5)
+            attn    = torch.softmax(attn, dim=1)
+            y       = torch.std(attn)
 
         return novelty_result.to("cpu")
 
