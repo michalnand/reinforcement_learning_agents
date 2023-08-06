@@ -179,8 +179,8 @@ class AgentPPOAE():
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
                 #obtain state descriptor features
-                s = torch.from_numpy(self.states[e]).unsqueeze(0)
-                z = self.model_descriptor(s)
+                s = torch.from_numpy(self.states[e]).unsqueeze(0).to(self.device)
+                z = self.model_descriptor(s) 
                 z = z.squeeze(0).detach().cpu()
 
                 #fill initial values
