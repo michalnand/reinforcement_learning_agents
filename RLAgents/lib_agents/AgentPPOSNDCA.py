@@ -130,10 +130,10 @@ class AgentPPOSNDCA():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-        self.rewards_int      = numpy.zeros(self.envs_count, dtype=numpy.float32)
-        self.rewards_int_prev = numpy.zeros(self.envs_count, dtype=numpy.float32)
+        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
+        self.rewards_int_prev = torch.zeros(self.envs_count, dtype=torch.float32)
 
-        self.enable_training()
+        self.enable_training() 
         self.iterations     = 0 
 
         self.values_logger  = ValuesLogger() 
