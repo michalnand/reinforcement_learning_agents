@@ -187,8 +187,8 @@ class AgentPPOSNDCA():
  
         #total motivation
         self.rewards_int_prev   = self.rewards_int.clone()
-        self.rewards_int        = rewards_int_a + rewards_int_b
-
+        self.rewards_int        = (rewards_int_a + rewards_int_b).detach().to("cpu")
+ 
         rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
         
         #put into policy buffer
