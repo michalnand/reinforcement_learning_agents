@@ -23,6 +23,11 @@ class AgentPPOSNDCA():
         self.int_adv_coeff      = config.int_adv_coeff
         self.reward_int_a_coeff = config.reward_int_a_coeff
         self.reward_int_b_coeff = config.reward_int_b_coeff
+
+        if hasattr(config, "reward_int_dif_coeff"):
+            self.reward_int_dif_coeff = config.reward_int_dif_coeff
+        else:
+            self.reward_int_dif_coeff = 0.0
       
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -77,6 +82,7 @@ class AgentPPOSNDCA():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
+        print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distances     = ", self.similar_states_distances)
         print("state_normalise              = ", self.state_normalise)
@@ -124,6 +130,8 @@ class AgentPPOSNDCA():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
+        self.rewards_int      = numpy.zeros(self.envs_count, dtype=numpy.float32)
+        self.rewards_int_prev = numpy.zeros(self.envs_count, dtype=numpy.float32)
 
         self.enable_training()
         self.iterations     = 0 
@@ -178,7 +186,10 @@ class AgentPPOSNDCA():
         rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
  
         #total motivation
-        rewards_int      = torch.clip(rewards_int_a + rewards_int_b, 0.0, 1.0)
+        self.rewards_int_prev   = self.rewards_int.clone()
+        self.rewards_int        = rewards_int_a + rewards_int_b
+
+        rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
