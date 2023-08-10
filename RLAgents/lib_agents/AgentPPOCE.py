@@ -198,7 +198,7 @@ class AgentPPOCE():
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
                 #fill initial context after new episode
-                states_t                = torch.from_numpy(states_t).to(self.device).unsqueeze(0)
+                states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
                 
                 z_target_t              = self.model_target(states_t)
                 self.z_target_context[e, :, :] = z_target_t.squeeze(0).detach().cpu()
