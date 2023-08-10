@@ -30,12 +30,8 @@ from .AgentPPOSA                    import AgentPPOSA
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
-from .AgentPPOSSSND                 import AgentPPOSSSND
 from .AgentPPOSNDCA                 import AgentPPOSNDCA
-from .AgentPPOSNDHierarchy          import AgentPPOSNDHierarchy
-
-
-from .AgentPPOAE                    import AgentPPOAE
+from .AgentPPOCE                    import AgentPPOCE
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
