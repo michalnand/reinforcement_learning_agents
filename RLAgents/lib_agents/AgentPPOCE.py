@@ -122,8 +122,10 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        self.info_logger["z_target_context_max"]        = 0.0
-        self.info_logger["z_predictor_context_max"]     = 0.0
+        self.info_logger["target_confidence"]       = 0.0
+        self.info_logger["predictor_confidence"]    = 0.0
+        self.info_logger["novelty"]                 = 0.0
+        self.info_logger["context"]                 = 0.0
         
     def enable_training(self): 
         self.enabled_training = True
@@ -346,9 +348,11 @@ class AgentPPOCE():
 
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
-        #store confidence
-        self.info_logger["z_target_context_max"]        = round(float(target_max.detach().cpu().numpy()), 5)
-        self.info_logger["z_predictor_context_max"]     = round(float(predictor_max.detach().cpu().numpy()), 5)
+        #store confidence 
+        self.info_logger["target_confidence"]       = round(float(target_max.detach().cpu().numpy()), 5)
+        self.info_logger["predictor_confidence"]    = round(float(predictor_max.detach().cpu().numpy()), 5)
+        self.info_logger["novelty"]                 = round(float(novelty_t.detach().cpu().numpy()), 5)
+        self.info_logger["context"]                 = round(float(context_t.detach().cpu().numpy()), 5)
 
         return im_t
     
