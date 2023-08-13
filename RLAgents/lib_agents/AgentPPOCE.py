@@ -124,6 +124,7 @@ class AgentPPOCE():
 
         self.info_logger["target_confidence"]       = 0.0
         self.info_logger["predictor_confidence"]    = 0.0
+        self.info_logger["im"]                      = 0.0
         self.info_logger["novelty"]                 = 0.0
         self.info_logger["context"]                 = 0.0
         
@@ -342,17 +343,18 @@ class AgentPPOCE():
 
         #store every n-th features only 
         #not necessary to store all frames features
-        if (self.iterations%self.contextual_buffer_skip) == 0:
-            self.z_context_target[:, self.z_context_ptr, :]    = z_target_t.detach().cpu()
-            self.z_context_predictor[:, self.z_context_ptr, :] = z_predictor_t.detach().cpu()
+        if (self.iterations%self.contextual_buffer_skip) == 0: 
+            self.z_context_target[:, self.z_context_ptr, :]    = z_target_t
+            self.z_context_predictor[:, self.z_context_ptr, :] = z_predictor_t
 
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
         #store confidence 
-        self.info_logger["target_confidence"]       = round(float(target_max.detach().cpu().numpy()), 5)
-        self.info_logger["predictor_confidence"]    = round(float(predictor_max.detach().cpu().numpy()), 5)
-        self.info_logger["novelty"]                 = round(float(novelty_t.mean().detach().cpu().numpy()), 5)
-        self.info_logger["context"]                 = round(float(context_t.mean().detach().cpu().numpy()), 5)
+        self.info_logger["target_confidence"]       = round(float(target_max.numpy()), 5)
+        self.info_logger["predictor_confidence"]    = round(float(predictor_max.numpy()), 5)
+        self.info_logger["im"]                      = round(float(im_t.mean().numpy()), 5)
+        self.info_logger["novelty"]                 = round(float(novelty_t.mean().numpy()), 5)
+        self.info_logger["context"]                 = round(float(context_t.mean().numpy()), 5)
 
         return im_t
     
