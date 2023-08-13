@@ -124,7 +124,6 @@ class AgentPPOCE():
 
         self.info_logger["z_target_context_max"]        = 0.0
         self.info_logger["z_predictor_context_max"]     = 0.0
-        self.info_logger["z_target_predictor_distance"] = 0.0
         
     def enable_training(self): 
         self.enabled_training = True
