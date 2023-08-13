@@ -351,8 +351,8 @@ class AgentPPOCE():
         #store confidence 
         self.info_logger["target_confidence"]       = round(float(target_max.detach().cpu().numpy()), 5)
         self.info_logger["predictor_confidence"]    = round(float(predictor_max.detach().cpu().numpy()), 5)
-        self.info_logger["novelty"]                 = round(float(novelty_t.detach().cpu().numpy()), 5)
-        self.info_logger["context"]                 = round(float(context_t.detach().cpu().numpy()), 5)
+        self.info_logger["novelty"]                 = round(float(novelty_t.mean().detach().cpu().numpy()), 5)
+        self.info_logger["context"]                 = round(float(context_t.mean().detach().cpu().numpy()), 5)
 
         return im_t
     
