@@ -35,8 +35,6 @@ class AgentPPOCE():
         self.batch_size         = config.batch_size        
         self.training_epochs    = config.training_epochs
         
-
-
         #internal motivation params    
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
@@ -48,21 +46,18 @@ class AgentPPOCE():
         else:
             self._target_self_supervised_loss = None
 
-        self.augmentations                  = config.augmentations
-        self.augmentations_probs            = config.augmentations_probs
+        self.augmentations              = config.augmentations
+        self.augmentations_probs        = config.augmentations_probs
         
+        self.similar_states_distance    = config.similar_states_distance
+        self.contextual_buffer_size     = config.contextual_buffer_size
+        self.contextual_buffer_skip     = config.contextual_buffer_skip
+        self.contextual_coeff           = config.contextual_coeff
+        
+        #speacial params 
+        self.rnn_policy                 = config.rnn_policy
+        self.state_normalise            = config.state_normalise
 
-        self.similar_states_distance  = config.similar_states_distance
-        self.contextual_buffer_size   = config.contextual_buffer_size
-        self.contextual_buffer_skip   = config.contextual_buffer_skip
-        self.contextual_coeff         = config.contextual_coeff
-        
-        #speacial params
-        self.rnn_policy         = config.rnn_policy
-        self.state_normalise    = config.state_normalise
-
-         
-        
         print("ppo_self_supervised_loss     = ", self._ppo_self_supervised_loss)
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
@@ -97,12 +92,10 @@ class AgentPPOCE():
 
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
             self.states[e], _  = self.envs.reset(e)
-
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
         
@@ -128,8 +121,9 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        self.info_logger["z_target_context_max"]       = 0.0
-        self.info_logger["z_predictor_context_max"]        = 0.0
+        self.info_logger["z_target_context_max"]        = 0.0
+        self.info_logger["z_predictor_context_max"]     = 0.0
+        self.info_logger["z_target_predictor_distance"] = 0.0
         
     def enable_training(self): 
         self.enabled_training = True
@@ -160,7 +154,6 @@ class AgentPPOCE():
         rewards_int     = self._internal_motivation(states)
         rewards_int     = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
-        
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
@@ -187,7 +180,6 @@ class AgentPPOCE():
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 
-         
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
@@ -199,10 +191,6 @@ class AgentPPOCE():
                 
                 z_target_t              = self.model_target(states_t)
                 self.z_context[e, :, :] = z_target_t.squeeze(0).detach().cpu()
-
-               
-         
-        #self._add_for_plot(states, infos, dones)
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
@@ -210,7 +198,6 @@ class AgentPPOCE():
 
         self.iterations+= 1
 
-        
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
@@ -274,8 +261,6 @@ class AgentPPOCE():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-
-              
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
@@ -339,26 +324,28 @@ class AgentPPOCE():
   
     #compute internal motivation
     def _internal_motivation(self, states):  
-        z_target_t          = self.model_target(states).detach().cpu()
-        z_predictor_t       = self.model_predictor(states).detach().cpu()
-
-        z_target_context_t,     target_max      = self._contextual_z(self.z_context, z_target_t, self.contextual_coeff)
-        z_predictor_context_t,  predictor_max   = self._contextual_z(self.z_context, z_predictor_t, self.contextual_coeff)
-
+        z_target_t      = self.model_target(states).detach().cpu()
+        z_predictor_t   = self.model_predictor(states).detach().cpu()
+ 
+        z_target_context_t,     target_max,    target_idx       = self._contextual_z(self.z_context, z_target_t,    self.contextual_coeff)
+        z_predictor_context_t,  predictor_max, predictor_idx    = self._contextual_z(self.z_context, z_predictor_t, self.contextual_coeff)
 
         novelty_t = ((z_target_context_t - z_predictor_context_t)**2).mean(dim=1)
 
         #store every n-th features only 
         #not necessary to store all frames features
         if (self.iterations%self.contextual_buffer_skip) == 0:
-            self.z_context[:, self.z_context_ptr, :]     = z_target_t.detach().cpu()
+            self.z_context[:, self.z_context_ptr, :] = z_target_t.detach().cpu()
 
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
+        distance = (target_idx - predictor_idx)%self.contextual_buffer_size
+        distance = distance.float().mean()
 
-        self.info_logger["z_target_context_max"]       = round(float(target_max.detach().cpu().numpy()), 5)
-        self.info_logger["z_predictor_context_max"]    = round(float(predictor_max.detach().cpu().numpy()), 5)
-        
+        self.info_logger["z_target_context_max"]        = round(float(target_max.detach().cpu().numpy()), 5)
+        self.info_logger["z_predictor_context_max"]     = round(float(predictor_max.detach().cpu().numpy()), 5)
+        self.info_logger["z_target_predictor_distance"] = round(float(distance.detach().cpu().numpy()), 5)
+
         return novelty_t
     
 
@@ -413,9 +400,13 @@ class AgentPPOCE():
         z_result = z - context_coeff*z_rep
 
         #statistics
-        max_val = (torch.max(attn, dim=-1)[0]).mean()
+        #maximum attn value (confidence)
+        #indices of max values
+        max_val, idx_val  = torch.max(attn, dim=-1)
 
-        return z_result, max_val
+        max_val = max_val.mean()
+
+        return z_result, max_val, idx_val
 
     
     def _state_normalise(self, states, alpha = 0.99): 
