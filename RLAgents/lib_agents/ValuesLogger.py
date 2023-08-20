@@ -10,6 +10,8 @@ class ValuesLogger:
         else: 
             self.values[name] = value
 
+
+        print(">>> ", name, value)
             
     def get_str(self, decimals = 7): 
         result = "" 

@@ -218,8 +218,8 @@ class AgentPPOSNDCA():
         #self._add_for_plot(states, infos, dones)
         
         #collect stats
-        self.values_logger.add("internal_motivation_a_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
         self.iterations+= 1
 
