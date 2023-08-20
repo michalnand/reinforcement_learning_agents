@@ -258,7 +258,7 @@ def WrapperCommon(env, height = 96, width = 96, frame_stacking = 4, max_steps = 
     return env
 
 
-def WrapperCommon(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperCommonColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
@@ -272,7 +272,7 @@ def WrapperCommon(env, height = 96, width = 96, frame_stacking = 4, max_steps = 
     return env
 
 
-def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperCommonVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     env = VideoRecorder(env)    
 
     env = WrapperCommon(env, height, width, frame_stacking, max_steps)
@@ -281,9 +281,9 @@ def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_
 
 
 
-def WrapperCommonVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperCommonVideoColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     env = VideoRecorder(env)    
 
-    env = WrapperCommon(env, height, width, frame_stacking, max_steps)
+    env = WrapperCommonColor(env, height, width, frame_stacking, max_steps)
 
     return env
