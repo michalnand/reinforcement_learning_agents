@@ -175,7 +175,7 @@ class AgentPPOSNDCA():
         #prev motivation
         self.rewards_int_prev   = self.rewards_int.clone()
  
-        rewards_int, rewards_int_all_raw  = self._internal_motivation(states_prev, states)
+        rewards_int, rewards_int_all_raw  = self._internal_motivation(states)
 
         self.rewards_int = self.reward_int_coeff*rewards_int
 
