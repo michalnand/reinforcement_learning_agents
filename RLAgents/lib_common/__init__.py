@@ -13,3 +13,6 @@ from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaColor, Wrap
 #from .WrapperPybullet       import *
 
 from .WrapperProcgen        import WrapperProcgenEasy, WrapperProcgenHard, WrapperProcgenExploration, WrapperProcgenEasyRender, WrapperProcgenHardRender, WrapperProcgenExplorationRender
+
+
+from .WrapperCommon         import *

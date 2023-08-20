@@ -203,52 +203,6 @@ class VisitedRoomsEnv(gym.Wrapper):
         return int(ram[self.room_address])
 
 
-'''
-class VisitedRoomsEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-        
-        self.steps              = 0
-        self.rooms              = []
-        self.room_id            = 0
-        self.explored_rooms     = 0
-        
-    def step(self, action):
-        obs, reward, done, truncated, _ = self.env.step(action)
-        
-        if self.steps%32 == 0: 
-            if len(self.rooms) == 0:
-                self.rooms.append(obs[0].copy())
-            else:
-                distance, room_id = self._distance(obs[0])
-                if distance > 0.01 and len(self.rooms) < 100:
-                    self.rooms.append(obs[0].copy())
-
-                self.room_id        = room_id
-                self.explored_rooms = len(self.rooms)
-
-        self.steps+= 1
-
-        info = {}
-        info["room_id"]         = self.room_id
-        info["explored_rooms"]  = self.explored_rooms
-        
-        return obs, reward, done, truncated, info
-
-    def reset(self, seed = None, options = None):
-        return self.env.reset()
-
-    def _distance(self, obs):
-        other       = numpy.array(self.rooms)
-        distances   = ((other - obs)**2)
-
-        shape       = (distances.shape[0], numpy.prod(distances.shape[1:]))
-        distances   = distances.reshape(shape)
-        distances   = distances.mean(axis=1)
-
-        return numpy.min(distances), numpy.argmin(distances)
-'''
-
 
 class RawScoreEnv(gym.Wrapper):
     def __init__(self, env, max_steps):
@@ -278,11 +232,8 @@ class RawScoreEnv(gym.Wrapper):
 
         info["raw_score"] = self.raw_score_per_episode
 
-        #reward = max(0.0, float(numpy.sign(reward)))
-
         reward = max(0.0, float(reward))
         reward = numpy.sign(reward)
-        #reward = numpy.log10(1.0 + reward)
         
         return obs, reward, done, truncated, info
 
@@ -293,11 +244,10 @@ class RawScoreEnv(gym.Wrapper):
 
 
 
-def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperCommon(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
     #env = ColectStatesEnv(env)
     env = ResizeEnv(env, height, width, frame_stacking)
     
@@ -307,16 +257,16 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     return env
 
 
-def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-
+def WrapperCommon(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+    
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
     #env = ColectStatesEnv(env)
     env = ResizeEnvColor(env, height, width, frame_stacking)
     
     env = VisitedRoomsEnv(env)    
     env = RawScoreEnv(env, max_steps) 
+
 
     return env
 
@@ -324,15 +274,15 @@ def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_
 def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     env = VideoRecorder(env)    
 
-    env = WrapperMontezuma(env, height, width, frame_stacking, max_steps)
+    env = WrapperCommon(env, height, width, frame_stacking, max_steps)
 
     return env
 
 
 
-def WrapperMontezumaColorVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperCommonVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
     env = VideoRecorder(env)    
 
-    env = WrapperMontezumaColor(env, height, width, frame_stacking, max_steps)
+    env = WrapperCommon(env, height, width, frame_stacking, max_steps)
 
     return env
