@@ -233,7 +233,8 @@ class RawScoreEnv(gym.Wrapper):
         info["raw_score"] = self.raw_score_per_episode
 
         reward = max(0.0, float(reward))
-        reward = numpy.sign(reward)
+        #reward = numpy.sign(reward)
+        reward = float(numpy.log10(reward + 1.0))
         
         return obs, reward, done, truncated, info
 
