@@ -279,7 +279,6 @@ class RawScoreEnv(gym.Wrapper):
 
         info["raw_score"] = self.raw_score_per_episode
 
-        #reward = max(0.0, float(numpy.sign(reward)))
 
         reward = max(0.0, float(reward))
 
