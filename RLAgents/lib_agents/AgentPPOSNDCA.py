@@ -156,7 +156,6 @@ class AgentPPOSNDCA():
         states = self._state_normalise(self.states)
         
         #state to tensor
-        states_prev = torch.tensor(self.states_prev, dtype=torch.float).to(self.device)
         states      = torch.tensor(states, dtype=torch.float).to(self.device)
 
         #compute model output
@@ -392,6 +391,8 @@ class AgentPPOSNDCA():
             novelty_t+= tmp
 
             novelty_all[i] = tmp.mean().detach().cpu().numpy()
+
+        novelty_all = numpy.round(novelty_all, 5)
 
         novelty_t = novelty_t.detach().cpu()
         
