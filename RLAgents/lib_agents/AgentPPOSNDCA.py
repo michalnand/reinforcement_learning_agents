@@ -274,7 +274,6 @@ class AgentPPOSNDCA():
 
         small_batch = 16*self.batch_size 
 
-        accuracy_all    = 0
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
@@ -333,10 +332,6 @@ class AgentPPOSNDCA():
                 self.values_logger.add("loss_target",   loss_target_all)
                 self.values_logger.add("loss_distillation", loss_distillation_all)
 
-        accuracy_all = accuracy_all/(self.training_epochs*batch_count)
-
-        self.info_logger["accuracy"] = list(numpy.round(accuracy_all, 3))
-                
         self.policy_buffer.clear() 
 
     
