@@ -251,11 +251,12 @@ class VisitedRoomsEnv(gym.Wrapper):
 
 
 class RawScoreEnv(gym.Wrapper):
-    def __init__(self, env, max_steps):
+    def __init__(self, env, max_steps, log_scale = False):
         gym.Wrapper.__init__(self, env)
 
         self.steps      = 0
         self.max_steps  = max_steps
+        self.log_scale  = log_scale
 
         self.raw_score               = 0.0
         self.raw_score_per_episode   = 0.0
@@ -281,8 +282,12 @@ class RawScoreEnv(gym.Wrapper):
         #reward = max(0.0, float(numpy.sign(reward)))
 
         reward = max(0.0, float(reward))
-        reward = numpy.sign(reward)
-        #reward = numpy.log10(1.0 + reward)
+
+        if self.log_scale:
+            reward = numpy.log10(1.0 + reward)
+        else:
+            reward = numpy.sign(reward)
+        
         
         return obs, reward, done, truncated, info
 
@@ -303,6 +308,19 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     
     env = VisitedRoomsEnv(env)    
     env = RawScoreEnv(env, max_steps) 
+
+    return env
+
+def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+
+    env = NopOpsEnv(env)
+    env = StickyActionEnv(env)
+    env = RepeatActionEnv(env) 
+    #env = ColectStatesEnv(env)
+    env = ResizeEnv(env, height, width, frame_stacking)
+    
+    env = VisitedRoomsEnv(env)    
+    env = RawScoreEnv(env, max_steps, True) 
 
     return env
 
