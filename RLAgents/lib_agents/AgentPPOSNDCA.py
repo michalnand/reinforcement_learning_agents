@@ -397,6 +397,8 @@ class AgentPPOSNDCA():
             novelty_t+= tmp
 
             novelty_all[i] = tmp.mean().detach().cpu().numpy()
+
+        novelty_t = novelty_t.detach().cpu()
         
         return novelty_t, novelty_all
     
