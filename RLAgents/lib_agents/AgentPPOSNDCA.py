@@ -21,7 +21,7 @@ class AgentPPOSNDCA():
               
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        
+
         self.reward_int_a_coeff = config.reward_int_a_coeff
         self.reward_int_b_coeff = config.reward_int_b_coeff
 
@@ -317,6 +317,7 @@ class AgentPPOSNDCA():
                 else:
                     loss_target_self_awareness  = 0
                     accuracy                    = numpy.zeros((1, ))
+                    accuracy                    = numpy.random.rand(3)
 
                 accuracy_all+= accuracy
 
@@ -349,7 +350,7 @@ class AgentPPOSNDCA():
 
         accuracy_all = accuracy_all/(self.training_epochs*batch_count)
 
-        self.info_logger["accuracy"] = accuracy_all
+        self.info_logger["accuracy"] = list(accuracy_all)
 
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
