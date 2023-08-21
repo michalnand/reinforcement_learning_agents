@@ -225,12 +225,9 @@ class AgentPPOSNDCA():
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
-
         self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int.std().detach().to("cpu").numpy())
-
+        
         self.iterations+= 1
 
         return rewards_ext[0], dones[0], infos[0]
