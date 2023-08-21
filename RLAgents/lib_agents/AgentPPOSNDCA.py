@@ -317,7 +317,6 @@ class AgentPPOSNDCA():
                 else:
                     loss_target_self_awareness  = 0
                     accuracy                    = numpy.zeros((1, ))
-                    accuracy                    = numpy.random.rand(3)
 
                 accuracy_all+= accuracy
 
