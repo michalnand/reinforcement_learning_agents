@@ -20,6 +20,8 @@ class AgentPPOSNDCA():
         self.gamma_int          = config.gamma_int
               
         self.ext_adv_coeff      = config.ext_adv_coeff
+        self.int_adv_coeff      = config.int_adv_coeff
+        
         self.reward_int_a_coeff = config.reward_int_a_coeff
         self.reward_int_b_coeff = config.reward_int_b_coeff
 
