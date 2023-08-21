@@ -349,6 +349,7 @@ class AgentPPOSNDCA():
         self.policy_buffer.clear() 
 
         accuracy_all = accuracy_all/(self.training_epochs*batch_count)
+        accuracy_all = numpy.round(accuracy_all, 4)
 
         self.info_logger["accuracy"] = list(accuracy_all)
 
