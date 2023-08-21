@@ -330,7 +330,7 @@ class AgentPPOSNDCA():
 
 
                 #train multiple SND models, MSE loss
-                loss_distillation = self._loss_distillation(states, i)
+                loss_distillation = self._loss_distillation(states)
 
                 self.optimizer_predictor.zero_grad() 
                 loss_distillation.backward()
@@ -384,35 +384,40 @@ class AgentPPOSNDCA():
 
     
     #MSE loss for networks distillation model
-    def _loss_distillation(self, states, model_id):         
-        features_target_t       = self.model_target[model_id](states)        
-        features_predicted_t    = self.model_predictor[model_id](states)
+    def _loss_distillation(self, states):         
+        features_target_t       = self.model_target(states)        
+        features_predicted_t    = self.model_predictor(states)
         
         loss = ((features_target_t.detach() - features_predicted_t)**2).mean()
 
         return loss 
    
     #compute internal motivation
-    def _internal_motivation(self, states):        
-        #sumarise for all partial models
-        novelty_t = 0.0
+    def _internal_motivation(self, states_prev, states):        
+        #distillation novelty detection
+        features_target_t       = self.model_target(states)
+        features_predicted_t    = self.model_predictor(states)
 
-        novelty_all = numpy.zeros(len(self.model_target))
-        for i in range(len(self.model_target)):
-            features_target_t       = self.model_target[i](states)
-            features_predicted_t    = self.model_predictor[i](states)
-
-            tmp = ((features_target_t - features_predicted_t)**2).mean(dim=1)
-
-            novelty_t+= tmp
-
-            novelty_all[i] = tmp.mean().detach().cpu().numpy()
-
-        novelty_all = numpy.round(novelty_all, 5)
-
+        novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
+
+        if  self._target_self_awareness_loss is not None:
+            prediction = self.model_target.forward_aux(states_prev, states)
+
+            #motivation is given by how accurate model predict causality
+            prediction = torch.softmax(prediction, dim=1)
+
+            #input is always case : states_prev, states_now transition (class_id = 1)
+            #see loss_constructor implementation : 
+            #class (column) 0 : different states
+            #class (column) 1 : state_prev, state_now
+            #class (column) 2 : state_now, state_prev
+            causality_t = prediction[:, 1]
+            causality_t = causality_t.detach().cpu()
+        else:
+            causality_t = torch.zeros(novelty_t.shape, dtype=torch.float32)
         
-        return novelty_t, novelty_all
+        return novelty_t, causality_t
     
  
     def _augmentations(self, x): 
