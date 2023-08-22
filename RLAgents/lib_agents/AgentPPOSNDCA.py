@@ -316,7 +316,7 @@ class AgentPPOSNDCA():
                 accuracy_all+= accuracy
 
                 #TODO : do we need loss scaling ?
-                loss_target = loss_target_self_supervised + 0.01*loss_target_self_awareness
+                loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
             
     
                 self.optimizer_target.zero_grad() 
