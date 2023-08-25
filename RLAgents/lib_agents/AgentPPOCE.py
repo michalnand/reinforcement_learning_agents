@@ -21,7 +21,7 @@ class AgentPPOCE():
           
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
-        
+         
         #reward scaling
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
@@ -49,10 +49,14 @@ class AgentPPOCE():
         self.augmentations              = config.augmentations
         self.augmentations_probs        = config.augmentations_probs
         
+        
         self.similar_states_distance    = config.similar_states_distance
+        
+        self.context_mode               = config.context_mode
         self.contextual_buffer_size     = config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
         self.contextual_coeff           = config.contextual_coeff
+        
         
         #speacial params 
         self.rnn_policy                 = config.rnn_policy
@@ -64,6 +68,7 @@ class AgentPPOCE():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
+        print("context_mode                 = ", self.context_mode)
         print("contextual_buffer_size       = ", self.contextual_buffer_size)
         print("contextual_buffer_skip       = ", self.contextual_buffer_skip)
         print("contextual_coeff             = ", self.contextual_coeff)
@@ -327,8 +332,15 @@ class AgentPPOCE():
 
         return loss 
 
-  
-    #compute internal motivation
+    
+    '''
+    scalar_context : 
+    ((zt - zp)**2).mean(1) - k*((zt_context - zp_context)**2).mean(1)
+
+    vector_context :
+    ((zt - k*zt_context) - (zp - k*zp_context)**2).mean(1)
+    '''
+    #compute contextual internal motivation
     def _internal_motivation(self, states):  
         z_target_t      = self.model_target(states).detach().cpu()
         z_predictor_t   = self.model_predictor(states).detach().cpu()
@@ -336,13 +348,25 @@ class AgentPPOCE():
         z_target_context_t,     target_max       = self._contextual_z(self.z_context_target,    z_target_t)
         z_predictor_context_t,  predictor_max    = self._contextual_z(self.z_context_predictor, z_predictor_t)
 
-        novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
-        context_t = ((z_target_context_t - z_predictor_context_t)**2).mean(dim=1)
+        if self.context_mode == "scalar":
+            novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
+            context_t = ((z_target_context_t - z_predictor_context_t)**2).mean(dim=1)
 
-        im_t      = novelty_t - self.contextual_coeff*context_t
+            im_t      = novelty_t - self.contextual_coeff*context_t
+
+        elif self.context_mode == "vector_a":
+            z    =  (z_target_t  - z_predictor_t) - self.contextual_coeff*(z_target_context_t - z_predictor_context_t)
+            im_t =  (z**2).mean(dim=1)
+        elif self.context_mode == "vector_b":
+           zt =  z_target_t     - self.contextual_coeff*z_target_context_t
+           zp =  z_predictor_t  - self.contextual_coeff*z_predictor_context_t
+           im_t = ((zt - zp)**2).mean(dim=1)
+        else:
+            #error
+            im_t = None
 
         #store every n-th features only 
-        #not necessary to store all frames features
+        #not necessary to store all frames
         if (self.iterations%self.contextual_buffer_skip) == 0: 
             self.z_context_target[:, self.z_context_ptr, :]    = z_target_t
             self.z_context_predictor[:, self.z_context_ptr, :] = z_predictor_t
@@ -353,8 +377,8 @@ class AgentPPOCE():
         self.info_logger["target_confidence"]       = round(float(target_max.numpy()), 5)
         self.info_logger["predictor_confidence"]    = round(float(predictor_max.numpy()), 5)
         self.info_logger["im"]                      = round(float(im_t.mean().numpy()), 5)
-        self.info_logger["novelty"]                 = round(float(novelty_t.mean().numpy()), 5)
-        self.info_logger["context"]                 = round(float(context_t.mean().numpy()), 5)
+        #self.info_logger["novelty"]                 = round(float(novelty_t.mean().numpy()), 5)
+        #self.info_logger["context"]                 = round(float(context_t.mean().numpy()), 5)
 
         return im_t
     
