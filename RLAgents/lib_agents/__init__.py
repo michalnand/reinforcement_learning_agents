@@ -32,6 +32,7 @@ from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOCE                    import AgentPPOCE
+from .AgentPPOAE                    import AgentPPOAE
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
