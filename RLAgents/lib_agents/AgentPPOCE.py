@@ -96,7 +96,7 @@ class AgentPPOCE():
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
         
-        self.z_context_target    = torch.zeros((self.envs_count, self.contextual_buffer_size, 512), dtype=torch.float32)
+        self.z_context_buffer    = torch.zeros((self.envs_count, self.contextual_buffer_size, 512), dtype=torch.float32)
         self.z_context_ptr  = 0
 
         #optional, for state mean and variance normalisation        
@@ -187,7 +187,7 @@ class AgentPPOCE():
                 states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
                 
                 z_target_t, _                  = self.model_im(states_t)
-                self.z_context_target[e, :, :] = z_target_t.squeeze(0).detach().cpu()
+                self.z_context_buffer[e, :, :] = z_target_t.squeeze(0).detach().cpu()
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
@@ -324,20 +324,17 @@ class AgentPPOCE():
 
     
     '''
-    scalar_context : 
-    ((zt - zp)**2).mean(1) - k*((zt_context - zp_context)**2).mean(1)
+        compute contextual internal motivation
 
-    vector_context :
-    ((zt - k*zt_context) - (zp - k*zp_context)**2).mean(1)
+        z_contextual = context to z_predictor with respect to z_context_buffer
     '''
-    #compute contextual internal motivation
     def _internal_motivation(self, states):  
-        z_target_t, z_predictor_t      = self.model_im(states)
+        z_target_t, z_predictor_t = self.model_im(states)
 
         z_target_t      = z_target_t.detach().cpu()
         z_predictor_t   = z_predictor_t.detach().cpu()
 
-        z_contextual_t, attn = self._contextual_z(self.z_context_target, z_predictor_t)
+        z_contextual_t, attn = self._contextual_z(self.z_context_buffer, z_predictor_t)
 
         novelty_t = ((z_contextual_t - z_predictor_t)**2).mean(dim=1)
 
@@ -345,7 +342,7 @@ class AgentPPOCE():
         #store every n-th features only 
         #not necessary to store all frames
         if (self.iterations%self.contextual_buffer_skip) == 0: 
-            self.z_context_target[:, self.z_context_ptr, :]    = z_target_t
+            self.z_context_buffer[:, self.z_context_ptr, :]    = z_target_t
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
 
