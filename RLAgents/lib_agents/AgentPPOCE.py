@@ -52,7 +52,7 @@ class AgentPPOCE():
         
         self.similar_states_distance    = config.similar_states_distance
         
-        self.contextual_buffer_size     = config.contextual_buffer_size
+        self.contextual_buffer_size     = 100 #config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
         
         
@@ -407,7 +407,6 @@ class AgentPPOCE():
 
         z_result = (z_context*attn.unsqueeze(2)).sum(dim=1)
 
-        print("attn = ", attn.shape)
 
         return z_result, attn
 
