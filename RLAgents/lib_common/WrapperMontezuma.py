@@ -315,22 +315,10 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
     env = ResizeEnv(env, height, width, frame_stacking)
     
     env = VisitedRoomsEnv(env)    
-    env = RawScoreEnv(env, max_steps, adaptive_scale=True) 
+    env = RawScoreEnv(env, max_steps, adaptive_scale=False) 
 
     return env
 
-def WrapperMontezumaB(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
-
-    env = NopOpsEnv(env)
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env) 
-    #env = ColectStatesEnv(env)
-    env = ResizeEnv(env, height, width, frame_stacking)
-    
-    env = VisitedRoomsEnv(env)    
-    env = RawScoreEnv(env, max_steps, True) 
-
-    return env
 
 
 def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
