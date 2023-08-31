@@ -197,12 +197,12 @@ class AgentPPOCE():
         attn    = attn.detach().cpu().numpy()
 
         c_mean  = attn.max(axis=-1)[0].mean()
-        c_std   = attn.max(axis=-1)[0].std()
+        c_std   = attn.max(axis=-1)[0].std() 
         p_mean  = attn.mean(axis=-1).mean()
         p_std   = attn.std(axis=-1).mean()
 
         self.info_logger["c_mean"]      = round(c_mean, 8)
-        self.info_logger["c_std"]       = round(c_std, 8)
+        self.info_logger["c_std"]       = c_std
         self.info_logger["p_mean"]      = round(p_mean, 8)
         self.info_logger["p_std"]       = round(p_std, 8) 
 
