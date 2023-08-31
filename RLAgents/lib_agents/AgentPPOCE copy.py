@@ -10,7 +10,7 @@ from .Augmentations         import *
  
          
 class AgentPPOCE():   
-    def __init__(self, envs, ModelPPO, ModelIM, config):
+    def __init__(self, envs, ModelPPO, ModelTarget, ModelPredictor, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -52,8 +52,10 @@ class AgentPPOCE():
         
         self.similar_states_distance    = config.similar_states_distance
         
+        self.context_mode               = config.context_mode
         self.contextual_buffer_size     = config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
+        self.contextual_coeff           = config.contextual_coeff
         
         
         #speacial params 
@@ -66,8 +68,10 @@ class AgentPPOCE():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
+        print("context_mode                 = ", self.context_mode)
         print("contextual_buffer_size       = ", self.contextual_buffer_size)
         print("contextual_buffer_skip       = ", self.contextual_buffer_skip)
+        print("contextual_coeff             = ", self.contextual_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
@@ -81,12 +85,16 @@ class AgentPPOCE():
         self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        #internal motivation model
-        self.model_im      = ModelIM.Model(self.state_shape)
-        self.model_im.to(self.device)
-        self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
+        #target model
+        self.model_target      = ModelTarget.Model(self.state_shape)
+        self.model_target.to(self.device)
+        self.optimizer_target  = torch.optim.Adam(self.model_target.parameters(), lr=config.learning_rate_target)
 
-      
+        #predictor model
+        self.model_predictor      = ModelPredictor.Model(self.state_shape)
+        self.model_predictor.to(self.device)
+        self.optimizer_predictor  = torch.optim.Adam(self.model_predictor.parameters(), lr=config.learning_rate_predictor)
+
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         #reset envs and fill initial state
@@ -97,6 +105,7 @@ class AgentPPOCE():
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
         
         self.z_context_target    = torch.zeros((self.envs_count, self.contextual_buffer_size, 512), dtype=torch.float32)
+        self.z_context_predictor = torch.zeros((self.envs_count, self.contextual_buffer_size, 512), dtype=torch.float32)
         self.z_context_ptr  = 0
 
         #optional, for state mean and variance normalisation        
@@ -118,10 +127,12 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        self.info_logger["confidence"]      = 0.0
-        self.info_logger["mean"]            = 0.0
-        self.info_logger["std"]             = 0.0
-       
+        self.info_logger["target_confidence"]       = 0.0
+        self.info_logger["predictor_confidence"]    = 0.0
+        self.info_logger["im"]                      = 0.0
+        self.info_logger["novelty"]                 = 0.0
+        self.info_logger["context"]                 = 0.0
+        
     def enable_training(self): 
         self.enabled_training = True
  
@@ -148,8 +159,8 @@ class AgentPPOCE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int, attn   = self._internal_motivation(states)
-        rewards_int         = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int     = self._internal_motivation(states)
+        rewards_int     = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         #put into policy buffer
         if self.enabled_training:
@@ -186,21 +197,15 @@ class AgentPPOCE():
                 #fill initial context after new episode
                 states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
                 
-                z_target_t, _                  = self.model_im(states_t)
+                z_target_t                     = self.model_target(states_t)
                 self.z_context_target[e, :, :] = z_target_t.squeeze(0).detach().cpu()
+
+                z_predictor_t                     = self.model_predictor(states_t)
+                self.z_context_predictor[e, :, :] = z_predictor_t.squeeze(0).detach().cpu()
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-
-        attn      = attn.detach().cpu().numpy()
-        attn_conf = attn.max(axis=-1)[0].mean()
-        attn_mean = attn.mean(axis=-1).mean()
-        attn_std  = attn.std(axis=-1).mean()
-
-        self.info_logger["confidence"]      = round(attn_conf, 5)
-        self.info_logger["mean"]            = round(attn_mean, 5)
-        self.info_logger["std"]             = round(attn_std, 5)
 
         self.iterations+= 1
 
@@ -208,7 +213,8 @@ class AgentPPOCE():
     
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
-        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
+        torch.save(self.model_target.state_dict(), save_path + "trained/model_target.pt")
+        torch.save(self.model_predictor.state_dict(), save_path + "trained/model_predictor.pt")
         
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -217,7 +223,8 @@ class AgentPPOCE():
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
-        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
+        self.model_target.load_state_dict(torch.load(load_path + "trained/model_target.pt", map_location = self.device))
+        self.model_predictor.load_state_dict(torch.load(load_path + "trained/model_predictor.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
@@ -268,15 +275,21 @@ class AgentPPOCE():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-                #target im model, self supervised regularisation 
-                loss_target = self._target_self_supervised_loss(self.model_im, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                #train target model, self supervised    
+                loss_target = self._target_self_supervised_loss(self.model_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-                #MSE distilation loss
-                loss_distillation = self._loss_distillation(states)
+                self.optimizer_target.zero_grad() 
+                loss_target.backward()
+                self.optimizer_target.step()
 
-                self.optimizer_im.zero_grad() 
+
+            
+                #train contextual distilaation model
+                loss_distillation = self._loss_contextual_distillation(states)
+
+                self.optimizer_predictor.zero_grad() 
                 loss_distillation.backward()
-                self.optimizer_im.step() 
+                self.optimizer_predictor.step() 
                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().to("cpu").numpy())
@@ -329,31 +342,53 @@ class AgentPPOCE():
     '''
     #compute contextual internal motivation
     def _internal_motivation(self, states):  
-        z_target_t, z_predictor_t      = self.model_im(states)
+        z_target_t      = self.model_target(states).detach().cpu()
+        z_predictor_t   = self.model_predictor(states).detach().cpu()
+ 
+        z_target_context_t,     target_max       = self._contextual_z(self.z_context_target,    z_target_t)
+        z_predictor_context_t,  predictor_max    = self._contextual_z(self.z_context_predictor, z_predictor_t)
 
-        z_target_t      = z_target_t.detach().cpu()
-        z_predictor_t   = z_predictor_t.detach().cpu()
+        if self.context_mode == "scalar":
+            novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
+            context_t = ((z_target_context_t - z_predictor_context_t)**2).mean(dim=1)
 
-        z_contextual_t, attn = self._contextual_z(z_target_t)
+            im_t      = novelty_t - self.contextual_coeff*context_t
 
-        novelty_t = ((z_contextual_t - z_predictor_t)**2).mean(dim=1)
-
+        elif self.context_mode == "vector_a":
+            z    =  (z_target_t  - z_predictor_t) - self.contextual_coeff*(z_target_context_t - z_predictor_context_t)
+            im_t =  (z**2).mean(dim=1)
+        elif self.context_mode == "vector_b":
+           zt =  z_target_t     - self.contextual_coeff*z_target_context_t
+           zp =  z_predictor_t  - self.contextual_coeff*z_predictor_context_t
+           im_t = ((zt - zp)**2).mean(dim=1)
+        else:
+            #error
+            im_t = None
 
         #store every n-th features only 
         #not necessary to store all frames
         if (self.iterations%self.contextual_buffer_skip) == 0: 
             self.z_context_target[:, self.z_context_ptr, :]    = z_target_t
+            self.z_context_predictor[:, self.z_context_ptr, :] = z_predictor_t
+
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
+        #store confidence 
+        self.info_logger["target_confidence"]       = round(float(target_max.numpy()), 5)
+        self.info_logger["predictor_confidence"]    = round(float(predictor_max.numpy()), 5)
+        self.info_logger["im"]                      = round(float(im_t.mean().numpy()), 5)
+        #self.info_logger["novelty"]                 = round(float(novelty_t.mean().numpy()), 5)
+        #self.info_logger["context"]                 = round(float(context_t.mean().numpy()), 5)
 
-        return novelty_t, attn
- 
-      
-
+        return im_t
+    
 
     #MSE loss for networks distillation model
-    def _loss_distillation(self, states): 
-        z_target_t, z_predictor_t  = self.model_im(states)
+    def _loss_contextual_distillation(self, states): 
+
+        z_target_t      = self.model_target(states)
+        z_predictor_t   = self.model_predictor(states)
+
         loss = ((z_target_t.detach() - z_predictor_t)**2).mean()        
         return loss
     
@@ -387,9 +422,6 @@ class AgentPPOCE():
     '''
     z_context : shape(batch_size, context_size, features_count)
     z         : shape(batch_size, features_count)
-
-    z_result  : shape(batch_size, features_count)
-    attn      : shape(batch_size, context_size)
     '''
     def _contextual_z(self, z_context, z):
         #print("_contextual_z = ", z_context.shape, z.shape)
@@ -400,7 +432,13 @@ class AgentPPOCE():
 
         z_result = (z_context*attn.unsqueeze(2)).sum(dim=1)
 
-        return z_result, attn
+        #statistics
+        #maximum attn value (confidence)
+        #indices of max values
+        max_val, _  = torch.max(attn, dim=-1)
+        max_val     = max_val.mean()
+
+        return z_result, max_val
 
     
     def _state_normalise(self, states, alpha = 0.99): 
