@@ -388,8 +388,10 @@ class AgentPPOCE():
     z_context : shape(batch_size, context_size, features_count)
     z         : shape(batch_size, features_count)
 
-    z_result  : shape(batch_size, features_count)
-    attn      : shape(batch_size, context_size)
+    returns
+        z_result  : context based representative sample
+                    shape(batch_size, features_count)
+        attn      : shape(batch_size, context_size)
     '''
     def _contextual_z(self, z_context, z):
         #print("_contextual_z = ", z_context.shape, z.shape)
