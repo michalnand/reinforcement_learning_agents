@@ -52,7 +52,7 @@ class AgentPPOCE():
         
         self.similar_states_distance    = config.similar_states_distance
         
-        self.contextual_buffer_size     = 100 #config.contextual_buffer_size
+        self.contextual_buffer_size     = config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
         
         
@@ -348,6 +348,8 @@ class AgentPPOCE():
         if (self.iterations%self.contextual_buffer_skip) == 0: 
             self.z_context_buffer[:, self.z_context_ptr, :]    = z_target_t
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
+
+            print("z_context_ptr = ", self.z_context_ptr)
 
 
         return novelty_t, attn
