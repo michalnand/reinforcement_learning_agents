@@ -202,7 +202,7 @@ class AgentPPOCE():
         p_std   = attn.std(axis=-1).mean()
 
         self.info_logger["c_mean"]      = round(c_mean, 8)
-        self.info_logger["c_std"]       = c_std
+        self.info_logger["c_std"]       = round(c_std, 8)
         self.info_logger["p_mean"]      = round(p_mean, 8)
         self.info_logger["p_std"]       = round(p_std, 8) 
 
