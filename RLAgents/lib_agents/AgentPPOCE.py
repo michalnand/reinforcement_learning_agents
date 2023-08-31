@@ -392,19 +392,22 @@ class AgentPPOCE():
     z_context : shape(batch_size, context_size, features_count)
     z         : shape(batch_size, features_count)
 
+    
+
     returns
         z_result  : context based representative sample
                     shape(batch_size, features_count)
         attn      : shape(batch_size, context_size)
     '''
     def _contextual_z(self, z_context, z):
-        #print("_contextual_z = ", z_context.shape, z.shape)
-        attn = z_context*z.unsqueeze(1)
-        attn = attn.sum(dim=-1)
+        attn = z_context*z.unsqueeze(1) 
+        attn = attn.sum(dim=-1)         
         attn = attn/(z_context.shape[-1]**0.5)
         attn = torch.softmax(attn, dim=-1)
 
         z_result = (z_context*attn.unsqueeze(2)).sum(dim=1)
+
+        print("attn = ", attn.shape)
 
         return z_result, attn
 
