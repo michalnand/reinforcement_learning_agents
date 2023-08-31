@@ -118,9 +118,10 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        self.info_logger["confidence"]      = 0.0
-        self.info_logger["mean"]            = 0.0
-        self.info_logger["std"]             = 0.0
+        self.info_logger["c_mean"]      = 0.0
+        self.info_logger["c_std"]       = 0.0
+        self.info_logger["p_mean"]      = 0.0
+        self.info_logger["p_std"]       = 0.0
        
     def enable_training(self): 
         self.enabled_training = True
@@ -193,14 +194,17 @@ class AgentPPOCE():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-        attn      = attn.detach().cpu().numpy()
-        attn_conf = attn.max(axis=-1)[0].mean()
-        attn_mean = attn.mean(axis=-1).mean()
-        attn_std  = attn.std(axis=-1).mean()
+        attn    = attn.detach().cpu().numpy()
+        
+        c_mean  = attn.max(axis=-1)[0].mean()
+        c_std   = attn.max(axis=-1)[0].std()
+        p_mean  = attn.mean(axis=-1).mean()
+        p_std   = attn.std(axis=-1).mean()
 
-        self.info_logger["confidence"]      = round(attn_conf, 5)
-        self.info_logger["mean"]            = round(attn_mean, 5)
-        self.info_logger["std"]             = round(attn_std, 5)
+        self.info_logger["c_mean"]      = round(c_mean, 5)
+        self.info_logger["c_std"]       = round(c_std, 5)
+        self.info_logger["p_mean"]      = round(p_mean, 5)
+        self.info_logger["p_std"]       = round(p_std, 5)
 
         self.iterations+= 1
 
