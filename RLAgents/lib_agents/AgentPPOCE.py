@@ -196,6 +196,9 @@ class AgentPPOCE():
 
         attn    = attn.detach().cpu().numpy()
 
+        print("attn = ", attn.shape)
+        print("max  = \n", (attn.max(axis=-1)[0]))
+
         c_mean  = (attn.max(axis=-1)[0]).mean()
         c_std   = (attn.max(axis=-1)[0]).std() 
         p_mean  = attn.mean(axis=-1).mean()
@@ -346,10 +349,8 @@ class AgentPPOCE():
         #store every n-th features only 
         #not necessary to store all frames
         if (self.iterations%self.contextual_buffer_skip) == 0: 
-            self.z_context_buffer[:, self.z_context_ptr, :]    = z_target_t
+            self.z_context_buffer[:, self.z_context_ptr, :] = z_target_t
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
-
-            print("z_context_ptr = ", self.z_context_ptr)
 
 
         return novelty_t, attn
