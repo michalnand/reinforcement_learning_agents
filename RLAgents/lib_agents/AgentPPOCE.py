@@ -274,8 +274,11 @@ class AgentPPOCE():
                 #MSE distilation loss
                 loss_distillation = self._loss_distillation(states)
 
+
+                loss_im = loss_target + loss_distillation
+
                 self.optimizer_im.zero_grad() 
-                loss_distillation.backward()
+                loss_im.backward()
                 self.optimizer_im.step() 
                
                 #log results
