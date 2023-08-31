@@ -334,7 +334,7 @@ class AgentPPOCE():
         z_target_t      = z_target_t.detach().cpu()
         z_predictor_t   = z_predictor_t.detach().cpu()
 
-        z_contextual_t, attn = self._contextual_z(z_target_t)
+        z_contextual_t, attn = self._contextual_z(self.z_context_target, z_predictor_t)
 
         novelty_t = ((z_contextual_t - z_predictor_t)**2).mean(dim=1)
 
