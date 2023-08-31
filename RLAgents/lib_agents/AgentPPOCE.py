@@ -196,8 +196,8 @@ class AgentPPOCE():
 
         attn    = attn.detach().cpu().numpy()
 
-        c_mean  = attn.max(axis=-1)[0].mean()
-        c_std   = attn.max(axis=-1)[0].std() 
+        c_mean  = (attn.max(axis=-1)[0]).mean()
+        c_std   = (attn.max(axis=-1)[0]).std() 
         p_mean  = attn.mean(axis=-1).mean()
         p_std   = attn.std(axis=-1).mean()
 
