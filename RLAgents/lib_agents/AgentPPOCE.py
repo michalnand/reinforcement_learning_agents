@@ -331,6 +331,8 @@ class AgentPPOCE():
         compute contextual internal motivation
 
         z_contextual = context to z_predictor with respect to z_context_buffer
+
+        novelty_t    = z_contextual - z_predictor
     '''
     def _internal_motivation(self, states):  
         z_target_t, z_predictor_t = self.model_im(states)
