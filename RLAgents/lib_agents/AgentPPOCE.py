@@ -116,12 +116,15 @@ class AgentPPOCE():
         self.values_logger.add("loss_target",                   0.0)
         self.values_logger.add("loss_distillation",             0.0)
         
+        
         self.info_logger = {}
 
+        '''
         self.info_logger["c_mean"]      = 0.0
         self.info_logger["c_std"]       = 0.0
         self.info_logger["p_mean"]      = 0.0
         self.info_logger["p_std"]       = 0.0
+        '''
        
     def enable_training(self): 
         self.enabled_training = True
@@ -149,7 +152,7 @@ class AgentPPOCE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int, attn   = self._internal_motivation(states)
+        rewards_int         = self._internal_motivation(states)
         rewards_int         = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
 
         #put into policy buffer
@@ -184,16 +187,19 @@ class AgentPPOCE():
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
+                '''
                 #fill initial context after new episode
                 states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
                 
                 z_target_t, _                  = self.model_im(states_t)
                 self.z_context_buffer[e, :, :] = z_target_t.squeeze(0).detach().cpu()
+                '''
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
+        '''
         attn    = attn.detach().cpu().numpy()
 
         c_mean  = attn.max(axis=-1).mean()
@@ -205,6 +211,7 @@ class AgentPPOCE():
         self.info_logger["c_std"]       = round(c_std, 8)
         self.info_logger["p_mean"]      = round(p_mean, 8)
         self.info_logger["p_std"]       = round(p_std, 8) 
+        '''
 
         self.iterations+= 1
 
@@ -334,6 +341,8 @@ class AgentPPOCE():
 
         novelty_t    = z_contextual - z_predictor
     '''
+
+    '''
     def _internal_motivation(self, states):  
         z_target_t, z_predictor_t = self.model_im(states)
 
@@ -353,7 +362,18 @@ class AgentPPOCE():
 
 
         return novelty_t, attn
- 
+    '''
+
+
+    def _internal_motivation(self, states):  
+        z_target_t, z_predictor_t = self.model_im(states)
+
+        z_target_t      = z_target_t.detach().cpu()
+        z_predictor_t   = z_predictor_t.detach().cpu()
+
+        novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
+
+        return novelty_t
       
 
 
