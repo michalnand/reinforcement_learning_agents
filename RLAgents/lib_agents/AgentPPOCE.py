@@ -364,10 +364,10 @@ class AgentPPOCE():
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
         
-        self.info_logger["n_mean"]      = float(novelty_t.mean().detach().cpu().numpy())
-        self.info_logger["n_std"]       = float(novelty_t.std().detach().cpu().numpy())
-        self.info_logger["w_mean"]      = float(w.mean().detach().cpu().numpy())
-        self.info_logger["w_std"]       = float(w.std().detach().cpu().numpy())
+        self.info_logger["n_mean"]      = round(float(novelty_t.mean().detach().cpu().numpy()), 6)
+        self.info_logger["n_std"]       = round(float(novelty_t.std().detach().cpu().numpy()), 6)
+        self.info_logger["w_mean"]      = round(float(w.mean().detach().cpu().numpy()), 6)
+        self.info_logger["w_std"]       = round(float(w.std().detach().cpu().numpy()), 6)
 
 
         return result
