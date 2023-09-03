@@ -357,10 +357,7 @@ class AgentPPOCE():
         w = w.min(dim=1)[0]
         #w = w.mean(dim=1)
 
-
         result = (1.0 + self.contextual_coeff*w)*novelty_t
-
-        print(">>>> ", novelty_t.shape, w.shape, result.shape)
 
         #store every n-th features only 
         #not necessary to store all frames
