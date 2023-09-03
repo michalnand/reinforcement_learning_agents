@@ -69,6 +69,7 @@ class AgentPPOCE():
         print("similar_states_distance      = ", self.similar_states_distance)
         print("contextual_buffer_size       = ", self.contextual_buffer_size)
         print("contextual_buffer_skip       = ", self.contextual_buffer_skip)
+        print("contextual_coeff             = ", self.contextual_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
