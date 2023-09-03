@@ -54,6 +54,7 @@ class AgentPPOCE():
         
         self.contextual_buffer_size     = config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
+        self.contextual_coeff           = config.contextual_coeff
         
         
         #speacial params 
@@ -119,12 +120,12 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        '''
-        self.info_logger["c_mean"]      = 0.0
-        self.info_logger["c_std"]       = 0.0
-        self.info_logger["p_mean"]      = 0.0
-        self.info_logger["p_std"]       = 0.0
-        '''
+        
+        self.info_logger["n_mean"]      = 0.0
+        self.info_logger["n_std"]       = 0.0
+        self.info_logger["w_mean"]      = 0.0
+        self.info_logger["w_std"]       = 0.0
+        
        
     def enable_training(self): 
         self.enabled_training = True
@@ -187,13 +188,13 @@ class AgentPPOCE():
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
-                '''
+                
                 #fill initial context after new episode
                 states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
                 
                 z_target_t, _                  = self.model_im(states_t)
                 self.z_context_buffer[e, :, :] = z_target_t.squeeze(0).detach().cpu()
-                '''
+                
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
@@ -334,38 +335,8 @@ class AgentPPOCE():
         return loss 
 
     
-    '''
-        compute contextual internal motivation
-
-        z_contextual = context to z_predictor with respect to z_context_buffer
-
-        novelty_t    = z_contextual - z_predictor
-    '''
-
-    '''
-    def _internal_motivation(self, states):  
-        z_target_t, z_predictor_t = self.model_im(states)
-
-        z_target_t      = z_target_t.detach().cpu()
-        z_predictor_t   = z_predictor_t.detach().cpu()
-
-        z_contextual_t, attn = self._contextual_z(self.z_context_buffer, z_predictor_t)
-
-        novelty_t = ((z_contextual_t - z_predictor_t)**2).mean(dim=1)
-
-
-        #store every n-th features only 
-        #not necessary to store all frames
-        if (self.iterations%self.contextual_buffer_skip) == 0: 
-            self.z_context_buffer[:, self.z_context_ptr, :] = z_target_t
-            self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
-
-
-        return novelty_t, attn
-    '''
-
-
-    def _internal_motivation(self, states):  
+ 
+    def _internal_motivation(self, states):
         z_target_t, z_predictor_t = self.model_im(states)
 
         z_target_t      = z_target_t.detach().cpu()
@@ -373,8 +344,33 @@ class AgentPPOCE():
 
         novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
 
-        return novelty_t
-      
+        #d.shape = (envs_count, buffer_size, features_count)
+        d = (self.z_context_buffer - z_target_t.unsqueeze(1))**2 
+        d = d.mean(dim=-1)
+
+        #w.shape = (envs_count, buffer_size)
+        w = torch.softmax(d, dim=-1)
+
+        w = w.min(dim=1)[0]
+        #w = w.mean(dim=1)
+
+        result = (1.0 + self.contextual_coeff*w)*novelty_t
+
+        #store every n-th features only 
+        #not necessary to store all frames
+        if (self.iterations%self.contextual_buffer_skip) == 0: 
+            self.z_context_buffer[:, self.z_context_ptr, :] = z_target_t
+            self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
+
+        
+        self.info_logger["n_mean"]      = novelty_t.mean().detach().cpu().numpy()
+        self.info_logger["n_std"]       = novelty_t.std().detach().cpu().numpy()
+        self.info_logger["w_mean"]      = w.mean().detach().cpu().numpy()
+        self.info_logger["w_std"]       = w.std().detach().cpu().numpy()
+
+
+        return result
+
 
 
     #MSE loss for networks distillation model
@@ -410,29 +406,6 @@ class AgentPPOCE():
     
 
 
-    '''
-    z_context : shape(batch_size, context_size, features_count)
-    z         : shape(batch_size, features_count)
-
-    
-
-    returns
-        z_result  : context based representative sample
-                    shape(batch_size, features_count)
-        attn      : shape(batch_size, context_size)
-    '''
-    def _contextual_z(self, z_context, z):
-        attn = z_context*z.unsqueeze(1) 
-        attn = attn.sum(dim=-1)         
-        attn = attn/(z_context.shape[-1]**0.5)
-        attn = torch.softmax(attn, dim=-1)
-
-        z_result = (z_context*attn.unsqueeze(2)).sum(dim=1)
-
-
-        return z_result, attn
-
-    
     def _state_normalise(self, states, alpha = 0.99): 
 
         if self.state_normalise:
