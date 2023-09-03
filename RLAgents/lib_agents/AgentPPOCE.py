@@ -124,8 +124,10 @@ class AgentPPOCE():
         
         self.info_logger["n_mean"]      = 0.0
         self.info_logger["n_std"]       = 0.0
+        self.info_logger["n_max"]       = 0.0
         self.info_logger["w_mean"]      = 0.0
         self.info_logger["w_std"]       = 0.0
+        self.info_logger["w_max"]       = 0.0
         
        
     def enable_training(self): 
@@ -366,8 +368,10 @@ class AgentPPOCE():
         
         self.info_logger["n_mean"]      = round(float(novelty_t.mean().detach().cpu().numpy()), 6)
         self.info_logger["n_std"]       = round(float(novelty_t.std().detach().cpu().numpy()), 6)
+        self.info_logger["n_max"]       = round(float(novelty_t.max().detach().cpu().numpy()), 6)
         self.info_logger["w_mean"]      = round(float(w.mean().detach().cpu().numpy()), 6)
         self.info_logger["w_std"]       = round(float(w.std().detach().cpu().numpy()), 6)
+        self.info_logger["w_max"]       = round(float(w.max().detach().cpu().numpy()), 6)
 
 
         return result
