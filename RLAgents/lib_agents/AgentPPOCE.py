@@ -363,9 +363,6 @@ class AgentPPOCE():
         #select N-smallest (closest distance)
         d = d[:, 0:self.contextual_average]
 
-        print("d_shape = ", d.shape)
-        print(d[0:5])
-
         #average
         episodic_novelty_t = d.mean(dim=1)
 
