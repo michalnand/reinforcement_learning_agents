@@ -25,7 +25,8 @@ class AgentPPOCE():
         #reward scaling
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         #ppo params
         self.entropy_beta       = config.entropy_beta
@@ -54,7 +55,7 @@ class AgentPPOCE():
         
         self.contextual_buffer_size     = config.contextual_buffer_size
         self.contextual_buffer_skip     = config.contextual_buffer_skip
-        self.contextual_coeff           = config.contextual_coeff
+        self.contextual_average         = config.contextual_average
         
         
         #speacial params 
@@ -65,11 +66,12 @@ class AgentPPOCE():
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_coeff             = ", self.reward_int_coeff)
+        print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("contextual_buffer_size       = ", self.contextual_buffer_size)
         print("contextual_buffer_skip       = ", self.contextual_buffer_skip)
-        print("contextual_coeff             = ", self.contextual_coeff)
+        print("contextual_average           = ", self.contextual_average)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
@@ -121,13 +123,13 @@ class AgentPPOCE():
         
         self.info_logger = {}
 
-        
-        self.info_logger["n_mean"]      = 0.0
-        self.info_logger["n_std"]       = 0.0
-        self.info_logger["n_max"]       = 0.0
-        self.info_logger["w_mean"]      = 0.0
-        self.info_logger["w_std"]       = 0.0
-        self.info_logger["w_max"]       = 0.0
+        self.info_logger["ln_mean"]      = 0.0
+        self.info_logger["ln_std"]       = 0.0
+        self.info_logger["ln_max"]       = 0.0
+        self.info_logger["en_mean"]      = 0.0
+        self.info_logger["en_std"]       = 0.0
+        self.info_logger["en_max"]       = 0.0
+
         
        
     def enable_training(self): 
@@ -156,8 +158,10 @@ class AgentPPOCE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int         = self._internal_motivation(states)
-        rewards_int         = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_a_int, rewards_b_int = self._internal_motivation(states)
+
+        rewards_int  = self.reward_int_a_coeff*rewards_a_int + self.reward_int_b_coeff*rewards_b_int
+        rewards_int  = torch.clip(rewards_int, 0.0, 1.0)
 
         #put into policy buffer
         if self.enabled_training:
@@ -345,19 +349,22 @@ class AgentPPOCE():
         z_target_t      = z_target_t.detach().cpu()
         z_predictor_t   = z_predictor_t.detach().cpu()
 
-        novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
+        long_novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
 
         #d.shape = (envs_count, buffer_size, features_count)
         d = (self.z_context_buffer - z_target_t.unsqueeze(1))**2 
+
+        #d.shape = (envs_count, buffer_size)
         d = d.mean(dim=-1)
 
-        #w.shape = (envs_count, buffer_size)
-        w = torch.softmax(d, dim=-1)
+        #sort, smallest first
+        d = torch.sort(d, dim=1)
 
-        w = w.min(dim=1)[0]
-        #w = w.mean(dim=1)
+        #select N-smallest (closest distance)
+        d = d[:, 0:self.contextual_average]
 
-        result = (1.0 + self.contextual_coeff*w)*novelty_t
+        #average
+        episodic_novelty_t = d.mean(dim=1)
 
         #store every n-th features only 
         #not necessary to store all frames
@@ -366,15 +373,15 @@ class AgentPPOCE():
             self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
 
         
-        self.info_logger["n_mean"]      = round(float(novelty_t.mean().detach().cpu().numpy()), 6)
-        self.info_logger["n_std"]       = round(float(novelty_t.std().detach().cpu().numpy()), 6)
-        self.info_logger["n_max"]       = round(float(novelty_t.max().detach().cpu().numpy()), 6)
-        self.info_logger["w_mean"]      = round(float(w.mean().detach().cpu().numpy()), 6)
-        self.info_logger["w_std"]       = round(float(w.std().detach().cpu().numpy()), 6)
-        self.info_logger["w_max"]       = round(float(w.max().detach().cpu().numpy()), 6)
+        self.info_logger["ln_mean"]      = round(float(long_novelty_t.mean().detach().cpu().numpy()), 6)
+        self.info_logger["ln_std"]       = round(float(long_novelty_t.std().detach().cpu().numpy()), 6)
+        self.info_logger["ln_max"]       = round(float(long_novelty_t.max().detach().cpu().numpy()), 6)
+        self.info_logger["en_mean"]      = round(float(episodic_novelty_t.mean().detach().cpu().numpy()), 6)
+        self.info_logger["en_std"]       = round(float(episodic_novelty_t.std().detach().cpu().numpy()), 6)
+        self.info_logger["en_max"]       = round(float(episodic_novelty_t.max().detach().cpu().numpy()), 6)
 
 
-        return result
+        return long_novelty_t, episodic_novelty_t
 
 
 
