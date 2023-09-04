@@ -360,11 +360,11 @@ class AgentPPOCE():
         #sort, smallest first
         d = torch.sort(d, dim=1)[0]
 
-        print(self.contextual_average)
-        print(">>>> d.shape = ", d.shape)
-        print(d)
         #select N-smallest (closest distance)
         d = d[:, 0:self.contextual_average]
+
+        print("d_shape = ", d.shape)
+        print(d[0:5])
 
         #average
         episodic_novelty_t = d.mean(dim=1)
