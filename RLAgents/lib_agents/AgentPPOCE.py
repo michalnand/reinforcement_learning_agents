@@ -360,6 +360,8 @@ class AgentPPOCE():
         #sort, smallest first
         d = torch.sort(d, dim=1)
 
+        print(self.contextual_average)
+        print(">>>> d.shape = ", d.shape)
         #select N-smallest (closest distance)
         d = d[:, 0:self.contextual_average]
 
