@@ -251,17 +251,15 @@ class VisitedRoomsEnv(gym.Wrapper):
 
 
 class RawScoreEnv(gym.Wrapper):
-    def __init__(self, env, max_steps, adaptive_scale = False):
+    def __init__(self, env, max_steps):
         gym.Wrapper.__init__(self, env)
 
         self.steps      = 0
         self.max_steps  = max_steps
-        self.adaptive_scale  = adaptive_scale
 
         self.raw_score               = 0.0
         self.raw_score_per_episode   = 0.0
 
-        self.reward_max = 0.0
         
     def step(self, action):
         obs, reward, done, truncated, info = self.env.step(action)
@@ -281,21 +279,9 @@ class RawScoreEnv(gym.Wrapper):
 
         info["raw_score"] = self.raw_score_per_episode
 
-        reward = max(0.0, float(reward))
+        #reward = max(0.0, float(reward))
 
-
-        if self.adaptive_scale:           
-
-            reward = numpy.log10(1.0 + reward)
-
-            if reward > self.reward_max:
-                self.reward_max = reward
-            
-            reward = reward/(self.reward_max + 10**-6)
-
-        else:
-            reward = numpy.sign(reward)
-        
+        reward = numpy.sign(reward)
         
         return obs, reward, done, truncated, info
 
