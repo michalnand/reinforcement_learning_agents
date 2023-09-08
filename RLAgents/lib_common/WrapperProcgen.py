@@ -251,7 +251,7 @@ wrapper adds into info :
 info["raw_score"]           : rewards sum per episode, averaged over 100episodes
 info["normalised_score"]    : normalised rewards sum per episode, averaged over 100episodes
 '''
-def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "easy", render = False):
+def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "easy", sparse_rewards = False, render = False):
 
     r_min, r_max = get_reward_range(env_name, mode)
     
@@ -279,10 +279,7 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
     if frame_stacking > 1:
         env = FrameStacking(env, frame_stacking)  
 
-    if mode == "sparse":
-        env = ScoreWrapper(env, r_min, r_max, True) 
-    else:
-        env = ScoreWrapper(env, r_min, r_max, False) 
+    env = ScoreWrapper(env, r_min, r_max, sparse_rewards) 
 
     return env 
 
@@ -307,4 +304,4 @@ def WrapperProcgenExplorationRender(env_name):
 
 
 def WrapperSparseExplorationHard(env_name):
-    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="sparse")
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="hard", sparse_rewards=True)
