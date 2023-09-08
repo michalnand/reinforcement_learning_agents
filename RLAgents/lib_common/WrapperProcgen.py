@@ -77,11 +77,12 @@ class FrameStacking(gym.Wrapper):
         return self.state
         
 class ScoreWrapper(gym.Wrapper):
-    def __init__(self, env, min_score, max_score, averaging_episoded = 100):
+    def __init__(self, env, min_score, max_score, sparse_rewards, averaging_episoded = 100):
         super(ScoreWrapper, self).__init__(env)
 
         self.min_score          = min_score
         self.max_score          = max_score
+        self.sparse_rewards     = sparse_rewards
         
         self.reward_sum         = 0.0
 
@@ -93,10 +94,13 @@ class ScoreWrapper(gym.Wrapper):
     def step(self, action):
         state, reward, done, info = self.env.step(action)
 
-
         self.reward_sum+= reward
 
-        reward = numpy.tanh(reward)
+        if self.sparse_rewards:
+            if reward >= self.max_score - 0.01:
+                reward = 1.0
+            else:
+                reward = 0.0
 
         if done:
             self.score_raw[self.ptr]        = self.reward_sum
@@ -240,6 +244,7 @@ mode            : default "easy", "hard" or exploration
 easy mode       : quick testing, training options : 64  paralel envs, 500k steps for trainig (total 64*500k samples), approx 6hours on RTX3060
 hard mode       : prefered for benchmarking, training options : 128 paralel envs, 1M steps for training (total 128*1M samples)
 exploration mode: hard exploration, where PPO baseline reach 0 points
+sparse mode     : hard mode, but reward only at end
  
 wrapper adds into info :
 
@@ -274,7 +279,10 @@ def WrapperProcgen(env_name = "procgen-climber-v0", frame_stacking = 2, mode = "
     if frame_stacking > 1:
         env = FrameStacking(env, frame_stacking)  
 
-    env = ScoreWrapper(env, r_min, r_max) 
+    if mode == "sparse":
+        env = ScoreWrapper(env, r_min, r_max, True) 
+    else:
+        env = ScoreWrapper(env, r_min, r_max, False) 
 
     return env 
 
@@ -296,3 +304,7 @@ def WrapperProcgenHardRender(env_name):
 
 def WrapperProcgenExplorationRender(env_name):
     return WrapperProcgen(env_name, frame_stacking = 2, render=True, mode="exploration")
+
+
+def WrapperSparseExplorationHard(env_name):
+    return WrapperProcgen(env_name, frame_stacking = 2, render=False, mode="sparse")
