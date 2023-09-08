@@ -117,7 +117,7 @@ class ScoreWrapper(gym.Wrapper):
         
     def reset(self):
         self.reward_sum = 0.0
-        return self.env.reset()
+        return self.env.reset(), None
 
     def _normalise(self, x):
         y = (x - self.min_score)/(self.max_score - self.min_score)
