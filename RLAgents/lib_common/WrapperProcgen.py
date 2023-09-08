@@ -113,7 +113,7 @@ class ScoreWrapper(gym.Wrapper):
         info["raw_score"]        = round(self.score_raw.mean(), 5)
         info["normalised_score"] = round(self.score_normalised.mean(), 5)
 
-        return state, reward, done, info
+        return state, reward, done, None, info
         
     def reset(self):
         self.reward_sum = 0.0
