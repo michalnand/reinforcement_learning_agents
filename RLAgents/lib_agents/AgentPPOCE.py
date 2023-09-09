@@ -14,7 +14,7 @@ class AgentPPOCE():
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.envs   = envs  
+        self.envs   = envs    
 
         #generic RL parameters
         self.envs_count         = config.envs_count
