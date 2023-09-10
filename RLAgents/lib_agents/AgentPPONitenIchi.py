@@ -65,6 +65,7 @@ class AgentPPONitenIchi():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
+        print("contrastive_coeff            = ", self.contrastive_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
@@ -283,7 +284,7 @@ class AgentPPONitenIchi():
                 
                 loss_im = loss_im_self_supervised + self.contrastive_coeff*loss_im_contrastive
 
-                self.optimizer_im.zero_grad() 
+                self.optimizer_im.zero_grad()  
                 loss_im.backward()
                 self.optimizer_im.step() 
                
