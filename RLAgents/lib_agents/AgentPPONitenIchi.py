@@ -52,7 +52,6 @@ class AgentPPONitenIchi():
         
         
         self.similar_states_distance    = config.similar_states_distance
-        self.contrastive_coeff          = config.contrastive_coeff
       
         
         #speacial params 
@@ -65,7 +64,6 @@ class AgentPPONitenIchi():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
-        print("contrastive_coeff            = ", self.contrastive_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
