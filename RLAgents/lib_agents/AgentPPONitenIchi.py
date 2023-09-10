@@ -278,20 +278,16 @@ class AgentPPONitenIchi():
                 zb = self.model_im.forward_b(states_tmp)
 
                 #minimize mutual information term - models a, b provide different features
+                #ensure za, zb orthogonality
                 w = (za@zb.T)
-                
+
+                loss_im_info  = (w**2).mean()
                 #target uniform distribution, minimize mutual information
-                v = torch.ones_like(w).softmax(dim=1)
+                #v = torch.ones_like(w).softmax(dim=1)
+                #loss_func    = torch.nn.CrossEntropyLoss()
+                #loss_im_info = loss_func(w, v) 
 
-                print(">>> ", w.shape, w.type()) 
-                print(">>> ", v.shape, v.type())
-                print("\n\n")
-                print(w)
-                print(v)
-                print("\n\n")
-
-                loss_func    = torch.nn.CrossEntropyLoss()
-                loss_im_info = loss_func(w, v) 
+                
 
                 #predictor distillation (MSE loss)
                 zb_pred = self.model_im.forward_predictor(za.detach())
