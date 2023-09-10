@@ -34,6 +34,8 @@ from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOCE                    import AgentPPOCE
 from .AgentPPOAE                    import AgentPPOAE
 
+from .AgentPPONitenIchi             import AgentPPONitenIchi
+
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

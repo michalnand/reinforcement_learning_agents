@@ -9,11 +9,11 @@ from .SelfSupervised        import *
 from .Augmentations         import *
  
           
-class AgentPPOCE():   
+class AgentPPONitenIchi():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+ 
         self.envs   = envs    
 
         #generic RL parameters
@@ -25,10 +25,7 @@ class AgentPPOCE():
         #reward scaling
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
-        self.reward_int_a_coeff = config.reward_int_a_coeff
-        self.reward_int_b_coeff = config.reward_int_b_coeff
-
-        self.reward_int_dif_coeff = config.reward_int_dif_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
 
         #ppo params
         self.entropy_beta       = config.entropy_beta
@@ -55,10 +52,7 @@ class AgentPPOCE():
         
         self.similar_states_distance    = config.similar_states_distance
         
-        self.contextual_buffer_size     = config.contextual_buffer_size
-        self.contextual_buffer_skip     = config.contextual_buffer_skip
-        self.contextual_average         = config.contextual_average
-        
+      
         
         #speacial params 
         self.rnn_policy                 = config.rnn_policy
@@ -68,12 +62,8 @@ class AgentPPOCE():
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
+        print("reward_int_coeff             = ", self.reward_int_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
-        print("contextual_buffer_size       = ", self.contextual_buffer_size)
-        print("contextual_buffer_skip       = ", self.contextual_buffer_skip)
-        print("contextual_average           = ", self.contextual_average)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
@@ -101,17 +91,11 @@ class AgentPPOCE():
             self.states[e], _  = self.envs.reset(e)
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
-        
-        self.z_context_buffer    = torch.zeros((self.envs_count, self.contextual_buffer_size, 512), dtype=torch.float32)
-        self.z_context_ptr  = 0
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-
-        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
-        self.rewards_int_prev = torch.zeros(self.envs_count, dtype=torch.float32)
 
         self.enable_training() 
         self.iterations     = 0 
@@ -123,8 +107,9 @@ class AgentPPOCE():
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
-        self.values_logger.add("loss_target",                   0.0)
-        self.values_logger.add("loss_distillation",             0.0)
+        self.values_logger.add("loss_im_self_supervised",       0.0)
+        self.values_logger.add("loss_im_contrastive",           0.0)
+        
         
         
         self.info_logger = {}
@@ -132,10 +117,11 @@ class AgentPPOCE():
         self.info_logger["ln_mean"]      = 0.0
         self.info_logger["ln_std"]       = 0.0
         self.info_logger["ln_max"]       = 0.0
-        self.info_logger["en_mean"]      = 0.0
-        self.info_logger["en_std"]       = 0.0
-        self.info_logger["en_max"]       = 0.0
 
+        self.info_logger["z_mag_mean"]  = 0.0
+        self.info_logger["z_mag_std"]   = 0.0
+        self.info_logger["z_ortho"]     = 0.0
+        
         
        
     def enable_training(self): 
@@ -164,17 +150,10 @@ class AgentPPOCE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_a_int, rewards_b_int = self._internal_motivation(states)
-
-        rewards_int  = self.reward_int_a_coeff*rewards_a_int + self.reward_int_b_coeff*rewards_b_int
-
-        self.rewards_int_prev   = self.rewards_int.clone()
-        self.rewards_int        = rewards_int
-
-        rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
+        rewards_int = self._internal_motivation(states)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
-     
-
+    
         #put into policy buffer
         if self.enabled_training:
             states          = states.detach().to("cpu")
@@ -207,31 +186,11 @@ class AgentPPOCE():
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
-                
-                #fill initial context after new episode
-                states_t                = torch.from_numpy(self.states[e]).to(self.device).unsqueeze(0)
-                
-                z_target_t, _                  = self.model_im(states_t)
-                self.z_context_buffer[e, :, :] = z_target_t.squeeze(0).detach().cpu()
-                
-        
+              
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-        '''
-        attn    = attn.detach().cpu().numpy()
-
-        c_mean  = attn.max(axis=-1).mean()
-        c_std   = attn.max(axis=-1).std() 
-        p_mean  = attn.mean(axis=-1).mean()
-        p_std   = attn.std(axis=-1).mean()
-
-        self.info_logger["c_mean"]      = round(c_mean, 8)
-        self.info_logger["c_std"]       = round(c_std, 8)
-        self.info_logger["p_mean"]      = round(p_mean, 8)
-        self.info_logger["p_std"]       = round(p_std, 8) 
-        '''
 
         self.iterations+= 1
 
@@ -284,7 +243,7 @@ class AgentPPOCE():
                     #sample smaller batch for self supervised loss
                     states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -299,23 +258,33 @@ class AgentPPOCE():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-                #target im model, self supervised regularisation 
-                loss_target = self._target_self_supervised_loss(self.model_im.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                #im model, both self supervised regularisation for good features
+                loss_im_ssa = self._target_self_supervised_loss(self.model_im.forward_a, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)
+                loss_im_ssb = self._target_self_supervised_loss(self.model_im.forward_b, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)     
 
-                #MSE distilation loss
-                loss_distillation = self._loss_distillation(states)
+                #maximize cross im models distance : 
+                # - each model converges to different z-space
+                # - z-spaces are semi-orthogonal like
 
+                states_tmp = states[0:small_batch]
+                za = self.model_im.forward_a(states_tmp)
+                zb = self.model_im.forward_b(states_tmp)
 
-                loss_im = loss_target + loss_distillation
+                w = ((za - zb)**2).mean(dim=1)
+                loss_im_contrastive = ((1.0 - w)**2).mean()
+
+                loss_im_self_supervised = loss_im_ssa + loss_im_ssb
+                
+                loss_im = loss_im_self_supervised + loss_im_contrastive
 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
                 self.optimizer_im.step() 
                
                 #log results
-                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_target",   loss_target.detach().to("cpu").numpy())
-                self.values_logger.add("loss_distillation", loss_distillation.detach().to("cpu").numpy())
+                self.values_logger.add("loss_im_self_supervised", loss_im_self_supervised.detach().to("cpu").numpy())
+                self.values_logger.add("loss_im_contrastive",     loss_im_contrastive.detach().to("cpu").numpy())
+        
 
                 
         self.policy_buffer.clear() 
@@ -356,53 +325,31 @@ class AgentPPOCE():
     
  
     def _internal_motivation(self, states):
-        z_target_t, z_predictor_t = self.model_im(states)
+        za  = self.model_im.forward_a(states)
+        zb  = self.model_im.forward_b(states)
 
-        z_target_t      = z_target_t.detach().cpu()
-        z_predictor_t   = z_predictor_t.detach().cpu()
+        za  = za.detach().cpu()
+        zb  = zb.detach().cpu()
 
-        #distillation novelty
-        long_novelty_t = ((z_target_t - z_predictor_t)**2).mean(dim=1)
+        w         = ((za - zb)**2).mean(dim=1)
+        novelty_t = 1.0 - w
 
-        #d.shape = (envs_count, buffer_size, features_count)
-        d = (self.z_context_buffer - z_target_t.unsqueeze(1))**2 
+        z_mag       = torch.concatenate([(za**2), (zb**2)], dim=0)
+        z_mag_mean  = z_mag.mean()
+        z_mag_std   = z_mag.std(dim=0).mean()
 
-        #d.shape = (envs_count, buffer_size)
-        d = d.mean(dim=-1)
+        z_ortho     = (((za*zb).mean(dim=1))**2).mean()
 
-        #sort, smallest first
-        d = torch.sort(d, dim=1)[0]
+        self.info_logger["ln_mean"]     = round(float(novelty_t.mean().numpy()), 6)
+        self.info_logger["ln_std"]      = round(float(novelty_t.std().numpy()), 6)
+        self.info_logger["ln_max"]      = round(float(novelty_t.max().numpy()), 6)
 
-        #select N-smallest (closest distance)
-        d = d[:, 0:self.contextual_average]
-
-        #average for episodic novelty
-        episodic_novelty_t = d.mean(dim=1)
-
-        #store every n-th features only 
-        #not necessary to store all frames
-        if (self.iterations%self.contextual_buffer_skip) == 0: 
-            self.z_context_buffer[:, self.z_context_ptr, :] = z_target_t 
-            self.z_context_ptr = (self.z_context_ptr + 1)%self.contextual_buffer_size
-
+        self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.numpy()), 6)
+        self.info_logger["z_mag_std"]   = round(float(z_mag_std.numpy()), 6)
+        self.info_logger["z_ortho"]     = round(float(z_ortho.numpy()), 6)
         
-        self.info_logger["ln_mean"]      = round(float(long_novelty_t.mean().numpy()), 6)
-        self.info_logger["ln_std"]       = round(float(long_novelty_t.std().numpy()), 6)
-        self.info_logger["ln_max"]       = round(float(long_novelty_t.max().numpy()), 6)
-        self.info_logger["en_mean"]      = round(float(episodic_novelty_t.mean().numpy()), 6)
-        self.info_logger["en_std"]       = round(float(episodic_novelty_t.std().numpy()), 6)
-        self.info_logger["en_max"]       = round(float(episodic_novelty_t.max().numpy()), 6)
+        return novelty_t
 
-
-        return long_novelty_t, episodic_novelty_t
-
-
-
-    #MSE loss for networks distillation model
-    def _loss_distillation(self, states): 
-        z_target_t, z_predictor_t  = self.model_im(states)
-        loss = ((z_target_t.detach() - z_predictor_t)**2).mean()        
-        return loss
     
  
     def _augmentations(self, x): 

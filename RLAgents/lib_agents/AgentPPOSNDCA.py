@@ -285,7 +285,7 @@ class AgentPPOSNDCA():
                     #sample smaller batch for self supervised loss
                     states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -304,11 +304,11 @@ class AgentPPOSNDCA():
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
 
                 if self._target_self_awareness_loss is not None:
-                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_target.forward_aux, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_target_self_awareness  = 0
                     accuracy                    = numpy.zeros((1, ))

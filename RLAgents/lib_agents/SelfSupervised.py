@@ -32,7 +32,7 @@ def _loss_vicreg(za, zb):
 
     return loss
 
-def loss_vicreg(model, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
+def loss_vicreg(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
     xa = states_now.clone()
     xb = states_similar.clone()
 
@@ -42,17 +42,13 @@ def loss_vicreg(model, augmentations, states_now, states_next, states_similar, s
         xb = augmentations(xb)
  
     # obtain features from model
-    if hasattr(model, "forward_features"):
-        za = model.forward_features(xa)  
-        zb = model.forward_features(xb) 
-    else:
-        za = model(xa)  
-        zb = model(xb) 
+    za = model_forward_func(xa)  
+    zb = model_forward_func(xb) 
 
     return _loss_vicreg(za, zb)
 
     
-def loss_vicreg_spatial(model, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
+def loss_vicreg_spatial(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
     xa = states_now.clone()
     xb = states_similar.clone()
 
@@ -65,8 +61,8 @@ def loss_vicreg_spatial(model, augmentations, states_now, states_next, states_si
     # both, global, and spatial features
     # global  shape : Nx512
     # spatial shape : Nx64x12x12
-    za_g, za_s = model.forward_features(xa)  
-    zb_g, zb_s = model.forward_features(xb) 
+    za_g, za_s = model_forward_func(xa)  
+    zb_g, zb_s = model_forward_func(xb) 
 
     #bootstrap, from NxCx12x12 spatial features, takes only one for every item in batch
     #there is no possible to fit into memory complet each-by-each vicreg loss
@@ -88,7 +84,7 @@ def loss_vicreg_spatial(model, augmentations, states_now, states_next, states_si
 #constructor theory loss
 #for phylosophical stuff read https://www.constructortheory.org
 #train model for causality prediction, a.k.a. if state transition is posible
-def loss_constructor(model, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
+def loss_constructor(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
     batch_size  = states_now.shape[0]
 
     #classes target IDs
@@ -108,7 +104,7 @@ def loss_constructor(model, augmentations, states_now, states_next, states_simil
         xa = augmentations(xa) 
         xb = augmentations(xb)
 
-    transition_pred = model.forward_aux(xa, xb)
+    transition_pred = model_forward_func(xa, xb)
 
     #classification loss
     loss_func       = torch.nn.CrossEntropyLoss()
