@@ -339,8 +339,8 @@ class AgentPPONitenIchi():
         w         = ((za - zb)**2).mean(dim=1)
         novelty_t = 1.0 - w
 
-        z_mag       = torch.concatenate([(za**2), (zb**2)], dim=0)
-        z_mag_mean  = z_mag.mean()
+        z_mag       = torch.cat([(za**2), (zb**2)], dim=0)
+        z_mag_mean  = z_mag.mean(dim=0).mean() 
         z_mag_std   = z_mag.std(dim=0).mean()
 
         z_ortho     = (((za*zb).mean(dim=1))**2).mean()
