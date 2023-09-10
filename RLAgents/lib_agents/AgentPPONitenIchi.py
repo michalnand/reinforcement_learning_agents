@@ -26,6 +26,7 @@ class AgentPPONitenIchi():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.reward_int_coeff   = config.reward_int_coeff
+        
 
         #ppo params
         self.entropy_beta       = config.entropy_beta
@@ -51,7 +52,7 @@ class AgentPPONitenIchi():
         
         
         self.similar_states_distance    = config.similar_states_distance
-        
+        self.contrastive_coeff          = config.contrastive_coeff
       
         
         #speacial params 
@@ -280,7 +281,7 @@ class AgentPPONitenIchi():
 
                 loss_im_self_supervised = loss_im_ssa + loss_im_ssb
                 
-                loss_im = loss_im_self_supervised + loss_im_contrastive
+                loss_im = loss_im_self_supervised + self.contrastive_coeff*loss_im_contrastive
 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
