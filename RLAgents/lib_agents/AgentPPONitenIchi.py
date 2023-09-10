@@ -281,7 +281,7 @@ class AgentPPONitenIchi():
                 w = (za@zb.T)
                 
                 #target uniform distribution, minimize mutual information
-                v = torch.ones(w.shape[0], dtype=torch.float32)/w.shape[0]
+                v = torch.ones(w.shape[0], dtype=torch.float32, device=self.device)/w.shape[0]
 
                 loss_func    = torch.nn.CrossEntropyLoss()
                 loss_im_info = loss_func(w, v) 
