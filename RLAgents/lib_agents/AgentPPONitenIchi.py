@@ -248,7 +248,7 @@ class AgentPPONitenIchi():
                     #sample smaller batch for self supervised loss
                     states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
