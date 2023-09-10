@@ -281,9 +281,10 @@ class AgentPPONitenIchi():
                 w = (za@zb.T)
                 
                 #target uniform distribution, minimize mutual information
-                v = torch.ones(w.shape, dtype=torch.float32, device=self.device).softmax(dim=1)
+                v = torch.ones_like(w).softmax(dim=1)
 
-                print(">>> ", w.shape, v.shape)
+                print(">>> ", w.shape, w.type()) 
+                print(">>> ", v.shape, v.type())
                 print("\n\n")
                 print(w)
                 print(v)
