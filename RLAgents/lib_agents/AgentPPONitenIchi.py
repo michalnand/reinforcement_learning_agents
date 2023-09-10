@@ -72,6 +72,11 @@ class AgentPPONitenIchi():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
+
+        print("state_shape                  = ", self.state_shape)
+        print("actions_count                = ", self.actions_count)
+        print("\n\n")
+
         #main ppo agent
         self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
         self.model_ppo.to(self.device)
