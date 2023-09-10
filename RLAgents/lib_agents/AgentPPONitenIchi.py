@@ -285,10 +285,10 @@ class AgentPPONitenIchi():
                 #loss_im_info = loss_func(w, v) 
 
                 
-
+ 
                 #predictor distillation (MSE loss)
-                zb_pred = self.model_im.forward_predictor(za.detach())
-                za_pred = self.model_im.forward_predictor(zb.detach())
+                zb_pred = self.model_im.forward_predictor(za)
+                za_pred = self.model_im.forward_predictor(zb)
 
                 loss_im_distillation = ((za.detach() - za_pred)**2).mean()
                 loss_im_distillation+= ((zb.detach() - zb_pred)**2).mean()
