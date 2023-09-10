@@ -273,7 +273,8 @@ class AgentPPONitenIchi():
                 za = self.model_im.forward_a(states_tmp)
                 zb = self.model_im.forward_b(states_tmp)
 
-                #minimize mutual information term - models a, b provide different features
+                #minimize mutual information term 
+                #models a, b generates different features
                 #ensure za, zb orthogonality
                 w = (za@zb.T)
 
@@ -363,8 +364,8 @@ class AgentPPONitenIchi():
 
 
         z_mag       = torch.cat([(za**2), (zb**2)], dim=0)
-        z_mag_mean  = z_mag.mean(dim=0).mean() 
-        z_mag_std   = z_mag.std(dim=0).mean()
+        z_mag_mean  = z_mag.mean(dim=1).mean() 
+        z_mag_std   = z_mag.std(dim=1).mean()
 
         information = torch.softmax((za@zb.T), dim=1)
         information = torch.diag(information).mean()
