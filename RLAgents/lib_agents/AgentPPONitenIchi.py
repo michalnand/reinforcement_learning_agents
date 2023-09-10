@@ -120,10 +120,6 @@ class AgentPPONitenIchi():
         
         self.info_logger = {}
 
-        self.info_logger["ln_mean"]      = 0.0
-        self.info_logger["ln_std"]       = 0.0
-        self.info_logger["ln_max"]       = 0.0
-
         self.info_logger["z_mag_mean"]  = 0.0
         self.info_logger["z_mag_std"]   = 0.0
         self.info_logger["information"] = 0.0
