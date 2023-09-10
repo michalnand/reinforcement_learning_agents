@@ -371,9 +371,9 @@ class AgentPPONitenIchi():
         information = torch.diag(information).mean()
 
      
-        self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.numpy()), 6)
-        self.info_logger["z_mag_std"]   = round(float(z_mag_std.numpy()), 6)
-        self.info_logger["information"] = round(float(information.numpy()), 6)
+        self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.detach().cpu().numpy()), 6)
+        self.info_logger["z_mag_std"]   = round(float(z_mag_std.detach().cpu().numpy()), 6)
+        self.info_logger["information"] = round(float(information.detach().cpu().numpy()), 6)
         
         return novelty_t
 
