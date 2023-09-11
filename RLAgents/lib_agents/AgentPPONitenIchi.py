@@ -122,7 +122,7 @@ class AgentPPONitenIchi():
 
         self.info_logger["z_mag_mean"]  = 0.0
         self.info_logger["z_mag_std"]   = 0.0
-        self.info_logger["information"] = 0.0
+        self.info_logger["entropy"]     = 0.0
 
         
        
@@ -287,8 +287,8 @@ class AgentPPONitenIchi():
                 
  
                 #predictor distillation (MSE loss)
-                zb_pred = self.model_im.forward_predictor(za)
-                za_pred = self.model_im.forward_predictor(zb)
+                zb_pred = self.model_im.forward_predictor_a(za)
+                za_pred = self.model_im.forward_predictor_b(zb)
 
                 loss_im_distillation = ((za.detach() - za_pred)**2).mean()
                 loss_im_distillation+= ((zb.detach() - zb_pred)**2).mean()
@@ -352,8 +352,8 @@ class AgentPPONitenIchi():
         zb  = self.model_im.forward_b(states)
 
         #predictor
-        zb_pred = self.model_im.forward_predictor(za)
-        za_pred = self.model_im.forward_predictor(zb)
+        zb_pred = self.model_im.forward_predictor_a(za)
+        za_pred = self.model_im.forward_predictor_b(zb)
 
 
         novelty_t = 0.5*((za - za_pred)**2).mean(dim=1)
@@ -367,13 +367,14 @@ class AgentPPONitenIchi():
         z_mag_mean  = z_mag.mean(dim=1).mean() 
         z_mag_std   = z_mag.std(dim=1).mean()
 
-        information = torch.softmax((za@zb.T), dim=1)
-        information = torch.diag(information).mean()
+        p = torch.softmax((za@zb.T), dim=1)
+        entropy = -p*torch.log2(p + 10**-6) 
+        entropy = entropy.sum(dim=1).mean()
 
      
         self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.detach().cpu().numpy()), 6)
         self.info_logger["z_mag_std"]   = round(float(z_mag_std.detach().cpu().numpy()), 6)
-        self.info_logger["information"] = round(float(information.detach().cpu().numpy()), 6)
+        self.info_logger["entropy"]     = round(float(entropy.detach().cpu().numpy()), 6)
         
         return novelty_t
 
