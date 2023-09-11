@@ -26,6 +26,7 @@ class AgentPPONitenIchi():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
         self.reward_int_coeff   = config.reward_int_coeff
+        self.mi_loss_coeff      = config.mi_loss_coeff
         
 
         #ppo params
@@ -295,7 +296,7 @@ class AgentPPONitenIchi():
 
 
                 #total loss
-                loss_im = loss_im_self_supervised + loss_im_info + loss_im_distillation
+                loss_im = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
 
                 self.optimizer_im.zero_grad()  
                 loss_im.backward()
@@ -367,6 +368,8 @@ class AgentPPONitenIchi():
         z_mag_mean  = z_mag.mean(dim=1).mean() 
         z_mag_std   = z_mag.std(dim=1).mean()
 
+        #compute mutual information entropy 
+        #should be close to 1, meaning there is no information between za, zb features
         p = torch.softmax((za@zb.T), dim=1)
         entropy = -p*torch.log2(p + 10**-6) 
 
