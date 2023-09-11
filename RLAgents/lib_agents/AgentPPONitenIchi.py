@@ -369,7 +369,9 @@ class AgentPPONitenIchi():
 
         p = torch.softmax((za@zb.T), dim=1)
         entropy = -p*torch.log2(p + 10**-6) 
-        entropy = entropy.sum(dim=1).mean()
+
+        #normalised entropy, maximum is 1
+        entropy = entropy.sum(dim=1).mean()/states.shape[0]
 
      
         self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.detach().cpu().numpy()), 6)
