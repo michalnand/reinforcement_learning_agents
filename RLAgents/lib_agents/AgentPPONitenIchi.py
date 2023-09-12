@@ -124,7 +124,7 @@ class AgentPPONitenIchi():
 
         self.info_logger["z_mag_mean"]  = 0.0
         self.info_logger["z_mag_std"]   = 0.0
-        self.info_logger["entropy"]     = 0.0
+        self.info_logger["orthogonality"]     = 0.0
 
         
        
@@ -278,7 +278,7 @@ class AgentPPONitenIchi():
                 #minimize mutual information term 
                 #models a, b generates different features
                 #ensure za, zb orthogonality
-                w = (za@zb.T)
+                w = (za*zb).mean(dim=1) 
 
                 loss_im_info  = (w**2).mean()
                 #target uniform distribution, minimize mutual information
@@ -371,16 +371,13 @@ class AgentPPONitenIchi():
 
         #compute mutual information entropy 
         #should be close to 1, meaning there is no information between za, zb features
-        p = torch.softmax((za@zb.T), dim=1)
-        entropy = -p*torch.log2(p + 10**-6) 
-
-        #normalised entropy, maximum is 1
-        entropy = entropy.sum(dim=1).mean()/numpy.log2(p.shape[0])
-
+        orthogonality = (za*zb).mean(dim=1)
+        orthogonality = orthogonality.mean()
+        
      
         self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.detach().cpu().numpy()), 6)
         self.info_logger["z_mag_std"]   = round(float(z_mag_std.detach().cpu().numpy()), 6)
-        self.info_logger["entropy"]     = round(float(entropy.detach().cpu().numpy()), 6)
+        self.info_logger["orthogonality"]     = round(float(orthogonality.detach().cpu().numpy()), 6)
         
         return novelty_t
 
