@@ -8,7 +8,7 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
  
-          
+           
 class AgentPPONitenIchi():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
 
@@ -275,16 +275,15 @@ class AgentPPONitenIchi():
                 za = self.model_im.forward_a(states_tmp)
                 zb = self.model_im.forward_b(states_tmp)
 
+                wa = self.model_im.forward_transformator_a(za)
+                wb = self.model_im.forward_transformator_b(zb)
+
                 #minimize mutual information term 
                 #models a, b generates different features
-                #ensure za, zb orthogonality
-                w = (za*zb).mean(dim=1) 
-
+                #ensure wa, wb orthogonality
+                w = (wa@wb.T).mean(dim=1) 
                 loss_im_info  = (w**2).mean()
-                #target uniform distribution, minimize mutual information
-                #v = torch.ones_like(w).softmax(dim=1)
-                #loss_func    = torch.nn.CrossEntropyLoss()
-                #loss_im_info = loss_func(w, v) 
+               
 
                 
   
@@ -301,6 +300,12 @@ class AgentPPONitenIchi():
 
                 self.optimizer_im.zero_grad()  
                 loss_im.backward()
+
+                self.model_im.transformator_a.weight.grad*= -1
+                self.model_im.transformator_a.bias.grad*= -1
+                self.model_im.transformator_b.weight.grad*= -1
+                self.model_im.transformator_b.bias.grad*= -1
+                
                 self.optimizer_im.step() 
                
                 #log results
