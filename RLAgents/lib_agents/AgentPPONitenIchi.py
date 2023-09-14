@@ -343,7 +343,7 @@ class AgentPPONitenIchi():
 
         #im model self supervised regularisation for good features
         #both sides learns same features from same inputs
-        if self.mode == "symmetric"
+        if self.mode == "symmetric":
             loss_im_ssa = loss_vicreg_direct(zaa, zab)
             loss_im_ssb = loss_vicreg_direct(zba, zbb)
             loss_im_self_supervised = loss_im_ssa + loss_im_ssb
@@ -367,7 +367,7 @@ class AgentPPONitenIchi():
         zb_pred = self.model_im.forward_predictor_a(za)
         za_pred = self.model_im.forward_predictor_b(zb)
 
-        if self.mode == "symmetric"
+        if self.mode == "symmetric": 
             loss_im_distillation = 0.5*((za.detach() - za_pred)**2).mean()
             loss_im_distillation+= 0.5*((zb.detach() - zb_pred)**2).mean()
         else:
