@@ -242,15 +242,11 @@ class AgentPPONitenIchi():
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state)
                 
                 #train ppo features, self supervised
-                if self._ppo_self_supervised_loss is not None:
-                    #sample smaller batch for self supervised loss
-                    states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
-
-                    loss_ppo_self_supervised    = loss_vicreg(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
-                else:
-                    loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
-
-                #total PPO loss
+                #sample smaller batch for self supervised loss
+                states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
+                loss_ppo_self_supervised    = loss_vicreg(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+            
+                #total PPO loss 
                 loss = loss_ppo + loss_ppo_self_supervised
 
                 self.optimizer_ppo.zero_grad()        
