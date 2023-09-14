@@ -384,7 +384,7 @@ class AgentPPONitenIchi():
         entropy = entropy.mean()/numpy.log2(w.shape[0])
 
         #diagonal wise orthogonality 
-        ortho = (za*zb).sum(dim=1)
+        ortho = (za*zb).mean(dim=1)
         ortho = (ortho**2).mean()
 
         #return for logs
