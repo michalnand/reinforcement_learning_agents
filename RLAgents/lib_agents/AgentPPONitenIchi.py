@@ -347,17 +347,6 @@ class AgentPPONitenIchi():
         else:
             loss_im_self_supervised = loss_vicreg_direct(zaa, zab)
 
-        #minimize mutual information
-        #which is invariant to linear transformation 
-        #see grads inversion trick below
-        #wa = self.model_im.forward_transformator_a(zaa) 
-        #wb = self.model_im.forward_transformator_b(zba)
-
-        wa = zaa
-        wb = zba 
-
-        w = (wa@wb.T)
-        loss_im_info = (w**2).mean()
         
         #predictor distillation (MSE loss), cross for both models if symmetric
         #use full states batch, no augmented
@@ -373,6 +362,10 @@ class AgentPPONitenIchi():
         else:
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
+        #minimize mutual information
+        w = (za@zb.T)
+        loss_im_info = (w**2).mean()
+
 
         #total loss
         loss_sum = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
@@ -381,26 +374,14 @@ class AgentPPONitenIchi():
         self.optimizer_im.zero_grad()  
         loss_sum.backward()
 
-        #transformator layer oposite gradients
-        #this forces transformator into adversial process against model_im.features loss
-        #a.k.a. maximizing mutual information
-        #this prevents features za,zb to learn simply linear variation of the same space
-
-        '''
-        self.model_im.transformator_a.weight.grad*= -1
-        self.model_im.transformator_a.bias.grad*= -1
-        self.model_im.transformator_b.weight.grad*= -1
-        self.model_im.transformator_b.bias.grad*= -1
-        '''
         
         self.optimizer_im.step() 
 
         #compute entropy for mutual information
         #and normalise, maximum is 1
-        w_tmp   = za@zb.T 
-        p       = torch.softmax(w_tmp, dim=1)
+        p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
-        entropy = entropy.mean()/w_tmp.shape[0]
+        entropy = entropy.mean()/w.shape[0]
 
         #diagonal wise orthogonality 
         ortho = (za*zb).sum(dim=1)
