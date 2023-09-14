@@ -364,7 +364,7 @@ class AgentPPONitenIchi():
 
         #minimize mutual information
         w = (za@zb.T)
-        loss_im_info = (w**2).mean()
+        loss_im_info = -(w**2).mean()
 
 
         #total loss
