@@ -380,6 +380,7 @@ class AgentPPONitenIchi():
         #compute entropy for mutual information
         #and normalise, maximum is 1
         p       = torch.softmax(w, dim=1)
+        print(p)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
         entropy = entropy.mean()/w.shape[0]
 
