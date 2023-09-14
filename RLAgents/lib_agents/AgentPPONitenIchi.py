@@ -350,8 +350,11 @@ class AgentPPONitenIchi():
         #minimize mutual information
         #which is invariant to linear transformation 
         #see grads inversion trick below
-        wa = self.model_im.forward_transformator_a(zaa) 
-        wb = self.model_im.forward_transformator_b(zba)
+        #wa = self.model_im.forward_transformator_a(zaa) 
+        #wb = self.model_im.forward_transformator_b(zba)
+
+        wa = zaa
+        wb = zba
 
         w = (wa@wb.T)
         loss_im_info = (w**2).mean()
