@@ -5,7 +5,7 @@ def _off_diagonal(x):
     mask = 1.0 - torch.eye(x.shape[0], device=x.device)
     return x*mask
 
-def _loss_vicreg(za, zb):
+def loss_vicreg_direct(za, zb):
     eps = 0.0001 
 
     # invariance loss
@@ -45,7 +45,7 @@ def loss_vicreg(model_forward_func, augmentations, states_now, states_next, stat
     za = model_forward_func(xa)  
     zb = model_forward_func(xb) 
 
-    return _loss_vicreg(za, zb)
+    return loss_vicreg_direct(za, zb)
 
     
 def loss_vicreg_spatial(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
@@ -72,8 +72,8 @@ def loss_vicreg_spatial(model_forward_func, augmentations, states_now, states_ne
     za_s = za_s[range(za_s.shape[0]), :, idx_y, idx_x]
     zb_s = zb_s[range(za_s.shape[0]), :, idx_y, idx_x]
     
-    loss_global  = _loss_vicreg(za_g, zb_g) 
-    loss_spatial = _loss_vicreg(za_s, zb_s)
+    loss_global  = loss_vicreg_direct(za_g, zb_g) 
+    loss_spatial = loss_vicreg_direct(za_s, zb_s)
 
     return loss_global + loss_spatial
 

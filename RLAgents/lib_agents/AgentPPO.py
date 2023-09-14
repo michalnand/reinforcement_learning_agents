@@ -83,10 +83,10 @@ class AgentPPO():
         return rewards[0], dones[0], infos[0]
     
     def save(self, save_path):
-        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
+        torch.save(self.model.state_dict(), save_path + "trained/model.pt")
 
     def load(self, load_path):
-        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
+        self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
 
 
     def get_log(self):

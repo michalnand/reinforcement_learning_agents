@@ -23,10 +23,12 @@ class AgentPPONitenIchi():
         self.gamma_int          = config.gamma_int
          
         #reward scaling
-        self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_adv_coeff      = config.int_adv_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
-        self.mi_loss_coeff      = config.mi_loss_coeff
+        self.ext_adv_coeff          = config.ext_adv_coeff
+        self.int_adv_coeff          = config.int_adv_coeff
+        self.reward_int_coeff       = config.reward_int_coeff
+        self.reward_int_dif_coeff   = config.reward_int_dif_coeff
+        self.mi_loss_coeff          = config.mi_loss_coeff
+        
         
 
         #ppo params
@@ -37,35 +39,25 @@ class AgentPPONitenIchi():
         self.batch_size         = config.batch_size        
         self.training_epochs    = config.training_epochs
         
-        #internal motivation params    
-        if config.ppo_self_supervised_loss == "vicreg":
-            self._ppo_self_supervised_loss = loss_vicreg
-        else:
-            self._ppo_self_supervised_loss = None
-
-        if config.target_self_supervised_loss == "vicreg":
-            self._target_self_supervised_loss = loss_vicreg
-        else:
-            self._target_self_supervised_loss = None
+       
 
         self.augmentations              = config.augmentations
         self.augmentations_probs        = config.augmentations_probs
         
-        
         self.similar_states_distance    = config.similar_states_distance
-      
+        self.mode                       = config.mode
         
         #speacial params 
         self.rnn_policy                 = config.rnn_policy
         self.state_normalise            = config.state_normalise
 
-        print("ppo_self_supervised_loss     = ", self._ppo_self_supervised_loss)
-        print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
+        print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
         print("mi_loss_coeff                = ", self.mi_loss_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
+        print("mode                         = ", self.mode)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
         
@@ -99,6 +91,10 @@ class AgentPPONitenIchi():
 
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
 
+        self.rewards_int_prev   = torch.zeros((self.envs_count, ), dtype=torch.float32)
+        self.rewards_int        = torch.zeros((self.envs_count, ), dtype=torch.float32)
+
+
         #optional, for state mean and variance normalisation        
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
@@ -118,13 +114,12 @@ class AgentPPONitenIchi():
         self.values_logger.add("loss_im_self_supervised",       0.0)
         self.values_logger.add("loss_im_info",                  0.0)
         self.values_logger.add("loss_im_distillation",          0.0)
-        
+        self.values_logger.add("im_entropy",                    0.0)
+        self.values_logger.add("im_ortho",                      0.0)
+
         
         self.info_logger = {}
-
-        self.info_logger["z_mag_mean"]  = 0.0
-        self.info_logger["z_mag_std"]   = 0.0
-        self.info_logger["orthogonality"]     = 0.0
+        
 
         
        
@@ -153,9 +148,13 @@ class AgentPPONitenIchi():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
+        
         #internal motivation
-        rewards_int = self._internal_motivation(states)
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        self.rewards_int_prev = self.rewards_int.clone()
+        self.rewards_int      = self.reward_int_coeff*self._internal_motivation(states)
+
+        
+        rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
         
     
         #put into policy buffer
@@ -247,7 +246,7 @@ class AgentPPONitenIchi():
                     #sample smaller batch for self supervised loss
                     states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                    loss_ppo_self_supervised    = loss_vicreg(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -262,58 +261,16 @@ class AgentPPONitenIchi():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-
-
-                #im model self supervised regularisation for good features
-                loss_im_ssa = self._target_self_supervised_loss(self.model_im.forward_a, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)
-                loss_im_ssb = self._target_self_supervised_loss(self.model_im.forward_b, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)     
-
-                loss_im_self_supervised = loss_im_ssa + loss_im_ssb
-
-                #minimize mutual information
-                states_tmp = states[0:small_batch]
-                za = self.model_im.forward_a(states_tmp)
-                zb = self.model_im.forward_b(states_tmp)
-
-                wa = self.model_im.forward_transformator_a(za)
-                wb = self.model_im.forward_transformator_b(zb)
-
-                #minimize mutual information term 
-                #models a, b generates different features
-                #ensure wa, wb orthogonality
-                w = (wa@wb.T).mean(dim=1) 
-                loss_im_info  = (w**2).mean()
-               
-
+                loss_im_self_supervised, loss_im_info, loss_im_distillation, im_entropy, im_ortho = self._ni_loss(states, states_now, states_similar)
                 
-  
-                #predictor distillation (MSE loss)
-                zb_pred = self.model_im.forward_predictor_a(za)
-                za_pred = self.model_im.forward_predictor_b(zb)
-
-                loss_im_distillation = ((za.detach() - za_pred)**2).mean()
-                loss_im_distillation+= ((zb.detach() - zb_pred)**2).mean()
-
-
-                #total loss
-                loss_im = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
-
-                self.optimizer_im.zero_grad()  
-                loss_im.backward()
-
-                self.model_im.transformator_a.weight.grad*= -1
-                self.model_im.transformator_a.bias.grad*= -1
-                self.model_im.transformator_b.weight.grad*= -1
-                self.model_im.transformator_b.bias.grad*= -1
-                
-                self.optimizer_im.step() 
-               
                 #log results
-                self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised.detach().to("cpu").numpy())
-                self.values_logger.add("loss_im_info",              loss_im_info.detach().to("cpu").numpy())
-                self.values_logger.add("loss_im_distillation",      loss_im_distillation.detach().to("cpu").numpy())
+                self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised)
+                self.values_logger.add("loss_im_info",              loss_im_info)
+                self.values_logger.add("loss_im_distillation",      loss_im_distillation)
+                self.values_logger.add("im_entropy",                im_entropy)
+                self.values_logger.add("im_ortho",                  im_ortho)
         
-
+                
                 
         self.policy_buffer.clear() 
 
@@ -353,7 +310,6 @@ class AgentPPONitenIchi():
     
  
     def _internal_motivation(self, states):
-
         #features
         za  = self.model_im.forward_a(states)
         zb  = self.model_im.forward_b(states)
@@ -362,31 +318,101 @@ class AgentPPONitenIchi():
         zb_pred = self.model_im.forward_predictor_a(za)
         za_pred = self.model_im.forward_predictor_b(zb)
 
-
-        novelty_t = 0.5*((za - za_pred)**2).mean(dim=1)
-        novelty_t+= 0.5*((zb - zb_pred)**2).mean(dim=1)
-
+        #internal motivation, from both or only from only one side
+        if self.mode == "symmetric":
+            novelty_t = 0.5*((za - za_pred)**2).mean(dim=1)
+            novelty_t+= 0.5*((zb - zb_pred)**2).mean(dim=1)
+        else:
+            novelty_t = ((za - za_pred)**2).mean(dim=1)
 
         novelty_t = novelty_t.detach().cpu()
-
-
-        z_mag       = torch.cat([(za**2), (zb**2)], dim=0)
-        z_mag_mean  = z_mag.mean(dim=1).mean() 
-        z_mag_std   = z_mag.std(dim=1).mean()
-
-        #compute mutual information entropy 
-        #should be close to 1, meaning there is no information between za, zb features
-        orthogonality = (za*zb).mean(dim=1)
-        orthogonality = orthogonality.mean()
-        
-     
-        self.info_logger["z_mag_mean"]  = round(float(z_mag_mean.detach().cpu().numpy()), 6)
-        self.info_logger["z_mag_std"]   = round(float(z_mag_std.detach().cpu().numpy()), 6)
-        self.info_logger["orthogonality"]     = round(float(orthogonality.detach().cpu().numpy()), 6)
-        
         return novelty_t
 
-    
+    #niten-ichi loss (loss of two heaves / shool of two swords) 
+    #for symmetric internal motivation distillation
+    #by self supervised exploitation
+    def _ni_loss(self, states, state_features_a, state_features_b):
+        xa_aug = self._augmentations(state_features_a)
+        xb_aug = self._augmentations(state_features_b)
+
+        zaa = self.model_im.forward_a(xa_aug)
+        zab = self.model_im.forward_a(xb_aug)
+
+        zba = self.model_im.forward_b(xa_aug)
+        zbb = self.model_im.forward_b(xb_aug)
+
+        #im model self supervised regularisation for good features
+        #both sides learns same features from same inputs
+        if self.mode == "symmetric"
+            loss_im_ssa = loss_vicreg_direct(zaa, zab)
+            loss_im_ssb = loss_vicreg_direct(zba, zbb)
+            loss_im_self_supervised = loss_im_ssa + loss_im_ssb
+        else:
+            loss_im_self_supervised = loss_vicreg_direct(zaa, zab)
+
+        #minimize mutual information
+        #which is invariant to linear transformation 
+        #see grads inversion trick below
+        wa = self.model_im.forward_transformator_a(zaa) 
+        wb = self.model_im.forward_transformator_b(zba)
+
+        w = (wa@wb.T)
+        loss_im_info = (w**2).mean()
+        
+        #predictor distillation (MSE loss), cross for both models if symmetric
+        #use full states batch, no augmented
+        za = self.model_im.forward_a(states)
+        zb = self.model_im.forward_b(states)
+
+        zb_pred = self.model_im.forward_predictor_a(za)
+        za_pred = self.model_im.forward_predictor_b(zb)
+
+        if self.mode == "symmetric"
+            loss_im_distillation = 0.5*((za.detach() - za_pred)**2).mean()
+            loss_im_distillation+= 0.5*((zb.detach() - zb_pred)**2).mean()
+        else:
+            loss_im_distillation = ((za.detach() - za_pred)**2).mean()
+
+
+        #total loss
+        loss_sum = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
+
+        #backward
+        self.optimizer_im.zero_grad()  
+        loss_sum.backward()
+
+        #transformator layer oposite gradients
+        #this forces transformator into adversial process against model_im.features loss
+        #a.k.a. maximizing mutual information
+        #this prevents features za,zb to learn simply linear variation of the same space
+        self.model_im.transformator_a.weight.grad*= -1
+        self.model_im.transformator_a.bias.grad*= -1
+        self.model_im.transformator_b.weight.grad*= -1
+        self.model_im.transformator_b.bias.grad*= -1
+        
+        self.optimizer_im.step() 
+
+        #compute entropy for mutual information
+        #and normalise, maximum is 1
+        w_tmp   = za@zb.T 
+        p       = torch.softmax(w_tmp, dim=1)
+        entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
+        entropy = entropy.mean()/w_tmp.shape[0]
+
+        #diagonal wise orthogonality 
+        ortho = (za*zb).sum(dim=1)
+        ortho = (ortho**2).mean()
+
+        #return for logs
+        loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
+        loss_im_info            = loss_im_info.detach().cpu().numpy()
+        loss_im_distillation    = loss_im_distillation.detach().cpu().numpy()
+        entropy                 = entropy.detach().cpu().numpy()
+        ortho                   = ortho.detach().cpu().numpy()
+        
+        return loss_im_self_supervised, loss_im_info, loss_im_distillation, entropy, ortho
+
+
  
     def _augmentations(self, x): 
         if "inverse" in self.augmentations:
