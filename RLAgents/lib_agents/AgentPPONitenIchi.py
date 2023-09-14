@@ -381,7 +381,7 @@ class AgentPPONitenIchi():
         #and normalise, maximum is 1
         p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
-        entropy = entropy.mean()/w.shape[0]
+        entropy = entropy.mean()/numpy.log2(w.shape[0])
 
         print(">>> p = ", p.mean(), p.shape)
 
