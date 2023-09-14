@@ -362,9 +362,9 @@ class AgentPPONitenIchi():
         else:
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
-        #minimize mutual information
+        #minimize mutual information, enforce orthogonality in za, zb
         w = (za@zb.T)
-        loss_im_info = -(w**2).mean()
+        loss_im_info = (w**2).mean()
 
 
         #total loss
