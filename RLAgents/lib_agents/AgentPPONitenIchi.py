@@ -383,8 +383,6 @@ class AgentPPONitenIchi():
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
         entropy = entropy.mean()/numpy.log2(w.shape[0])
 
-        print(">>> p = ", p.mean(), p.shape)
-
         #diagonal wise orthogonality 
         ortho = (za*zb).sum(dim=1)
         ortho = (ortho**2).mean()
