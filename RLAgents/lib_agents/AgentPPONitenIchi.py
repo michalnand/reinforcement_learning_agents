@@ -260,6 +260,7 @@ class AgentPPONitenIchi():
                 loss_im_self_supervised, loss_im_info, loss_im_distillation, im_entropy, im_ortho = self._ni_loss(states, states_now, states_similar)
                 
                 #log results
+                self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised)
                 self.values_logger.add("loss_im_info",              loss_im_info)
                 self.values_logger.add("loss_im_distillation",      loss_im_distillation)
