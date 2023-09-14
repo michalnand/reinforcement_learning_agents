@@ -218,7 +218,7 @@ class AgentPPONitenIchi():
                 self.state_var  = numpy.load(f)
     
     def get_log(self): 
-        return self.values_logger.get_str() + str(self.info_logger)
+        return self.values_logger.get_str()
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
