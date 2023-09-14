@@ -382,10 +382,13 @@ class AgentPPONitenIchi():
         #this forces transformator into adversial process against model_im.features loss
         #a.k.a. maximizing mutual information
         #this prevents features za,zb to learn simply linear variation of the same space
+
+        '''
         self.model_im.transformator_a.weight.grad*= -1
         self.model_im.transformator_a.bias.grad*= -1
         self.model_im.transformator_b.weight.grad*= -1
         self.model_im.transformator_b.bias.grad*= -1
+        '''
         
         self.optimizer_im.step() 
 
