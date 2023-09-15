@@ -390,6 +390,8 @@ class AgentPPONitenIchi():
         ortho = (za*zb).sum(dim=1) 
         ortho = (ortho**2).mean()
 
+        print(p)
+
         #return for logs
         loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
         loss_im_info            = loss_im_info.detach().cpu().numpy()
