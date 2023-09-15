@@ -114,8 +114,8 @@ class AgentPPONitenIchi():
         self.values_logger.add("loss_im_self_supervised",       0.0)
         self.values_logger.add("loss_im_info",                  0.0)
         self.values_logger.add("loss_im_distillation",          0.0)
-        self.values_logger.add("im_entropy",                    0.0)
-        self.values_logger.add("im_ortho",                      0.0)
+        self.values_logger.add("im_entropy_mean",               0.0)
+        self.values_logger.add("im_entropy_std",                0.0)
 
         
         self.info_logger = {}
@@ -257,15 +257,15 @@ class AgentPPONitenIchi():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-                loss_im_self_supervised, loss_im_info, loss_im_distillation, im_entropy, im_ortho = self._ni_loss(states, states_now, states_similar)
+                loss_im_self_supervised, loss_im_info, loss_im_distillation, im_entropy_mean, im_entropy_std = self._ni_loss(states, states_now, states_similar)
                 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised)
                 self.values_logger.add("loss_im_info",              loss_im_info)
                 self.values_logger.add("loss_im_distillation",      loss_im_distillation)
-                self.values_logger.add("im_entropy",                im_entropy)
-                self.values_logger.add("im_ortho",                  im_ortho)
+                self.values_logger.add("im_entropy_mean",           im_entropy_mean)
+                self.values_logger.add("im_entropy_std",            im_entropy_std)
         
                 
                 
@@ -384,7 +384,9 @@ class AgentPPONitenIchi():
         #and normalise, maximum is 1
         p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
-        entropy = entropy.mean()/numpy.log2(w.shape[0])
+        entropy = entropy/numpy.log2(w.shape[0])
+        entropy_mean = entropy.mean()
+        entropy_std  = entropy.std()
 
         #diagonal wise orthogonality 
         ortho = (za*zb).sum(dim=1) 
@@ -394,10 +396,10 @@ class AgentPPONitenIchi():
         loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
         loss_im_info            = loss_im_info.detach().cpu().numpy()
         loss_im_distillation    = loss_im_distillation.detach().cpu().numpy()
-        entropy                 = entropy.detach().cpu().numpy()
-        ortho                   = ortho.detach().cpu().numpy()
+        entropy_mean            = entropy_mean.detach().cpu().numpy()
+        entropy_std             = entropy_std.detach().cpu().numpy()
         
-        return loss_im_self_supervised, loss_im_info, loss_im_distillation, entropy, ortho
+        return loss_im_self_supervised, loss_im_info, loss_im_distillation, entropy_mean, entropy_std
 
 
  
