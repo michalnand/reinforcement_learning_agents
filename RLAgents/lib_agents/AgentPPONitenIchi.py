@@ -353,7 +353,7 @@ class AgentPPONitenIchi():
         zb = self.model_im.forward_b(states)
 
 
-        #minimize mutual information (fit to uniform distribution), enforce orthogonality in za, zb
+        #minimize mutual information (fit to uniform distribution)
         z = (za@zb.T)
         z_target = torch.ones_like(z).softmax(dim=1)
         lf = torch.nn.CrossEntropyLoss()
