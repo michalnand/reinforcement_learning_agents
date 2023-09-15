@@ -366,8 +366,9 @@ class AgentPPONitenIchi():
         wa  = self.model_im.forward_transformator_a(za)
         wb  = self.model_im.forward_transformator_b(zb)
 
+        z   = (za@zb.T)
         w   = (wa@wb.T)
-        loss_im_info = (w**2).mean()
+        loss_im_info = (z**2).mean() + (w**2).mean()
 
 
         #total loss
@@ -377,7 +378,7 @@ class AgentPPONitenIchi():
         self.optimizer_im.zero_grad()  
         loss_sum.backward()
 
-        k = 0.01 
+        k = 1.0
         self.model_im.transformator_a.weight.grad*= -k
         self.model_im.transformator_a.bias.grad*= -k
         self.model_im.transformator_b.weight.grad*= -k
