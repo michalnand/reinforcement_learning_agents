@@ -348,11 +348,16 @@ class AgentPPONitenIchi():
             loss_im_self_supervised = loss_vicreg_direct(zaa, zab)
 
         
-        #predictor distillation (MSE loss), cross for both models if symmetric
-        #use full states batch, no augmented
+        #use full states batch to obtain features, no augmented
         za = self.model_im.forward_a(states)
         zb = self.model_im.forward_b(states)
 
+
+        #minimize mutual information, enforce orthogonality in za, zb
+        z   = (za@zb.T)
+        loss_im_info = (z**2).mean()
+
+        #predictor distillation (MSE loss), cross for both models if symmetric
         zb_pred = self.model_im.forward_predictor_a(za)
         za_pred = self.model_im.forward_predictor_b(zb)
 
@@ -362,27 +367,13 @@ class AgentPPONitenIchi():
         else:
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
-        #minimize mutual information, enforce orthogonality in za, zb
-        wa  = self.model_im.forward_transformator_a(za)
-        wb  = self.model_im.forward_transformator_b(zb)
-
-        z   = (za@zb.T)
-        w   = (wa@wb.T)
-        loss_im_info = (z**2).mean() + (w**2).mean()
-
-
+        
         #total loss
         loss_sum = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
 
         #backward
         self.optimizer_im.zero_grad()  
         loss_sum.backward()
-
-        k = 1.0
-        self.model_im.transformator_a.weight.grad*= -k
-        self.model_im.transformator_a.bias.grad*= -k
-        self.model_im.transformator_b.weight.grad*= -k
-        self.model_im.transformator_b.bias.grad*= -k
  
         self.optimizer_im.step() 
 
