@@ -354,7 +354,7 @@ class AgentPPONitenIchi():
 
 
         #minimize mutual information, enforce orthogonality in za, zb
-        z   = (za@zb.T)
+        z = (za@zb.T)
         loss_im_info = (z**2).mean()
 
         #predictor distillation (MSE loss), cross for both models if symmetric
@@ -385,7 +385,7 @@ class AgentPPONitenIchi():
         entropy = entropy.mean()/numpy.log2(w.shape[0])
 
         #diagonal wise orthogonality 
-        ortho = (za*zb).sum(dim=1)
+        ortho = (za*zb).sum(dim=1) 
         ortho = (ortho**2).mean()
 
         #return for logs
