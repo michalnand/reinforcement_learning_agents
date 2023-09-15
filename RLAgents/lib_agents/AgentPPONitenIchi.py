@@ -363,7 +363,10 @@ class AgentPPONitenIchi():
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
         #minimize mutual information, enforce orthogonality in za, zb
-        w = (za@zb.T)
+        wa  = self.model_im.forward_transformator_a(za)
+        wb  = self.model_im.forward_transformator_b(zb)
+
+        w   = (wa@wb.T)
         loss_im_info = (w**2).mean()
 
 
@@ -374,6 +377,11 @@ class AgentPPONitenIchi():
         self.optimizer_im.zero_grad()  
         loss_sum.backward()
 
+        k = 0.01
+        self.optimizer_im.transformator_a.weight.grad*= -k
+        self.optimizer_im.transformator_a.bias.grad*= -k
+        self.optimizer_im.transformator_b.weight.grad*= -k
+        self.optimizer_im.transformator_b.bias.grad*= -k
 
         self.optimizer_im.step() 
 
