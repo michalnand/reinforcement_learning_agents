@@ -354,10 +354,10 @@ class AgentPPONitenIchi():
 
 
         #minimize mutual information (fit to uniform distribution)
-        z = (za@zb.T)
-        z_target = torch.ones_like(z).softmax(dim=1)
+        w = (za@zb.T)
+        w_target = torch.ones_like(w).softmax(dim=1)
         lf = torch.nn.CrossEntropyLoss()
-        loss_im_info = lf(z, z_target)
+        loss_im_info = lf(w, w_target)
 
         #predictor distillation (MSE loss), cross for both models if symmetric
         zb_pred = self.model_im.forward_predictor_a(za)
@@ -369,7 +369,7 @@ class AgentPPONitenIchi():
         else:
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
-        
+         
         #total loss
         loss_sum = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
 
@@ -381,7 +381,6 @@ class AgentPPONitenIchi():
 
         #compute entropy for mutual information
         #and normalise, maximum is 1
-        w       = za@zb.T
         p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
         entropy = entropy.mean()/numpy.log2(w.shape[0])
@@ -389,8 +388,6 @@ class AgentPPONitenIchi():
         #diagonal wise orthogonality 
         ortho = (za*zb).sum(dim=1) 
         ortho = (ortho**2).mean()
-
-        print(p)
 
         #return for logs
         loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
