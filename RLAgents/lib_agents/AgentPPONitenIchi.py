@@ -377,7 +377,7 @@ class AgentPPONitenIchi():
         self.optimizer_im.zero_grad()  
         loss_sum.backward()
 
-        k = -0.01
+        k = 0.01 
         self.model_im.transformator_a.weight.grad*= -k
         self.model_im.transformator_a.bias.grad*= -k
         self.model_im.transformator_b.weight.grad*= -k
