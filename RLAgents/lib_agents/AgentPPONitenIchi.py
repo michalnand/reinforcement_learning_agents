@@ -353,9 +353,11 @@ class AgentPPONitenIchi():
         zb = self.model_im.forward_b(states)
 
 
-        #minimize mutual information, enforce orthogonality in za, zb
+        #minimize mutual information (fit to uniform distribution), enforce orthogonality in za, zb
         z = (za@zb.T)
-        loss_im_info = (z**2).mean()
+        z_target = torch.ones_like(z)*(1.0/z.shape[0])
+        lf = torch.nn.CrossEntropyLoss()
+        loss_im_info = lf(z, z_target)
 
         #predictor distillation (MSE loss), cross for both models if symmetric
         zb_pred = self.model_im.forward_predictor_a(za)
