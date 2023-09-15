@@ -378,11 +378,11 @@ class AgentPPONitenIchi():
         loss_sum.backward()
 
         k = 0.01
-        self.optimizer_im.transformator_a.weight.grad*= -k
-        self.optimizer_im.transformator_a.bias.grad*= -k
-        self.optimizer_im.transformator_b.weight.grad*= -k
-        self.optimizer_im.transformator_b.bias.grad*= -k
-
+        self.model_im.transformator_a.weight.grad*= -k
+        self.model_im.transformator_a.bias.grad*= -k
+        self.model_im.transformator_b.weight.grad*= -k
+        self.model_im.transformator_b.bias.grad*= -k
+ 
         self.optimizer_im.step() 
 
         #compute entropy for mutual information
