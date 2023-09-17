@@ -353,8 +353,15 @@ class AgentPPONitenIchi():
         zb = self.model_im.forward_b(states)
 
 
-        #minimize mutual information (fit to uniform distribution)
-        w = (za@zb.T)
+        #minimize features mutual information (fit to uniform distribution)
+
+        #normalise mean and std to avoid shifted or scaled space provide low mutual information
+        #this helps force models features to learn manifold structural differences
+        za_norm = (za - za.mean(dim=0))/(za.std(dim=0) + 10**-8)
+        zb_norm = (zb - zb.mean(dim=0))/(zb.std(dim=0) + 10**-8)
+        w = (za_norm@zb_norm.T)
+
+        #w = (za@zb.T)
         w_target = torch.ones_like(w).softmax(dim=1)
         lf = torch.nn.CrossEntropyLoss()
         loss_im_info = lf(w, w_target)
@@ -388,9 +395,6 @@ class AgentPPONitenIchi():
         entropy_mean = entropy.mean()
         entropy_std  = entropy.std()
 
-        #diagonal wise orthogonality 
-        ortho = (za*zb).sum(dim=1) 
-        ortho = (ortho**2).mean()
 
         #return for logs
         loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
