@@ -362,14 +362,13 @@ class AgentPPONitenIchi():
         w = (za_norm@zb_norm.T)
 
         #w = (za@zb.T) 
+        #loss_im_info = (w**2).mean()
 
-        loss_im_info = (w**2).mean()
-
-        '''
+        
         w_target = torch.ones_like(w).softmax(dim=1)
         lf = torch.nn.CrossEntropyLoss()
         loss_im_info = lf(w, w_target)
-        '''
+        
 
 
         #predictor distillation (MSE loss), cross for both models if symmetric
