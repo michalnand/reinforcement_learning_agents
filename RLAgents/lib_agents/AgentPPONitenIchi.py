@@ -357,11 +357,11 @@ class AgentPPONitenIchi():
 
         #normalise mean and std to avoid shifted or scaled space provide low mutual information
         #this helps force models features to learn manifold structural differences
-        #za_norm = (za - za.mean(dim=0))/(za.std(dim=0) + 10**-8)
-        #zb_norm = (zb - zb.mean(dim=0))/(zb.std(dim=0) + 10**-8)
-        #w = (za_norm@zb_norm.T)
+        za_norm = (za - za.mean(dim=0))/(za.std(dim=0) + 10**-8)
+        zb_norm = (zb - zb.mean(dim=0))/(zb.std(dim=0) + 10**-8)
+        w = (za_norm@zb_norm.T)
 
-        w = (za@zb.T)
+        #w = (za@zb.T) 
 
         loss_im_info = (w**2).mean()
 
