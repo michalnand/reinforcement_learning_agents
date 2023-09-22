@@ -4,7 +4,7 @@ from PIL import Image
 
 
 
-
+ 
 class NopOpsEnv(gym.Wrapper):
     def __init__(self, env=None, max_count=30):
         super(NopOpsEnv, self).__init__(env)
