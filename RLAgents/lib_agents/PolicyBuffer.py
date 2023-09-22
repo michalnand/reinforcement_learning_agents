@@ -73,6 +73,9 @@ class PolicyBuffer:
         self.returns    = self.returns.reshape((self.buffer_size*self.envs_count, ))
         self.advantages = self.advantages.reshape((self.buffer_size*self.envs_count, ))
 
+        if self.hidden_state is not None:
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
+
 
     def sample_batch(self, batch_size, device = "cpu"):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
