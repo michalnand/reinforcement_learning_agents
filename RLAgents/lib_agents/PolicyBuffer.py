@@ -7,10 +7,12 @@ class PolicyBuffer:
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
+
+        self.hidden_state = None
       
         self.clear()   
  
-    def add(self, state, logits, value, action, reward, done):
+    def add(self, state, logits, value, action, reward, done, hidden_state):
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
@@ -19,6 +21,13 @@ class PolicyBuffer:
         
         self.reward[self.ptr]    = reward.clone()
         self.dones[self.ptr]     = (1.0*done).clone()
+        
+        if hidden_state is not None:
+            
+            if self.hidden_state is None:
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+            
+            self.hidden_state[self.ptr] = hidden_state.clone()
         
         self.ptr = self.ptr + 1 
 
@@ -40,6 +49,8 @@ class PolicyBuffer:
         
         self.reward     = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.dones      = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+
+        self.hidden_state   = None
 
         self.ptr = 0  
  
@@ -75,8 +86,13 @@ class PolicyBuffer:
         
         returns         = torch.index_select(self.returns, dim=0, index=indices).to(device)
         advantages      = torch.index_select(self.advantages, dim=0, index=indices).to(device)
+
+        if self.hidden_state is not None:
+            hidden_state  = (self.hidden_state[indices]).to(device)
+        else:
+            hidden_state  = None
        
-        return states, states_next, logits, actions, returns, advantages
+        return states, states_next, logits, actions, returns, advantages, hidden_state
     
    
     def sample_states_action_pairs(self, batch_size, device = "cpu"):

@@ -135,7 +135,7 @@ class AgentPPO():
     def _compute_loss(self, states, logits, actions, returns, advantages, hidden_state):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        if
+        if self.rnn_policy: 
             logits_new, values_new, _ = self.model.forward(states, hidden_state)
         else:
             logits_new, values_new    = self.model.forward(states)

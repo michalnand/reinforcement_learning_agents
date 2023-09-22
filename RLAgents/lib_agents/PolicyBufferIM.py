@@ -8,7 +8,7 @@ class PolicyBufferIM:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
       
-        self.clear()    
+        self.clear()     
  
     def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None):
         
