@@ -24,6 +24,8 @@ class AgentPPO():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
+        self.rnn_policy         = config.rnn_policy
+
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
@@ -37,8 +39,10 @@ class AgentPPO():
         for e in range(self.envs_count):
             self.states[e], _ = self.envs.reset(e) 
 
+        self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
+
         self.enable_training()
-        self.iterations = 0 
+        self.iterations = 0  
 
         self.values_logger  = ValuesLogger()
         self.values_logger.add("loss_actor", 0.0)
@@ -55,6 +59,11 @@ class AgentPPO():
         states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.device)
     
         logits, values  = self.model.forward(states)
+
+        if self.rnn_policy:
+            logits, values, hidden_state_new  = self.model_ppo.forward(states, self.hidden_state)
+        else:
+            logits, values  = self.model_ppo.forward(states)
  
         actions = self._sample_actions(logits)
         
@@ -69,15 +78,21 @@ class AgentPPO():
             rewards_t   = torch.from_numpy(rewards).to("cpu")
             dones       = torch.from_numpy(dones).to("cpu")
 
-            self.policy_buffer.add(states, logits, values, actions, rewards_t, dones)
+            hidden_state    = self.hidden_state.detach().to("cpu")
+
+            self.policy_buffer.add(states, logits, values, actions, rewards_t, dones, hidden_state)
 
             if self.policy_buffer.is_full():
                 self.train()
+
+        if self.rnn_policy:
+            self.hidden_state = hidden_state_new.detach().clone()
     
         self.states = states_new.copy()
         for e in range(self.envs_count):
             if dones[e]:
-                self.states[e], _ = self.envs.reset(e)
+                self.states[e], _    = self.envs.reset(e)
+                self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
            
         self.iterations+= 1
         return rewards[0], dones[0], infos[0]
@@ -105,9 +120,9 @@ class AgentPPO():
         batch_count = self.steps//self.batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, _, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
-                loss = self._compute_loss(states, logits, actions, returns, advantages)
+                loss = self._compute_loss(states, logits, actions, returns, advantages, hidden_state)
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -117,10 +132,13 @@ class AgentPPO():
         self.policy_buffer.clear()   
 
     
-    def _compute_loss(self, states, logits, actions, returns, advantages):
+    def _compute_loss(self, states, logits, actions, returns, advantages, hidden_state):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
-        logits_new, values_new   = self.model.forward(states)
+        if
+            logits_new, values_new, _ = self.model.forward(states, hidden_state)
+        else:
+            logits_new, values_new    = self.model.forward(states)
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
