@@ -42,7 +42,7 @@ class AgentPPO():
         self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
 
         self.enable_training()
-        self.iterations = 0  
+        self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
         self.values_logger.add("loss_actor", 0.0)
@@ -58,12 +58,10 @@ class AgentPPO():
     def main(self):        
         states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.device)
     
-        logits, values  = self.model.forward(states)
-
-        if self.rnn_policy:
-            logits, values, hidden_state_new  = self.model_ppo.forward(states, self.hidden_state)
+        if self.rnn_policy: 
+            logits, values, hidden_state_new  = self.model.forward(states, self.hidden_state)
         else:
-            logits, values  = self.model_ppo.forward(states)
+            logits, values  = self.model.forward(states)
  
         actions = self._sample_actions(logits)
         
