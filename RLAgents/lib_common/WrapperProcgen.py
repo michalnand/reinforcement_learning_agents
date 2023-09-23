@@ -1,4 +1,5 @@
-import gymnasium as gym
+#import gymnasium as gym
+import gym
 #import procgen
 import numpy
 
