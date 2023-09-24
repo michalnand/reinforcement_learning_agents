@@ -7,11 +7,11 @@ class VideoRecorder(gym.Wrapper):
     def __init__(self, env, file_name = "video.avi"):
         super(VideoRecorder, self).__init__(env)
 
-        self.height  = 2*env.observation_space.shape[0]
-        self.width   = 2*env.observation_space.shape[1]
+        self.height  = env.observation_space.shape[0]
+        self.width   = env.observation_space.shape[1]
 
         fourcc = cv2.VideoWriter_fourcc(*'XVID') 
-        self.writer = cv2.VideoWriter(file_name, fourcc, 25.0, (self.width, self.height)) 
+        self.writer = cv2.VideoWriter(file_name, fourcc, 50.0, (self.width, self.height)) 
         self.frame_counter = 0 
 
     def step(self, action):
