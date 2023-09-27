@@ -39,7 +39,10 @@ class AgentPPO():
         for e in range(self.envs_count):
             self.states[e], _ = self.envs.reset(e) 
 
-        self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
+        if self.rnn_policy:
+            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
+        else:
+            self.hidden_state = torch.zeros((self.envs_count, 128), dtype=torch.float32, device=self.device)
 
         self.enable_training()
         self.iterations = 0   
