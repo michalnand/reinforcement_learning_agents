@@ -12,8 +12,7 @@ class PolicyBuffer:
       
         self.clear()   
  
-    def add(self, state, logits, value, action, reward, done, hidden_state):
-        
+    def add(self, state, logits, value, action, reward, done, hidden_state):  
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
         self.values[self.ptr]    = value.clone()
@@ -30,7 +29,6 @@ class PolicyBuffer:
             self.hidden_state[self.ptr] = hidden_state.clone()
         
         self.ptr = self.ptr + 1 
-
 
     def is_full(self):
         if self.ptr >= self.buffer_size:
@@ -54,7 +52,6 @@ class PolicyBuffer:
 
         self.ptr = 0  
  
-
     def compute_returns(self, gamma, lam = 0.95):
         self.returns, self.advantages   = self._gae(self.reward, self.values, self.dones, gamma, lam)
         
@@ -76,8 +73,7 @@ class PolicyBuffer:
         if self.hidden_state is not None:
             self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
 
-
-    def sample_batch(self, batch_size, device = "cpu"):
+    def sample_batch(self, batch_size, device):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
         indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size - 1)
 
@@ -97,24 +93,22 @@ class PolicyBuffer:
        
         return states, states_next, logits, actions, returns, advantages, hidden_state
     
-   
-    def sample_states_action_pairs(self, batch_size, device = "cpu"):
+    def sample_states_action_pairs(self, batch_size, device, max_distance):
         count           = self.buffer_size*self.envs_count
+        max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 
         indices         = torch.randint(0, count, size=(batch_size, ))
         indices_next    = torch.clip(indices + self.envs_count, 0, count-1)
+        indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
         indices_random  = torch.randint(0, count, size=(batch_size, )) 
       
         states_now      = (self.states[indices]).to(device)
         states_next     = (self.states[indices_next]).to(device)
+        states_similar  = (self.states[indices_similar]).to(device)
         states_random   = (self.states[indices_random]).to(device)
-        
-        actions         = (self.actions[indices]).to(device)
-
-     
-        return states_now, states_next, states_random, actions
+             
+        return states_now, states_next, states_similar, states_random
     
- 
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]

@@ -47,7 +47,7 @@ def aug_conv(x):
 
     #random weights
     w   = torch.randn((ch, 1, kernel_size, kernel_size), dtype=torch.float32, device = x.device)
- 
+    
     #apply filter
     y   = torch.nn.functional.conv2d(x, w, padding=kernel_size//2, groups=ch)
 

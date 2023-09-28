@@ -4,8 +4,10 @@ import time
 
 from .ValuesLogger      import *
 from .PolicyBuffer      import *
+from .SelfSupervised        import * 
+from .Augmentations         import *
 
-import cv2
+
 
   
 class AgentPPO():
@@ -28,6 +30,12 @@ class AgentPPO():
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
+
+        if hasattr(config, "use_self_supervised_loss"):
+            self.use_self_supervised_loss   = config.use_self_supervised_loss
+            self.augmentations              = config.augmentations
+        else:
+            self.use_self_supervised_loss   = False
 
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
@@ -60,7 +68,10 @@ class AgentPPO():
 
     def main(self):        
         states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.device)
-    
+
+        hs = self.hidden_state[0][0:100].detach().cpu().numpy()
+        print(numpy.round(hs, 3))
+
         if self.rnn_policy: 
             logits, values, hidden_state_new  = self.model.forward(states, self.hidden_state)
         else:
@@ -123,7 +134,15 @@ class AgentPPO():
             for batch_idx in range(batch_count):
                 states, _, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
-                loss = self._compute_loss(states, logits, actions, returns, advantages, hidden_state)
+                loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
+
+                if self.use_self_supervised_loss:
+                    states_now, states_next, states_similar, states_random = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_distance)
+                    loss_self_supervised = self._loss_self_supervised(states_now, states_similar)
+                else:
+                    loss_self_supervised = 0
+
+                loss = loss_ppo + loss_self_supervised
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -133,7 +152,7 @@ class AgentPPO():
         self.policy_buffer.clear()   
 
     
-    def _compute_loss(self, states, logits, actions, returns, advantages, hidden_state):
+    def _loss_ppo(self, states, logits, actions, returns, advantages, hidden_state):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         if self.rnn_policy: 
@@ -182,3 +201,31 @@ class AgentPPO():
         self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
 
         return loss
+
+    def _loss_self_supervised(self, states_now, states_similar):
+        states_a = self._augmentations(states_now)
+        states_b = self._augmentations(states_similar)
+
+        za = self.model.forward_self_supervised(states_a)
+        zb = self.model.forward_self_supervised(states_b)
+
+        return loss_vicreg_direct(za, zb)
+    
+    def _augmentations(self, x, p = 0.5): 
+        if "random_filter" in self.augmentations:
+            x = aug_random_apply(x, p, aug_conv)
+            print("random_filter")
+
+        if "noise" in self.augmentations:
+            x = aug_random_apply(x, p, aug_noise)
+            print("noise")
+        
+        if "random_tiles" in self.augmentations:
+            x = aug_random_apply(x, p, aug_random_tiles)
+            print("random_tiles")
+
+        if "inverse" in self.augmentations:
+            x = aug_random_apply(x, p, aug_inverse)
+            print("inverse")
+
+        return x.detach()  
