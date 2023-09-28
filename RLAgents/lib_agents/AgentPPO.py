@@ -69,8 +69,8 @@ class AgentPPO():
     def main(self):        
         states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.device)
 
-        hs = self.hidden_state[0][0:100].detach().cpu().numpy()
-        print(numpy.round(hs, 3))
+        #hs = self.hidden_state[0][0:100].detach().cpu().numpy()
+        #print(numpy.round(hs, 3))
 
         if self.rnn_policy: 
             logits, values, hidden_state_new  = self.model.forward(states, self.hidden_state)
