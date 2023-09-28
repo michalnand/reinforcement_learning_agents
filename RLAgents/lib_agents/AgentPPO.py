@@ -33,6 +33,7 @@ class AgentPPO():
 
         if hasattr(config, "use_self_supervised_loss"):
             self.use_self_supervised_loss   = config.use_self_supervised_loss
+            self.max_similar_state_distance = config.max_similar_state_distance
             self.augmentations              = config.augmentations
         else:
             self.use_self_supervised_loss   = False
@@ -137,7 +138,7 @@ class AgentPPO():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
                 if self.use_self_supervised_loss:
-                    states_now, states_next, states_similar, states_random = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_distance)
+                    states_now, states_next, states_similar, states_random = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
                     loss_self_supervised = self._loss_self_supervised(states_now, states_similar)
                 else:
                     loss_self_supervised = 0

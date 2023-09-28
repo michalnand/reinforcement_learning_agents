@@ -108,7 +108,7 @@ class PolicyBuffer:
         states_random   = (self.states[indices_random]).to(device)
              
         return states_now, states_next, states_similar, states_random
-    
+     
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
