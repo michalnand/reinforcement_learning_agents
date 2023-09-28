@@ -215,18 +215,14 @@ class AgentPPO():
     def _augmentations(self, x, p = 0.5): 
         if "random_filter" in self.augmentations:
             x = aug_random_apply(x, p, aug_conv)
-            print("random_filter")
 
         if "noise" in self.augmentations:
             x = aug_random_apply(x, p, aug_noise)
-            print("noise")
         
         if "random_tiles" in self.augmentations:
             x = aug_random_apply(x, p, aug_random_tiles)
-            print("random_tiles")
 
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, p, aug_inverse)
-            print("inverse")
 
         return x.detach()  
