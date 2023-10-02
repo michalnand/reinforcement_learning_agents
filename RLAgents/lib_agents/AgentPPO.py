@@ -156,8 +156,6 @@ class AgentPPO():
                 else:
                     loss_self_supervised = 0
 
-                print(">>> loss_self_supervised = ", loss_self_supervised)
-
                 loss = loss_ppo + loss_self_supervised
 
                 self.optimizer.zero_grad()        
