@@ -59,6 +59,9 @@ class AgentPPO():
         print("learning_rate            = ", config.learning_rate)
         print("rnn_policy               = ", self.rnn_policy)
         print("use_self_supervised_loss = ", self.use_self_supervised_loss)
+        if self.use_self_supervised_loss:
+            print("max_similar_state_distance = ", self.max_similar_state_distance)
+            print("augmentations              = ", self.augmentations)
         print("\n\n")
 
 
