@@ -56,7 +56,7 @@ class AgentPPO():
 
         print("gamma                    = ", self.gamma)
         print("entropy_beta             = ", self.entropy_beta)
-        print("learning_rate            = ", self.learning_rate)
+        print("learning_rate            = ", config.learning_rate)
         print("rnn_policy               = ", self.rnn_policy)
         print("use_self_supervised_loss = ", self.use_self_supervised_loss)
         print("\n\n")
