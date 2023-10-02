@@ -239,6 +239,6 @@ class AgentPPO():
             x = aug_random_apply(x, p, aug_inverse)
 
         if "permutation" in self.augmentations:
-            x = aug_random_apply(x, p, permutation)
+            x = aug_random_apply(x, p, aug_permutation)
 
         return x.detach()  
