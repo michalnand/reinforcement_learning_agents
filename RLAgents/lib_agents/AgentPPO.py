@@ -25,7 +25,7 @@ class AgentPPO():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
-
+ 
         self.rnn_policy         = config.rnn_policy
 
         self.state_shape    = self.envs.observation_space.shape
@@ -225,5 +225,8 @@ class AgentPPO():
 
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, p, aug_inverse)
+
+        if "permutation" in self.augmentations:
+            x = aug_random_apply(x, p, permutation)
 
         return x.detach()  

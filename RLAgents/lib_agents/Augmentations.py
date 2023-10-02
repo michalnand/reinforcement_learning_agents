@@ -15,6 +15,11 @@ def aug_inverse(x):
     r = torch.randint(0, 2, (x.shape[0], x.shape[1])).unsqueeze(2).unsqueeze(3).to(x.device)
     return r*(1.0 - x) + (1.0 - r)*x
 
+#random channels permutation
+def aug_permutation(x):
+    indices = torch.stack([torch.randperm(x.shape[1]) for _ in range(x.shape[0])])
+    return x[torch.arange(x.shape[0]).unsqueeze(1), indices]
+     
  
 #pixelate, downsample, and upsample back
 def aug_pixelate(x, p = 0.5): 
