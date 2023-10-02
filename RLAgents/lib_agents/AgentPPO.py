@@ -156,6 +156,8 @@ class AgentPPO():
                 else:
                     loss_self_supervised = 0
 
+                print(">>> loss_self_supervised = ", loss_self_supervised)
+
                 loss = loss_ppo + loss_self_supervised
 
                 self.optimizer.zero_grad()        
@@ -223,7 +225,7 @@ class AgentPPO():
         za = self.model.forward_self_supervised(states_a)
         zb = self.model.forward_self_supervised(states_b)
 
-        return loss_vicreg_direct(za, zb)
+        return loss_vicreg_direct(za, zb) 
     
     def _augmentations(self, x, p = 0.5): 
         if "random_filter" in self.augmentations:
