@@ -53,6 +53,15 @@ class AgentPPO():
         else:
             self.hidden_state = torch.zeros((self.envs_count, 128), dtype=torch.float32, device=self.device)
 
+
+        print("gamma                    = ", self.gamma)
+        print("entropy_beta             = ", self.entropy_beta)
+        print("learning_rate            = ", self.learning_rate)
+        print("rnn_policy               = ", self.rnn_policy)
+        print("use_self_supervised_loss = ", self.use_self_supervised_loss)
+        print("\n\n")
+
+
         self.enable_training()
         self.iterations = 0   
 
