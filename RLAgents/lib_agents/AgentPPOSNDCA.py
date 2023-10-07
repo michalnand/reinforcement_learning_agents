@@ -118,7 +118,12 @@ class AgentPPOSNDCA():
 
         self.states_prev = self.states.copy()
 
-        self.hidden_state = torch.zeros((self.envs_count, 512), dtype=torch.float32, device=self.device)
+
+        if self.rnn_policy:
+            self.hidden_state = torch.zeros((self.envs_count, self.model_ppo.rnn_size), dtype=torch.float32, device=self.device)
+        else:
+            self.hidden_state = torch.zeros((self.envs_count, 128), dtype=torch.float32, device=self.device)
+
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = self.states.mean(axis=0)
