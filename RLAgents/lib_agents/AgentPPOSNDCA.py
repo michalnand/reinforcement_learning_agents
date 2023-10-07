@@ -10,7 +10,7 @@ from .Augmentations         import *
  
          
 class AgentPPOSNDCA():   
-    def __init__(self, envs, ModelPPO, ModelPredcitor, ModelTarget, config):
+    def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -98,7 +98,7 @@ class AgentPPOSNDCA():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         #snd predictor model
-        self.model_predictor      = ModelPredcitor.Model(self.state_shape)
+        self.model_predictor      = ModelPredictor.Model(self.state_shape)
         self.model_predictor.to(self.device)
         self.optimizer_predictor  = torch.optim.Adam(self.model_predictor.parameters(), lr=config.learning_rate_predictor)
 
