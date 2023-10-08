@@ -31,12 +31,12 @@ class AgentPPO():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        if hasattr(config, "use_self_supervised_loss"):
-            self.use_self_supervised_loss   = config.use_self_supervised_loss
+        if hasattr(config, "self_supervised_loss"):
+            self.self_supervised_loss       = config.self_supervised_loss
             self.max_similar_state_distance = config.max_similar_state_distance
             self.augmentations              = config.augmentations
         else:
-            self.use_self_supervised_loss   = False
+            self.self_supervised_loss   = None
 
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
@@ -58,8 +58,8 @@ class AgentPPO():
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", config.learning_rate)
         print("rnn_policy               = ", self.rnn_policy)
-        print("use_self_supervised_loss = ", self.use_self_supervised_loss)
-        if self.use_self_supervised_loss:
+        print("self_supervised_loss     = ", self.self_supervised_loss)
+        if self.self_supervised_loss is not None:
             print("max_similar_state_distance = ", self.max_similar_state_distance)
             print("augmentations              = ", self.augmentations)
         print("\n\n")
@@ -150,7 +150,7 @@ class AgentPPO():
 
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
-                if self.use_self_supervised_loss:
+                if self.self_supervised_loss is not None:
                     states_now, states_next, states_similar, states_random = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
                     loss_self_supervised = self._loss_self_supervised(states_now, states_similar)
                 else:
@@ -220,10 +220,22 @@ class AgentPPO():
         states_a = self._augmentations(states_now)
         states_b = self._augmentations(states_similar)
 
-        za = self.model.forward_self_supervised(states_a)
-        zb = self.model.forward_self_supervised(states_b)
+        if self.self_supervised_loss == "vicreg":
+            za = self.model.forward_self_supervised(states_a)
+            zb = self.model.forward_self_supervised(states_b)
 
-        return loss_vicreg_direct(za, zb) 
+            return loss_vicreg_direct(za, zb) 
+
+        elif self.self_supervised_loss == "vicreg_spatial":
+            zag, zas = self.model.forward_self_supervised(states_a)
+            zbg, zbs = self.model.forward_self_supervised(states_b)
+
+            loss_global  = loss_vicreg_direct(zag, zbg)
+            loss_spatial = loss_vicreg_spatial(zas, zbs)
+
+            return loss_global + loss_spatial
+
+
     
     def _augmentations(self, x, p = 0.5): 
         if "random_filter" in self.augmentations:
