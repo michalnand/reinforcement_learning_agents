@@ -33,19 +33,6 @@ def loss_vicreg_direct(za, zb):
     return loss
 
 
-def loss_vicreg_spatial(za, zb):
-
-    #bootstrap random spatial tile, one from each batch item
-    batch_size = za.shape[0]    
-
-    idx_y = torch.randint(0, za.shape[2], (batch_size, ))
-    idx_x = torch.randint(0, za.shape[3], (batch_size, ))
- 
-    za_tmp = za[range(batch_size), :, idx_y, idx_x]
-    zb_tmp = zb[range(batch_size), :, idx_y, idx_x]
-
-    return loss_vicreg_direct(za_tmp, zb_tmp)
-
 def loss_vicreg(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
     xa = states_now.clone()
     xb = states_similar.clone()
@@ -61,38 +48,20 @@ def loss_vicreg(model_forward_func, augmentations, states_now, states_next, stat
 
     return loss_vicreg_direct(za, zb)
 
-    
-def loss_vicreg_spatial(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
-    xa = states_now.clone()
-    xb = states_similar.clone()
 
-    # states augmentation
-    if augmentations is not None:
-        xa = augmentations(xa) 
-        xb = augmentations(xb)
+
+def loss_vicreg_spatial(za, zb):
+
+    #bootstrap random spatial tile, one from each batch item
+    batch_size = za.shape[0]    
+
+    idx_y = torch.randint(0, za.shape[2], (batch_size, ))
+    idx_x = torch.randint(0, za.shape[3], (batch_size, ))
  
-    # obtain features from model
-    # both, global, and spatial features
-    # global  shape : Nx512
-    # spatial shape : Nx64x12x12
-    za_g, za_s = model_forward_func(xa)  
-    zb_g, zb_s = model_forward_func(xb) 
+    za_tmp = za[range(batch_size), :, idx_y, idx_x]
+    zb_tmp = zb[range(batch_size), :, idx_y, idx_x]
 
-    #bootstrap, from NxCx12x12 spatial features, takes only one for every item in batch
-    #there is no possible to fit into memory complet each-by-each vicreg loss
-    idx_y = torch.randint(0, za_s.shape[2], (za_s.shape[0], ))
-    idx_x = torch.randint(0, za_s.shape[3], (za_s.shape[0], ))
-
-    za_s = za_s[range(za_s.shape[0]), :, idx_y, idx_x]
-    zb_s = zb_s[range(za_s.shape[0]), :, idx_y, idx_x]
-    
-    loss_global  = loss_vicreg_direct(za_g, zb_g) 
-    loss_spatial = loss_vicreg_direct(za_s, zb_s)
-
-    return loss_global + loss_spatial
-
-
-
+    return loss_vicreg_direct(za_tmp, zb_tmp)
 
 
 #constructor theory loss
