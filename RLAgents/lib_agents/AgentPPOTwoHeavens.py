@@ -311,6 +311,7 @@ class AgentPPOTwoHeavens():
         '''
 
         novelty_t   = ((za - zb)**2).mean(dim=1)
+        novelty_t   = 1.0 - novelty_t
 
         return novelty_t
     
