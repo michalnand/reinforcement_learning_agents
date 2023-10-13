@@ -312,7 +312,7 @@ class AgentPPOTwoHeavens():
         return novelty_t
     
 
-    def _im_loss(self, states, state_features_a, state_features_b)
+    def _im_loss(self, states, state_features_a, state_features_b):
         #augmentation for part A
         xa_aug = self._augmentations(state_features_a)
         xb_aug = self._augmentations(state_features_b)
