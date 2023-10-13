@@ -305,9 +305,13 @@ class AgentPPOTwoHeavens():
         za  = self.model_im.forward_a(states)
         zb  = self.model_im.forward_b(states)
 
+        '''
         novelty_t   = ((za*zb).mean(dim=1))**2
         novelty_t   = novelty_t.detach().cpu()
-                
+        '''
+
+        novelty_t   = ((za - zb)**2).mean(dim=1)
+
         return novelty_t
     
 
@@ -341,19 +345,24 @@ class AgentPPOTwoHeavens():
         zb = self.model_im.forward_b(states)
 
         #compute orthogonality loss
-        w = za@zb.T
-        loss_orthogonality = (w.mean(dim=1)**2).mean()
+        #w = za@zb.T
+        #loss_orthogonality = (w.mean(dim=1)**2).mean()
+ 
+        d = ((za - zb)**2).mean(dim=1)
+        loss_novelty = -torch.min(torch.ones_like(d), d)
+        loss_novelty = loss_novelty.mean()
 
 
         #compute entropy for mutual information
         #and normalise, maximum is 1
+        w       = za@zb.T
         p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
         entropy = entropy/numpy.log2(w.shape[0])
         entropy_mean = entropy.mean()
         entropy_std  = entropy.std()
 
-        return loss_self_supervised, loss_orthogonality, entropy_mean, entropy_std
+        return loss_self_supervised, loss_novelty, entropy_mean, entropy_std
     
 
  
