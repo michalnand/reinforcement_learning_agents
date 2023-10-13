@@ -106,8 +106,8 @@ class AgentPPOTwoHeavens():
         
         self.values_logger.add("loss_im_self_supervised",       0.0)
         self.values_logger.add("loss_orthogonality",            0.0)
-        self.values_logger.add("im_entropy_mean",               0.0)
-        self.values_logger.add("im_entropy_std",                0.0)
+        self.values_logger.add("entropy_mean",                  0.0)
+        self.values_logger.add("entropy_std",                   0.0)
 
 
         self.info_logger = {}
@@ -254,7 +254,6 @@ class AgentPPOTwoHeavens():
                 loss_im.backward()
                 self.optimizer_im.step()
                 
-                print("im_loss = ", loss_self_supervised, loss_orthogonality)
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_im_self_supervised",   loss_self_supervised.detach().cpu().numpy())
