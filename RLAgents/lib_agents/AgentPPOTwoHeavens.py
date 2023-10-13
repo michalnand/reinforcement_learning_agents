@@ -254,6 +254,7 @@ class AgentPPOTwoHeavens():
                 loss_im.backward()
                 self.optimizer_im.step()
                 
+                print("im_loss = ", loss_self_supervised, loss_orthogonality)
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_im_self_supervised",   loss_self_supervised.detach().cpu().numpy())
