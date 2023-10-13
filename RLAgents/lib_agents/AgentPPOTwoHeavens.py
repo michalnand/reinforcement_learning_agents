@@ -310,7 +310,7 @@ class AgentPPOTwoHeavens():
 
         d = (za*zb).sum(dim=1)/(za_norm + zb_norm + 10**-8)
 
-        novelty_t = (d**2).mean(dim=1) 
+        novelty_t = d**2
 
         print(novelty_t)
 
