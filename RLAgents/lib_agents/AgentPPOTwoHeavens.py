@@ -305,10 +305,9 @@ class AgentPPOTwoHeavens():
         za  = self.model_im.forward_a(states)
         zb  = self.model_im.forward_b(states)
 
-        w           = za@zb.T
-        novelty_t   = (w.mean(dim=1))**2 
+        novelty_t   = ((za*zb).mean(dim=1))**2
         novelty_t   = novelty_t.detach().cpu()
-
+                
         return novelty_t
     
 
