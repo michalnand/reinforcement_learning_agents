@@ -6,9 +6,6 @@ from .ValuesLogger      import *
 from .PolicyBuffer      import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
-
-
-
   
 class AgentPPO():
     def __init__(self, envs, Model, config):
@@ -254,3 +251,5 @@ class AgentPPO():
             x = aug_random_apply(x, p, aug_permutation)
 
         return x.detach()  
+    
+    

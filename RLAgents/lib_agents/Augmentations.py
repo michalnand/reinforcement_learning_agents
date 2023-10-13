@@ -98,6 +98,27 @@ def aug_random_tiles(x, max_loops = 4, p_base=0.1):
 
 
 
+
+def aug_edges(x): 
+    y  = x #torch.nn.functional.avg_pool2d(x, kernel_size=3, stride=1)
+    ch = x.shape[1]
+
+    w  = torch.zeros((3, 3))
+    w[1][1] =  1.0
+
+    w[0][1] = -0.25
+    w[2][1] = -0.25
+    w[1][0] = -0.25
+    w[1][2] = -0.25
+
+    w = w.unsqueeze(0).unsqueeze(1)
+    w = torch.repeat_interleave(w, ch, 0)
+
+    y = torch.nn.functional.conv2d(y, w, bias=None, stride=1, padding=1, groups=ch)
+    y = torch.abs(y)
+
+    return y
+
 #uniform aditional noise
 def aug_noise(x, k = 0.2): 
     pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
@@ -121,7 +142,7 @@ def aug_resize(x, scale = 2):
 def aug_resize2(x):
     return aug_resize(x, 2)
 
-def aug_resize4(x):
+def aug_resize4(x)  :
     return aug_resize(x, 4)
 
 #random pixel-wise dropout
