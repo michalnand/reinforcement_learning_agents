@@ -312,8 +312,6 @@ class AgentPPOTwoHeavens():
 
         novelty_t = d**2
 
-        print(novelty_t)
-
         return novelty_t 
     
 
