@@ -305,8 +305,8 @@ class AgentPPOTwoHeavens():
         za  = self.model_im.forward_a(states)
         zb  = self.model_im.forward_b(states)
 
-        w           = (za@zb.T).mean(dim=1)
-        novelty_t   = w**2
+        w           = za@zb.T
+        novelty_t   = (w.mean(dim=1))**2 
         novelty_t   = novelty_t.detach().cpu()
 
         return novelty_t
@@ -342,8 +342,8 @@ class AgentPPOTwoHeavens():
         zb = self.model_im.forward_b(states)
 
         #compute orthogonality loss
-        w = (za@zb.T).mean(dim=1)
-        loss_orthogonality = (w**2).mean()
+        w = za@zb.T
+        loss_orthogonality = (w.mean(dim=1)**2).mean()
 
 
         #compute entropy for mutual information
