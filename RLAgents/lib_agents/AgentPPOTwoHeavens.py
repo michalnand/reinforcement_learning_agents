@@ -302,18 +302,19 @@ class AgentPPOTwoHeavens():
  
     def _internal_motivation(self, states):
         #features
-        za  = self.model_im.forward_a(states)
-        zb  = self.model_im.forward_b(states)
+        za = self.model_im.forward_a(states)
+        zb = self.model_im.forward_b(states)
 
-        '''
-        novelty_t   = ((za*zb).mean(dim=1))**2
-        novelty_t   = novelty_t.detach().cpu()
-        '''
+        za_norm = 0.5*(za**2).sum(dim=1)
+        zb_norm = 0.5*(zb**2).sum(dim=1)
 
-        novelty_t   = ((za - zb)**2).mean(dim=1)
-        novelty_t   = 1.0 - novelty_t
+        d = (za*zb).sum(dim=1)/(za_norm + zb_norm + 10**-8)
 
-        return novelty_t
+        novelty_t = (d**2).mean(dim=1) 
+
+        print(novelty_t)
+
+        return novelty_t 
     
 
     def _im_loss(self, states, state_features_a, state_features_b):
@@ -340,18 +341,16 @@ class AgentPPOTwoHeavens():
         loss_self_supervised = loss_ssa + loss_ssb
 
 
-
         #models ortogonality loss
         za = self.model_im.forward_a(states)
         zb = self.model_im.forward_b(states)
 
-        #compute orthogonality loss
-        #w = za@zb.T
-        #loss_orthogonality = (w.mean(dim=1)**2).mean()
- 
-        d = ((za - zb)**2).mean(dim=1)
-        loss_novelty = -torch.min(torch.ones_like(d), d)
-        loss_novelty = loss_novelty.mean()
+        za_norm = 0.5*(za**2).sum(dim=1)
+        zb_norm = 0.5*(zb**2).sum(dim=1)
+
+        d = (za*zb).sum(dim=1)/(za_norm + zb_norm + 10**-8)
+
+        loss_novelty = (d**2).mean()
 
 
         #compute entropy for mutual information
@@ -365,7 +364,7 @@ class AgentPPOTwoHeavens():
 
         return loss_self_supervised, loss_novelty, entropy_mean, entropy_std
     
-
+ 
  
     def _augmentations(self, x): 
         if "inverse" in self.augmentations:
