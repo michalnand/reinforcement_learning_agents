@@ -35,6 +35,7 @@ from .AgentPPOCE                    import AgentPPOCE
 from .AgentPPOAE                    import AgentPPOAE
 
 from .AgentPPONitenIchi             import AgentPPONitenIchi
+from .AgentPPOTwoHeavens            import AgentPPOTwoHeavens
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
