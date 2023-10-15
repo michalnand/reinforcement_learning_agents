@@ -8,7 +8,7 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
  
-         
+          
 class AgentPPOSNDCA():   
     def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
 

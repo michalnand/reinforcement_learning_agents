@@ -23,10 +23,10 @@ class AgentPPOTwoHeavens():
         self.gamma_int          = config.gamma_int
          
         #reward scaling
-        self.ext_adv_coeff              = config.ext_adv_coeff
-        self.int_adv_coeff              = config.int_adv_coeff
-        self.reward_int_coeff           = config.reward_int_coeff
-        self.orthogonality_loss_coeff   = config.orthogonality_loss_coeff
+        self.ext_adv_coeff      = config.ext_adv_coeff
+        self.int_adv_coeff      = config.int_adv_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
+        self.mi_loss_coeff      = config.mi_loss_coeff
         
     
         #ppo params
@@ -43,6 +43,8 @@ class AgentPPOTwoHeavens():
         self.augmentations_probs        = config.augmentations_probs
         
         self.similar_states_distance    = config.similar_states_distance
+
+    
         
         #speacial params 
         self.rnn_policy                 = config.rnn_policy
@@ -51,7 +53,7 @@ class AgentPPOTwoHeavens():
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
-        print("orthogonality_loss_coeff     = ", self.orthogonality_loss_coeff)
+        print("mi_loss_coeff                = ", self.mi_loss_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
@@ -60,7 +62,6 @@ class AgentPPOTwoHeavens():
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
-
 
         print("state_shape                  = ", self.state_shape)
         print("actions_count                = ", self.actions_count)
@@ -103,9 +104,8 @@ class AgentPPOTwoHeavens():
         self.values_logger.add("loss_ppo_critic",               0.0)
 
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
-        
-        self.values_logger.add("loss_im_self_supervised",       0.0)
-        self.values_logger.add("loss_orthogonality",            0.0)
+        self.values_logger.add("loss_target",                   0.0)
+        self.values_logger.add("loss_predictor",                0.0)
         self.values_logger.add("entropy_mean",                  0.0)
         self.values_logger.add("entropy_std",                   0.0)
 
@@ -246,9 +246,14 @@ class AgentPPOTwoHeavens():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-                loss_self_supervised, loss_orthogonality, entropy_mean, entropy_std = self._im_loss(states, states_now, states_similar)
+                #train snd target model, self supervised to provide better features   
+                loss_target = loss_vicreg(self.model_im.forward_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-                loss_im = loss_self_supervised + self.orthogonality_loss_coeff*loss_orthogonality
+                #distille target model into predictor model, using advanced loss
+                loss_predictor, entropy_mean, entropy_std = self._loss_predictor(states)
+
+
+                loss_im = loss_target + self.mi_loss_coeff*loss_predictor
 
                 self.optimizer_im.zero_grad()
                 loss_im.backward()
@@ -256,14 +261,12 @@ class AgentPPOTwoHeavens():
                 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_im_self_supervised",   loss_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_orthogonality",        loss_orthogonality.detach().cpu().numpy())
+                self.values_logger.add("loss_target",               loss_target.detach().cpu().numpy())
+                self.values_logger.add("loss_predictor",            loss_predictor.detach().cpu().numpy())
                 self.values_logger.add("entropy_mean",              entropy_mean.detach().cpu().numpy())
                 self.values_logger.add("entropy_std",               entropy_std.detach().cpu().numpy())
-        
-                
-                
-        self.policy_buffer.clear() 
+
+
 
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
@@ -298,69 +301,38 @@ class AgentPPOTwoHeavens():
 
         return loss 
 
-    
- 
     def _internal_motivation(self, states):
-        #features
-        za = self.model_im.forward_a(states)
-        zb = self.model_im.forward_b(states)
+        #novelty detection based on prediction error
+        features_target_t       = self.model_im.forward_target(states)
+        features_predicted_t    = self.model_im.forward_predictor(states)
 
-        za_norm = 0.5*(za**2).sum(dim=1)
-        zb_norm = 0.5*(zb**2).sum(dim=1)
+        novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
+        novelty_t = novelty_t.detach().cpu()
 
-        d = (za*zb).sum(dim=1)/(za_norm + zb_norm + 10**-8)
-
-        novelty_t = d**2
-
-        return novelty_t 
+        return novelty_t
     
+    '''
+    this loss maximize mutual informaiton betveen target and predictor,
+    with respect to minimal features covariance, and keeping variance close to 1
+    '''
+    def _loss_predictor(model, states):        
+        za = model.forward_target(states).detach()
+        zb = model.forward_predictor(states)
 
-    def _im_loss(self, states, state_features_a, state_features_b):
-        #augmentation for part A
-        xa_aug = self._augmentations(state_features_a)
-        xb_aug = self._augmentations(state_features_b)
+        loss = loss_vicreg_direct(za, zb)   
 
-        #obtain features
-        zaa = self.model_im.forward_a(xa_aug)
-        zab = self.model_im.forward_a(xb_aug)
-
-        #augmentation for part B
-        xa_aug = self._augmentations(state_features_a)
-        xb_aug = self._augmentations(state_features_b)
-
-        #obtain features
-        zba = self.model_im.forward_b(xa_aug)
-        zbb = self.model_im.forward_b(xb_aug)
-
-        loss_ssa = loss_vicreg_direct(zaa, zab)
-        loss_ssb = loss_vicreg_direct(zba, zbb)
-
-        #self supervised loss
-        loss_self_supervised = loss_ssa + loss_ssb
-
-
-        #models ortogonality loss
-        za = self.model_im.forward_a(states)
-        zb = self.model_im.forward_b(states)
-
-        za_norm = 0.5*(za**2).sum(dim=1)
-        zb_norm = 0.5*(zb**2).sum(dim=1)
-
-        d = (za*zb).sum(dim=1)/(za_norm + zb_norm + 10**-8)
-
-        loss_novelty = (d**2).mean()
-
-
-        #compute entropy for mutual information
+        #compute entropy of mutual information, for statistics only
         #and normalise, maximum is 1
-        w       = za@zb.T
+        w       = za@zb.T 
+        w       = w.detach()
         p       = torch.softmax(w, dim=1)
         entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
         entropy = entropy/numpy.log2(w.shape[0])
         entropy_mean = entropy.mean()
         entropy_std  = entropy.std()
 
-        return loss_self_supervised, loss_novelty, entropy_mean, entropy_std
+        return loss, entropy_mean, entropy_std
+
     
  
  
