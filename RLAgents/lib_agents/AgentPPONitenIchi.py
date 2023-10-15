@@ -362,7 +362,8 @@ class AgentPPONitenIchi():
         zb = self.model_im.forward_b(states)
 
         #orthogonalise im model features
-        loss_orthogonality = ((za*zb)**2).mean()
+        loss_orthogonality = ((za*zb).sum(dim=1))**2
+        loss_orthogonality = loss_orthogonality.mean()
 
         #predictor distillation (MSE loss), cross for both models if symmetric
         zb_pred = self.model_im.forward_predictor_a(za)
@@ -378,6 +379,7 @@ class AgentPPONitenIchi():
         orthogonality         = ((za*zb)**2).mean(dim=1)
         orthogonality_mean    = orthogonality.mean()
         orthogonality_std     = orthogonality.std()
+        
         
         return loss_im_self_supervised, loss_orthogonality, loss_im_distillation, orthogonality_mean, orthogonality_std
 
