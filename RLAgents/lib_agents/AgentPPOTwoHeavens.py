@@ -142,7 +142,7 @@ class AgentPPOTwoHeavens():
 
         
         #internal motivation
-        rewards_int = self.reward_int_coeff*self._internal_motivation(states)        
+        rewards_int = self.reward_int_coeff*self._internal_motivation(torch.tensor(states))        
         rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
     
