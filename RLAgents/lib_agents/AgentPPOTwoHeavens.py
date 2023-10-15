@@ -124,27 +124,33 @@ class AgentPPOTwoHeavens():
     def main(self):         
         #normalise if any
         states = self._state_normalise(self.states)
+
+        print("A = ", states.shape)
         
         #state to tensor
         states = torch.tensor(states, dtype=torch.float).to(self.device)
 
+        print("B = ", states.shape)
         #compute model output
         if self.rnn_policy:
             logits, values_ext, values_int, hidden_state_new  = self.model_ppo.forward(states, self.hidden_state)
         else:
             logits, values_ext, values_int  = self.model_ppo.forward(states)
         
+        print("C = ", states.shape)
         #collect actions 
         actions = self._sample_actions(logits)
         
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
+        print("D = ", states.shape)
         
         #internal motivation
-        rewards_int = self.reward_int_coeff*self._internal_motivation(torch.tensor(states))        
+        rewards_int = self.reward_int_coeff*self._internal_motivation(states)        
         rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
+        print("E = ", states.shape)
     
         #put into policy buffer
         if self.enabled_training:
@@ -164,9 +170,10 @@ class AgentPPOTwoHeavens():
             if self.policy_buffer.is_full():
                 self.train()
 
+        print("F = ", states.shape)
+
         
         #update new state
-        self.states_prev = self.states.copy()
         self.states      = states_new.copy()
 
         if self.rnn_policy:
