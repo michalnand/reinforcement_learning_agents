@@ -11,7 +11,6 @@ class PolicyBufferIM:
         self.clear()     
  
     def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None):
-        print("ADD = ", self.states.shape, state.shape)
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
