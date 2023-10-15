@@ -53,7 +53,7 @@ class AgentPPOTwoHeavens():
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
-        print("predictor_loss_coeff                = ", self.predictor_loss_coeff)
+        print("predictor_loss_coeff         = ", self.predictor_loss_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
@@ -250,7 +250,7 @@ class AgentPPOTwoHeavens():
                 loss_target = loss_vicreg(self.model_im.forward_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
                 #distille target model into predictor model, using advanced loss
-                loss_predictor, entropy_mean, entropy_std = self._loss_predictor(states)
+                loss_predictor, entropy_mean, entropy_std = self._loss_predictor(self.model_im, states)
 
 
                 loss_im = loss_target + self.predictor_loss_coeff*loss_predictor
@@ -315,7 +315,7 @@ class AgentPPOTwoHeavens():
     this loss maximize mutual informaiton betveen target and predictor,
     with respect to minimal features covariance, and keeping variance close to 1
     '''
-    def _loss_predictor(model, states):        
+    def _loss_predictor(self, model, states):        
         za = model.forward_target(states).detach()
         zb = model.forward_predictor(states)
 
