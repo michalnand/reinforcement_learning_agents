@@ -23,10 +23,10 @@ class AgentPPOTwoHeavens():
         self.gamma_int          = config.gamma_int
          
         #reward scaling
-        self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_adv_coeff      = config.int_adv_coeff
-        self.reward_int_coeff   = config.reward_int_coeff
-        self.mi_loss_coeff      = config.mi_loss_coeff
+        self.ext_adv_coeff        = config.ext_adv_coeff
+        self.int_adv_coeff        = config.int_adv_coeff
+        self.reward_int_coeff     = config.reward_int_coeff
+        self.predictor_loss_coeff = config.predictor_loss_coeff
         
     
         #ppo params
@@ -53,7 +53,7 @@ class AgentPPOTwoHeavens():
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
-        print("mi_loss_coeff                = ", self.mi_loss_coeff)
+        print("predictor_loss_coeff                = ", self.predictor_loss_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("rnn_policy                   = ", self.rnn_policy)
         print("state_normalise              = ", self.state_normalise)
@@ -253,7 +253,7 @@ class AgentPPOTwoHeavens():
                 loss_predictor, entropy_mean, entropy_std = self._loss_predictor(states)
 
 
-                loss_im = loss_target + self.mi_loss_coeff*loss_predictor
+                loss_im = loss_target + self.predictor_loss_coeff*loss_predictor
 
                 self.optimizer_im.zero_grad()
                 loss_im.backward()
