@@ -23,11 +23,11 @@ class AgentPPONitenIchi():
         self.gamma_int          = config.gamma_int
          
         #reward scaling
-        self.ext_adv_coeff          = config.ext_adv_coeff
-        self.int_adv_coeff          = config.int_adv_coeff
-        self.reward_int_coeff       = config.reward_int_coeff
-        self.reward_int_dif_coeff   = config.reward_int_dif_coeff
-        self.orthogonality_loss_coeff          = config.orthogonality_loss_coeff
+        self.ext_adv_coeff              = config.ext_adv_coeff
+        self.int_adv_coeff              = config.int_adv_coeff
+        self.reward_int_coeff           = config.reward_int_coeff
+        self.reward_int_dif_coeff       = config.reward_int_dif_coeff
+        self.orthogonality_loss_coeff   = config.orthogonality_loss_coeff
         
         
 
@@ -271,9 +271,9 @@ class AgentPPONitenIchi():
 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised)
-                self.values_logger.add("loss_orthogonality",        loss_orthogonality)
-                self.values_logger.add("loss_im_distillation",      loss_im_distillation)
+                self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_orthogonality",        loss_orthogonality.detach().cpu().numpy())
+                self.values_logger.add("loss_im_distillation",      loss_im_distillation.detach().cpu().numpy())
                 self.values_logger.add("orthogonality_mean",        orthogonality_mean.detach().cpu().numpy())
                 self.values_logger.add("orthogonality_std",         orthogonality_std.detach().cpu().numpy())
         
