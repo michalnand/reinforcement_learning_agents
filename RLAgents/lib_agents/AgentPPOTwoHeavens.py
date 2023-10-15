@@ -165,12 +165,14 @@ class AgentPPOTwoHeavens():
 
             hidden_state    = self.hidden_state.detach().to("cpu")
 
+            print("F = ", states.shape)
+
             self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
 
             if self.policy_buffer.is_full():
                 self.train()
 
-        print("F = ", states.shape)
+        print("G = ", states.shape)
 
         
         #update new state
