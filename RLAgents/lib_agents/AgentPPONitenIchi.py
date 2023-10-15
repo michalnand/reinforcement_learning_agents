@@ -8,7 +8,7 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
  
-           
+            
 class AgentPPONitenIchi():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
 
@@ -27,7 +27,7 @@ class AgentPPONitenIchi():
         self.int_adv_coeff          = config.int_adv_coeff
         self.reward_int_coeff       = config.reward_int_coeff
         self.reward_int_dif_coeff   = config.reward_int_dif_coeff
-        self.mi_loss_coeff          = config.mi_loss_coeff
+        self.orthogonality_loss_coeff          = config.orthogonality_loss_coeff
         
         
 
@@ -55,7 +55,7 @@ class AgentPPONitenIchi():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
-        print("mi_loss_coeff                = ", self.mi_loss_coeff)
+        print("orthogonality_loss_coeff     = ", self.orthogonality_loss_coeff)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("mode                         = ", self.mode)
         print("rnn_policy                   = ", self.rnn_policy)
@@ -112,10 +112,10 @@ class AgentPPONitenIchi():
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         
         self.values_logger.add("loss_im_self_supervised",       0.0)
-        self.values_logger.add("loss_im_info",                  0.0)
+        self.values_logger.add("loss_orthogonality",            0.0)
         self.values_logger.add("loss_im_distillation",          0.0)
-        self.values_logger.add("im_entropy_mean",               0.0)
-        self.values_logger.add("im_entropy_std",                0.0)
+        self.values_logger.add("orthogonality_mean",            0.0)
+        self.values_logger.add("orthogonality_std",             0.0)
 
         
         self.info_logger = {}
@@ -257,15 +257,25 @@ class AgentPPONitenIchi():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
-                loss_im_self_supervised, loss_im_info, loss_im_distillation, im_entropy_mean, im_entropy_std = self._ni_loss(states, states_now, states_similar)
+                loss_im_self_supervised, loss_orthogonality, loss_im_distillation, orthogonality_mean, orthogonality_std = self._ni_loss(states, states_now, states_similar)
                 
+                #total loss
+                loss_im = loss_im_self_supervised + self.orthogonality_loss_coeff*loss_orthogonality + loss_im_distillation
+
+                #backward
+                self.optimizer_im.zero_grad()  
+                loss_im.backward()
+                self.optimizer_im.step() 
+
+      
+
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised)
-                self.values_logger.add("loss_im_info",              loss_im_info)
+                self.values_logger.add("loss_orthogonality",        loss_orthogonality)
                 self.values_logger.add("loss_im_distillation",      loss_im_distillation)
-                self.values_logger.add("im_entropy_mean",           im_entropy_mean)
-                self.values_logger.add("im_entropy_std",            im_entropy_std)
+                self.values_logger.add("orthogonality_mean",        orthogonality_mean.detach().cpu().numpy())
+                self.values_logger.add("orthogonality_std",         orthogonality_std.detach().cpu().numpy())
         
                 
                 
@@ -347,32 +357,12 @@ class AgentPPONitenIchi():
         else:
             loss_im_self_supervised = loss_vicreg_direct(zaa, zab)
 
-        
         #use full states batch to obtain features, no augmented
         za = self.model_im.forward_a(states)
         zb = self.model_im.forward_b(states)
 
-
-        #minimize features mutual information (fit to uniform distribution)
-
-        #normalise mean and std to avoid shifted or scaled space provide low mutual information
-        #this helps force models features to learn manifold structural differences
-        #za_norm = (za - za.mean(dim=0))/(za.std(dim=0) + 10**-8)
-        #zb_norm = (zb - zb.mean(dim=0))/(zb.std(dim=0) + 10**-8)
-
-        za_norm = self.model_im.forward_projector_a(za)
-        zb_norm = self.model_im.forward_projector_b(zb)
-        w = (za_norm@zb_norm.T)
-
-        #w = (za@zb.T) 
-        #loss_im_info = (w**2).mean()
-
-        
-        w_target = torch.ones_like(w).softmax(dim=1)
-        lf = torch.nn.CrossEntropyLoss()
-        loss_im_info = lf(w, w_target)
-        
-
+        #orthogonalise im model features
+        loss_orthogonality = ((za*zb)**2).mean()
 
         #predictor distillation (MSE loss), cross for both models if symmetric
         zb_pred = self.model_im.forward_predictor_a(za)
@@ -384,33 +374,12 @@ class AgentPPONitenIchi():
         else:
             loss_im_distillation = ((za.detach() - za_pred)**2).mean()
 
-         
-        #total loss
-        loss_sum = loss_im_self_supervised + self.mi_loss_coeff*loss_im_info + loss_im_distillation
-
-        #backward
-        self.optimizer_im.zero_grad()  
-        loss_sum.backward()
- 
-        self.optimizer_im.step() 
-
-        #compute entropy for mutual information
-        #and normalise, maximum is 1
-        p       = torch.softmax(w, dim=1)
-        entropy = (-p*torch.log2(p + 10**-8)).sum(dim=1)
-        entropy = entropy/numpy.log2(w.shape[0])
-        entropy_mean = entropy.mean()
-        entropy_std  = entropy.std()
-
-
         #return for logs
-        loss_im_self_supervised = loss_im_self_supervised.detach().cpu().numpy()
-        loss_im_info            = loss_im_info.detach().cpu().numpy()
-        loss_im_distillation    = loss_im_distillation.detach().cpu().numpy()
-        entropy_mean            = entropy_mean.detach().cpu().numpy()
-        entropy_std             = entropy_std.detach().cpu().numpy()
+        orthogonality         = ((za*zb)**2).mean(dim=1)
+        orthogonality_mean    = orthogonality.mean()
+        orthogonality_std     = orthogonality.std()
         
-        return loss_im_self_supervised, loss_im_info, loss_im_distillation, entropy_mean, entropy_std
+        return loss_im_self_supervised, loss_orthogonality, loss_im_distillation, orthogonality_mean, orthogonality_std
 
 
  
