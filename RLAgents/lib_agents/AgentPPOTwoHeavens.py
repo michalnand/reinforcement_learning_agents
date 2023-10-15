@@ -301,10 +301,10 @@ class AgentPPOTwoHeavens():
 
         return loss 
 
-    def _internal_motivation(self, states):
+    def _internal_motivation(self, x):
         #novelty detection based on prediction error
-        features_target_t       = self.model_im.forward_target(states)
-        features_predicted_t    = self.model_im.forward_predictor(states)
+        features_target_t       = self.model_im.forward_target(x)
+        features_predicted_t    = self.model_im.forward_predictor(x)
 
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
@@ -315,9 +315,9 @@ class AgentPPOTwoHeavens():
     this loss maximize mutual informaiton betveen target and predictor,
     with respect to minimal features covariance, and keeping variance close to 1
     '''
-    def _loss_predictor(self, model, states):        
-        za = model.forward_target(states).detach()
-        zb = model.forward_predictor(states)
+    def _loss_predictor(self, model, x):        
+        za = model.forward_target(x).detach()
+        zb = model.forward_predictor(x)
 
         loss = loss_vicreg_direct(za, zb)   
 
