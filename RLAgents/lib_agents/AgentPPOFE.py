@@ -298,7 +298,7 @@ class AgentPPOFE():
         models_diff = 0.0
         for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
             models_diff+= ((flow_param - target_param)**2).mean()
-        
+         
         self.values_logger.add("models_diff", models_diff.detach().to("cpu").numpy())
 
         #copy into target
