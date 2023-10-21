@@ -297,7 +297,7 @@ class AgentPPOFE():
 
         #copy into target
         for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
-            flow_param.data.copy_((1.0 - self.tau_coeff)*flow_param.data + self.tau_coedd*target_param.data)
+            flow_param.data.copy_((1.0 - self.tau_coeff)*flow_param.data + self.tau_coeff*target_param.data)
 
 
         accuracy_all = accuracy_all/(self.training_epochs*batch_count)
