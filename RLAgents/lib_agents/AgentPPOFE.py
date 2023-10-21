@@ -210,8 +210,8 @@ class AgentPPOFE():
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
 
-        torch.save(self.model_predictor.state_dict(), save_path + "trained/model_predictor.pt")
         torch.save(self.model_target.state_dict(), save_path + "trained/model_target.pt")
+        torch.save(self.model_flow.state_dict(), save_path + "trained/model_flow.pt")
     
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -220,10 +220,8 @@ class AgentPPOFE():
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
-
-        self.model_predictor.load_state_dict(torch.load(load_path + "trained/model_predictor.pt", map_location = self.device))
-
         self.model_target.load_state_dict(torch.load(load_path + "trained/model_target.pt", map_location = self.device))
+        self.model_flow.load_state_dict(torch.load(load_path + "trained/model_flow.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
@@ -298,11 +296,6 @@ class AgentPPOFE():
         #copy into target
         for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
             flow_param.data.copy_((1.0 - self.tau_coeff)*flow_param.data + self.tau_coeff*target_param.data)
-
-
-        accuracy_all = accuracy_all/(self.training_epochs*batch_count)
-        accuracy_all = numpy.round(accuracy_all, 4)
-
 
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
