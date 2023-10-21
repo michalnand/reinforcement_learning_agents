@@ -23,7 +23,7 @@ class AgentPPOFE():
         self.int_adv_coeff      = config.int_adv_coeff
  
         self.reward_int_coeff   = config.reward_int_coeff
-
+        self.tau_coeff          = config.tau_coeff
 
       
         self.entropy_beta       = config.entropy_beta
@@ -34,7 +34,7 @@ class AgentPPOFE():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
-        self.tau_coeff          = config.tau_coeff
+        
 
         self.rnn_policy         = config.rnn_policy
                 
@@ -72,9 +72,11 @@ class AgentPPOFE():
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_coeff             = ", self.reward_int_coeff)
+        print("tau_coeff                    = ", self.tau_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("state_normalise              = ", self.state_normalise)
+        
 
         print("\n\n")
 
@@ -270,7 +272,7 @@ class AgentPPOFE():
 
                 loss_ppo_self_supervised = loss_ppo_self_supervised.detach().cpu().numpy()
 
-                '''
+                
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
@@ -284,11 +286,11 @@ class AgentPPOFE():
                 
 
                 loss_target = loss_target.detach().to("cpu").numpy()
-                '''
+                
                 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
-                #self.values_logger.add("loss_target", loss_target)
+                self.values_logger.add("loss_target", loss_target)
 
 
         self.policy_buffer.clear() 
