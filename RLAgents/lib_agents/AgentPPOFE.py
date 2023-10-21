@@ -278,11 +278,12 @@ class AgentPPOFE():
                 #train snd target model, self supervised    
                 loss_target = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-    
+                '''
                 self.optimizer_target.zero_grad() 
                 loss_target.backward()
                 self.optimizer_target.step()
-
+                '''
+                
                 loss_target = loss_target.detach().to("cpu").numpy()
 
 
