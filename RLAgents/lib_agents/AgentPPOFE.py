@@ -129,6 +129,7 @@ class AgentPPOFE():
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         self.values_logger.add("loss_target",                   0.0) 
+        self.values_logger.add("models_diff",                   0.0)
 
         self.info_logger = {}
 
@@ -283,9 +284,8 @@ class AgentPPOFE():
                 loss_target.backward()
                 self.optimizer_target.step()
                 '''
-                
-                loss_target = loss_target.detach().to("cpu").numpy()
 
+                loss_target = loss_target.detach().to("cpu").numpy()
 
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
@@ -293,6 +293,12 @@ class AgentPPOFE():
 
 
         self.policy_buffer.clear() 
+
+        models_diff = 0.0
+        for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
+            models_diff+= ((flow_param - target_param)**2).mean()
+        
+        self.values_logger.add("models_diff", models_diff.detach().to("cpu").numpy())
 
         #copy into target
         for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
