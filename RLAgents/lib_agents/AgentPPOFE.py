@@ -131,8 +131,6 @@ class AgentPPOFE():
         self.values_logger.add("loss_target",                   0.0) 
         self.values_logger.add("models_diff",                   0.0)
 
-        self.info_logger = {}
-
 
     def enable_training(self): 
         self.enabled_training = True
@@ -230,7 +228,7 @@ class AgentPPOFE():
                 self.state_var  = numpy.load(f)
     
     def get_log(self): 
-        return self.values_logger.get_str() + str(self.info_logger)
+        return self.values_logger.get_str() # + str(self.info_logger)
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
@@ -272,24 +270,25 @@ class AgentPPOFE():
 
                 loss_ppo_self_supervised = loss_ppo_self_supervised.detach().cpu().numpy()
 
-              
+                '''
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
                 loss_target = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-                '''
+                
                 self.optimizer_target.zero_grad() 
                 loss_target.backward()
                 self.optimizer_target.step()
-                '''
+                
 
                 loss_target = loss_target.detach().to("cpu").numpy()
-
+                '''
+                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
-                self.values_logger.add("loss_target", loss_target)
+                #self.values_logger.add("loss_target", loss_target)
 
 
         self.policy_buffer.clear() 
