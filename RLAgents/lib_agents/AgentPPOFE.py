@@ -163,7 +163,7 @@ class AgentPPOFE():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
-        rewards_int  = self._internal_motivation(states_prev, states)
+        rewards_int  = self._internal_motivation(states)
         rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
@@ -198,14 +198,7 @@ class AgentPPOFE():
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
-        #this is integral only controller with negative gain 
-        #bigger the error, slower the model update rate required (lower tau)   
-        error    = self.reward_int_req - rewards_int.mean()
-        self.tau+= -self.dtau_coeff*error
-
-        self.tau = torch.clip(self.tau, 1e-6, 0.1)
-
-        self._udpate_model(self.tau)
+      
          
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
@@ -213,8 +206,6 @@ class AgentPPOFE():
         self.values_logger.add("tau"                     , self.tau.detach().to("cpu").numpy())
 
         self.iterations+= 1
-
-        print(self.tau, rewards_int.mean().detach().to("cpu").numpy())
 
         return rewards_ext[0], dones[0], infos[0]
     
@@ -301,6 +292,20 @@ class AgentPPOFE():
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
                 self.values_logger.add("loss_target", loss_target)
 
+
+               
+                #this is integral only controller with negative gain 
+                #bigger the error, slower the model update rate required (lower tau)   
+                rewards_int  = self._internal_motivation(states)
+                rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+
+                error    = self.reward_int_req - rewards_int.mean()
+                self.tau+= -self.dtau_coeff*error
+
+                self.tau = torch.clip(self.tau, 1e-6, 0.1)
+
+                self._udpate_model(self.tau)
+
         self.policy_buffer.clear() 
 
      
@@ -340,7 +345,7 @@ class AgentPPOFE():
    
    
     #compute internal motivation
-    def _internal_motivation(self, states_prev, states):        
+    def _internal_motivation(self, states):        
         #distillation novelty detection
         features_target_t       = self.model_target(states)
         features_predicted_t    = self.model_flow(states)
