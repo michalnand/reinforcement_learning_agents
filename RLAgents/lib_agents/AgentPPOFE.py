@@ -214,6 +214,8 @@ class AgentPPOFE():
 
         self.iterations+= 1
 
+        print(self.tau, rewards_int.mean().detach().to("cpu").numpy())
+
         return rewards_ext[0], dones[0], infos[0]
     
     def save(self, save_path):
