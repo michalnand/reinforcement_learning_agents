@@ -203,7 +203,7 @@ class AgentPPOFE():
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-        self.values_logger.add("tau"                     , self.tau.detach().to("cpu").numpy())
+        
 
         self.iterations+= 1
 
@@ -288,10 +288,6 @@ class AgentPPOFE():
 
                 loss_target = loss_target.detach().to("cpu").numpy()
                 
-                #log results
-                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
-                self.values_logger.add("loss_target", loss_target)
-
 
                
                 #this is integral only controller with negative gain 
@@ -305,6 +301,13 @@ class AgentPPOFE():
                 self.tau = torch.clip(self.tau, 1e-6, 0.1)
 
                 self._udpate_model(self.tau)
+
+
+                #log results
+                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
+                self.values_logger.add("loss_target", loss_target)
+
+                self.values_logger.add("tau"                     , self.tau.detach().to("cpu").numpy())
 
         self.policy_buffer.clear() 
 
