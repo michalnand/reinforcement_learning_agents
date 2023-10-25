@@ -14,7 +14,7 @@ class AgentPPOFE():
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.envs = envs  
+        self.envs = envs   
           
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
@@ -22,10 +22,9 @@ class AgentPPOFE():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_coeff   = config.reward_int_coeff
-        self.tau_coeff          = config.tau_coeff
+        self.reward_int_req     = config.reward_int_req
+        self.dtau_coeff         = config.dtau_coeff
 
-      
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -71,8 +70,8 @@ class AgentPPOFE():
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_coeff             = ", self.reward_int_coeff)
-        print("tau_coeff                    = ", self.tau_coeff)
+        print("reward_int_req               = ", self.reward_int_req)
+        print("dtau_coeff                   = ", self.dtau_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("state_normalise              = ", self.state_normalise)
@@ -97,7 +96,7 @@ class AgentPPOFE():
         self.model_flow             = ModelIM.Model(self.state_shape)
         self.model_flow.to(self.device)
 
-       
+        self.tau = 0.0
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
@@ -118,6 +117,8 @@ class AgentPPOFE():
         #optional, for state mean and variance normalisation        
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
+
+
     
         self.enable_training() 
         self.iterations     = 0 
@@ -131,7 +132,7 @@ class AgentPPOFE():
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
         self.values_logger.add("loss_target",                   0.0) 
-        self.values_logger.add("models_diff",                   0.0)
+        self.values_logger.add("tau",                           0.0) 
 
 
     def enable_training(self): 
@@ -163,7 +164,7 @@ class AgentPPOFE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         rewards_int  = self._internal_motivation(states_prev, states)
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -190,20 +191,27 @@ class AgentPPOFE():
 
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
-
          
-        #or reset env if done
+        #reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-               
+
+        #this is integral only controller with negative gain 
+        #bigger the error, slower the model update rate required (lower tau)   
+        error    = self.reward_int_req - rewards_int.mean()
+        self.tau+= -self.dtau_coeff*error
+
+        self.tau = torch.clip(self.tau, 1e-6, 0.1)
+
+        self._udpate_model(self.tau)
          
-        #self._add_for_plot(states, infos, dones)
-        
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("tau"                     , self.tau.detach().to("cpu").numpy())
+
         self.iterations+= 1
 
         return rewards_ext[0], dones[0], infos[0]
@@ -287,25 +295,14 @@ class AgentPPOFE():
 
                 loss_target = loss_target.detach().to("cpu").numpy()
                 
-                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
                 self.values_logger.add("loss_target", loss_target)
 
-
         self.policy_buffer.clear() 
 
-        models_diff = 0.0
-        for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
-            models_diff+= ((flow_param - target_param)**2).mean()
-         
-        self.values_logger.add("models_diff", models_diff.detach().to("cpu").numpy())
+     
 
-        #copy into target
-        for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
-            flow_param.data.copy_((1.0 - self.tau_coeff)*flow_param.data + self.tau_coeff*target_param.data)
-
-    
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
 
         if self.rnn_policy:
@@ -395,4 +392,9 @@ class AgentPPOFE():
             states_norm = states
         
         return states_norm
-   
+    
+
+    def _udpate_model(self, tau_coeff):
+        #copy target into into flow model
+        for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
+            flow_param.data.copy_((1.0 - tau_coeff)*flow_param.data + tau_coeff*target_param.data)
