@@ -298,7 +298,7 @@ class AgentPPOFE():
                 error    = self.reward_int_req - rewards_int.mean()
                 self.tau+= -self.dtau_coeff*error
 
-                self.tau = torch.clip(self.tau, 1e-6, 0.1)
+                self.tau = torch.clip(self.tau, 1e-6, 0.5)
 
                 self._udpate_model(self.tau)
 
