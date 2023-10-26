@@ -338,9 +338,9 @@ class AgentPPOFE():
    
     #compute internal motivation, and loss
     def _loss_distillation(self, states):
-        features_target       = self.model_im.forward_parget(states)
+        features_target       = self.model_im.forward_target(states)
         features_predicted    = self.model_im.forward_predictor(states)
-
+ 
         loss_im   = ((features_target.detach() - features_predicted)**2).mean()
 
         novelty = ((features_target - features_predicted)**2).mean(dim=1)
