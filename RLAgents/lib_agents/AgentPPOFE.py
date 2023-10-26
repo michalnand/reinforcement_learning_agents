@@ -271,9 +271,9 @@ class AgentPPOFE():
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_im_self_supervised = self._target_self_supervised_loss(self.model_target.forward_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                loss_im_self_supervised = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
  
-                #train CND model, MSE loss (same as RND)
+                #train CND model, MSE loss (same as RND) 
                 loss_im_distillation, rewards_int = self._loss_distillation(states)
 
                 #this is integral only controller with negative gain 
