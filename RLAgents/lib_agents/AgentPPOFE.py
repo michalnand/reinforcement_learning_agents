@@ -23,7 +23,7 @@ class AgentPPOFE():
         self.int_adv_coeff      = config.int_adv_coeff
  
         self.reward_int_req     = config.reward_int_req
-        self.dtau_coeff         = config.dtau_coeff
+        self.dim_loss_coeff     = config.dim_loss_coeff
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -71,7 +71,7 @@ class AgentPPOFE():
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_req               = ", self.reward_int_req)
-        print("dtau_coeff                   = ", self.dtau_coeff)
+        print("dim_loss_coeff               = ", self.dim_loss_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("state_normalise              = ", self.state_normalise)
@@ -88,15 +88,11 @@ class AgentPPOFE():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         #flow target model
-        self.model_target           = ModelIM.Model(self.state_shape)
-        self.model_target.to(self.device)
-        self.optimizer_target       = torch.optim.Adam(self.model_target.parameters(), lr=config.learning_rate_target)
+        self.model_im           = ModelIM.Model(self.state_shape)
+        self.model_im.to(self.device)
+        self.optimizer_im       = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
 
-        #flow result model
-        self.model_flow             = ModelIM.Model(self.state_shape)
-        self.model_flow.to(self.device)
-
-        self.tau = 0.0
+        self.im_loss_coeff = 1.0
  
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
@@ -118,8 +114,6 @@ class AgentPPOFE():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-
-    
         self.enable_training() 
         self.iterations     = 0 
 
@@ -130,25 +124,26 @@ class AgentPPOFE():
         self.values_logger.add("internal_motivation_std" ,      0.0)
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
+        
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
-        self.values_logger.add("loss_target",                   0.0) 
-        self.values_logger.add("tau",                           0.0) 
+        self.values_logger.add("loss_im_self_supervised",       0.0)
+        self.values_logger.add("loss_im_distillation",          0.0)
+        self.values_logger.add("im_loss_coeff",                 0.0)
 
+
+      
 
     def enable_training(self): 
         self.enabled_training = True
- 
 
     def disable_training(self):
         self.enabled_training = False
  
-
     def main(self):         
         #normalise if any
         states = self._state_normalise(self.states)
         
         #state to tensor
-        states_prev = torch.tensor(self.states_prev, dtype=torch.float).to(self.device)
         states      = torch.tensor(states, dtype=torch.float).to(self.device)
 
         #compute model output
@@ -163,7 +158,7 @@ class AgentPPOFE():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
-        rewards_int  = self._internal_motivation(states)
+        _, rewards_int  = self._loss_distillation(states)
         rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
@@ -212,8 +207,7 @@ class AgentPPOFE():
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
 
-        torch.save(self.model_target.state_dict(), save_path + "trained/model_target.pt")
-        torch.save(self.model_flow.state_dict(), save_path + "trained/model_flow.pt")
+        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
     
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -222,8 +216,7 @@ class AgentPPOFE():
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
-        self.model_target.load_state_dict(torch.load(load_path + "trained/model_target.pt", map_location = self.device))
-        self.model_flow.load_state_dict(torch.load(load_path + "trained/model_flow.pt", map_location = self.device))
+        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
@@ -278,36 +271,32 @@ class AgentPPOFE():
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                loss_im_self_supervised = self._target_self_supervised_loss(self.model_target.forward_targtet, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
 
-                
-                self.optimizer_target.zero_grad() 
-                loss_target.backward()
-                self.optimizer_target.step()
-                
+                #train CND model, MSE loss (same as RND)
+                loss_im_distillation, rewards_int = self._loss_distillation(states)
 
-                loss_target = loss_target.detach().to("cpu").numpy()
-                
-
-               
                 #this is integral only controller with negative gain 
-                #bigger the error, slower the model update rate required (lower tau)   
-                rewards_int  = self._internal_motivation(states)
-                rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+                #bigger the error, slower the model update rate required (lower loss weighting coeff)   
+                error  = self.reward_int_req - rewards_int.mean()
+                self.im_loss_coeff+= -self.dim_loss_coeff*error
 
-                error    = self.reward_int_req - rewards_int.mean()
-                self.tau+= -self.dtau_coeff*error
+                self.im_loss_coeff = torch.clip(self.im_loss_coeff, 0.001, 10.0)
 
-                self.tau = torch.clip(self.tau, 1e-6, 0.9)
-
-                self._udpate_model(self.tau)
-
-
+                #IM model loss
+                loss_im = loss_im_self_supervised + self.im_loss_coeff*loss_im_distillation
+                
+                self.optimizer_im.zero_grad() 
+                loss_im.backward()
+                self.optimizer_im.step()
+                                
+               
                 #log results
-                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
-                self.values_logger.add("loss_target", loss_target)
+                self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised)
+                self.values_logger.add("loss_im_self_supervised",   loss_im_self_supervised.detach().to("cpu").numpy())
+                self.values_logger.add("loss_im_distillation",      loss_im_distillation.detach().to("cpu").numpy())
+                self.values_logger.add("im_loss_coeff",             self.im_loss_coeff.detach().to("cpu").numpy())
 
-                self.values_logger.add("tau"                     , self.tau.detach().to("cpu").numpy())
 
         self.policy_buffer.clear() 
 
@@ -347,16 +336,19 @@ class AgentPPOFE():
 
    
    
-    #compute internal motivation
-    def _internal_motivation(self, states):        
-        #distillation novelty detection
-        features_target_t       = self.model_target(states)
-        features_predicted_t    = self.model_flow(states)
+    #compute internal motivation, and loss
+    def _loss_distillation(self, states):
+        features_target       = self.model_im.forward_parget(states)
+        features_predicted    = self.model_im.forward_predictor(states)
 
-        novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
-        novelty_t = novelty_t.detach().cpu()
-        
-        return novelty_t
+        loss_im   = ((features_target.detach() - features_predicted)**2).mean()
+
+        novelty = ((features_target - features_predicted)**2).mean(dim=1)
+        novelty = novelty.detach().cpu()
+
+        return loss_im, novelty
+         
+
     
  
     def _augmentations(self, x): 
@@ -403,8 +395,3 @@ class AgentPPOFE():
         
         return states_norm
     
-
-    def _udpate_model(self, tau_coeff):
-        #copy target into into flow model
-        for flow_param, target_param in zip(self.model_flow.parameters(), self.model_target.parameters()):
-            flow_param.data.copy_((1.0 - tau_coeff)*flow_param.data + tau_coeff*target_param.data)
