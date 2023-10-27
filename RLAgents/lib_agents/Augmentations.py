@@ -7,7 +7,7 @@ def aug_random_apply(x, p, aug_func):
     mask    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
     mask    = mask.float().to(x.device)
     y       = (1.0 - mask)*x + mask*aug_func(x)
-
+ 
     return y   
 
 #random invert colors
@@ -129,6 +129,40 @@ def choice_augmentation(xa, xb, pa_prob = 0.5):
     s = (torch.rand(xa.shape[0], 1, 1, 1).to(xa.device) < pa_prob).float()
     return s*xa + (1.0 - s)*xb
 
+
+'''
+random sized tiles, with random color
+'''
+def aug_noisy_tiles(x, sizes = [1, 2, 4, 8, 16], p = 0.2): 
+
+    size = numpy.random.choice(sizes)
+
+    mask = torch.rand((x.shape[0], x.shape[1], x.shape[2]//size, x.shape[3]//size), device=x.device)
+    mask = (mask < p).float()
+
+    noise = torch.rand((x.shape[0], x.shape[1], x.shape[2]//size, x.shape[3]//size), device=x.device)
+
+    mask  = torch.nn.functional.interpolate(mask,  scale_factor=size)
+    noise = torch.nn.functional.interpolate(noise, scale_factor=size)
+
+    result = (1.0 - mask)*x + mask*noise 
+
+    return result
+
+'''
+random brightness and offsete, channel idependent 
+'''
+def aug_intensity(x, k_min = 0.5, k_max = 1.5, q_min = -1.0, q_max = 1.0):
+
+    k = torch.rand((x.shape[0], x.shape[1], 1, 1), device=x.device)
+    k = (1.0 - k)*k_min + k*k_max
+
+    q = torch.rand((x.shape[0], x.shape[1], 1, 1), device=x.device)
+    q = (1.0 - q)*q_min + q*q_max 
+
+    result = k*x + q 
+
+    return result
 
 '''
 #resize, downsample, and upsample back

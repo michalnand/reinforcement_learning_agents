@@ -427,6 +427,12 @@ class AgentPPOSNDCA():
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
 
+        if "noisy_tiles" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_noisy_tiles)
+
+        if "intensity" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_intensity)
+
         if "random_filter" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_conv)
 
@@ -447,6 +453,9 @@ class AgentPPOSNDCA():
         
         return x.detach()  
     
+
+
+
     def _state_normalise(self, states, alpha = 0.99): 
 
         if self.state_normalise:
