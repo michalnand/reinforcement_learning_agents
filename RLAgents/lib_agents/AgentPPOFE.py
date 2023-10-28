@@ -21,7 +21,8 @@ class AgentPPOFE():
               
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
- 
+
+        self.reward_int_coeff   = config.reward_int_coeff
         self.reward_int_req     = config.reward_int_req
         self.dim_loss_coeff     = config.dim_loss_coeff
 
@@ -70,6 +71,7 @@ class AgentPPOFE():
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
+        print("reward_int_coeff             = ", self.reward_int_coeff)
         print("reward_int_req               = ", self.reward_int_req)
         print("dim_loss_coeff               = ", self.dim_loss_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
@@ -159,7 +161,7 @@ class AgentPPOFE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         _, rewards_int  = self._loss_distillation(states)
-        rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if self.enabled_training:
@@ -275,6 +277,8 @@ class AgentPPOFE():
  
                 #train CND model, MSE loss (same as RND) 
                 loss_im_distillation, rewards_int = self._loss_distillation(states)
+
+                rewards_int = self.reward_int_coeff*rewards_int
 
                 #this is integral only controller with negative gain 
                 #bigger the error, slower the model update rate required (lower loss weighting coeff)   
