@@ -283,9 +283,9 @@ class AgentPPOFE():
                 #this is integral only controller with negative gain 
                 #bigger the error, slower the model update rate required (lower loss weighting coeff)   
                 error  = self.reward_int_req - rewards_int.mean()
-                self.im_loss_coeff+= -self.dim_loss_coeff*error
+                self.im_loss_coeff+= -self.dim_loss_coeff*error 
 
-                self.im_loss_coeff = torch.clip(self.im_loss_coeff, 0.01, 1.0)
+                self.im_loss_coeff = torch.clip(self.im_loss_coeff, 0.1, 1.0)
 
                 #IM model loss
                 loss_im = loss_im_self_supervised + self.im_loss_coeff*loss_im_distillation
