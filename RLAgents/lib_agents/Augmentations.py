@@ -133,7 +133,7 @@ def choice_augmentation(xa, xb, pa_prob = 0.5):
 '''
 random sized tiles, with random color
 '''
-def aug_noisy_tiles(x, sizes = [1, 2, 4, 8, 16], p = 0.2): 
+def aug_noisy_tiles(x, sizes = [1, 2, 4, 8, 16], p = 0.1): 
 
     size = numpy.random.choice(sizes)
 
