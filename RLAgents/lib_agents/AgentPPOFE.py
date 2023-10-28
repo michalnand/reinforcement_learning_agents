@@ -388,6 +388,9 @@ class AgentPPOFE():
         if "noisy_tiles" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_noisy_tiles)
 
+        if "random_tiles" in self.augmentations:
+            x = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
+
         if "inverse" in self.augmentations:
             x = aug_random_apply(x, self.augmentations_probs, aug_inverse)
        
