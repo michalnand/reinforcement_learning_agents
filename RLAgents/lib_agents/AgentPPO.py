@@ -10,7 +10,7 @@ from .Augmentations         import *
 class AgentPPO():
     def __init__(self, envs, Model, config):
         self.envs = envs
-
+ 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.gamma              = config.gamma
