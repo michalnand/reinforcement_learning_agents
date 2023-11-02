@@ -27,8 +27,8 @@ class AgentPPO():
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
-
-        if hasattr(config, "self_supervised_loss"):
+ 
+        if config.self_supervised_loss is not None:
             self.self_supervised_loss       = config.self_supervised_loss
             self.max_similar_state_distance = config.max_similar_state_distance
             self.augmentations              = config.augmentations
