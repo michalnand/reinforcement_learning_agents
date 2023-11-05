@@ -58,23 +58,25 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     # obtain features from model
     #za.shape   = (batch_size, features_count)
     #mask.shape = (augs_count, 1, features_count)
-    za, mask = model_forward_func(xa_aug)  
-    zb,    _ = model_forward_func(xb_aug) 
+    za, mask_w  = model_forward_func(xa_aug)  
+    zb,    _    = model_forward_func(xb_aug) 
 
 
     #masked invariance term loss
     za_tmp = za.unsqueeze(0)
     zb_tmp = zb.unsqueeze(0)
 
-    print(">>> ", za_tmp.shape, mask.shape, mask_aug.shape, (mask*mask_aug).shape)
+    #print(">>> ", za_tmp.shape, mask_w.shape, mask_aug.shape, (mask_w*mask_aug).shape)
 
-    za_tmp = za_tmp*(mask*mask_aug)
-    zb_tmp = za_tmp*(mask*mask_aug)
+    print(mask_aug[:, 0, :])
+
+    za_tmp = za_tmp*(mask_w*mask_aug)
+    zb_tmp = za_tmp*(mask_w*mask_aug)
 
 
     sim_loss = ((za_tmp - zb_tmp)**2).mean()
 
-    sim_loss = sim_loss/mask.shape[0]
+    sim_loss = sim_loss/mask_w.shape[0]
 
 
 
@@ -99,7 +101,7 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     
  
     #mask sparisity term
-    sparsity_loss = torch.abs(mask).mean()*0.1/mask.shape[0]
+    sparsity_loss = torch.abs(mask_w).mean()*0.1/mask_w.shape[0]
 
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + sparsity_loss
