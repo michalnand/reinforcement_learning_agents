@@ -3,9 +3,8 @@ import numpy
   
 #apply random agumentation
 def aug_random_apply(x, p, aug_func):
-    mask        = (torch.rand(x.shape[0]) < p).float()
+    mask        = (torch.rand(x.shape[0]) < p).float().to(x.device)
     mask_tmp    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-    mask_tmp    = mask_tmp.float().to(x.device)
     y           = (1.0 - mask_tmp)*x + mask_tmp*aug_func(x)
  
     return y, mask 
