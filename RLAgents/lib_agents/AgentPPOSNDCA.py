@@ -396,7 +396,7 @@ class AgentPPOSNDCA():
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
             mask_result[3] = mask
  
-        return x.detach(), mask 
+        return x.detach(), mask_result 
     
     def _augmentations(self, x, x_similar):
         xb_result, mask_temporal   = self._augmentation_temporal(x.clone(), x_similar.clone())
