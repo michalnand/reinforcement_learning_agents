@@ -277,6 +277,7 @@ class AgentPPOSNDCA():
 
         small_batch = 16*self.batch_size 
 
+        accuracy_all = 0.0
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
@@ -287,9 +288,9 @@ class AgentPPOSNDCA():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
+                    states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_self_supervised, self._augmentations, states_now, states_similar)
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -308,7 +309,20 @@ class AgentPPOSNDCA():
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target = self._target_self_supervised_loss(self.model_target.forward_self_supervised, self._augmentations, states_now, states_similar)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+
+
+                if self._target_self_awareness_loss is not None:
+                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_target.forward_aux, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                else:
+                    loss_target_self_awareness  = 0
+                    accuracy                    = numpy.zeros((1, ))
+
+                accuracy_all+= accuracy
+
+                #TODO : do we need loss scaling ?
+                loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
+            
     
                 self.optimizer_target.zero_grad() 
                 loss_target.backward()
@@ -333,7 +347,11 @@ class AgentPPOSNDCA():
 
         self.policy_buffer.clear() 
 
-     
+        accuracy_all = accuracy_all/(self.training_epochs*batch_count)
+        accuracy_all = numpy.round(accuracy_all, 4)
+
+        self.info_logger["accuracy"] = list(accuracy_all)
+
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
 
@@ -404,20 +422,12 @@ class AgentPPOSNDCA():
         
         return novelty_t, causality_t
     
-
-    def _augmentation_temporal(self, x, x_similar):
-        if "temporal" in self.augmentations:
-            x, mask = aug_random_select(x, x_similar, self.augmentations_probs)
-        else:
-            mask = torch.zeros((1, x.shape[0]), device=x.device, dtype=torch.float32)
-
-        return x, mask
-
-    def _augmentation_spatial(self, x): 
-        mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
+ 
+    def _augmentations(self, x): 
+        mask_result = torch.zeros((4, x.shape[0]), device=x.sevice, dtype=torch.float32)
 
         if "pixelate" in self.augmentations:
-            xa_result, mask = aug_random_apply(xa_result, self.augmentations_probs, aug_pixelate)
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
             mask_result[0] = mask
 
         if "random_tiles" in self.augmentations:
@@ -434,16 +444,7 @@ class AgentPPOSNDCA():
  
         return x.detach(), mask 
     
-    def _augmentations(self, x, x_similar):
-        xb_result, mask_temporal = self._augmentation_temporal(x, x_similar)
 
-        xa_result, mask_a_spatial  = self._augmentation_spatial(x)
-        xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)
-
-        mask_a_result = torch.concat([mask_temporal*0, mask_a_spatial], dim=1)
-        mask_b_result = torch.concat([mask_temporal*1, mask_b_spatial], dim=1)
-
-        return xa_result, xb_result, mask_a_result, mask_b_result
 
 
     def _state_normalise(self, states, alpha = 0.99): 

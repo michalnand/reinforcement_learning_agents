@@ -3,12 +3,19 @@ import numpy
   
 #apply random agumentation
 def aug_random_apply(x, p, aug_func):
-    mask    = (torch.rand(x.shape[0]) < p)
-    mask    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
-    mask    = mask.float().to(x.device)
-    y       = (1.0 - mask)*x + mask*aug_func(x)
+    mask        = (torch.rand(x.shape[0]) < p).float()
+    mask_tmp    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+    mask_tmp    = mask_tmp.float().to(x.device)
+    y           = (1.0 - mask_tmp)*x + mask_tmp*aug_func(x)
  
-    return y   
+    return y, mask 
+
+#random select xa or xb, xa with prob p, xb with prob (1 - p)
+def aug_random_select(xa, xb, p):
+    mask = (torch.rand(xa.shape[0]) < p).float()
+    y = mask*xa + (1.0 - mask)*xb
+    return y
+
 
 #random invert colors
 def aug_inverse(x): 

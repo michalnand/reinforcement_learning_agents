@@ -3,7 +3,7 @@ import numpy
 
 def _off_diagonal(x):
     mask = 1.0 - torch.eye(x.shape[0], device=x.device)
-    return x*mask
+    return x*mask 
 
 def loss_vicreg_direct(za, zb):
     eps = 0.0001 
@@ -39,29 +39,79 @@ def loss_vicreg(model_forward_func, augmentations, states_now, states_next, stat
 
     # states augmentation
     if augmentations is not None:
-        xa = augmentations(xa) 
-        xb = augmentations(xb)
+        xa, _ = augmentations(xa) 
+        xb, _ = augmentations(xb)
  
-    # obtain features from model
     za = model_forward_func(xa)  
     zb = model_forward_func(xb) 
 
+   
     return loss_vicreg_direct(za, zb)
 
 
 
-def loss_vicreg_spatial(za, zb):
 
-    #bootstrap random spatial tile, one from each batch item
-    batch_size = za.shape[0]    
+def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
+    xa = states_now.clone()
+    xb = states_similar.clone()
 
-    idx_y = torch.randint(0, za.shape[2], (batch_size, ))
-    idx_x = torch.randint(0, za.shape[3], (batch_size, ))
- 
-    za_tmp = za[range(batch_size), :, idx_y, idx_x]
-    zb_tmp = zb[range(batch_size), :, idx_y, idx_x]
+    # states augmentation
+    if augmentations is not None:
+        xa, mask_a = augmentations(xa) 
+        xb, mask_b = augmentations(xb)
+    
+    #used augmentations mask
+    #mask_aug.shape = (augs_count, batch_size, 1)
+    mask_aug = torch.clip(mask_a + mask_b, 0.0, 1.0)
+    mask_aug = mask_aug.unsqueeze(2)
+    
+    # obtain features from model
+    #za.shape   = (batch_size, features_count)
+    #mask.shape = (augs_count, 1, features_count)
+    za, mask = model_forward_func(xa)  
+    zb,    _ = model_forward_func(xb) 
 
-    return loss_vicreg_direct(za_tmp, zb_tmp)
+
+    #masked invariance term loss
+    za_tmp = za.unsqueeze(0)
+    zb_tmp = zb.unsqueeze(0)
+
+    za_tmp = za_tmp*mask*mask_aug
+    zb_tmp = za_tmp*mask*mask_aug
+
+    sim_loss = ((za_tmp - zb_tmp)**2).mean()
+
+    sim_loss = sim_loss/mask.shape[0]
+
+
+
+    #vicreg loss    
+    eps = 0.0001 
+
+    # variance loss
+    std_za = torch.sqrt(za.var(dim=0) + eps)
+    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
+    
+    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+   
+    # covariance loss
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+    
+
+    #mask sparisity term
+    sparsity_loss = torch.abs(mask)*0.1/mask.shape[0]
+
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + sparsity_loss
+
+    return loss
 
 
 #constructor theory loss
