@@ -10,11 +10,12 @@ def aug_random_apply(x, p, aug_func):
  
     return y, mask 
 
-#random select xa or xb, xa with prob p, xb with prob (1 - p)
+#random select xa or xb, xa with prob (1 - p), xb with prob p
 def aug_random_select(xa, xb, p):
-    mask = (torch.rand(xa.shape[0]) < p).float()
-    y = mask*xa + (1.0 - mask)*xb
-    return y
+    mask     = (torch.rand(xa.shape[0]) < p).float().to(xa.device)
+    mask_tmp = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
+    y        = (1 - mask_tmp)*xa + mask_tmp*xb
+    return y, mask_tmp
 
 
 #random invert colors
