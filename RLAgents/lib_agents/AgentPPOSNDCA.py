@@ -381,7 +381,7 @@ class AgentPPOSNDCA():
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
 
         if "pixelate" in self.augmentations:
-            xa_result, mask = aug_random_apply(xa_result, self.augmentations_probs, aug_pixelate)
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
             mask_result[0] = mask
 
         if "random_tiles" in self.augmentations:
@@ -399,9 +399,9 @@ class AgentPPOSNDCA():
         return x.detach(), mask 
     
     def _augmentations(self, x, x_similar):
-        xb_result, mask_temporal   = self._augmentation_temporal(x, x_similar)
+        xb_result, mask_temporal   = self._augmentation_temporal(x.clone(), x_similar.clone())
 
-        xa_result, mask_a_spatial  = self._augmentation_spatial(x)
+        xa_result, mask_a_spatial  = self._augmentation_spatial(x.clone())
         xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)
 
         mask_a_result = torch.concat([mask_temporal*0, mask_a_spatial], dim=1)
