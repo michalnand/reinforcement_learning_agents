@@ -22,8 +22,7 @@ class AgentPPOSNDCA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_a_coeff = config.reward_int_a_coeff
-        self.reward_int_b_coeff = config.reward_int_b_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
 
         if hasattr(config, "reward_int_dif_coeff"):
             self.reward_int_dif_coeff = config.reward_int_dif_coeff
@@ -55,13 +54,6 @@ class AgentPPOSNDCA():
         else:
             self._target_self_supervised_loss = None
 
-
-        if config.target_self_awareness_loss == "constructor":
-            self._target_self_awareness_loss = loss_constructor
-        else:
-            self._target_self_awareness_loss = None
-        
-
         self.similar_states_distance = config.similar_states_distance
         
 
@@ -77,11 +69,9 @@ class AgentPPOSNDCA():
         
         print("ppo_self_supervised_loss     = ", self._ppo_self_supervised_loss)
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
-        print("target_self_awareness_loss   = ", self._target_self_awareness_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
+        print("reward_int_coeff             = ", self.reward_int_coeff)
         print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
@@ -138,15 +128,12 @@ class AgentPPOSNDCA():
         self.values_logger  = ValuesLogger() 
 
          
-        self.values_logger.add("internal_motivation_a_mean",    0.0)
-        self.values_logger.add("internal_motivation_a_std" ,    0.0)
-        self.values_logger.add("internal_motivation_b_mean",    0.0)
-        self.values_logger.add("internal_motivation_b_std" ,    0.0)
+        self.values_logger.add("internal_motivation_mean",      0.0)
+        self.values_logger.add("internal_motivation_std" ,      0.0)
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
        
-
         self.info_logger = {}
 
     def enable_training(self): 
@@ -181,13 +168,8 @@ class AgentPPOSNDCA():
         self.rewards_int_prev   = self.rewards_int.clone()
  
 
-        rewards_int_a, rewards_int_b  = self._internal_motivation(states_prev, states)
-
-        rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
-        rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
-
-        self.rewards_int_prev   = self.rewards_int.clone()
-        self.rewards_int        = (rewards_int_a + rewards_int_b).detach().to("cpu")
+        rewards_int      = self.reward_int_coeff*self._internal_motivation(states_prev, states)
+        self.rewards_int = rewards_int.detach().to("cpu")
 
         rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
         
@@ -228,10 +210,8 @@ class AgentPPOSNDCA():
         #self._add_for_plot(states, infos, dones)
         
         #collect stats
-        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -386,23 +366,7 @@ class AgentPPOSNDCA():
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
 
-        if  self._target_self_awareness_loss is not None:
-            prediction = self.model_target.forward_aux(states_prev, states)
-
-            #motivation is given by how accurate model predict causality
-            prediction = torch.softmax(prediction, dim=1)
-
-            #input is always case : states_prev, states_now transition (class_id = 1)
-            #see loss_constructor implementation : 
-            #class (column) 0 : different states
-            #class (column) 1 : state_prev, state_now
-            #class (column) 2 : state_now, state_prev
-            causality_t = prediction[:, 1]
-            causality_t = causality_t.detach().cpu()
-        else:
-            causality_t = torch.zeros(novelty_t.shape, dtype=torch.float32)
-        
-        return novelty_t, causality_t
+        return novelty_t
     
 
     def _augmentation_temporal(self, x, x_similar):
@@ -435,7 +399,7 @@ class AgentPPOSNDCA():
         return x.detach(), mask 
     
     def _augmentations(self, x, x_similar):
-        xb_result, mask_temporal = self._augmentation_temporal(x, x_similar)
+        xb_result, mask_temporal   = self._augmentation_temporal(x, x_similar)
 
         xa_result, mask_a_spatial  = self._augmentation_spatial(x)
         xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)

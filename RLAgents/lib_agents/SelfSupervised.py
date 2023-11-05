@@ -33,17 +33,11 @@ def loss_vicreg_direct(za, zb):
     return loss
 
 
-def loss_vicreg(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
-    xa = states_now.clone()
-    xb = states_similar.clone()
+def loss_vicreg(model_forward_func, augmentations, states_now, states_similar):
+    xa_aug, xb_aug, mask_a_aug, mask_b_aug = augmentations(states_now, states_similar)
 
-    # states augmentation
-    if augmentations is not None:
-        xa, _ = augmentations(xa) 
-        xb, _ = augmentations(xb)
- 
-    za = model_forward_func(xa)  
-    zb = model_forward_func(xb) 
+    za = model_forward_func(xa_aug)  
+    zb = model_forward_func(xb_aug) 
 
    
     return loss_vicreg_direct(za, zb)
@@ -51,25 +45,19 @@ def loss_vicreg(model_forward_func, augmentations, states_now, states_next, stat
 
 
 
-def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_next, states_similar, states_random, actions, relations):
-    xa = states_now.clone()
-    xb = states_similar.clone()
+def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_similar):
+    xa_aug, xb_aug, mask_a_aug, mask_b_aug = augmentations(states_now, states_similar)
 
-    # states augmentation
-    if augmentations is not None:
-        xa, mask_a = augmentations(xa) 
-        xb, mask_b = augmentations(xb)
-    
     #used augmentations mask
     #mask_aug.shape = (augs_count, batch_size, 1)
-    mask_aug = torch.clip(mask_a + mask_b, 0.0, 1.0)
+    mask_aug = torch.clip(mask_a_aug + mask_b_aug, 0.0, 1.0)
     mask_aug = mask_aug.unsqueeze(2)
     
     # obtain features from model
     #za.shape   = (batch_size, features_count)
     #mask.shape = (augs_count, 1, features_count)
-    za, mask = model_forward_func(xa)  
-    zb,    _ = model_forward_func(xb) 
+    za, mask = model_forward_func(xa_aug)  
+    zb,    _ = model_forward_func(xb_aug) 
 
 
     #masked invariance term loss
