@@ -68,6 +68,7 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
 
     print(">>> ", za_tmp.shape, mask_w.shape, mask_aug.shape)
 
+    print((mask_w*mask_aug)[:, 0, 0:32])
     
     za_tmp = za_tmp*(mask_w*mask_aug)
     zb_tmp = za_tmp*(mask_w*mask_aug)
