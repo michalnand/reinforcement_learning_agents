@@ -404,14 +404,9 @@ class AgentPPOSNDCA():
         xa_result, mask_a_spatial  = self._augmentation_spatial(x.clone())
         xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)
 
-        print("mask_temporal = ", mask_temporal.shape)
-        print("mask_a_spatial = ", mask_a_spatial.shape)
-        print("mask_b_spatial = ", mask_b_spatial.shape)
-
         mask_a_result = torch.concat([mask_temporal*0, mask_a_spatial], dim=0)
         mask_b_result = torch.concat([mask_temporal*1, mask_b_spatial], dim=0)
         
-
         return xa_result, xb_result, mask_a_result, mask_b_result
 
 
