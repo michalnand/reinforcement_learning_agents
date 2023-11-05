@@ -373,9 +373,9 @@ class AgentPPOSNDCA():
         if "temporal" in self.augmentations:
             x, mask = aug_random_select(x, x_similar, self.augmentations_probs)
         else:
-            mask = torch.zeros((1, x.shape[0]), device=x.device, dtype=torch.float32)
+            mask = torch.zeros((x.shape[0]), device=x.device, dtype=torch.float32)
 
-        return x, mask
+        return x, mask.unsqueeze(0)
 
     def _augmentation_spatial(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
