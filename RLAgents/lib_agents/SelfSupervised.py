@@ -18,7 +18,7 @@ def loss_vicreg_direct(za, zb):
     std_loss = torch.mean(torch.relu(1.0 - std_za)) 
     std_loss+= torch.mean(torch.relu(1.0 - std_zb))
    
-    # covariance loss
+    # covariance loss 
     za_norm = za - za.mean(dim=0)
     zb_norm = zb - zb.mean(dim=0)
     cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
@@ -93,7 +93,7 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
     
  
-    #mask sparisity term
+    #mask sparsity term
     sparsity_loss = torch.abs(mask_w).mean()*0.1/mask_w.shape[0]
 
     # total vicreg loss
