@@ -51,6 +51,8 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     #used augmentations mask
     #mask_aug.shape = (augs_count, batch_size, 1)
     mask_aug = torch.clip(mask_a_aug + mask_b_aug, 0.0, 1.0)
+
+    print("mask_aug = ", mask_aug.shape)
     mask_aug = mask_aug.unsqueeze(2)
     
     # obtain features from model
