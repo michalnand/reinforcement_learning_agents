@@ -15,7 +15,7 @@ def aug_random_select(xa, xb, p):
     mask     = (torch.rand(xa.shape[0]) < p).float().to(xa.device)
     mask_tmp = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
     y        = (1 - mask_tmp)*xa + mask_tmp*xb
-    return y, mask_tmp
+    return y, mask
 
 
 #random invert colors
