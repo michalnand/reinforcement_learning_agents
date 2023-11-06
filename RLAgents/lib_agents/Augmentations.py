@@ -7,7 +7,7 @@ def aug_random_apply(x, p, aug_func):
     mask_tmp    = mask.unsqueeze(1).unsqueeze(1).unsqueeze(1)
     y           = (1.0 - mask_tmp)*x + mask_tmp*aug_func(x)
  
-    return y, mask 
+    return y, mask  
 
 #random select xa or xb, xa with prob (1 - p), xb with prob p
 def aug_random_select(xa, xb, p):

@@ -7,7 +7,10 @@ from .PolicyBufferIM    import *
 from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
- 
+
+import matplotlib.pyplot as plt
+
+
           
 class AgentPPOSNDCA():   
     def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
@@ -136,6 +139,7 @@ class AgentPPOSNDCA():
        
         self.info_logger = {}
 
+
     def enable_training(self): 
         self.enabled_training = True
  
@@ -168,7 +172,7 @@ class AgentPPOSNDCA():
         self.rewards_int_prev   = self.rewards_int.clone()
  
 
-        rewards_int      = self.reward_int_coeff*self._internal_motivation(states_prev, states)
+        rewards_int      = self.reward_int_coeff*self._internal_motivation(states)
         self.rewards_int = rewards_int.detach().to("cpu")
 
         rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
@@ -239,6 +243,9 @@ class AgentPPOSNDCA():
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
                 self.state_mean = numpy.load(f) 
                 self.state_var  = numpy.load(f)
+
+        self._show_mask_w()
+
     
     def get_log(self): 
         return self.values_logger.get_str() + str(self.info_logger)
@@ -358,7 +365,7 @@ class AgentPPOSNDCA():
         return loss 
    
     #compute internal motivation
-    def _internal_motivation(self, states_prev, states):        
+    def _internal_motivation(self, states):        
         #distillation novelty detection
         features_target_t       = self.model_target(states)
         features_predicted_t    = self.model_predictor(states)
@@ -382,19 +389,19 @@ class AgentPPOSNDCA():
 
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
-            mask_result[0] = mask
+            mask_result[0] = mask.copy()
 
         if "random_tiles" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
-            mask_result[1] = mask
+            mask_result[1] = mask.copy()
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            mask_result[2] = mask
+            mask_result[2] = mask.copy()
 
         if "inverse" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
-            mask_result[3] = mask
+            mask_result[3] = mask.copy()
  
         return x.detach(), mask_result 
     
@@ -429,4 +436,21 @@ class AgentPPOSNDCA():
             states_norm = states
         
         return states_norm
-   
+    
+    def _show_mask_w(self):
+
+        mask_w = self.model_target.mask
+        mask_w = mask_w.squeeze(1).detach().cpu().numpy()
+    
+        axis_count = mask_w.shape[0]
+
+        fig, axs = plt.subplots(axis_count, 1, figsize=(8, 8))
+
+        for i in range(axis_count):
+            axs[i].grid(True)
+            axs[i].plot(mask_w[i], linewidth=1.0, color="blue", alpha=1.0)
+
+
+        fig.tight_layout()
+        fig.show()
+        plt.show()
