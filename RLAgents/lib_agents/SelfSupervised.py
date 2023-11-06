@@ -95,10 +95,10 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     
  
     #mask sparsity term
-    sparsity_loss = 0.01*torch.abs(mask_w).mean()/mask_w.shape[0]
+    #sparsity_loss = 0.01*torch.abs(mask_w).mean()/mask_w.shape[0]
 
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + sparsity_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ sparsity_loss
 
     return loss
 

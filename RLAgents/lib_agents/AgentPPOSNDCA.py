@@ -244,7 +244,7 @@ class AgentPPOSNDCA():
                 self.state_mean = numpy.load(f) 
                 self.state_var  = numpy.load(f)
 
-        #self._show_mask_w()
+        self._show_mask_w(self.model_ppo.mask)
 
     
     def get_log(self): 
@@ -437,9 +437,7 @@ class AgentPPOSNDCA():
         
         return states_norm
     
-    def _show_mask_w(self):
-
-        mask_w = self.model_target.mask
+    def _show_mask_w(self, mask_w):
         mask_w = mask_w.squeeze(1).detach().cpu().numpy()
     
         axis_count = mask_w.shape[0]
