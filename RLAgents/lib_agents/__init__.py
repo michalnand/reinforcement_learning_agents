@@ -32,8 +32,6 @@ from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOCE                    import AgentPPOCE
-from .AgentPPOAE                    import AgentPPOAE
-from .AgentPPOFE                    import AgentPPOFE
 
 from .AgentPPONitenIchi             import AgentPPONitenIchi
 from .AgentPPOTwoHeavens            import AgentPPOTwoHeavens

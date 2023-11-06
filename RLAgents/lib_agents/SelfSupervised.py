@@ -65,16 +65,12 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     za_tmp = za.unsqueeze(0)
     zb_tmp = zb.unsqueeze(0)
 
-    za_tmp = za_tmp*(mask_w*mask_aug)
-    zb_tmp = zb_tmp*(mask_w*mask_aug)
+    mask_w_tmp = torch.nn.functional.softmax(mask_w, dim=0)
 
-    loss = 0.0
-    for i in range(augs_count):
-        loss+= loss_vicreg_direct(za_tmp[i], zb_tmp[i])
+    za_tmp = za_tmp*mask_w_tmp*mask_aug
+    zb_tmp = zb_tmp*mask_w_tmp*mask_aug
+
     
-    loss = loss/augs_count 
-
-    '''
     sim_loss = ((za_tmp - zb_tmp)**2).mean()
     sim_loss = sim_loss/mask_w.shape[0]
 
@@ -97,13 +93,9 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_simil
     cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
     
-  
-    #mask sparsity term
-    #sparsity_loss = 0.01*torch.abs(mask_w).mean()/mask_w.shape[0]
-
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss #+ sparsity_loss
-    '''
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    
 
     return loss
 
