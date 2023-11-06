@@ -385,7 +385,7 @@ class AgentPPOSNDCA():
         return x, mask.unsqueeze(0)
 
     def _augmentation_spatial(self, x): 
-        mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
+        mask_result = torch.zeros((3, x.shape[0]), device=x.device, dtype=torch.float32)
 
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
@@ -399,9 +399,11 @@ class AgentPPOSNDCA():
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[2] = mask 
 
+        '''
         if "inverse" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
             mask_result[3] = mask 
+        '''
  
         return x.detach(), mask_result 
     

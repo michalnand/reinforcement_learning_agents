@@ -48,8 +48,6 @@ def loss_vicreg(model_forward_func, augmentations, states_now, states_similar):
 def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_similar):
     xa_aug, xb_aug, mask_a_aug, mask_b_aug = augmentations(states_now, states_similar)
     
-    augs_count = mask_a_aug.shape[0]
-
     #used augmentations mask
     #mask_aug.shape = (augs_count, batch_size, 1)
     mask_aug = torch.clip(mask_a_aug + mask_b_aug, 0.0, 1.0)
