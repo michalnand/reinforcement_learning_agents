@@ -244,7 +244,7 @@ class AgentPPOSNDCA():
                 self.state_mean = numpy.load(f) 
                 self.state_var  = numpy.load(f)
 
-        self._show_mask_w()
+        #self._show_mask_w()
 
     
     def get_log(self): 
@@ -389,19 +389,19 @@ class AgentPPOSNDCA():
 
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
-            mask_result[0] = mask.copy()
+            mask_result[0] = mask
 
         if "random_tiles" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
-            mask_result[1] = mask.copy()
+            mask_result[1] = mask
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            mask_result[2] = mask.copy()
+            mask_result[2] = mask 
 
         if "inverse" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
-            mask_result[3] = mask.copy()
+            mask_result[3] = mask 
  
         return x.detach(), mask_result 
     
