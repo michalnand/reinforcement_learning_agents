@@ -26,7 +26,7 @@ class AgentPPOCE():
         self.int_adv_coeff      = config.int_adv_coeff
  
         self.reward_int_coeff   = config.reward_int_coeff
-
+ 
       
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -41,15 +41,11 @@ class AgentPPOCE():
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
-        elif config.ppo_self_supervised_loss == "vicreg_mast":
-            self._ppo_self_supervised_loss = loss_vicreg_mast
         else:
             self._ppo_self_supervised_loss = None
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
-        elif config.target_self_supervised_loss == "vicreg_mast":
-            self._target_self_supervised_loss = loss_vicreg_mast
         else:
             self._target_self_supervised_loss = None
 
@@ -388,47 +384,21 @@ class AgentPPOCE():
         return loss_cusality, acc
     
 
-    def _augmentation_temporal(self, x, x_similar):
-        if "temporal" in self.augmentations:
-            x, mask = aug_random_select(x, x_similar, self.augmentations_probs)
-        else:
-            mask = torch.zeros((x.shape[0]), device=x.device, dtype=torch.float32)
-
-        return x, mask.unsqueeze(0)
-
-    def _augmentation_spatial(self, x): 
-        mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
-
+    def _augmentations(self, x): 
         if "pixelate" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
-            mask_result[0] = mask
+            x, _ = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
 
         if "random_tiles" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
-            mask_result[1] = mask
+            x, _ = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
 
         if "noise" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            mask_result[2] = mask 
+            x, _ = aug_random_apply(x, self.augmentations_probs, aug_noise)
 
         if "inverse" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
-            mask_result[3] = mask 
+            x, _ = aug_random_apply(x, self.augmentations_probs, aug_inverse)
  
-        return x.detach(), mask_result 
+        return x.detach() 
     
-    def _augmentations(self, x, x_similar):
-        xb_result, mask_temporal   = self._augmentation_temporal(x.clone(), x_similar.clone())
-
-        xa_result, mask_a_spatial  = self._augmentation_spatial(x.clone())
-        xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)
-
-        mask_a_result = torch.concat([mask_temporal*0, mask_a_spatial], dim=0)
-        mask_b_result = torch.concat([mask_temporal*1, mask_b_spatial], dim=0)
-        
-        return xa_result, xb_result, mask_a_result, mask_b_result
-
-
     def _state_normalise(self, states, alpha = 0.99): 
 
         if self.state_normalise:
@@ -448,19 +418,4 @@ class AgentPPOCE():
             states_norm = states
         
         return states_norm
-    
-    def _show_mask_w(self, mask_w):
-        mask_w = mask_w.squeeze(1).detach().cpu().numpy()
-    
-        axis_count = mask_w.shape[0]
-
-        fig, axs = plt.subplots(axis_count, 1, figsize=(8, 8))
-
-        for i in range(axis_count):
-            axs[i].grid(True)
-            axs[i].plot(mask_w[i], linewidth=1.0, color="blue", alpha=1.0)
-
-
-        fig.tight_layout()
-        fig.show()
-        plt.show()
+   

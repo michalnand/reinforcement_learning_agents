@@ -33,13 +33,13 @@ def loss_vicreg_direct(za, zb):
     return loss
 
 
-def loss_vicreg(model_forward_func, augmentations, states_now, states_similar):
-    xa_aug, xb_aug, mask_a_aug, mask_b_aug = augmentations(states_now, states_similar)
+def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
+    xa_aug = augmentations(states_a)
+    xb_aug = augmentations(states_b)
 
     za = model_forward_func(xa_aug)  
     zb = model_forward_func(xb_aug) 
 
-   
     return loss_vicreg_direct(za, zb)
 
 

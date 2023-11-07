@@ -440,6 +440,8 @@ class AgentPPOSNDCA():
         return states_norm
     
     def _show_mask_w(self, mask_w):
+        mask_w = torch.nn.functional.softmax(mask_w, dim=0)
+
         mask_w = mask_w.squeeze(1).detach().cpu().numpy()
     
         axis_count = mask_w.shape[0]
