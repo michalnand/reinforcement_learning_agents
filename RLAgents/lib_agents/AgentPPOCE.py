@@ -346,9 +346,9 @@ class AgentPPOCE():
 
         pred = torch.nn.functional.softmax(pred, dim=1)
 
-        novelty_t = pred[:, 1].unsqueeze(1)
+        novelty_t = pred[:, 1]
         novelty_t = novelty_t.detach().cpu()
-
+ 
         return novelty_t
     
     def _causality_loss(self, forward_func, states_now, states_next, states_random):
