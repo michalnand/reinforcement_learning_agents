@@ -275,7 +275,7 @@ class AgentPPOCE():
                 loss_im_self_supervised = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
                 loss_im_causality, acc  = self._causality_loss(self.model_im.forward_causality, states_now, states_next, states_random)
                 
-                loss_im = loss_im_self_supervised + loss_im
+                loss_im = loss_im_self_supervised + loss_im_causality
 
                 self.optimizer_target.zero_grad() 
                 loss_im.backward()
