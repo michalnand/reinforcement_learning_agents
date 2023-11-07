@@ -277,9 +277,9 @@ class AgentPPOCE():
                 
                 loss_im = loss_im_self_supervised + loss_im_causality
 
-                self.optimizer_target.zero_grad() 
+                self.optimizer_im.zero_grad() 
                 loss_im.backward()
-                self.optimizer_target.step()
+                self.optimizer_im.step()
                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised",  loss_ppo_self_supervised.detach().cpu().numpy())
