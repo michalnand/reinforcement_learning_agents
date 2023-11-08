@@ -349,7 +349,7 @@ class AgentPPOCE():
         entropy = (-probs*torch.log2(probs + 10**-6)).sum(dim=1)
 
         #normalise, maximum is 1
-        entropy = entropy/torch.log2(probs.shape[1])
+        entropy = entropy/torch.log2(pred.shape[1])
 
         novelty_t = entropy.detach().cpu()
  
