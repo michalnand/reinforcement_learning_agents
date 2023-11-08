@@ -342,12 +342,13 @@ class AgentPPOCE():
         #class 0 : no causal
         #class 1 : A->B
         #class 2 : B->A       
-        pred = self.model_im.forward_causality(states_prev, states)
+        pred    = self.model_im.forward_causality(states_prev, states)
 
-        pred = torch.nn.functional.softmax(pred, dim=1)
+        probs   = torch.nn.functional.softmax(pred, dim=1)
 
-        novelty_t = pred[:, 1]
-        novelty_t = novelty_t.detach().cpu()
+        entropy = (-probs*torch.log2(probs + 10**-6)).sum(dim=1)
+
+        novelty_t = entropy.detach().cpu()
  
         return novelty_t
     
