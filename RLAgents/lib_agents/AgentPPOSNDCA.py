@@ -7,10 +7,7 @@ from .PolicyBufferIM    import *
 from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
-
-import matplotlib.pyplot as plt
-
-
+ 
           
 class AgentPPOSNDCA():   
     def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
@@ -25,7 +22,8 @@ class AgentPPOSNDCA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
 
         if hasattr(config, "reward_int_dif_coeff"):
             self.reward_int_dif_coeff = config.reward_int_dif_coeff
@@ -45,17 +43,20 @@ class AgentPPOSNDCA():
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
-        elif config.ppo_self_supervised_loss == "vicreg_mast":
-            self._ppo_self_supervised_loss = loss_vicreg_mast
         else:
             self._ppo_self_supervised_loss = None
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
-        elif config.target_self_supervised_loss == "vicreg_mast":
-            self._target_self_supervised_loss = loss_vicreg_mast
         else:
             self._target_self_supervised_loss = None
+
+
+        if config.target_self_awareness_loss == "constructor":
+            self._target_self_awareness_loss = loss_constructor
+        else:
+            self._target_self_awareness_loss = None
+        
 
         self.similar_states_distance = config.similar_states_distance
         
@@ -72,9 +73,11 @@ class AgentPPOSNDCA():
         
         print("ppo_self_supervised_loss     = ", self._ppo_self_supervised_loss)
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
+        print("target_self_awareness_loss   = ", self._target_self_awareness_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_coeff             = ", self.reward_int_coeff)
+        print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
         print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
@@ -131,14 +134,16 @@ class AgentPPOSNDCA():
         self.values_logger  = ValuesLogger() 
 
          
-        self.values_logger.add("internal_motivation_mean",      0.0)
-        self.values_logger.add("internal_motivation_std" ,      0.0)
+        self.values_logger.add("internal_motivation_a_mean",    0.0)
+        self.values_logger.add("internal_motivation_a_std" ,    0.0)
+        self.values_logger.add("internal_motivation_b_mean",    0.0)
+        self.values_logger.add("internal_motivation_b_std" ,    0.0)
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
        
-        self.info_logger = {}
 
+        self.info_logger = {}
 
     def enable_training(self): 
         self.enabled_training = True
@@ -172,8 +177,13 @@ class AgentPPOSNDCA():
         self.rewards_int_prev   = self.rewards_int.clone()
  
 
-        rewards_int      = self.reward_int_coeff*self._internal_motivation(states)
-        self.rewards_int = rewards_int.detach().to("cpu")
+        rewards_int_a, rewards_int_b  = self._internal_motivation(states_prev, states)
+
+        rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
+        rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
+
+        self.rewards_int_prev   = self.rewards_int.clone()
+        self.rewards_int        = (rewards_int_a + rewards_int_b).detach().to("cpu")
 
         rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
         
@@ -214,8 +224,10 @@ class AgentPPOSNDCA():
         #self._add_for_plot(states, infos, dones)
         
         #collect stats
-        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -243,9 +255,6 @@ class AgentPPOSNDCA():
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
                 self.state_mean = numpy.load(f) 
                 self.state_var  = numpy.load(f)
-
-        self._show_mask_w(self.model_ppo.mask)
-
     
     def get_log(self): 
         return self.values_logger.get_str() + str(self.info_logger)
@@ -264,6 +273,7 @@ class AgentPPOSNDCA():
 
         small_batch = 16*self.batch_size 
 
+        accuracy_all = 0.0
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
@@ -274,9 +284,9 @@ class AgentPPOSNDCA():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
+                    states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_self_supervised, self._augmentations, states_now, states_similar)
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -295,7 +305,20 @@ class AgentPPOSNDCA():
                 states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target = self._target_self_supervised_loss(self.model_target.forward_self_supervised, self._augmentations, states_now, states_similar)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar)                
+
+
+                if self._target_self_awareness_loss is not None:
+                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_target.forward_aux, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
+                else:
+                    loss_target_self_awareness  = 0
+                    accuracy                    = numpy.zeros((1, ))
+
+                accuracy_all+= accuracy 
+
+                #TODO : do we need loss scaling ?
+                loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
+            
     
                 self.optimizer_target.zero_grad() 
                 loss_target.backward()
@@ -320,7 +343,11 @@ class AgentPPOSNDCA():
 
         self.policy_buffer.clear() 
 
-     
+        accuracy_all = accuracy_all/(self.training_epochs*batch_count)
+        accuracy_all = numpy.round(accuracy_all, 4)
+
+        self.info_logger["accuracy"] = list(accuracy_all)
+
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
 
@@ -365,7 +392,7 @@ class AgentPPOSNDCA():
         return loss 
    
     #compute internal motivation
-    def _internal_motivation(self, states):        
+    def _internal_motivation(self, states_prev, states):        
         #distillation novelty detection
         features_target_t       = self.model_target(states)
         features_predicted_t    = self.model_predictor(states)
@@ -373,19 +400,27 @@ class AgentPPOSNDCA():
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
 
-        return novelty_t
-    
+        if  self._target_self_awareness_loss is not None:
+            prediction = self.model_target.forward_aux(states_prev, states)
 
-    def _augmentation_temporal(self, x, x_similar):
-        if "temporal" in self.augmentations:
-            x, mask = aug_random_select(x, x_similar, self.augmentations_probs)
+            #motivation is given by how accurate model predict causality
+            prediction = torch.softmax(prediction, dim=1)
+
+            #input is always case : states_prev, states_now transition (class_id = 1)
+            #see loss_constructor implementation : 
+            #class (column) 0 : different states
+            #class (column) 1 : state_prev, state_now
+            #class (column) 2 : state_now, state_prev
+            causality_t = prediction[:, 1]
+            causality_t = causality_t.detach().cpu()
         else:
-            mask = torch.zeros((x.shape[0]), device=x.device, dtype=torch.float32)
-
-        return x, mask.unsqueeze(0)
-
-    def _augmentation_spatial(self, x): 
-        mask_result = torch.zeros((3, x.shape[0]), device=x.device, dtype=torch.float32)
+            causality_t = torch.zeros(novelty_t.shape, dtype=torch.float32)
+        
+        return novelty_t, causality_t
+    
+ 
+    def _augmentations(self, x): 
+        mask_result = torch.zeros((4, x.shape[0]), device=x.sevice, dtype=torch.float32)
 
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
@@ -397,26 +432,15 @@ class AgentPPOSNDCA():
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            mask_result[2] = mask 
+            mask_result[2] = mask
 
-        '''
         if "inverse" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
-            mask_result[3] = mask 
-        '''
+            mask_result[3] = mask
  
-        return x.detach(), mask_result 
+        return x.detach(), mask 
     
-    def _augmentations(self, x, x_similar):
-        xb_result, mask_temporal   = self._augmentation_temporal(x.clone(), x_similar.clone())
 
-        xa_result, mask_a_spatial  = self._augmentation_spatial(x.clone())
-        xb_result, mask_b_spatial  = self._augmentation_spatial(xb_result)
-
-        mask_a_result = torch.concat([mask_temporal*0, mask_a_spatial], dim=0)
-        mask_b_result = torch.concat([mask_temporal*1, mask_b_spatial], dim=0)
-        
-        return xa_result, xb_result, mask_a_result, mask_b_result
 
 
     def _state_normalise(self, states, alpha = 0.99): 
@@ -438,21 +462,4 @@ class AgentPPOSNDCA():
             states_norm = states
         
         return states_norm
-    
-    def _show_mask_w(self, mask_w):
-        mask_w = torch.nn.functional.softmax(mask_w, dim=0)
-
-        mask_w = mask_w.squeeze(1).detach().cpu().numpy()
-    
-        axis_count = mask_w.shape[0]
-
-        fig, axs = plt.subplots(axis_count, 1, figsize=(8, 8))
-
-        for i in range(axis_count):
-            axs[i].grid(True)
-            axs[i].plot(mask_w[i], linewidth=1.0, color="blue", alpha=1.0)
-
-
-        fig.tight_layout()
-        fig.show()
-        plt.show()
+   
