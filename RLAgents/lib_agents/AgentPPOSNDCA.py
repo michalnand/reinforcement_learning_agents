@@ -420,7 +420,7 @@ class AgentPPOSNDCA():
     
  
     def _augmentations(self, x): 
-        mask_result = torch.zeros((4, x.shape[0]), device=x.sevice, dtype=torch.float32)
+        mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
 
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
