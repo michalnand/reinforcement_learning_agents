@@ -43,11 +43,15 @@ class AgentPPOSNDCA():
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
+        elif config.target_self_supervised_loss == "vicreg_contrastive":
+            self._target_self_supervised_loss = vicreg_contrastive
         else:
             self._ppo_self_supervised_loss = None
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
+        elif config.target_self_supervised_loss == "vicreg_contrastive":
+            self._target_self_supervised_loss = vicreg_contrastive
         else:
             self._target_self_supervised_loss = None
 
