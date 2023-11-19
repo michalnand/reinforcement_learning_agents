@@ -50,6 +50,7 @@ class AgentPPOSNDCE():
 
         self.similar_states_distance = config.similar_states_distance
         self.contextual_buffer_size  = config.contextual_buffer_size
+        self.im_features_count       = config.im_features_count
 
         if hasattr(config, "state_normalise"):
             self.state_normalise = config.state_normalise
@@ -69,6 +70,7 @@ class AgentPPOSNDCE():
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("contextual_buffer_size       = ", self.contextual_buffer_size)
+        print("im_features_count            = ", self.im_features_count)
         print("state_normalise              = ", self.state_normalise)
 
         print("\n\n")
@@ -82,15 +84,14 @@ class AgentPPOSNDCE():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         #internal motivation model
-        im_features_count  = 512
-        self.model_im      = ModelIM.Model(self.state_shape, im_features_count)
+        self.model_im      = ModelIM.Model(self.state_shape, self.im_features_count)
         self.model_im.to(self.device)
         self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
 
        
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        self.contextual_buffer = torch.zeros((self.envs_count, self.contextual_buffer_size, im_features_count), dtype=torch.float32, device=self.device)
+        self.contextual_buffer = torch.zeros((self.envs_count, self.contextual_buffer_size, self.im_features_count), dtype=torch.float32, device=self.device)
 
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
