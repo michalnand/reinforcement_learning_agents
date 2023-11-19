@@ -30,6 +30,7 @@ from .AgentPPOSA                    import AgentPPOSA
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
+from .AgentPPOSNDCE                 import AgentPPOSNDCE
 from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOCE                    import AgentPPOCE
 
