@@ -349,7 +349,7 @@ class AgentPPOSNDCE():
         #obtain target contextual features
         features_target_contextual_t = torch.zeros_like(features_target_t)
         for e in range(self.envs_count):
-            print(">>>> ", features_predicted_t[e].unsqueeze(0).shape, self.contextual_buffer[e].shape)
+            print(">>>> ", e, features_predicted_t[e].unsqueeze(0).shape, self.contextual_buffer[e].shape)
             z = self.model_im.forward_contextual(features_predicted_t[e].unsqueeze(0), self.contextual_buffer[e])
             features_target_contextual_t[e] = z.detach().squeeze(0)
 
