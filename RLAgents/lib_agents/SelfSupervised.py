@@ -86,6 +86,15 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
     return loss_vicreg_contrastive_direct(za, zb)
 
 
+def loss_vicreg_contextual(model_forward_func, augmentations, states_a, states_b):
+    xa_aug, _ = augmentations(states_a)
+    xb_aug, _ = augmentations(states_b)
+
+    za, zb = model_forward_func(xa_aug, xb_aug)  
+    
+    return loss_vicreg_direct(za, zb)
+
+
 '''
 def loss_vicreg_mast(model_forward_func, augmentations, states_now, states_similar):
     xa_aug, xb_aug, mask_a_aug, mask_b_aug = augmentations(states_now, states_similar)
