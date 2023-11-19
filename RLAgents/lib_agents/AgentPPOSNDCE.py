@@ -44,7 +44,7 @@ class AgentPPOSNDCE():
             self._ppo_self_supervised_loss = None
 
         if config.target_self_supervised_loss == "vicreg_contextual":
-            self._target_self_supervised_loss = vicreg_contextual
+            self._target_self_supervised_loss = loss_vicreg_contextual
         else:
             self._target_self_supervised_loss = None
 
