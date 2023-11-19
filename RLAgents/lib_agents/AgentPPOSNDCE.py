@@ -68,6 +68,7 @@ class AgentPPOSNDCE():
         print("reward_int_coeff             = ", self.reward_int_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
+        print("contextual_buffer_size       = ", self.contextual_buffer_size)
         print("state_normalise              = ", self.state_normalise)
 
         print("\n\n")
