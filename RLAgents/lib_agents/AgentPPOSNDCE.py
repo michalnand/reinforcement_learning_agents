@@ -350,7 +350,7 @@ class AgentPPOSNDCE():
         features_target_contextual_t = torch.zeros_like(features_target_t)
         for e in range(self.envs_count):
             z = self.model_im.forward_contextual(features_predicted_t[e].unsqueeze(0), self.contextual_buffer[e])
-            features_target_contextual_t[e] = z.squeeze(0)
+            features_target_contextual_t[e] = z.detach().squeeze(0)
 
         novelty_t = ((features_target_contextual_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
