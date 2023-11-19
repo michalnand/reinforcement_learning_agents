@@ -339,8 +339,8 @@ class AgentPPOSNDCE():
     #compute internal motivation
     def _internal_motivation(self, states):        
         #distillation novelty detection
-        features_target_t       = self.model_im.model_target(states)
-        features_predicted_t    = self.model_im.model_predictor(states)
+        features_target_t       = self.model_im.model_target(states).detach()
+        features_predicted_t    = self.model_im.model_predictor(states).detach()
 
         #store new features into buffer
         idx = self.iterations%self.contextual_buffer_size
