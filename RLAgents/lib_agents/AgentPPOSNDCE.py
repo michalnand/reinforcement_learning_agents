@@ -9,7 +9,7 @@ from .SelfSupervised        import *
 from .Augmentations         import *
   
           
-class AgentPPOSNDCA():   
+class AgentPPOSNDCE():   
     def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -22,14 +22,9 @@ class AgentPPOSNDCA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_a_coeff = config.reward_int_a_coeff
-        self.reward_int_b_coeff = config.reward_int_b_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
 
-        if hasattr(config, "reward_int_dif_coeff"):
-            self.reward_int_dif_coeff = config.reward_int_dif_coeff
-        else:
-            self.reward_int_dif_coeff = 0.0
-      
+          
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -55,13 +50,6 @@ class AgentPPOSNDCA():
         else:
             self._target_self_supervised_loss = None
 
-
-        if config.target_self_awareness_loss == "constructor":
-            self._target_self_awareness_loss = loss_constructor
-        else:
-            self._target_self_awareness_loss = None
-        
-
         self.similar_states_distance = config.similar_states_distance
         
 
@@ -77,12 +65,9 @@ class AgentPPOSNDCA():
         
         print("ppo_self_supervised_loss     = ", self._ppo_self_supervised_loss)
         print("target_self_supervised_loss  = ", self._target_self_supervised_loss)
-        print("target_self_awareness_loss   = ", self._target_self_awareness_loss)
         print("augmentations                = ", self.augmentations)
         print("augmentations_probs          = ", self.augmentations_probs)
-        print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
-        print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
+        print("reward_int_coeff             = ", self.reward_int_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("state_normalise              = ", self.state_normalise)
@@ -138,10 +123,8 @@ class AgentPPOSNDCA():
         self.values_logger  = ValuesLogger() 
 
          
-        self.values_logger.add("internal_motivation_a_mean",    0.0)
-        self.values_logger.add("internal_motivation_a_std" ,    0.0)
-        self.values_logger.add("internal_motivation_b_mean",    0.0)
-        self.values_logger.add("internal_motivation_b_std" ,    0.0)
+        self.values_logger.add("internal_motivation_mean",      0.0)
+        self.values_logger.add("internal_motivation_std" ,      0.0)
         self.values_logger.add("loss_ppo_actor",                0.0)
         self.values_logger.add("loss_ppo_critic",               0.0)
         self.values_logger.add("loss_ppo_self_supervised",      0.0)
@@ -442,7 +425,7 @@ class AgentPPOSNDCA():
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
             mask_result[3] = mask
  
-        return x.detach(), mask_result 
+        return x.detach(), mask 
     
 
 
