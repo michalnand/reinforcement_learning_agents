@@ -81,7 +81,10 @@ class AgentPPOSNDEE():
         print("\n\n")
 
         self.state_shape    = self.envs.observation_space.shape
-        self.state_shape[0]+= 1 #add extra channel for agent mode
+
+        #add extra channel for agent mode
+        self.state_shape   = (self.state_shape[0]+1, self.state_shape[1], self.state_shape[2])
+        
         self.actions_count  = self.envs.action_space.n
 
         #main ppo agent
