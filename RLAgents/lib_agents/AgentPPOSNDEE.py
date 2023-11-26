@@ -356,10 +356,10 @@ class AgentPPOSNDEE():
         return loss 
    
     #compute internal motivation
-    def _internal_motivation(self, states_prev, states):        
+    def _internal_motivation(self, states):        
         #distillation novelty detection
-        features_target_t       = self.model_target(states)
-        features_predicted_t    = self.model_predictor(states)
+        features_target_t       = self.model_im.forward_target(states)
+        features_predicted_t    = self.model_im.forward_pedictor(states)
 
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
