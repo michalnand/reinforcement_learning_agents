@@ -413,12 +413,7 @@ class AgentPPOSNDEE():
     
 
     def _compose_state(self, states, agent_mode):
-
-        print("\n\n")
-        print(self.state_shape, states.shape)
-        print("\n\n")
-
-        result = torch.zeros(self.state_shape, dtype=torch.float32, device=self.device)
+        result = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
         result[:, 0:states.shape[0]] = torch.from_numpy(states).to(self.device)
         result[:, -1] = agent_mode 
