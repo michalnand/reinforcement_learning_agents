@@ -152,7 +152,6 @@ class AgentPPOSNDEE():
         #normalise if any
         states = self._state_normalise(self.states)
         
-        print("STATES = ", states.shape)
         #state to tensor
         states = self._compose_state(states, self.agent_mode)
 
@@ -168,7 +167,7 @@ class AgentPPOSNDEE():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
-        #internal motivation
+        #internal motivation 
         rewards_int  = self._internal_motivation(states)
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
@@ -418,6 +417,7 @@ class AgentPPOSNDEE():
     def _compose_state(self, states, agent_mode):
         result = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
+        print(">>> compose = ", result.shape, states.shape)
         result[:, 0:states.shape[0]] = torch.from_numpy(states).to(self.device)
         result[:, -1] = agent_mode.unsqueeze(1).unsqueeze(2)
 
