@@ -80,11 +80,11 @@ class AgentPPOSNDEE():
 
         print("\n\n")
 
-        self.state_shape    = self.envs.observation_space.shape
+        state_shape    = self.envs.observation_space.shape
 
         #add extra channel for agent mode
-        self.state_shape   = (self.state_shape[0]+1, self.state_shape[1], self.state_shape[2])
-
+        self.state_shape   = (state_shape[0]+1, state_shape[1], state_shape[2])
+ 
         self.actions_count  = self.envs.action_space.n
 
         #main ppo agent
@@ -416,7 +416,7 @@ class AgentPPOSNDEE():
 
         result = torch.zeros(self.state_shape, dtype=torch.float32, device=self.device)
 
-        result[:, 0:states.shape[1]] = torch.from_numpy(states).to(self.device)
+        result[:, 0:states.shape[0]] = torch.from_numpy(states).to(self.device)
         result[:, -1] = agent_mode 
 
         return result
