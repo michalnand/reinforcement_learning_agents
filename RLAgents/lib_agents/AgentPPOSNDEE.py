@@ -416,6 +416,6 @@ class AgentPPOSNDEE():
         result = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
         result[:, 0:states.shape[0]] = torch.from_numpy(states).to(self.device)
-        result[:, -1] = agent_mode.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        result[:, -1] = agent_mode.unsqueeze(1).unsqueeze(2)
 
         return result
