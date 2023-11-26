@@ -115,7 +115,7 @@ class AgentPPOSNDEE():
 
 
         #optional, for state mean and variance normalisation        
-        self.state_mean  = self.states.mean(axis=0)
+        self.state_mean  = self.states[:, 0:self.state_shape[0]-1].mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
         self.agent_mode  = torch.zeros((self.envs_count, ), dtype=torch.float32, device=self.device)
