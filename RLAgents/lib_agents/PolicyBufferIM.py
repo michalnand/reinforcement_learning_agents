@@ -10,7 +10,7 @@ class PolicyBufferIM:
       
         self.clear()     
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None):
+    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None, exploration_mode = None):
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
@@ -26,11 +26,13 @@ class PolicyBufferIM:
         self.dones[self.ptr]       = (1.0*done).clone()
 
         if hidden_state is not None:
-            
             if self.hidden_state is None:
                 self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
+
+        if exploration_mode is not None:
+            self.exploration_mode[self.ptr] = exploration_mode.clone()
         
         self.ptr = self.ptr + 1 
 
@@ -57,16 +59,22 @@ class PolicyBufferIM:
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         self.hidden_state   = None
+
+        self.exploration_mode = torch.zeros((self.buffer_size, self.envs_count), dtype=torch.float32)
         
 
         self.ptr = 0  
  
 
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
+        #clear external rewards if agent in exploration mode
+        #this alows agent to skip greedy rewards
+        self.reward_ext*= (1.0 - self.exploration_mode)
+
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
 
-        self.relations                        = self._relations(self.reward_ext, self.dones)
+        self.relations  = self._relations(self.reward_ext, self.dones)
         
         #reshape buffer for faster batch sampling
         self.states           = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)

@@ -34,6 +34,8 @@ from .AgentPPOSNDCE                 import AgentPPOSNDCE
 from .AgentPPOSNDCA                 import AgentPPOSNDCA
 from .AgentPPOCE                    import AgentPPOCE
 
+from .AgentPPOSNDEE                 import AgentPPOSNDEE
+
 from .AgentPPONitenIchi             import AgentPPONitenIchi
 from .AgentPPOTwoHeavens            import AgentPPOTwoHeavens
 
