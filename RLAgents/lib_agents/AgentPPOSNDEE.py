@@ -417,7 +417,7 @@ class AgentPPOSNDEE():
 
         result = torch.zeros(self.state_shape, dtype=torch.float32, device=self.device)
 
-        result[:, 0:states.shape[1]] = states
+        result[:, 0:states.shape[1]] = torch.from_numpy(states).to(self.device)
         result[:, -1] = agent_mode
 
         return result
