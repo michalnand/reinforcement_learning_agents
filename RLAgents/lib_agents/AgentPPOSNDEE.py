@@ -218,8 +218,8 @@ class AgentPPOSNDEE():
         
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-        self.values_logger.add("agent_mode" , self.agent_mode.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std", rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("agent_mode", self.agent_mode.mean().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -286,7 +286,6 @@ class AgentPPOSNDEE():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                loss_ppo_self_supervised = loss_ppo_self_supervised.detach().cpu().numpy()
 
               
                 #sample smaller batch for self supervised loss, different distances for different models
@@ -306,9 +305,9 @@ class AgentPPOSNDEE():
                 self.optimizer_im.step()
 
                 #log results
-                self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised)
-                self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised)
-                self.values_logger.add("loss_distillation",             loss_distillation)
+                self.values_logger.add("loss_ppo_self_supervised",      loss_ppo_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_distillation",             loss_distillation.detach().cpu().numpy())
 
         self.policy_buffer.clear() 
 
