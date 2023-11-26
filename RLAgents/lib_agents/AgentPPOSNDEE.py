@@ -153,7 +153,7 @@ class AgentPPOSNDEE():
         states = self._state_normalise(self.states)
         
         #state to tensor
-        states = self._compose_state(self.states, self.agent_mode)
+        states = self._compose_state(states, self.agent_mode)
 
         #compute model output
         if self.rnn_policy:
