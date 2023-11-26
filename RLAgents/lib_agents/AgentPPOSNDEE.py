@@ -84,7 +84,7 @@ class AgentPPOSNDEE():
 
         #add extra channel for agent mode
         self.state_shape   = (self.state_shape[0]+1, self.state_shape[1], self.state_shape[2])
-        
+
         self.actions_count  = self.envs.action_space.n
 
         #main ppo agent
@@ -104,7 +104,7 @@ class AgentPPOSNDEE():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            self.states[e], _  = self.envs.reset(e)
+            self.states[e][0:self.state_shape[0]-1], _  = self.envs.reset(e)
 
 
 
@@ -200,10 +200,14 @@ class AgentPPOSNDEE():
          
         #reset env if done
         for e in numpy.where(dones):
-            self.states[e], _       = self.envs.reset(e)
-            self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
+            state, _  = self.envs.reset(e)
             if self.enabled_training:
                 self.agent_mode[e]  = torch.randint(0, 2, (1, )).float().to(self.device)
+
+            self.states[e][0:self.state_shape[0]-1] = state
+            self.states[e][-1] = self.agent_mode[e]
+
+            self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
     
         #change agent mode
         switch_agent_mode = numpy.random.rand(self.envs_count) < self.explore_mode_prob
