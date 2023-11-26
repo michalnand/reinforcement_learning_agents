@@ -199,7 +199,8 @@ class AgentPPOSNDEE():
             self.hidden_state = hidden_state_new.detach().clone()
          
         #reset env if done
-        for e in numpy.where(dones):
+        dones_env = numpy.where(dones)[0]
+        for e in dones_env:
             state, _  = self.envs.reset(e)
             if self.enabled_training:
                 self.agent_mode[e]  = torch.randint(0, 2, (1, )).float().to(self.device)
@@ -210,7 +211,8 @@ class AgentPPOSNDEE():
     
         #change agent mode
         switch_agent_mode = numpy.random.rand(self.envs_count) < self.explore_mode_prob
-        for e in numpy.where(switch_agent_mode):
+        switch_agent_mode = numpy.where(switch_agent_mode)[0]
+        for e in switch_agent_mode:
             self.agent_mode[e] = (1.0 - self.agent_mode[e])
 
         
