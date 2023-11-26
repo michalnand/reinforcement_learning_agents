@@ -151,7 +151,8 @@ class AgentPPOSNDEE():
         
         #normalise if any
         states = self._state_normalise(self.states)
-         
+        
+        print("STATES = ", states.shape)
         #state to tensor
         states = self._compose_state(states, self.agent_mode)
 
