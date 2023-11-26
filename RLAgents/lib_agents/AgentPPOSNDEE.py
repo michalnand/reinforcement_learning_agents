@@ -118,7 +118,7 @@ class AgentPPOSNDEE():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-        self.agent_mode  = torch.zeros((self.envs_count,), dtype=torch.float32, device=self.device)
+        self.agent_mode  = torch.zeros((self.envs_count, ), dtype=torch.float32, device=self.device)
      
         self.enable_training() 
         self.iterations     = 0 
@@ -151,7 +151,7 @@ class AgentPPOSNDEE():
         
         #normalise if any
         states = self._state_normalise(self.states)
-        
+         
         #state to tensor
         states = self._compose_state(states, self.agent_mode)
 
@@ -205,7 +205,6 @@ class AgentPPOSNDEE():
                 self.agent_mode[e]  = torch.randint(0, 2, (1, )).float().to(self.device)
 
             self.states[e][0:self.state_shape[0]-1] = state
-            self.states[e][-1] = self.agent_mode[e]
 
             self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
     
@@ -418,6 +417,6 @@ class AgentPPOSNDEE():
         result = torch.zeros(self.state_shape, dtype=torch.float32, device=self.device)
 
         result[:, 0:states.shape[1]] = torch.from_numpy(states).to(self.device)
-        result[:, -1] = agent_mode
+        result[:, -1] = agent_mode 
 
         return result
