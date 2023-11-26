@@ -350,9 +350,9 @@ class AgentPPOSNDEE():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states):         
-        features_target_t       = self.model_target(states)        
-        features_predicted_t    = self.model_predictor(states)
-        
+        features_target_t       = self.model_im.forward_target(states)
+        features_predicted_t    = self.model_im.forward_predictor(states)
+    
         loss = ((features_target_t.detach() - features_predicted_t)**2).mean()
 
         return loss 
