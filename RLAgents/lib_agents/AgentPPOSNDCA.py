@@ -328,9 +328,9 @@ class AgentPPOSNDCA():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_next, states_similar, states_random, actions, relations, episode_steps = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
+                    states_now, states_next, states_similar, states_random, actions, relations, steps, steps_similar = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar, episode_steps)  
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar, steps, steps_similar)  
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -346,10 +346,10 @@ class AgentPPOSNDCA():
 
               
                 #sample smaller batch for self supervised loss, different distances for different models
-                states_now, states_next, states_similar, states_random, actions, relations, episode_steps = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
+                states_now, states_next, states_similar, states_random, actions, relations, steps, steps_similar = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar, episode_steps)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar, steps, steps_similar)                
 
 
                 if self._target_self_awareness_loss is not None:

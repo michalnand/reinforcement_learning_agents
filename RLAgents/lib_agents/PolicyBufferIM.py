@@ -171,10 +171,11 @@ class PolicyBufferIM:
         actions         = (self.actions[indices]).to(device)
 
         relations       = (self.relations[indices]).to(device)
-        episode_steps   = (self.episode_steps[indices]).to(device)
+        steps           = (self.episode_steps[indices]).to(device)
+        steps_similar   = (self.episode_steps[indices_similar]).to(device)
  
      
-        return states_now, states_next, states_similar, states_random, actions, relations, episode_steps
+        return states_now, states_next, states_similar, states_random, actions, relations, steps, steps_similar
     
    
  
