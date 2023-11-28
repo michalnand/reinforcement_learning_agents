@@ -52,11 +52,12 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     
     dif       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
 
+    '''
     print((steps_a[idx_a])[0:5], (steps_b[idx_b])[0:5])
     print(distance[0:5])
     print(dif[0:5])
     print("\n\n")
-
+    '''
 
     dsim_loss = torch.mean(torch.relu(distance - dif))
 
