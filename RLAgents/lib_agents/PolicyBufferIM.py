@@ -10,7 +10,7 @@ class PolicyBufferIM:
       
         self.clear()     
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None, exploration_mode = None):
+    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None, exploration_mode = None, episode_steps = None):
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
@@ -33,6 +33,9 @@ class PolicyBufferIM:
 
         if exploration_mode is not None:
             self.exploration_mode[self.ptr] = exploration_mode.clone()
+
+        if episode_steps is not None:
+            self.episode_steps[self.ptr] = episode_steps.clone()
         
         self.ptr = self.ptr + 1 
 
@@ -61,7 +64,7 @@ class PolicyBufferIM:
         self.hidden_state   = None
 
         self.exploration_mode = torch.zeros((self.buffer_size, self.envs_count), dtype=torch.float32)
-        
+        self.episode_steps    = torch.zeros((self.buffer_size, self.envs_count), dtype=torch.float32)
 
         self.ptr = 0  
  
@@ -100,6 +103,7 @@ class PolicyBufferIM:
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
 
         self.relations        = self.relations.reshape((self.buffer_size*self.envs_count, ))
+        self.episode_steps    = self.episode_steps.reshape((self.buffer_size*self.envs_count, ))
 
 
 
@@ -167,9 +171,10 @@ class PolicyBufferIM:
         actions         = (self.actions[indices]).to(device)
 
         relations       = (self.relations[indices]).to(device)
+        episode_steps   = (self.episode_steps[indices]).to(device)
  
      
-        return states_now, states_next, states_similar, states_random, actions, relations
+        return states_now, states_next, states_similar, states_random, actions, relations, episode_steps
     
    
  

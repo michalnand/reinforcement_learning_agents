@@ -8,7 +8,8 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
   
-          
+import matplotlib.pyplot as plt
+
 class AgentPPOSNDCA():   
     def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
 
@@ -135,6 +136,11 @@ class AgentPPOSNDCA():
         self.enable_training() 
         self.iterations     = 0 
 
+        self.steps_log = []
+        self.z_log     = []
+
+        self.episode_steps = torch.zeros((self.envs_count, ), dtype=torch.float32)
+
         self.values_logger  = ValuesLogger() 
 
          
@@ -201,10 +207,11 @@ class AgentPPOSNDCA():
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
-
+            
+            episode_steps   = self.episode_steps.detach().to("cpu")
             hidden_state    = self.hidden_state.detach().to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
+            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state, episode_steps=episode_steps)
 
             if self.policy_buffer.is_full():
                 self.train()
@@ -223,9 +230,9 @@ class AgentPPOSNDCA():
             if dones[e]:
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-               
+                self.episode_steps[e]   = 0
          
-        #self._add_for_plot(states, infos, dones)
+        self._add_for_plot(states, self.episode_steps)
         
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
@@ -234,8 +241,41 @@ class AgentPPOSNDCA():
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
+        self.episode_steps+= 1
 
         return rewards_ext[0], dones[0], infos[0]
+    
+    
+    def _add_for_plot(self, states, episode_steps):
+        
+        if  self.iterations%10 == 0: 
+            steps = episode_steps.detach().cpu()
+            z = self.model_target(states.to(self.device)).detach().cpu()[0]
+
+
+            self.steps_log.append(steps.clone())
+            self.z_log.append(z)
+            
+            if len(self.z_log)%100 == 0:
+                s_log = torch.stack(self.steps_log)
+                
+                s_dist= torch.cdist(s_log, s_log)
+                s_dist = s_dist.flatten()
+                s_dist = s_dist.numpy()
+
+                z_log = torch.stack(self.z_log)
+                z_dist= torch.cdist(z_log, z_log)
+                z_dist = z_dist.flatten()
+                s_dist = s_dist.flatten()
+
+                
+                plt.scatter(s_dist, z_dist, s = 0.1)
+                plt.xlabel("episode steps")
+                plt.ylabel("z distance")
+                plt.show()
+            
+        
+     
     
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
@@ -290,7 +330,7 @@ class AgentPPOSNDCA():
                     #sample smaller batch for self supervised loss
                     states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, 0)
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
+                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar, None)  
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -306,10 +346,10 @@ class AgentPPOSNDCA():
 
               
                 #sample smaller batch for self supervised loss, different distances for different models
-                states_now, states_next, states_similar, states_random, actions, relations = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
+                states_now, states_next, states_similar, states_random, actions, relations, episode_steps = self.policy_buffer.sample_states_action_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar, episode_steps)                
 
 
                 if self._target_self_awareness_loss is not None:

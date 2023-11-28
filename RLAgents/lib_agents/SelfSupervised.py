@@ -34,16 +34,26 @@ def loss_vicreg_direct(za, zb):
 
 
 
-def loss_vicreg_contrastive_direct(za, zb):
+def loss_vicreg_contrastive_direct(za, zb, steps):
     eps = 0.0001 
  
-    # invariance loss
+    # invariance loss, similarity
     sim_loss = ((za - zb)**2).mean()
     
     # disimilarity loss (contrastive term), compare random pairs
-    idx_a     = torch.randperm(za.shape[0])   
-    dif       = ((za[idx_a] - zb)**2).mean(dim=1)
-    dsim_loss = torch.mean(torch.relu(1.0 - dif))
+    idx_a     = torch.randperm(za.shape[0])
+    idx_b     = torch.randperm(zb.shape[0])   
+    
+    # compute distance
+    distance  = torch.abs(steps[idx_a] - steps[idx_b])
+    distance  = torch.log(1.0 + distance)
+    #distance  = 1.0 + distance/za.shape[1]
+
+    dif       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
+
+    print(">>> d = ", distance.shape, dif.shape)
+
+    dsim_loss = torch.mean(torch.relu(distance - dif))
 
     # variance loss 
     std_za = torch.sqrt(za.var(dim=0) + eps)
@@ -67,7 +77,7 @@ def loss_vicreg_contrastive_direct(za, zb):
     return loss
 
 
-def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
+def loss_vicreg(model_forward_func, augmentations, states_a, states_b, episode_steps):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
@@ -76,23 +86,15 @@ def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
 
     return loss_vicreg_direct(za, zb)
 
-def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_b):
+def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_b, episode_steps):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
     za = model_forward_func(xa_aug)  
     zb = model_forward_func(xb_aug) 
 
-    return loss_vicreg_contrastive_direct(za, zb)
+    return loss_vicreg_contrastive_direct(za, zb, episode_steps)
 
-
-def loss_vicreg_contextual(model_forward_func, augmentations, states_a, states_b):
-    xa_aug, _ = augmentations(states_a)
-    xb_aug, _ = augmentations(states_b)
-
-    za, zb = model_forward_func(xa_aug, xb_aug)  
-    
-    return loss_vicreg_direct(za, zb)
 
 
 '''
