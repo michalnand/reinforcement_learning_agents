@@ -232,7 +232,7 @@ class AgentPPOSNDCA():
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
                 self.episode_steps[e]   = 0
          
-        self._add_for_plot(states, self.episode_steps)
+        #self._add_for_plot(states, self.episode_steps)
         
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
@@ -244,7 +244,7 @@ class AgentPPOSNDCA():
         self.episode_steps+= 1
 
         return rewards_ext[0], dones[0], infos[0]
-    
+     
     
     def _add_for_plot(self, states, episode_steps):
         
