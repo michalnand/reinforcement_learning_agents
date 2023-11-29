@@ -49,7 +49,6 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     distance  = torch.log(1.0 + distance)
     #distance  = 1.0 + distance/za.shape[1]
 
-    
     dif       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
 
     '''
@@ -78,7 +77,7 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*dsim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 10.0*dsim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     return loss
 
