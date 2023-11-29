@@ -122,11 +122,11 @@ class AgentPPOCSND():
         self.values_logger  = ValuesLogger() 
 
          
-        self.values_logger.add("internal_motivation_mean",    0.0)
-        self.values_logger.add("internal_motivation_std" ,    0.0)
+        self.values_logger.add("internal_motivation_mean", 0.0)
+        self.values_logger.add("internal_motivation_std" , 0.0)
         
-        self.values_logger.add("loss_ppo_actor",                0.0)
-        self.values_logger.add("loss_ppo_critic",               0.0)
+        self.values_logger.add("loss_ppo_actor",  0.0)
+        self.values_logger.add("loss_ppo_critic", 0.0) 
 
 
         self.values_logger.add("loss_ppo_self_supervised", 0.0)
