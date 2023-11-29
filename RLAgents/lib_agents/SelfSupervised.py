@@ -46,9 +46,9 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     
     # compute distance
     distance_req  = torch.abs(steps_a[idx_a] - steps_b[idx_b])
-    distance_req  = 10*torch.log(1.0 + distance_req)
-    #distance_req  = 1.0 + distance_req/za.shape[1]
-
+    #distance_req  = torch.log(1.0 + distance_req)
+    distance_req  = 1.0 + distance_req/za.shape[1] 
+ 
     distance       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
 
     '''
