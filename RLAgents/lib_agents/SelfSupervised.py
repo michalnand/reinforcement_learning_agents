@@ -82,7 +82,7 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     return loss
 
 
-def loss_vicreg(model_forward_func, augmentations, states_a, states_b, episode_steps_a, episode_steps_b):
+def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
