@@ -153,31 +153,37 @@ class PolicyBufferIM:
         return states_a, states_b, labels_t
     
 
-    def sample_states_action_pairs(self, batch_size, device = "cpu", max_distance = 0):
+    def sample_states_pairs(self, batch_size, device = "cpu", max_distance = 0):
         count           = self.buffer_size*self.envs_count
 
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 
         indices         = torch.randint(0, count, size=(batch_size, ))
-        indices_next    = torch.clip(indices + self.envs_count, 0, count-1)
         indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
-        indices_random  = torch.randint(0, count, size=(batch_size, )) 
       
         states_now      = (self.states[indices]).to(device)
-        states_next     = (self.states[indices_next]).to(device)
         states_similar  = (self.states[indices_similar]).to(device)
-        states_random   = (self.states[indices_random]).to(device)
-        
-        actions         = (self.actions[indices]).to(device)
-
-        relations       = (self.relations[indices]).to(device)
-        steps           = (self.episode_steps[indices]).to(device)
-        steps_similar   = (self.episode_steps[indices_similar]).to(device)
- 
      
-        return states_now, states_next, states_similar, states_random, actions, relations, steps, steps_similar
+        return states_now, states_similar
     
-   
+    def sample_random_states_pairs(self, batch_size, device = "cpu"):
+
+        count       = self.buffer_size*self.envs_count
+
+        indices_a   = torch.randint(0, count, (batch_size, ))
+        indices_b   = torch.randint(0, count, (batch_size, ))
+
+
+        states_a    = (self.states[indices_a]).to(device)
+        states_b    = (self.states[indices_b]).to(device)
+
+        episode_steps_a    = (self.episode_steps[indices_a]).to(device)
+        episode_steps_b    = (self.episode_steps[indices_b]).to(device)
+
+        distances = episode_steps_a - episode_steps_b
+
+        return states_a, states_b, distances.unsqueeze(0)
+
  
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
