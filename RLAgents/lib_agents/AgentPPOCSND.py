@@ -111,9 +111,6 @@ class AgentPPOCSND():
         self.state_mean  = self.states.mean(axis=0)
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
-        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
-        self.rewards_int_prev = torch.zeros(self.envs_count, dtype=torch.float32)
-
         self.enable_training() 
         self.iterations     = 0 
 
@@ -150,7 +147,6 @@ class AgentPPOCSND():
         states = self._state_normalise(self.states)
         
         #state to tensor
-        states_prev = torch.tensor(self.states_prev, dtype=torch.float).to(self.device)
         states      = torch.tensor(states, dtype=torch.float).to(self.device)
 
         #compute model output
@@ -168,8 +164,8 @@ class AgentPPOCSND():
         #internal motivation
         #prev motivation
         rewards_int = self._internal_motivation(states)
-        #rewards_int = torch.clip(self.reward_int_coeff*self.rewards_int, 0.0, 1.0)
-        print(self.reward_int_coeff, rewards_int)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        print(self.reward_int_coeff, rewards_int) 
         
         #put into policy buffer
         if self.enabled_training:
