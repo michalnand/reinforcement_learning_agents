@@ -393,6 +393,8 @@ class AgentPPOCSND():
 
         distances_pred   = forward_func(states_a, states_b)
 
+        print(">>>> ", distances_target.shape, distances_pred.shape)
+
         loss = ((distances_target.detach() - distances_pred)**2).mean()
 
         return loss
