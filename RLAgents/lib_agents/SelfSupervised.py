@@ -45,20 +45,24 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     idx_b     = torch.randperm(zb.shape[0])   
     
     # compute distance
-    distance  = torch.abs(steps_a[idx_a] - steps_b[idx_b])
-    distance  = torch.log(1.0 + distance)
-    #distance  = 1.0 + distance/za.shape[1]
+    distance_req  = torch.abs(steps_a[idx_a] - steps_b[idx_b])
+    distance_req  = torch.log(1.0 + distance_req)
+    #distance_req  = 1.0 + distance_req/za.shape[1]
 
-    dif       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
+    distance       = ((za[idx_a] - zb[idx_b])**2).mean(dim=1)
 
     '''
     print((steps_a[idx_a])[0:5], (steps_b[idx_b])[0:5])
+    print(distance_req[0:5])
     print(distance[0:5])
-    print(dif[0:5])
-    print("\n\n")
+    print("\n\n")  
     '''
 
-    dsim_loss = torch.mean(torch.relu(distance - dif))
+    #dsim_loss = torch.mean(torch.relu(distance_req - distance))
+
+    dsim_loss = ((distance_req - distance)**2).mean()
+
+    print(">>> ", dsim_loss, distance_req[10], distance[10])
 
     # variance loss 
     std_za = torch.sqrt(za.var(dim=0) + eps)
@@ -77,7 +81,7 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
     # total vicreg loss
-    loss = 1.0*sim_loss + 10.0*dsim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 1.0*dsim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     return loss
 
