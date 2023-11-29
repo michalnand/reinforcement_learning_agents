@@ -58,10 +58,7 @@ def loss_vicreg_contrastive_direct(za, zb, steps_a, steps_b):
     '''
 
     #dsim_loss = torch.mean(torch.relu(distance_req - distance))
-
     dsim_loss = ((distance_req - distance)**2).mean()
-
-    print(">>> ", dsim_loss, distance_req[10], distance[10])
 
     # variance loss 
     std_za = torch.sqrt(za.var(dim=0) + eps)
