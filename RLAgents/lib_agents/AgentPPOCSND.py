@@ -16,7 +16,7 @@ class AgentPPOCSND():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.envs = envs  
-          
+           
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
               
@@ -133,6 +133,7 @@ class AgentPPOCSND():
         self.values_logger.add("loss_target_self_supervised", 0.0)
         self.values_logger.add("loss_target_causality", 0.0)
         self.values_logger.add("loss_distillation", 0.0)
+        self.values_logger.add("accuracy", 0.0)
 
        
     def enable_training(self): 
@@ -378,7 +379,7 @@ class AgentPPOCSND():
 
         return loss 
     
-    
+    '''
     def _causality_loss(self, forward_func, states_a, states_b, distances):
         
         distances_target = torch.sgn(distances)*torch.log(1.0 + torch.abs(distances))
@@ -386,6 +387,26 @@ class AgentPPOCSND():
         distances_pred   = forward_func(states_a, states_b)
 
         loss = ((distances_target.detach() - distances_pred)**2).mean()
+
+        return loss
+    '''
+
+
+    def _causality_loss(self, forward_func, states_a, states_b, distances):
+        
+        labels = (distances > 0.0).float()
+
+        pred   = forward_func(states_a, states_b)
+        pred   = torch.sigmoid(pred)
+
+        loss_func = torch.nn.BCELoss()
+        loss = loss_func(pred, labels)
+
+
+        acc = ((pred > 0.5) == (distances > 0.0)).float()
+        acc = acc.mean()
+
+        self.values_logger.add("accuracy", acc.detach().cpu().numpy())
 
         return loss
 
