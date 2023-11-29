@@ -168,8 +168,7 @@ class AgentPPOCSND():
         #internal motivation
         #prev motivation
         rewards_int = self._internal_motivation(states)
-        rewards_int = rewards_int.detach().to("cpu")
-        rewards_int = torch.clip(self.reward_int_coeff*self.rewards_int, 0.0, 1.0)
+        #rewards_int = torch.clip(self.reward_int_coeff*self.rewards_int, 0.0, 1.0)
         print(self.reward_int_coeff, rewards_int)
         
         #put into policy buffer
