@@ -168,9 +168,9 @@ class AgentPPOCSND():
         #internal motivation
         #prev motivation
         rewards_int = self._internal_motivation(states)
-        print(rewards_int)
         rewards_int = rewards_int.detach().to("cpu")
         rewards_int = torch.clip(self.reward_int_coeff*self.rewards_int, 0.0, 1.0)
+        print(rewards_int)
         
         #put into policy buffer
         if self.enabled_training:
