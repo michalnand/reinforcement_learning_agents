@@ -182,7 +182,7 @@ class PolicyBufferIM:
 
         distances = episode_steps_a - episode_steps_b
 
-        return states_a, states_b, distances.unsqueeze(0)
+        return states_a, states_b, distances.unsqueeze(1)
 
  
     def _gae(self, rewards, values, dones, gamma, lam):
