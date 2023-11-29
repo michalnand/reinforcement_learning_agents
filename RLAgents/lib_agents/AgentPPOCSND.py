@@ -138,9 +138,6 @@ class AgentPPOCSND():
         self.values_logger.add("loss_distillation", 0.0)
 
        
-
-        self.info_logger = {}
-
     def enable_training(self): 
         self.enabled_training = True
  
@@ -171,6 +168,7 @@ class AgentPPOCSND():
         #internal motivation
         #prev motivation
         rewards_int = self._internal_motivation(states)
+        print(rewards_int)
         rewards_int = rewards_int.detach().to("cpu")
         rewards_int = torch.clip(self.reward_int_coeff*self.rewards_int, 0.0, 1.0)
         
@@ -271,7 +269,7 @@ class AgentPPOCSND():
                 self.state_var  = numpy.load(f)
     
     def get_log(self): 
-        return self.values_logger.get_str() + str(self.info_logger)
+        return self.values_logger.get_str()
 
     def _sample_actions(self, logits):
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
