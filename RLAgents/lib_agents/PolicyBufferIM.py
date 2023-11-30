@@ -167,12 +167,16 @@ class PolicyBufferIM:
         return states_now, states_similar
     
     def sample_random_states_pairs(self, batch_size, device = "cpu"):
-
         count       = self.buffer_size*self.envs_count
 
         indices_a   = torch.randint(0, count, (batch_size, ))
-        indices_b   = torch.randint(0, count, (batch_size, ))
 
+
+        indices_b0  = torch.randint(0, count, (batch_size//2, ))
+        indices_b1  = indices_a + 2*torch.randint(0, 2, (batch_size//2, )) - 1
+        indices_b   = torch.concatenate([indices_b0, indices_b1], dim=0)
+        indices_b   = torch.clip(indices_b, 0, count-1)
+         
 
         states_a    = (self.states[indices_a]).to(device)
         states_b    = (self.states[indices_b]).to(device)
@@ -189,7 +193,6 @@ class PolicyBufferIM:
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
         
-
         returns     = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
         advantages  = torch.zeros((buffer_size, envs_count), dtype=torch.float32)
 
