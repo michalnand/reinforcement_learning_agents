@@ -171,9 +171,9 @@ class PolicyBufferIM:
 
         indices_a   = torch.randint(0, count, (batch_size, ))
 
-
+ 
         indices_b0  = torch.randint(0, count, (batch_size//2, ))
-        indices_b1  = indices_a + 2*torch.randint(0, 2, (batch_size//2, )) - 1
+        indices_b1  = indices_a[:-batch_size//2] + 2*torch.randint(0, 2, (batch_size//2, )) - 1
         indices_b   = torch.concatenate([indices_b0, indices_b1], dim=0)
         indices_b   = torch.clip(indices_b, 0, count-1)
          
