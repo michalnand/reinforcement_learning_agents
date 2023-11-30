@@ -431,10 +431,14 @@ class AgentPPOCSND():
         novelty_t = novelty_t.detach().cpu()
 
 
-        causality_t   = self.model_im.forward_causality(states, states_prev)
-        causality_t   = torch.sigmoid(causality_t)
-        causality_t   = torch.clip(2.0*(causality_t - 0.5), 0.0, 1.0)
-        causality_t   = causality_t.detach().cpu().squeeze(1)
+        prob        = self.model_im.forward_causality(states, states_prev)
+        prob        = torch.sigmoid(prob)
+        causality_t = torch.clip(2.0*(prob - 0.5), 0.0, 1.0)
+        causality_t = causality_t.detach().cpu().squeeze(1)
+
+        print(prob[0:5])
+        print(causality_t[0:5])
+        print("\n\n")
         
         return novelty_t, causality_t
     
