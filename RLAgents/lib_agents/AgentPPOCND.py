@@ -122,11 +122,11 @@ class AgentPPOCND():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            s, _ = self.envs.reset(e).copy()
+            s, _ = self.envs.reset(e)
             if self.use_state_momentum:
                 self.states[e] = self.state_momentum.get(e, s)
             else:
-                self.states[e] = s
+                self.states[e] = s.copy()
 
         self.enable_training()
         self.iterations = 0 
