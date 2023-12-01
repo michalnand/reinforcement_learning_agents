@@ -204,13 +204,13 @@ class AgentPPOCND():
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                s, _ = self.envs.reset(e).copy()
+                s, _ = self.envs.reset(e)
                 
                 if self.use_state_momentum:
                     self.state_momentum.reset(e)
                     self.states[e] = self.state_momentum.get(e, s)
                 else:
-                    self.states[e] = s
+                    self.states[e] = s.copy()
                 
 
          
