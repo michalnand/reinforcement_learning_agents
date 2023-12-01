@@ -122,7 +122,7 @@ class AgentPPOCND():
         #reset envs and fill initial state
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
-            s = self.envs.reset(e).copy()
+            s, _ = self.envs.reset(e).copy()
             if self.use_state_momentum:
                 self.states[e] = self.state_momentum.get(e, s)
             else:
@@ -204,7 +204,7 @@ class AgentPPOCND():
         #or reset env if done
         for e in range(self.envs_count): 
             if dones[e]:
-                s = self.envs.reset(e).copy()
+                s, _ = self.envs.reset(e).copy()
                 
                 if self.use_state_momentum:
                     self.state_momentum.reset(e)
