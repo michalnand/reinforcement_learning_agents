@@ -388,19 +388,20 @@ class AgentPPOCSND():
 
         return loss 
     
-    '''
+    
     def _causality_loss(self, forward_func, states_a, states_b, distances):
         
         distances_target = torch.sgn(distances)*torch.log(1.0 + torch.abs(distances))
+        distances_target = distances_target.detach()
 
         distances_pred   = forward_func(states_a, states_b)
 
         loss = ((distances_target.detach() - distances_pred)**2).mean()
 
         return loss
+    
+
     '''
-
-
     def _causality_loss(self, forward_func, states_a, states_b, distances):
         
         labels = (distances > 0.0).float()
@@ -418,7 +419,7 @@ class AgentPPOCSND():
         self.values_logger.add("accuracy", acc.detach().cpu().numpy())
 
         return loss
-
+    '''
         
    
     #compute internal motivation
