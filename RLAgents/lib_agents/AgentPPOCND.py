@@ -167,8 +167,8 @@ class AgentPPOCND():
         #collect actions 
         actions = self._sample_actions(logits)
         
-        #execute action
-        states_new, rewards_ext, dones, infos = self.envs.step(actions)
+        #execute action 
+        states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #update long term stats (mean, variance, momentum)
         if self.normalise_state_mean or self.normalise_state_std:
@@ -401,7 +401,7 @@ class AgentPPOCND():
             for _ in range(steps):
                 #random action
                 actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
-                states, _, dones, _ = self.envs.step(actions)
+                states_new, _, dones, _, _ = self.envs.step(actions)
 
                 #update stats
                 self.states_running_stats.update(states)

@@ -72,7 +72,7 @@ class AgentPPOSNDCA():
             self.state_normalise = False
 
 
-         
+          
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
         
