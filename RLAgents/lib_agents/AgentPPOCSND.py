@@ -398,6 +398,13 @@ class AgentPPOCSND():
 
         loss = ((distances_target.detach() - distances_pred)**2).mean()
 
+
+        acc = (torch.sgn(distances_pred) == torch.sgn(distances_target)).float()
+        acc = acc.mean()
+
+        self.values_logger.add("accuracy", acc.detach().cpu().numpy())
+
+
         return loss
     
 
