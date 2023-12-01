@@ -20,7 +20,7 @@ def off_diagonal(x):
 
 def contrastive_loss_mse(model, states_a, states_b, target, normalise = None, augmentation = None):
     xa = states_a.clone()
-    xb = states_b.clone()
+    xb = states_b.clone() 
 
     #normalise states
     if normalise is not None:
