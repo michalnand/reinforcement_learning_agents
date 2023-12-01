@@ -401,7 +401,7 @@ class AgentPPOCND():
             for _ in range(steps):
                 #random action
                 actions             = numpy.random.randint(0, self.actions_count, (self.envs_count))
-                states_new, _, dones, _, _ = self.envs.step(actions)
+                states, _, dones, _, _ = self.envs.step(actions)
 
                 #update stats
                 self.states_running_stats.update(states)
