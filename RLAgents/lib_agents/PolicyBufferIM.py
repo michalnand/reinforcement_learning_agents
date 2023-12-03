@@ -184,7 +184,6 @@ class PolicyBufferIM:
 
         distances = episode_steps_a - episode_steps_b
 
-        print(distances)
 
         return states_a, states_b, distances.unsqueeze(1)
 
