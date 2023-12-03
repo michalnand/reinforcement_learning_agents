@@ -16,7 +16,7 @@ class AgentPPOCSND():
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         self.envs = envs  
-           
+            
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
               
@@ -321,7 +321,7 @@ class AgentPPOCSND():
                 loss_target_self_supervised = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_now, states_similar)                
 
 
-                states_a, states_b, distances = self.policy_buffer.sample_random_states_pairs(small_batch, self.device)
+                states_a, states_b, distances = self.policy_buffer.sample_random_states_pairs(small_batch, 4, self.device)
 
                 loss_target_causality = self._causality_loss(self.model_im.forward_causality, states_a, states_b, distances)
 
