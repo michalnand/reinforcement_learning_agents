@@ -261,6 +261,9 @@ class AgentPPOCSND():
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
                 numpy.save(f, self.state_mean)
                 numpy.save(f, self.state_var)
+
+        if hasattr(self.envs, "save"):
+            self.envs.save(save_path + "trained/")
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
