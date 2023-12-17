@@ -25,6 +25,7 @@ class AgentPPOCSND():
  
         self.reward_int_a_coeff   = config.reward_int_a_coeff
         self.reward_int_b_coeff   = config.reward_int_b_coeff
+        self.causality_loss_coeff = config.causality_loss_coeff
 
       
         self.entropy_beta       = config.entropy_beta
@@ -69,6 +70,7 @@ class AgentPPOCSND():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
+        print("causality_loss_coeff         = ", self.causality_loss_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
         print("state_normalise              = ", self.state_normalise)
@@ -86,7 +88,7 @@ class AgentPPOCSND():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
 
-        #snd predictor model
+        #im model, target and predictor
         self.model_im      = ModelIM.Model(self.state_shape)
         self.model_im.to(self.device)
         self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
@@ -116,8 +118,8 @@ class AgentPPOCSND():
         self.enable_training() 
         self.iterations     = 0 
 
-        self.steps_log = []
-        self.z_log     = []
+        #self.steps_log = []
+        #self.z_log     = []
 
         self.episode_steps = torch.zeros((self.envs_count, ), dtype=torch.float32)
 
@@ -303,7 +305,6 @@ class AgentPPOCSND():
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
                     states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
-
                     loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
@@ -321,7 +322,7 @@ class AgentPPOCSND():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target model, self supervised    
-                loss_target_self_supervised = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_now, states_similar)                
+                loss_target_self_supervised = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
 
 
                 states_a, states_b, distances = self.policy_buffer.sample_random_states_pairs(small_batch, 4, self.device)
@@ -332,7 +333,7 @@ class AgentPPOCSND():
                 loss_distillation = self._loss_distillation(states)
 
 
-                loss_im = loss_target_self_supervised + loss_target_causality + loss_distillation
+                loss_im = loss_target_self_supervised + self.causality_loss_coeff*loss_target_causality + loss_distillation
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
                 self.optimizer_im.step()
@@ -438,9 +439,12 @@ class AgentPPOCSND():
         features_target_t       = self.model_im.forward_target(states)
         features_predicted_t    = self.model_im.forward_predictor(states)
 
+        #distillation novelty
         novelty_t = ((features_target_t - features_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
 
+        #causality novelty
+        #if model predicts states is after states_prev, positive reward is generated
         prob        = self.model_im.forward_causality(states, states_prev).squeeze(1)
         prob        = torch.sigmoid(prob)
         causality_t = torch.clip(2.0*(prob - 0.5), 0.0, 1.0)
@@ -452,8 +456,9 @@ class AgentPPOCSND():
     def _augmentations(self, x): 
         mask_result = torch.zeros((5, x.shape[0]), device=x.device, dtype=torch.float32)
 
+        #default augmentation
         mask_result[0] = 1
-        
+
         if "pixelate" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
             mask_result[1] = mask

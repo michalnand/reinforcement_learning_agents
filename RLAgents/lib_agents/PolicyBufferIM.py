@@ -171,9 +171,9 @@ class PolicyBufferIM:
 
         indices_a   = torch.randint(0, count, (batch_size, ))
 
-        sgn             = (torch.randint(0, 2, (64, ))*2 - 1)
-        indices_        = sgn*torch.randint(1, distance_max+1, (batch_size, ))
-        indices_b       = torch.clip(indices_a + indices_*self.envs_count, 0, count-1)
+        sgn         = (torch.randint(0, 2, (64, ))*2 - 1)
+        indices_    = sgn*torch.randint(1, distance_max+1, (batch_size, ))
+        indices_b   = torch.clip(indices_a + indices_*self.envs_count, 0, count-1)
          
 
         states_a    = (self.states[indices_a]).to(device)
@@ -183,7 +183,6 @@ class PolicyBufferIM:
         episode_steps_b    = (self.episode_steps[indices_b]).to(device)
 
         distances = episode_steps_a - episode_steps_b
-
 
         return states_a, states_b, distances.unsqueeze(1)
 

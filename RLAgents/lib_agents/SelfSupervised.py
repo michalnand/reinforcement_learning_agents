@@ -105,30 +105,56 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
 
 def loss_vicreg_mast(model_forward_func, augmentations, states_a, states_b):
 
-    xa_aug, mask_a_aug = augmentations(states_a)
-    xb_aug, mask_b_aug = augmentations(states_b)
+    xa_aug, used_aug_a = augmentations(states_a)
+    xb_aug, used_aug_b = augmentations(states_b)
     
-    #mask_aug.shape = (augs_count, features_count)
-    mask_aug = torch.clip(mask_a_aug + mask_b_aug, 0.0, 1.0)
-    
-   
     # obtain features from model
-    #za     = (batch_size, features_count)
-    #mask_w = (augs_count, features_count)
     za, mask_wa  = model_forward_func(xa_aug)  
     zb, mask_wb  = model_forward_func(xb_aug) 
 
-    #masked term loss
+    #mask reshaping
+
+    # used_aug_x = (augs_count, batch_size, 1)
+    used_aug_a = used_aug_a.unsqueeze(2)
+    used_aug_b = used_aug_b.unsqueeze(2) 
+   
+    # zx_tmp = (1, batch_size, features_count)
     za_tmp = za.unsqueeze(0)
     zb_tmp = zb.unsqueeze(0)
 
-    mask_wa = torch.nn.functional.softmax(mask_wa, dim=0)
-    mask_wb = torch.nn.functional.softmax(mask_wb, dim=0)
+    # mask_wx = (augs_count, 1, features_count)
+    mask_wa = mask_wa.unsqueeze(1)
+    mask_wb = mask_wb.unsqueeze(1)
 
-    za_tmp = za_tmp*mask_wa*mask_aug
-    zb_tmp = zb_tmp*mask_wb*mask_aug
+    #masked features
+    za_tmp = za_tmp*mask_wa*used_aug_a
+    zb_tmp = zb_tmp*mask_wb*used_aug_b
 
-    return loss_vicreg_direct(za_tmp, zb_tmp)
+    # masked invariance loss
+    sim_loss = ((za_tmp - zb_tmp)**2).mean() 
+
+    eps = 0.0001 
+
+    # variance loss
+    std_za = torch.sqrt(za.var(dim=0) + eps)
+    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
+    
+    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+   
+    # covariance loss 
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+
+    # final vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    return loss
 
 
 '''
