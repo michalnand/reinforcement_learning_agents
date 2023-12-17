@@ -47,6 +47,8 @@ class AgentPPOCSND():
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
+        elif config.target_self_supervised_loss == "vicreg_mast":
+            self._target_self_supervised_loss = loss_vicreg_mast
         else:
             self._target_self_supervised_loss = None
 
