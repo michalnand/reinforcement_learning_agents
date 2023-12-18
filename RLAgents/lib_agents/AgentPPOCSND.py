@@ -23,11 +23,10 @@ class AgentPPOCSND():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_dif_coeff = config.reward_int_dif_coeff
 
         self.reward_int_a_coeff   = config.reward_int_a_coeff
         self.reward_int_b_coeff   = config.reward_int_b_coeff
-        self.reward_int_coeff     = config.reward_int_coeff
+        self.reward_int_dif_coeff = config.reward_int_dif_coeff
         self.causality_loss_coeff = config.causality_loss_coeff
 
 
@@ -76,6 +75,7 @@ class AgentPPOCSND():
         print("augmentations_probs          = ", self.augmentations_probs)
         print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
+        print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
         print("causality_loss_coeff         = ", self.causality_loss_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
