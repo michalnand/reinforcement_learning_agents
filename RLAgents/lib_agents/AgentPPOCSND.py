@@ -77,6 +77,7 @@ class AgentPPOCSND():
         print("reward_int_a_coeff           = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff           = ", self.reward_int_b_coeff)
         print("reward_int_dif_coeff         = ", self.reward_int_dif_coeff)
+        print("reward_int_dif_size          = ", self.reward_int_dif_size)
         print("causality_loss_coeff         = ", self.causality_loss_coeff)
         print("rnn_policy                   = ", self.rnn_policy)
         print("similar_states_distance      = ", self.similar_states_distance)
@@ -123,7 +124,7 @@ class AgentPPOCSND():
         self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
 
 
-        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
+        self.rewards_int     = torch.zeros(self.envs_count, dtype=torch.float32)
         self.rewards_int_old = torch.zeros((self.reward_int_dif_size, self.envs_count), dtype=torch.float32)
 
 
