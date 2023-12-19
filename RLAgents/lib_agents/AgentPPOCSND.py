@@ -27,6 +27,7 @@ class AgentPPOCSND():
         self.reward_int_a_coeff   = config.reward_int_a_coeff
         self.reward_int_b_coeff   = config.reward_int_b_coeff
         self.reward_int_dif_coeff = config.reward_int_dif_coeff
+        self.reward_int_dif_size  = config.reward_int_dif_size
         self.causality_loss_coeff = config.causality_loss_coeff
 
 
@@ -123,7 +124,7 @@ class AgentPPOCSND():
 
 
         self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
-        self.rewards_int_prev = torch.zeros(self.envs_count, dtype=torch.float32)
+        self.rewards_int_old = torch.zeros((self.reward_int_dif_size, self.envs_count), dtype=torch.float32)
 
 
         self.enable_training() 
@@ -182,19 +183,17 @@ class AgentPPOCSND():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
-        #internal motivation
-        #prev motivation
-        self.rewards_int_prev   = self.rewards_int.clone()
- 
+        #internal motivation 
         rewards_int_a, rewards_int_b = self._internal_motivation(states_prev, states)
 
         rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
         rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
 
-        self.rewards_int_prev   = self.rewards_int.clone()
-        self.rewards_int        = (rewards_int_a + rewards_int_b).detach().to("cpu")
+        ptr = self.iterations%self.rewards_int_old.shape[0]
+        self.rewards_int_old[ptr] = self.rewards_int.clone()
+        self.rewards_int           = (rewards_int_a + rewards_int_b).detach().to("cpu")
 
-        rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_prev, 0.0, 1.0)
+        rewards_int = torch.clip(self.rewards_int - self.reward_int_dif_coeff*self.rewards_int_old.mean(dim=0), 0.0, 1.0)
     
 
         
@@ -233,8 +232,8 @@ class AgentPPOCSND():
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
                 self.episode_steps[e]   = 0
 
-                self.rewards_int_prev[e]= 0
-                self.rewards_int[e]     = 0
+                self.rewards_int_old[:, e] = 0.0
+                self.rewards_int[e]        = 0.0
          
         #self._add_for_plot(states, self.episode_steps)
         
