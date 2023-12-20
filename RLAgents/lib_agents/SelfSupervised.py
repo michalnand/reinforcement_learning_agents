@@ -126,7 +126,7 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_a, states_b):
     #mask_w = (augs_count + 1, features_count, 1) 
     mask_add = torch.relu(1.0 - mask_w.sum(dim=0).unsqueeze(0).detach())
     mask_w = torch.cat([mask_w, mask_add], dim=0)
-    mask_w = mask_w.unsqueeze(2) 
+    mask_w = mask_w.unsqueeze(1) 
 
 
     print(">>> ", used_aug.shape, mask_w.shape)
