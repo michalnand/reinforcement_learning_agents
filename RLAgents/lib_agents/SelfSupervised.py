@@ -107,28 +107,35 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_a, states_b):
 
     xa_aug, used_aug_a = augmentations(states_a)
     xb_aug, used_aug_b = augmentations(states_b)
+
+
+    used_aug = torch.clip(used_aug_a + used_aug_b, 0.0, 1.0)
     
     # obtain features from model
-    za, mask_wa  = model_forward_func(xa_aug)  
-    zb, mask_wb  = model_forward_func(xb_aug) 
+    za, mask_w  = model_forward_func(xa_aug)  
+    zb, _       = model_forward_func(xb_aug) 
 
     #mask reshaping
+    #add extra "augmentation" to prevent collapse
 
-    # used_aug_x = (augs_count, batch_size, 1)
-    used_aug_a = used_aug_a.unsqueeze(2)
-    used_aug_b = used_aug_b.unsqueeze(2) 
+    #used_aug = (augs_count + 1, batch_size, 1)
+    used_aug = torch.cat([used_aug, torch.ones((1, used_aug.shape[0]))])
+    used_aug = used_aug.unsqueeze(2)
+
+    #mask_w = (augs_count + 1, 1, features_count)
+    mask_add = torch.relu(1.0 - mask_w.sum(dim=0).unsqueeze(0).detach())
+    mask_w = torch.cat([mask_w, mask_add])
+    mask_w = mask_w.unsqueeze(1)
+
    
-    # zx_tmp = (1, batch_size, features_count)
+    #zx_tmp = (1, batch_size, features_count)
     za_tmp = za.unsqueeze(0)
     zb_tmp = zb.unsqueeze(0)
 
-    # mask_wx = (augs_count, 1, features_count)
-    mask_wa = mask_wa.unsqueeze(1)
-    mask_wb = mask_wb.unsqueeze(1)
 
     #masked features
-    za_tmp = za_tmp*mask_wa*used_aug_a
-    zb_tmp = zb_tmp*mask_wb*used_aug_b
+    za_tmp = za_tmp*mask_w*used_aug
+    zb_tmp = zb_tmp*mask_w*used_aug
 
     # masked invariance loss
     sim_loss = ((za_tmp - zb_tmp)**2).mean() 
