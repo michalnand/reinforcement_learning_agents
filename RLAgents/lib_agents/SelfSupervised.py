@@ -119,14 +119,14 @@ def loss_vicreg_mast(model_forward_func, augmentations, states_a, states_b):
     #add extra "augmentation" to prevent collapse
 
     #used_aug = (augs_count + 1, batch_size, 1)
-    ones     = torch.ones((1, used_aug.shape[0])).to(used_aug.device)
-    used_aug = torch.cat([used_aug, ones], dim=1)
+    ones     = torch.ones((1, used_aug.shape[1])).to(used_aug.device)
+    used_aug = torch.cat([used_aug, ones], dim=0)
     used_aug = used_aug.unsqueeze(2)
 
-    #mask_w = (augs_count + 1, 1, features_count) 
+    #mask_w = (augs_count + 1, features_count, 1) 
     mask_add = torch.relu(1.0 - mask_w.sum(dim=0).unsqueeze(0).detach())
-    mask_w = torch.cat([mask_w, mask_add], dim=1)
-    mask_w = mask_w.unsqueeze(1)
+    mask_w = torch.cat([mask_w, mask_add], dim=0)
+    mask_w = mask_w.unsqueeze(2) 
 
 
     print(">>> ", used_aug.shape, mask_w.shape)
