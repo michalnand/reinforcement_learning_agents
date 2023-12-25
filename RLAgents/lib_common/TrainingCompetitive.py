@@ -8,7 +8,7 @@ class TrainingCompetitive:
     def __init__(self, envs, agent, players_count, iterations_count, saving_path, log_period_iterations = 128):
         self.envs           = envs   
         self.envs_count     = len(self.envs)
-        self.state_shape    = self.envs.observation_space
+        self.state_shape    = self.envs.observation_space.shape
         
         self.agent = agent
 
