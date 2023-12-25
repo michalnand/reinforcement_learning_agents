@@ -173,12 +173,13 @@ class TrainingCompetitive:
         legal_actions_mask  = numpy.ones((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
 
         print(infos)
-        if infos is not None:
-            if "legal_actions_mask" in infos[0]:
-                legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
-                for e in range(self.envs_count):
-                    legal_actions_mask[e] = infos[e]["legal_actions_mask"]
-        
+        if type(infos) is list:
+            if type(infos[0]) is dict:
+                if "legal_actions_mask" in infos[0]:
+                    legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
+                    for e in range(self.envs_count):
+                        legal_actions_mask[e] = infos[e]["legal_actions_mask"]
+            
         return legal_actions_mask 
 
     #returns remaining time in hours
