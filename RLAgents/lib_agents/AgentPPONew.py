@@ -143,8 +143,6 @@ class AgentPPONew():
         legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
 
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
-
-        print(">>>> ", legal_actions_mask_t)
         
         #keep only legal actions probs, and renormalise probs
         action_probs_t        = action_probs_t*legal_actions_mask_t
