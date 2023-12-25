@@ -148,7 +148,7 @@ class AgentPPONew():
         
         #keep only legal actions probs, and renormalise probs
         action_probs_t        = action_probs_t*legal_actions_mask_t
-        action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1)
+        action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1).unsqueeze(1)
 
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         
