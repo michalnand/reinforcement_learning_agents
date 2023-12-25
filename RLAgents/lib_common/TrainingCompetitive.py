@@ -168,8 +168,9 @@ class TrainingCompetitive:
     #extract binary matrix with shape (envs_count, actions_count) from infos,
     #containing ones where action is legal
     #if not provided, returns ones - all actions allowed
-    def _get_legal_actions_mask(self, infos):
-        if "legal_actions_mask" in infos[0]:
+    def _get_legal_actions_mask(self, infos): 
+
+        if infos is not None and "legal_actions_mask" in infos[0]:
             legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
             for e in range(self.envs_count):
                 legal_actions_mask[e] = infos[e]["legal_actions_mask"]
