@@ -62,7 +62,7 @@ class AgentPPONew():
         self.states_t = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32)
         self.logits_t = torch.zeros((self.envs_count, self.actions_count), dtype=torch.float32)
         self.values_t = torch.zeros((self.envs_count, ) , dtype=torch.float32)
-        self.actions_t = torch.zeros((self.envs_count, self.actions_count) , dtype=torch.float32)
+        self.actions_t = torch.zeros((self.envs_count, ) , dtype=int)
         self.rewards_t = torch.zeros((self.envs_count, ) , dtype=torch.float32)
         self.dones_t   = torch.zeros((self.envs_count, ) , dtype=torch.float32)
 
@@ -126,7 +126,7 @@ class AgentPPONew():
         self.dones_t[training_idx]   = torch.from_numpy(dones).to("cpu")
 
         self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
-
+ 
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
