@@ -121,7 +121,7 @@ class TrainingCompetitive:
 
             time_remaining = self._estimate_time(iteration)
 
-            dones_idx = numpy.where(dones)
+            dones_idx = numpy.where(dones)[0]
 
             for e in dones_idx:
                 rewards_episode[e] = rewards_sum[e]

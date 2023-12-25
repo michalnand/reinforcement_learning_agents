@@ -85,8 +85,7 @@ class AgentPPONew():
         self.policy_buffer.add(self.states_t, self.logits_t, self.values_t, self.actions_t, self.rewards_t, self.dones_t, self.hidden_state_t)
 
         if self.policy_buffer.is_full():
-            print("training")
-            self.train()
+            self.train() 
 
     def episode_done(self, env_idx):
         self.dones_t[env_idx] = 1.0
