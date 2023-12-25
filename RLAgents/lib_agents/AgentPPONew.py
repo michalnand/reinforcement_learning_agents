@@ -119,8 +119,6 @@ class AgentPPONew():
         self.logits_t[training_idx] = logits_t[training_idx].detach().to("cpu")
         self.values_t[training_idx] = values_t[training_idx, 0].detach().to("cpu")
 
-        print(">>>>> actions = ", self.actions_t.shape, actions.shape, training_idx.shape)
-
         self.actions_t[training_idx] = torch.from_numpy(actions).to("cpu")
         self.rewards_t[training_idx] = torch.from_numpy(rewards).to("cpu")
         self.dones_t[training_idx]   = torch.from_numpy(dones).float().to("cpu")

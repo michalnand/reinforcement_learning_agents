@@ -172,7 +172,6 @@ class TrainingCompetitive:
         
         legal_actions_mask  = numpy.ones((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
 
-        print(infos)
         if type(infos) is list:
             if type(infos[0]) is dict:
                 if "legal_actions_mask" in infos[0]:
