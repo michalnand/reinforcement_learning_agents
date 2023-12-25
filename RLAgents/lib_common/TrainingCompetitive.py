@@ -8,6 +8,7 @@ class TrainingCompetitive:
     def __init__(self, envs, agent, players_count, iterations_count, saving_path, log_period_iterations = 128):
         self.envs           = envs   
         self.envs_count     = len(self.envs)
+        self.state_shape    = self.envs.observation_space
         
         self.agent = agent
 
@@ -25,7 +26,7 @@ class TrainingCompetitive:
 
 
         #reset envs and fill initial state
-        self.states = numpy.zeros((self.envs_count, ) + self.envs.state_shape, dtype=numpy.float32)
+        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         self.infos  = []
         for e in range(self.envs_count):
             self.states[e], info = self.envs.reset(e)
