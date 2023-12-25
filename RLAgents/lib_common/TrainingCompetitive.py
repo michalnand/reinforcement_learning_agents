@@ -12,8 +12,6 @@ class TrainingCompetitive:
         
         self.agent = agent
 
-        players_count = 4
-
         self.players_count  = players_count
 
         self.iterations_count = iterations_count
