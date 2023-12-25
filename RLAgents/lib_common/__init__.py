@@ -5,6 +5,7 @@ from .RLStats               import RLStats
 from .RLStatsCompute        import RLStatsCompute
 
 from .Training              import TrainingIterations, TrainingIterationsMultiRuns
+from .TrainingCompetitive   import TrainingCompetitive
 from .TrainingLog           import TrainingLog
 
 

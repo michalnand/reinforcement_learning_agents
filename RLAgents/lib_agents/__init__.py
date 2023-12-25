@@ -25,6 +25,7 @@ from .AgentDQN                      import AgentDQN
 from .AgentDDPG                     import AgentDDPG
 
 from .AgentPPO                      import AgentPPO
+from .AgentPPONew                   import AgentPPONew
 from .AgentPPOSA                    import AgentPPOSA
 
 from .AgentPPORND                   import AgentPPORND
