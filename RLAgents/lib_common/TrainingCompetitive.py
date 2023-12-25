@@ -172,6 +172,7 @@ class TrainingCompetitive:
         
         legal_actions_mask  = numpy.ones((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
 
+        print(infos)
         if infos is not None:
             if "legal_actions_mask" in infos[0]:
                 legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
