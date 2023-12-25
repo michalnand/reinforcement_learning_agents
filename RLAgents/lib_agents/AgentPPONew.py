@@ -85,6 +85,7 @@ class AgentPPONew():
         self.policy_buffer.add(self.states_t, self.logits_t, self.values_t, self.actions_t, self.rewards_t, self.dones_t, self.hidden_state_t)
 
         if self.policy_buffer.is_full():
+            print("training")
             self.train()
 
     def episode_done(self, env_idx):
@@ -124,8 +125,6 @@ class AgentPPONew():
         self.dones_t[training_idx]   = torch.from_numpy(dones[training_idx]).float().to("cpu")
 
         self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
-
-        print(training_idx)
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
