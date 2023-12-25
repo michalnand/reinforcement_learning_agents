@@ -113,7 +113,7 @@ class AgentPPONew():
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
         
         #add into temporary buffer, before training
-        training_idx = numpy.where(training_enabled)
+        training_idx = numpy.where(training_enabled)[0]
 
         self.states_t[training_idx] = states_t[training_idx].detach().to("cpu")
         self.logits_t[training_idx] = logits_t[training_idx].detach().to("cpu")
