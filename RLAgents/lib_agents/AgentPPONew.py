@@ -124,7 +124,8 @@ class AgentPPONew():
         self.dones_t[training_idx]   = torch.from_numpy(dones).float().to("cpu")
 
         self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
- 
+
+        print(training_idx)
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
