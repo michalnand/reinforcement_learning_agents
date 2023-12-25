@@ -25,6 +25,9 @@ class MultiEnvSeq:
 		self.observation_space 	= self.envs[0].observation_space
 		self.action_space 		= self.envs[0].action_space
 
+	def __len__(self):
+		return len(self.envs)
+
 	def close(self):
 		pass
 
@@ -154,6 +157,9 @@ class MultiEnvParallel:
 
 		for i in range(self.envs_count):
 			self.workers[i].start()
+
+	def __len__(self):
+		return self.envs_count
 
 	def close(self):
 		for i in range(len(self.workers)):
@@ -332,6 +338,8 @@ class MultiEnvParallelOptimised:
 
 		time.sleep(2)
 
+	def __len__(self):
+		return self.envs_count
 
 	def close(self):
 		for i in range(len(self.workers)):
