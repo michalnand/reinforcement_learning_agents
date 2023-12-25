@@ -169,15 +169,16 @@ class TrainingCompetitive:
     #containing ones where action is legal
     #if not provided, returns ones - all actions allowed
     def _get_legal_actions_mask(self, infos): 
+        
+        legal_actions_mask  = numpy.ones((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
 
-        if infos is not None and "legal_actions_mask" in infos[0]:
-            legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
-            for e in range(self.envs_count):
-                legal_actions_mask[e] = infos[e]["legal_actions_mask"]
-        else:
-            legal_actions_mask  = numpy.ones((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
-
-        return legal_actions_mask
+        if infos is not None:
+            if "legal_actions_mask" in infos[0]:
+                legal_actions_mask  = numpy.zeros((self.envs_count,  self.envs.action_space.n), dtype=numpy.float32) 
+                for e in range(self.envs_count):
+                    legal_actions_mask[e] = infos[e]["legal_actions_mask"]
+        
+        return legal_actions_mask 
 
     #returns remaining time in hours
     def _estimate_time(self, iteration, time_iterations = 128):
