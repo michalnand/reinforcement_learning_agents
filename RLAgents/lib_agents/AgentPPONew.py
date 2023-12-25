@@ -123,7 +123,7 @@ class AgentPPONew():
 
         self.actions_t[training_idx] = torch.from_numpy(actions).to("cpu")
         self.rewards_t[training_idx] = torch.from_numpy(rewards).to("cpu")
-        self.dones_t[training_idx]   = torch.from_numpy(dones).to("cpu")
+        self.dones_t[training_idx]   = torch.from_numpy(dones).float().to("cpu")
 
         self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
  
