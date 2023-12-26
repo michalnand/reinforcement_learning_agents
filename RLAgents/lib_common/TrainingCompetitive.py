@@ -81,8 +81,8 @@ class TrainingCompetitive:
 
             score = infos[0]["raw_score"]
             if score > 0:
-                print(score)
-
+                print(p, score)
+ 
             #fill master done
             master_done = numpy.logical_or(master_done, dones)
 
