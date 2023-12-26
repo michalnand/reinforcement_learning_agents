@@ -78,6 +78,11 @@ class TrainingCompetitive:
             else:
                 master_score = master_rewards.copy()
 
+
+            score = infos[0]["raw_score"]
+            if score > 0:
+                print(score)
+
             #fill master done
             master_done = numpy.logical_or(master_done, dones)
 
