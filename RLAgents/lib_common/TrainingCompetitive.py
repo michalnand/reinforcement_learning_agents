@@ -77,11 +77,6 @@ class TrainingCompetitive:
                     master_score[e] = infos[e]["raw_score"]
             else:
                 master_score = master_rewards.copy()
-
-
-            score = infos[0]["raw_score"]
-            if score > 0:
-                print(p, score)
  
             #fill master done
             master_done = numpy.logical_or(master_done, dones)
@@ -121,6 +116,8 @@ class TrainingCompetitive:
 
             rewards_sum+= rewards
             score_sum+= score
+
+            print(">>>> ",score_sum.shape, score.shape)
 
             time_remaining = self._estimate_time(iteration)
 
