@@ -277,7 +277,8 @@ class RawScoreEnv(gym.Wrapper):
             self.raw_score_per_episode = (1.0 - k)*self.raw_score_per_episode + k*self.raw_score            
             self.raw_score = 0.0
 
-        info["raw_score"] = self.raw_score_per_episode
+        info["raw_score"]  = self.raw_score_per_episode
+        info["raw_reward"] = reward
 
         reward = max(0.0, float(reward)) 
         reward = numpy.sign(reward)

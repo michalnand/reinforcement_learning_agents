@@ -71,10 +71,10 @@ class TrainingCompetitive:
             #fill master rewards
             master_rewards[master_idx] = rewards[master_idx]
 
-            #fill master raw score, if any
-            if "raw_score" in infos[0]:
+            #fill master raw reward, if any
+            if "raw_reward" in infos[0]:
                 for e in master_idx:
-                    master_score[e] = infos[e]["raw_score"]
+                    master_score[e] = infos[e]["raw_reward"]
             else:
                 master_score = master_rewards.copy()
  
