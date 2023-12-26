@@ -117,7 +117,8 @@ class TrainingCompetitive:
             rewards_sum+= rewards
             score_sum+= score
 
-            print(">>>> ",score_sum.shape, score.shape)
+            print(score_sum[0:10])
+
 
             time_remaining = self._estimate_time(iteration)
 
