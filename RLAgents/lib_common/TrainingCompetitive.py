@@ -66,7 +66,7 @@ class TrainingCompetitive:
             self.infos  = infos.copy()
 
 
-            master_idx  = numpy.where(is_master_player == 0)[0]
+            master_idx  = numpy.where(is_master_player)[0]
 
             #fill master rewards
             master_rewards[master_idx] = rewards[master_idx]
