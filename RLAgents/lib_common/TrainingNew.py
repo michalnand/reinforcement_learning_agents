@@ -86,6 +86,8 @@ class TrainingNew:
             rewards_sum+= rewards
             score_sum+= score
 
+            print(infos)
+
             info = infos[0].copy()
 
             if "legal_actions_mask" in info:
