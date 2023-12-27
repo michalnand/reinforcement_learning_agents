@@ -173,7 +173,7 @@ class AgentPPOCSND():
         if self.rnn_policy:
             logits, values_ext, values_int, hidden_state_new  = self.model_ppo.forward(states_t, self.hidden_state)
         else:
-            logits, values_ext, values_int  = self.model_ppo.forward(states)
+            logits, values_ext, values_int  = self.model_ppo.forward(states_t)
         
         #collect actions 
         actions = self._sample_actions(logits, legal_actions_mask)
