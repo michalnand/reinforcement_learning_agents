@@ -97,8 +97,8 @@ class AgentPPOCSND():
         self.model_im      = ModelIM.Model(self.state_shape)
         self.model_im.to(self.device)
 
-        self.optimizer_im_target     = torch.optim.Adam([self.model_im.target.parameters(). self.model_im.model_causality()], lr=config.learning_rate_im)
-        self.optimizer_im_predictor  = torch.optim.Adam(self.model_im.predictor.parameters(), lr=config.learning_rate_im)
+        self.optimizer_im_target     = torch.optim.Adam([self.model_im.model_target.parameters(). self.model_im.model_causality()], lr=config.learning_rate_im)
+        self.optimizer_im_predictor  = torch.optim.Adam(self.model_im.model_predictor.parameters(), lr=config.learning_rate_im)
 
       
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
