@@ -8,7 +8,6 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
   
-import matplotlib.pyplot as plt
 
 class AgentPPOCSND():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
@@ -97,20 +96,17 @@ class AgentPPOCSND():
         #im model, target and predictor
         self.model_im      = ModelIM.Model(self.state_shape)
         self.model_im.to(self.device)
-        self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
+
+        self.optimizer_im_target     = torch.optim.Adam([self.model_im.target.parameters(). self.model_im.model_causality()], lr=config.learning_rate_im)
+        self.optimizer_im_predictor  = torch.optim.Adam(self.model_im.predictor.parameters(), lr=config.learning_rate_im)
 
       
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-
-        #reset envs and fill initial state
-        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.envs_count):
-            self.states[e], _  = self.envs.reset(e)
-
-        self.states_prev = self.states.copy()
-
-
+        #fill initial state
+        self.states      = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+        self.states_prev = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
+       
         if self.rnn_policy:
             self.hidden_state = torch.zeros((self.envs_count, self.model_ppo.rnn_size), dtype=torch.float32, device=self.device)
         else:
@@ -125,9 +121,6 @@ class AgentPPOCSND():
         self.rewards_int     = torch.zeros(self.envs_count, dtype=torch.float32)
         self.rewards_int_old = torch.zeros(self.envs_count, dtype=torch.float32)
 
-
-        self.enable_training() 
-        self.iterations     = 0 
 
         #self.steps_log = []
         #self.z_log     = []
@@ -149,41 +142,47 @@ class AgentPPOCSND():
         self.values_logger.add("loss_ppo_self_supervised", 0.0)
         self.values_logger.add("loss_target_self_supervised", 0.0)
         self.values_logger.add("loss_target_causality", 0.0)
-        self.values_logger.add("loss_distillation", 0.0)
+        self.values_logger.add("loss_predictor", 0.0)
         self.values_logger.add("accuracy", 0.0)
 
-       
-    def enable_training(self): 
-        self.enabled_training = True
- 
-    def disable_training(self):
-        self.enabled_training = False
- 
-    def main(self):         
-        
-        #normalise if any
-        states      = self._state_normalise(self.states)
-        states_prev = self._state_normalise(self.states_prev)
+
+    def round_start(self): 
+        pass
+
+    def round_finish(self): 
+        pass
+
+    def episode_done(self, env_idx):
+        pass
+
+    def step(self, states, training_enabled, legal_actions_mask):        
+            
+        self.states_prev = self.states.copy()
+        self.states      = states.copy()
+
+        #normalise state
+        states_norm      = self._state_normalise(self.states)
+        states_prev_norm = self._state_normalise(self.states_prev)
         
         #state to tensor
-        states      = torch.tensor(states, dtype=torch.float).to(self.device)
-        states_prev = torch.tensor(states_prev, dtype=torch.float).to(self.device)
+        states_t      = torch.tensor(states_norm, dtype=torch.float).to(self.device)
+        states_prev_t = torch.tensor(states_prev_norm, dtype=torch.float).to(self.device)
         
 
         #compute model output
         if self.rnn_policy:
-            logits, values_ext, values_int, hidden_state_new  = self.model_ppo.forward(states, self.hidden_state)
+            logits, values_ext, values_int, hidden_state_new  = self.model_ppo.forward(states_t, self.hidden_state)
         else:
             logits, values_ext, values_int  = self.model_ppo.forward(states)
         
         #collect actions 
-        actions = self._sample_actions(logits)
+        actions = self._sample_actions(logits, legal_actions_mask)
         
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation 
-        rewards_int_a, rewards_int_b = self._internal_motivation(states_prev, states)
+        rewards_int_a, rewards_int_b = self._internal_motivation(states_prev_t, states_t)
 
         rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
         rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
@@ -196,7 +195,7 @@ class AgentPPOCSND():
 
         
         #put into policy buffer
-        if self.enabled_training:
+        if training_enabled:
             states          = states.detach().to("cpu")
             logits          = logits.detach().to("cpu")
             values_ext      = values_ext.squeeze(1).detach().to("cpu") 
@@ -228,7 +227,6 @@ class AgentPPOCSND():
             if dones[e]:
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-                self.episode_steps[e]   = 0
 
                 self.rewards_int_old[e] = 0.0
                 self.rewards_int[e]     = 0.0
@@ -241,12 +239,11 @@ class AgentPPOCSND():
         self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
-        self.iterations+= 1
-        self.episode_steps+= 1
+        
 
-        return rewards_ext[0], dones[0], infos[0]
+        return states_new, rewards_ext, dones, infos
      
-    
+    '''
     def _add_for_plot(self, states, episode_steps):
         
         if  self.iterations%10 == 0: 
@@ -273,7 +270,7 @@ class AgentPPOCSND():
                 plt.xlabel("episode steps")
                 plt.ylabel("z distance")
                 plt.show()
-            
+    '''  
         
      
     
@@ -302,8 +299,15 @@ class AgentPPOCSND():
     def get_log(self): 
         return self.values_logger.get_str()
 
-    def _sample_actions(self, logits):
+    def _sample_actions(self, logits, legal_actions_mask):
+        legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
+
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
+
+        #keep only legal actions probs, and renormalise probs
+        action_probs_t        = action_probs_t*legal_actions_mask_t
+        action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1).unsqueeze(1)
+
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
@@ -346,27 +350,30 @@ class AgentPPOCSND():
                 #train snd target model, self supervised    
                 loss_target_self_supervised = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
 
-
                 states_a, states_b, distances = self.policy_buffer.sample_random_states_pairs(small_batch, 4, self.device)
 
-                loss_target_causality = self._causality_loss(self.model_im.forward_causality, states_a, states_b, distances)
+                loss_target_causality, acc = self._causality_loss(self.model_im.forward_causality, states_a, states_b, distances)
 
-                #train multiple SND models, MSE loss
-                loss_distillation = self._loss_distillation(states)
+                loss_target = loss_target_self_supervised + self.causality_loss_coeff*loss_target_causality
 
+                self.optimizer_im_target.zero_grad()
+                loss_target.backward()
+                self.optimizer_im_target.step()
 
-                loss_im = loss_target_self_supervised + self.causality_loss_coeff*loss_target_causality + loss_distillation
-                self.optimizer_im.zero_grad() 
-                loss_im.backward()
-                self.optimizer_im.step()
+                #train predictor model for distillation (MSE loss)
+                loss_predictor = self._loss_distillation(states)
 
-
+                self.optimizer_im_predictor.zero_grad() 
+                loss_predictor.backward()
+                self.optimizer_im_predictor.step()
                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_target_self_supervised",   loss_target_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_target_causality",   loss_target_causality.detach().cpu().numpy())
-                self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
+                self.values_logger.add("loss_target_self_supervised", loss_target_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_target_causality", loss_target_causality.detach().cpu().numpy())
+                self.values_logger.add("loss_predictor", loss_predictor.detach().cpu().numpy())
+                self.values_logger.add("accuracy", acc.detach().cpu().numpy())
+
 
         self.policy_buffer.clear() 
 
@@ -449,9 +456,7 @@ class AgentPPOCSND():
         acc = ((pred > 0.5) == (distances > 0.0)).float()
         acc = acc.mean()
 
-        self.values_logger.add("accuracy", acc.detach().cpu().numpy())
-
-        return loss
+        return loss, acc
     
         
    

@@ -4,6 +4,10 @@ from .MultiEnv              import MultiEnvSeq, MultiEnvParallel, MultiEnvParall
 from .RLStats               import RLStats
 from .RLStatsCompute        import RLStatsCompute
 
+
+from .TrainingNew           import TrainingNew
+
+
 from .Training              import TrainingIterations, TrainingIterationsMultiRuns
 from .TrainingCompetitive   import TrainingCompetitive
 from .TrainingLog           import TrainingLog
