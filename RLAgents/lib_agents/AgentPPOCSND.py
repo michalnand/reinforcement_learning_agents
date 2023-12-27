@@ -161,8 +161,8 @@ class AgentPPOCSND():
         self.states      = states.copy()
 
         #normalise state
-        states_norm      = self._state_normalise(self.states)
-        states_prev_norm = self._state_normalise(self.states_prev)
+        states_norm      = self._state_normalise(self.states, training_enabled)
+        states_prev_norm = self._state_normalise(self.states_prev, training_enabled)
         
         #state to tensor
         states_t      = torch.tensor(states_norm, dtype=torch.float).to(self.device)
@@ -504,11 +504,11 @@ class AgentPPOCSND():
 
 
 
-    def _state_normalise(self, states, alpha = 0.99): 
+    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
 
         if self.state_normalise:
             #update running stats only during training
-            if self.enabled_training:
+            if training_enabled:
                 mean = states.mean(axis=0)
                 self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
         
