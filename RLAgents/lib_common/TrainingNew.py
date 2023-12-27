@@ -63,9 +63,6 @@ class TrainingNew:
             #reset env
             self.states[e], self.infos[e] = self.envs.reset(e)
 
-            #shuffle players order for this env
-            self._new_players_order(e)
-
         #all players are done
         self.agent.round_finish()
 
@@ -138,10 +135,6 @@ class TrainingNew:
         self.log_f.close() 
 
         
-
-    #after each game, new players order is generated
-    def _new_players_order(self, env_id):
-        self.players_order[env_id] = numpy.random.permutation(self.players_count)
 
     #extract binary matrix with shape (envs_count, actions_count) from infos,
     #containing ones where action is legal
