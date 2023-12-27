@@ -120,7 +120,7 @@ class TrainingNew:
                 log_str+= str(round(score_episode.mean(), 5)) + " "
                 log_str+= str(round(time_remaining, 2)) + " "
                 log_str+= log_agent + " "
-                log_str+= info + " "
+                log_str+= str(info) + " "
 
                 print(log_str)
                 self.log_f.write(log_str + "\n")
