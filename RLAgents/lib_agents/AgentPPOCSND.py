@@ -171,12 +171,12 @@ class AgentPPOCSND():
 
         #compute model output
         if self.rnn_policy:
-            logits, values_ext, values_int, hidden_state_new  = self.model_ppo.forward(states_t, self.hidden_state)
+            logits_t, values_ext_t, values_int_t, hidden_state_new  = self.model_ppo.forward(states_t, self.hidden_state)
         else:
-            logits, values_ext, values_int  = self.model_ppo.forward(states_t)
+            logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
         
         #collect actions 
-        actions = self._sample_actions(logits, legal_actions_mask)
+        actions = self._sample_actions(logits_t, legal_actions_mask)
         
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
@@ -196,19 +196,19 @@ class AgentPPOCSND():
         
         #put into policy buffer
         if training_enabled:
-            states          = states.detach().to("cpu")
-            logits          = logits.detach().to("cpu")
-            values_ext      = values_ext.squeeze(1).detach().to("cpu") 
-            values_int      = values_int.squeeze(1).detach().to("cpu")
-            actions         = torch.from_numpy(actions).to("cpu")
+            states_t        = states_t.detach().to("cpu")
+            logits_t        = logits_t.detach().to("cpu")
+            values_ext_t    = values_ext_t.squeeze(1).detach().to("cpu") 
+            values_int_t    = values_int_t.squeeze(1).detach().to("cpu")
+            actions_t       = torch.from_numpy(actions).to("cpu")
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
             rewards_int_t   = rewards_int.detach().to("cpu")
-            dones           = torch.from_numpy(dones).to("cpu")
+            dones_t         = torch.from_numpy(dones).to("cpu")
             
             episode_steps   = self.episode_steps.detach().to("cpu")
             hidden_state    = self.hidden_state.detach().to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state, episode_steps=episode_steps)
+            self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions_t, rewards_ext_t, rewards_int_t, dones_t, hidden_state, episode_steps=episode_steps)
 
             if self.policy_buffer.is_full():
                 self.train()
