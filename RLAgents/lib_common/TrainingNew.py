@@ -61,8 +61,8 @@ class TrainingNew:
             self.agent.episode_done(e)
 
             #reset env
-            self.states[e], self.infos[e] = self.envs.reset(e)
-
+            self.states[e], _ = self.envs.reset(e)
+ 
         #all players are done
         self.agent.round_finish()
 
@@ -86,7 +86,6 @@ class TrainingNew:
             rewards_sum+= rewards
             score_sum+= score
 
-            print(infos)
 
             info = infos[0].copy()
 
