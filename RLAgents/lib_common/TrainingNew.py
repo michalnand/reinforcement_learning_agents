@@ -48,7 +48,7 @@ class TrainingNew:
 
         #fill master raw reward, if any
         if "raw_reward" in infos[0]:
-            for e in self.envs_count:
+            for e in range(self.envs_count):
                 score[e] = infos[e]["raw_reward"]
         else:
             score = rewards.copy()
