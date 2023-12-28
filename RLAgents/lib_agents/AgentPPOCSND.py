@@ -228,9 +228,6 @@ class AgentPPOCSND():
                 self.states[e], _       = self.envs.reset(e)
                 self.hidden_state[e]    = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
 
-                self.rewards_int_old[e] = 0.0
-                self.rewards_int[e]     = 0.0
-         
         #self._add_for_plot(states, self.episode_steps)
         
         #collect stats
