@@ -529,17 +529,17 @@ class AgentPPOCSND():
 
 
 
-    def _state_normalise(self, states, alpha = 0.99): 
+    def _state_normalise(self, states, training_enabled, alpha = 0.99): 
 
         if self.state_normalise:
             #update running stats only during training
-            if self.enabled_training:
+            if training_enabled:
                 mean = states.mean(axis=0)
                 self.state_mean = alpha*self.state_mean + (1.0 - alpha)*mean
         
                 var = ((states - mean)**2).mean(axis=0)
                 self.state_var  = alpha*self.state_var + (1.0 - alpha)*var 
-            
+             
             #normalise mean and variance
             states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
             states_norm = numpy.clip(states_norm, -4.0, 4.0)
