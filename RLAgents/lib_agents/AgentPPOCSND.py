@@ -137,7 +137,7 @@ class AgentPPOCSND():
         self.values_logger.add("loss_ppo_self_supervised", 0.0)
         self.values_logger.add("loss_target_self_supervised", 0.0)
         self.values_logger.add("loss_target_causality", 0.0)
-        self.values_logger.add("loss_predictor", 0.0)
+        self.values_logger.add("loss_distillation", 0.0)
         self.values_logger.add("accuracy", 0.0)
 
         self.info_logger = {}
@@ -291,8 +291,15 @@ class AgentPPOCSND():
     def get_log(self): 
         return self.values_logger.get_str() + str(self.info_logger)
 
-    def _sample_actions(self, logits):
+    def _sample_actions(self, logits, legal_actions_mask):
+        legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
+
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
+
+        #keep only legal actions probs, and renormalise probs
+        action_probs_t        = action_probs_t*legal_actions_mask_t
+        action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1).unsqueeze(1)
+
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
@@ -305,7 +312,6 @@ class AgentPPOCSND():
 
         small_batch = 16*self.batch_size 
 
-        accuracy_all = 0.0
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
@@ -340,16 +346,23 @@ class AgentPPOCSND():
                 loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar)                
 
 
-                if self._target_self_awareness_loss is not None:
-                    loss_target_self_awareness, accuracy  = self._target_self_awareness_loss(self.model_target.forward_aux, self._augmentations, states_now, states_next, states_similar, states_random, actions, relations)                
-                else:
-                    loss_target_self_awareness  = 0
-                    accuracy                    = numpy.zeros((1, ))
 
-                accuracy_all+= accuracy 
+                #sample smaller batch for self supervised loss, different distances for different models
+                states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
-                #TODO : do we need loss scaling ?
-                loss_target = loss_target_self_supervised + 0.1*loss_target_self_awareness
+                #train snd target causality part
+                states, steps = self.policy_buffer.sample_states_steps(small_batch, self.device)
+
+
+
+                self._causality_loss(states, steps)
+
+                
+                z = self.model_im.forward_target(states)
+                loss_target_causality, acc = self._causality_loss(self.model_im.forward_causality, z, steps)
+
+                loss_target = loss_target_self_supervised + self.causality_loss_coeff*loss_target_causality
+
             
     
                 self.optimizer_target.zero_grad() 
@@ -369,18 +382,15 @@ class AgentPPOCSND():
                 loss_distillation = loss_distillation.detach().to("cpu").numpy()
                
                 #log results
-                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised)
-                self.values_logger.add("loss_target",   loss_target)
-                self.values_logger.add("loss_distillation", loss_distillation)
+                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_target_self_supervised", loss_target_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_target_causality", loss_target_causality.detach().cpu().numpy())
+                self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
+                self.values_logger.add("accuracy", acc.detach().cpu().numpy())
 
         self.policy_buffer.clear() 
 
-        accuracy_all = accuracy_all/(self.training_epochs*batch_count)
-        accuracy_all = numpy.round(accuracy_all, 4)
 
-        self.info_logger["accuracy"] = list(accuracy_all)
-
-    
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
 
         if self.rnn_policy:
@@ -422,6 +432,44 @@ class AgentPPOCSND():
         loss = ((z_target_t.detach() - z_predicted_t)**2).mean()
 
         return loss  
+    
+
+    '''
+    z.shape      = (batch_size, features_count)
+    states.shape = (batch_size, ) + self.state_shape
+    steps.shape  = (batch_size, )  (int)
+
+    e.g. 
+    steps       : tensor([47, 48, 21, 49,  5, 94, 71, 86])
+    indices     : tensor([4,   2,  0,  1,  3,  6,  7,  5])
+    order_gt    : tensor([2,   3,  1,  4,  0,  7,  5,  6])
+
+    order_gt number represents target class id, 
+    relative order in context of steps count
+    '''
+    def _causality_loss(self, forward_func, z, steps):
+        #sort steps count from lowest to highest
+        indices = torch.argsort(steps)
+
+        #obtain labels, order indices
+        order_gt  = torch.argsort(indices)
+
+        #obtain predictions logits, shape : (batch_size, batch_size)
+        #causality model works with sequnces : (batch_size, seq_length, features)
+        #in this case, batch_size = 1, seq_length = batch_size
+        z          = z.unsqueeze(0)
+        order_pred = forward_func(z)
+        order_pred = order_pred.squeeze(0)
+
+        #classification loss
+        loss_func = torch.nn.CrossEntropyLoss()
+        loss = loss_func(order_pred, order_gt)
+
+        #compute accuracy for log results
+        acc = (torch.argmax(order_pred, dim=1) == order_gt).float()
+        acc = acc.mean()
+
+        return loss, acc
    
     #compute internal motivations
     def _internal_motivation(self, states):        
@@ -435,7 +483,7 @@ class AgentPPOCSND():
         #add new features into causality buffer
         idx = self.iterations%self.contextual_buffer_size
         self.contextual_buffer_states[:, idx, :] = z_target_t.detach()
-        self.contextual_buffer_steps[:, idx, :] = self.episode_steps.to(self.device)
+        self.contextual_buffer_steps[:, idx, :]  = self.episode_steps.to(self.device)
 
         #obtain target states ordering from stored episode steps
         causality_target = torch.argsort(torch.argsort(self.contextual_buffer_steps))
@@ -445,11 +493,12 @@ class AgentPPOCSND():
         causality_pred = torch.argmax(pred, dim=2)
 
         #main idea of contextual causality internal motivation (CCIM) : 
-        #accuracy of prediction is causality internal motivation
-        #the better the model predicts states ordering, the less
-        #chaotic is agent policy
-        #this strongly differs from simple agent logits entropy minimalization,
+        #prediction accuracy is CCIM
+        #the better the model predicts states ordering,
+        #the less chaotic is agent policy
+        #this strongly differs from simple agent logits entropy minimalization ! ,
         #the CCIM rewards the trajectory itself, directly obtained from environement properties
+        #a.k.a. directly resulted from state, action transitions
         acc = (causality_target == causality_pred).float()
         causality_t = acc.mean(dim=1).detach()
         
