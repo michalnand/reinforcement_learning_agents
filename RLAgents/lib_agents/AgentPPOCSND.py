@@ -483,7 +483,7 @@ class AgentPPOCSND():
         #add new features into causality buffer
         idx = self.iterations%self.contextual_buffer_size
         self.contextual_buffer_states[:, idx, :] = z_target_t.detach()
-        self.contextual_buffer_steps[:, idx, :]  = self.episode_steps.to(self.device)
+        self.contextual_buffer_steps[:, idx]     = self.episode_steps.to(self.device)
 
         #obtain target states ordering from stored episode steps
         causality_target = torch.argsort(torch.argsort(self.contextual_buffer_steps))
