@@ -11,7 +11,7 @@ from .Augmentations         import *
 #import matplotlib.pyplot as plt
 
 class AgentPPOCSND():   
-    def __init__(self, envs, ModelPPO, ModelPredictor, ModelTarget, config):
+    def __init__(self, envs, ModelPPO, ModelTarget, ModelPredictor, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -88,17 +88,17 @@ class AgentPPOCSND():
         self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        #snd predictor model
-        self.model_predictor      = ModelPredictor.Model(self.state_shape)
-        self.model_predictor.to(self.device)
-        self.optimizer_predictor  = torch.optim.Adam(self.model_predictor.parameters(), lr=config.learning_rate_predictor)
-
         #target model
         self.model_target      = ModelTarget.Model(self.state_shape, self.actions_count)
         self.model_target.to(self.device)
         self.optimizer_target  = torch.optim.Adam(self.model_target.parameters(), lr=config.learning_rate_target)
 
- 
+        #snd predictor model
+        self.model_predictor      = ModelPredictor.Model(self.state_shape)
+        self.model_predictor.to(self.device)
+        self.optimizer_predictor  = torch.optim.Adam(self.model_predictor.parameters(), lr=config.learning_rate_predictor)
+
+    
         self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
 
