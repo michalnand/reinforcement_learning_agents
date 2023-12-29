@@ -500,8 +500,8 @@ class AgentPPOCSND():
         #the CCIM rewards the trajectory itself, directly obtained from environement properties
         #a.k.a. directly resulted from state, action transitions
         acc = (causality_target == causality_pred).float()
-        causality_t = acc.mean(dim=1).detach()
-        
+        causality_t = acc.mean(dim=1).detach().to("cpu")
+         
         return novelty_t, causality_t
     
  
