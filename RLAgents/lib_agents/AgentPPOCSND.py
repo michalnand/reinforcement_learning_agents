@@ -533,7 +533,7 @@ class AgentPPOCSND():
         print("\n\n")
         
         #classification loss
-        loss = ((order_gt - order_pred)**2).mean()
+        loss = ((order_gt_one_hot - order_pred)**2).mean()
 
         
 
