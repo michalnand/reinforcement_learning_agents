@@ -353,11 +353,6 @@ class AgentPPOCSND():
                 #train snd target causality part
                 states, steps = self.policy_buffer.sample_states_steps(small_batch, self.device)
 
-
-
-                self._causality_loss(states, steps)
-
-                
                 z = self.model_im.forward_target(states)
                 loss_target_causality, acc = self._causality_loss(self.model_im.forward_causality, z, steps)
 
