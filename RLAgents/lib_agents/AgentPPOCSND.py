@@ -215,17 +215,14 @@ class AgentPPOCSND():
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 
-         
         #reset env if done
         dones_idx = numpy.where(dones)[0]
         for e in dones_idx: 
-            #states_new[e], _            = self.envs.reset(e)
             self.hidden_state[e]        = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
             self.episode_steps[e]       = 0
             
             self.contextual_buffer_states[e] = 0.0
             self.contextual_buffer_steps[e]  = 0
-        
         
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
@@ -371,7 +368,7 @@ class AgentPPOCSND():
                 loss_target = loss_target.detach().to("cpu").numpy()
 
 
-                #train multiple SND models, MSE loss
+                #train SND model, MSE loss
                 loss_distillation = self._loss_distillation(states)
 
                 self.optimizer_predictor.zero_grad() 
@@ -445,6 +442,8 @@ class AgentPPOCSND():
     order_gt number represents target class id, 
     relative order in context of steps count
     '''
+
+    '''
     def _causality_loss(self, forward_func, z, steps):
         #sort steps count from lowest to highest
         indices = torch.argsort(steps)
@@ -458,6 +457,35 @@ class AgentPPOCSND():
         z          = z.unsqueeze(0)
         order_pred = forward_func(z)
         order_pred = order_pred.squeeze(0)
+
+        #classification loss
+        loss_func = torch.nn.CrossEntropyLoss()
+        loss = loss_func(order_pred, order_gt)
+
+        #compute accuracy for log results
+        acc = (torch.argmax(order_pred, dim=1) == order_gt).float()
+        acc = acc.mean()
+
+        return loss, acc
+    '''
+
+    def _causality_loss(self, forward_func, z, steps):
+        seq_length = self.contextual_buffer_size
+        batch_size = z.shape[0]//seq_length
+        
+
+        steps_tmp = steps.reshape((batch_size, seq_length))
+
+        #sort steps count from lowest to highest
+        indices = torch.argsort(steps_tmp)
+
+        #obtain labels, order indices
+        order_gt  = torch.argsort(indices)
+
+        #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
+        #causality model works with sequences : (batch_size, seq_length, features)
+        z          = z.reshape((batch_size, seq_length, z.shape[-1]))
+        order_pred = forward_func(z)
 
         #classification loss
         loss_func = torch.nn.CrossEntropyLoss()
