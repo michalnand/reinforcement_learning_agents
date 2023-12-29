@@ -89,7 +89,7 @@ class AgentPPOCSND():
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
         #target model
-        self.model_target      = ModelTarget.Model(self.state_shape, self.actions_count)
+        self.model_target      = ModelTarget.Model(self.state_shape)
         self.model_target.to(self.device)
         self.optimizer_target  = torch.optim.Adam(self.model_target.parameters(), lr=config.learning_rate_target)
 
