@@ -177,7 +177,7 @@ class AgentPPOCSND():
         self.rewards_int_prev   = self.rewards_int.clone()
  
 
-        rewards_int_a, rewards_int_b  = self._internal_motivation(states)
+        rewards_int_a, rewards_int_b  = self._internal_motivation(states_t)
 
         rewards_int_a  = self.reward_int_a_coeff*rewards_int_a
         rewards_int_b  = self.reward_int_b_coeff*rewards_int_b
