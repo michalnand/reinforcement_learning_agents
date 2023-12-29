@@ -476,11 +476,17 @@ class AgentPPOCSND():
 
         steps_tmp = steps.reshape((batch_size, seq_length))
 
+        
+
         #sort steps count from lowest to highest
         indices = torch.argsort(steps_tmp)
 
         #obtain labels, order indices
         order_gt  = torch.argsort(indices)
+
+        print(">>> ", steps_tmp[5])
+        print(">>> ", order_gt[5])
+        print("\n\n")
 
         #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
         #causality model works with sequences : (batch_size, seq_length, features)
