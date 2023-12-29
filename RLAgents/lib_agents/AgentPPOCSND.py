@@ -474,9 +474,10 @@ class AgentPPOCSND():
         batch_size = z.shape[0]//seq_length
         
 
+        #causality model works with sequences : (batch_size, seq_length, features)
         steps_tmp = steps.reshape((batch_size, seq_length))
+        z_tmp = z.reshape((batch_size, seq_length, z.shape[-1]))
 
-        
 
         #sort steps count from lowest to highest
         indices = torch.argsort(steps_tmp)
@@ -486,16 +487,7 @@ class AgentPPOCSND():
 
        
         #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
-        #causality model works with sequences : (batch_size, seq_length, features)
-        z          = z.reshape((batch_size, seq_length, z.shape[-1]))
-        order_pred = forward_func(z)
-
-
-        print(">>> ", steps_tmp[5])
-        print(">>> ", order_gt[5])
-        print(">>> ", torch.argmax(order_pred, dim=-1)[5])
-        print("\n\n") 
-
+        order_pred = forward_func(z_tmp)
 
         #classification loss
         loss_func = torch.nn.CrossEntropyLoss()
