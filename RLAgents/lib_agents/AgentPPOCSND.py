@@ -336,7 +336,6 @@ class AgentPPOCSND():
                 torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
                 self.optimizer_ppo.step()
 
-                loss_ppo_self_supervised = loss_ppo_self_supervised.detach().cpu().numpy()
 
               
                 #sample smaller batch for self supervised loss, different distances for different models
@@ -374,7 +373,6 @@ class AgentPPOCSND():
                 loss_distillation.backward()
                 self.optimizer_predictor.step() 
 
-                loss_distillation = loss_distillation.detach().to("cpu").numpy()
                
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
