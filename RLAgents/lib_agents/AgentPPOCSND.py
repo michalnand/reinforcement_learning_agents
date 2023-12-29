@@ -352,7 +352,7 @@ class AgentPPOCSND():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target causality part
-                states, steps = self.policy_buffer.sample_states_steps(small_batch, self.device)
+                states, steps = self.policy_buffer.sample_states_steps(self.batch_size*self.envs_count, self.device)
 
                 z = self.model_target(states)
                 loss_target_causality, acc = self._causality_loss(self.model_target.forward_causality, z, steps)
@@ -523,13 +523,14 @@ class AgentPPOCSND():
         #obtain predictions logits, shape : (batch_size, seq_length)
         order_pred = forward_func(z_tmp)
 
+        print(">>>> ", batch_size, seq_length, order_gt_norm.shape, order_pred.shape)
         '''
         print("order_gt         = ", order_gt[5])
         print("order_pred       = ", order_pred[5])
         print("order_gt_norm    = ", order_gt_norm[5])
         print("\n\n")
         '''
-        
+
         #regression loss
         loss = ((order_gt_norm - order_pred)**2).mean()
 
