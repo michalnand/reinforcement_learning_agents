@@ -518,28 +518,23 @@ class AgentPPOCSND():
         #obtain labels, order indices
         order_gt  = torch.argsort(indices)
 
-        order_gt_one_hot = torch.nn.functional.one_hot(order_gt, seq_length).to(self.device)
-
-        #torch.zeros((batch_size, seq_length, seq_length), dtype=torch.float32, device=self.device)
-
- 
+        order_gt_norm = order_gt/(seq_length-1)
        
-        #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
+        #obtain predictions logits, shape : (batch_size, seq_length)
         order_pred = forward_func(z_tmp)
 
-        '''
-        print("order_gt         = ", order_gt[5])
-        print("order_gt_one_hot = \n", order_gt_one_hot[5])
-        print("order_pred       = \n", order_pred[5])
-        print("\n\n")
-        '''
 
-        #classification loss
-        loss = ((order_gt_one_hot - order_pred)**2).mean()
+        print("order_gt         = ", order_gt[5])
+        print("order_pred       = ", order_pred[5])
+        print("order_gt_norm    = ", order_gt_norm[5])
+        print("\n\n")
+
+        #regression loss
+        loss = ((order_gt_norm - order_pred)**2).mean()
 
         
         #compute accuracy for log results
-        acc = (torch.argmax(order_pred, dim=-1) == order_gt).float()
+        acc = (torch.argsort(torch.argsort(order_pred.detach())) == order_gt).float()
         acc = acc.mean()
 
         return loss, acc
@@ -564,7 +559,9 @@ class AgentPPOCSND():
 
         #obtain prediction states ordering 
         pred = self.model_target.forward_causality(self.contextual_buffer_states)
-        causality_pred = torch.argmax(pred, dim=2)
+
+        causality_pred = torch.argsort(torch.argsort(pred.detach()))
+
 
         #main idea of contextual causality internal motivation (CCIM) : 
         #prediction accuracy is CCIM
