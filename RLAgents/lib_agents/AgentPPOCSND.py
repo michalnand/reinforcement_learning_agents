@@ -114,6 +114,11 @@ class AgentPPOCSND():
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
+
+        for e in range(self.envs_count):
+            state, _ = self.envs.reset(e)
+            self.state_mean = state.copy()
+
         self.state_var   = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
         self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
