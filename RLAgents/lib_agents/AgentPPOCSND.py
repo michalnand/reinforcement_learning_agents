@@ -522,16 +522,18 @@ class AgentPPOCSND():
 
         #torch.zeros((batch_size, seq_length, seq_length), dtype=torch.float32, device=self.device)
 
-        print("order_gt         = ", order_gt[5])
-        print("order_gt_one_hot = \n", order_gt_one_hot[5])
-        print("\n\n")
+ 
        
         #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
         order_pred = forward_func(z_tmp)
 
         #classification loss
-        loss_func = torch.nn.CrossEntropyLoss()
-        loss = loss_func(order_pred, order_gt)
+        loss = ((order_gt - order_pred)**2).mean()
+
+        print("order_gt         = ", order_gt[5])
+        print("order_gt_one_hot = \n", order_gt_one_hot[5])
+        print("order_pred       = \n", order_pred[5])
+        print("\n\n")
 
         #compute accuracy for log results
         acc = (torch.argmax(order_pred, dim=-1) == order_gt).float()
