@@ -484,21 +484,25 @@ class AgentPPOCSND():
         #obtain labels, order indices
         order_gt  = torch.argsort(indices)
 
-        print(">>> ", steps_tmp[5])
-        print(">>> ", order_gt[5])
-        print("\n\n")
-
+       
         #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
         #causality model works with sequences : (batch_size, seq_length, features)
         z          = z.reshape((batch_size, seq_length, z.shape[-1]))
         order_pred = forward_func(z)
+
+
+        print(">>> ", steps_tmp[5])
+        print(">>> ", order_gt[5])
+        print(">>> ", torch.argmax(order_pred, dim=-1)[5])
+        print("\n\n") 
+
 
         #classification loss
         loss_func = torch.nn.CrossEntropyLoss()
         loss = loss_func(order_pred, order_gt)
 
         #compute accuracy for log results
-        acc = (torch.argmax(order_pred, dim=1) == order_gt).float()
+        acc = (torch.argmax(order_pred, dim=-1) == order_gt).float()
         acc = acc.mean()
 
         return loss, acc
