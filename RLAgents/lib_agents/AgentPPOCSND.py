@@ -113,8 +113,8 @@ class AgentPPOCSND():
         self.contextual_buffer_steps  = torch.zeros((self.envs_count, self.contextual_buffer_size, ), dtype=int, device=self.device)
 
         #optional, for state mean and variance normalisation        
-        self.state_mean  = self.states.mean(axis=0)
-        self.state_var   = numpy.ones_like(self.state_mean, dtype=numpy.float32)
+        self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
+        self.state_var   = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
         self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
         self.rewards_int_prev = torch.zeros(self.envs_count, dtype=torch.float32)
