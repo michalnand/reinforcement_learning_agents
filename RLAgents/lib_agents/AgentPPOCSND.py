@@ -469,6 +469,7 @@ class AgentPPOCSND():
         return loss, acc
     '''
 
+    '''
     def _causality_loss(self, forward_func, z, steps):
         seq_length = self.contextual_buffer_size
         batch_size = z.shape[0]//seq_length
@@ -498,7 +499,43 @@ class AgentPPOCSND():
         acc = acc.mean()
 
         return loss, acc
-   
+    '''
+
+
+    def _causality_loss(self, forward_func, z, steps):
+        seq_length = self.contextual_buffer_size
+        batch_size = z.shape[0]//seq_length
+        
+
+        #causality model works with sequences : (batch_size, seq_length, features)
+        steps_tmp = steps.reshape((batch_size, seq_length))
+        z_tmp = z.reshape((batch_size, seq_length, z.shape[-1]))
+
+
+        #sort steps count from lowest to highest
+        indices = torch.argsort(steps_tmp)
+
+        #obtain labels, order indices
+        order_gt  = torch.argsort(indices)
+
+        #torch.zeros((batch_size, seq_length, seq_length), dtype=torch.float32, device=self.device)
+
+        print("order_gt = ", order_gt.shape)
+       
+        #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
+        order_pred = forward_func(z_tmp)
+
+        #classification loss
+        loss_func = torch.nn.CrossEntropyLoss()
+        loss = loss_func(order_pred, order_gt)
+
+        #compute accuracy for log results
+        acc = (torch.argmax(order_pred, dim=-1) == order_gt).float()
+        acc = acc.mean()
+
+        return loss, acc
+
+
     #compute internal motivations
     def _internal_motivation(self, states):        
         #distillation novelty detection, mse error
