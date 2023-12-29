@@ -416,14 +416,14 @@ class AgentPPOCSND():
     
     #MSE loss for networks distillation model
     def _loss_distillation(self, states):         
-        features_target_t       = self.model_target(states)        
-        features_predicted_t    = self.model_predictor(states)
+        z_target_t       = self.model_target(states)        
+        z_predicted_t    = self.model_predictor(states)
         
-        loss = ((features_target_t.detach() - features_predicted_t)**2).mean()
+        loss = ((z_target_t.detach() - z_predicted_t)**2).mean()
 
-        return loss 
+        return loss  
    
-    #compute internal motivation
+    #compute internal motivations
     def _internal_motivation(self, states):        
         #distillation novelty detection, mse error
         z_target_t = self.model_target(states)
@@ -434,19 +434,23 @@ class AgentPPOCSND():
 
         #add new features into causality buffer
         idx = self.iterations%self.contextual_buffer_size
-        self.contextual_buffer_states[idx] = z_target_t.detach()
-        self.contextual_buffer_steps+= 1
+        self.contextual_buffer_states[:, idx, :] = z_target_t.detach()
+        self.contextual_buffer_steps[:, idx, :] = self.episode_steps.to(self.device)
 
-        #TODO : obtain target states ordering
-        #this is not right, due modular idx
-
+        #obtain target states ordering from stored episode steps
         causality_target = torch.argsort(torch.argsort(self.contextual_buffer_steps))
 
         #obtain prediction states ordering 
         pred = self.model_target.forward_causality(self.contextual_buffer_states)
         causality_pred = torch.argmax(pred, dim=2)
 
-        acc =  (causality_target == causality_pred).float()
+        #main idea of contextual causality internal motivation (CCIM) : 
+        #accuracy of prediction is causality internal motivation
+        #the better the model predicts states ordering, the less
+        #chaotic is agent policy
+        #this strongly differs from simple agent logits entropy minimalization,
+        #the CCIM rewards the trajectory itself, directly obtained from environement properties
+        acc = (causality_target == causality_pred).float()
         causality_t = acc.mean(dim=1).detach()
         
         return novelty_t, causality_t
