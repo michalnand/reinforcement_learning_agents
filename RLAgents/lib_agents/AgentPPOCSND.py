@@ -219,7 +219,7 @@ class AgentPPOCSND():
         #reset env if done
         dones_idx = numpy.where(dones)[0]
         for e in dones_idx: 
-            states_new[e], _            = self.envs.reset(e)
+            #states_new[e], _            = self.envs.reset(e)
             self.hidden_state[e]        = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
             self.episode_steps[e]       = 0
             
