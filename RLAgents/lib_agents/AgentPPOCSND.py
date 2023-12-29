@@ -523,7 +523,7 @@ class AgentPPOCSND():
         #torch.zeros((batch_size, seq_length, seq_length), dtype=torch.float32, device=self.device)
 
         print("order_gt         = ", order_gt[5])
-        print("order_gt_one_hot = ", order_gt_one_hot[5])
+        print("order_gt_one_hot = \n", order_gt_one_hot[5])
         print("\n\n")
        
         #obtain predictions logits, shape : (batch_size, seq_length, seq_length)
