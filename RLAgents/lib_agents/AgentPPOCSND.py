@@ -518,12 +518,13 @@ class AgentPPOCSND():
         
         causality_pred = forward_func(za_tmp, zb_tmp)
 
-        
+
         #binary classification loss
         loss_func = torch.nn.BCELoss()
 
         loss = loss_func(causality_pred, causality_gt)
 
+        print(">>> ", steps_a_tmp.shape, steps_b_tmp.shape, causality_gt.shape)
        
         acc = ((causality_pred > 0.5).float() == causality_gt).float()
         acc = acc.mean().detach()
