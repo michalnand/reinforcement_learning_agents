@@ -507,13 +507,12 @@ class AgentPPOCSND():
 
     def _causality_loss(self, forward_func, za, zb, steps_a, steps_b):
         #reshape to : (1, batch_size, 1) and (1, 1, batch_size)
-        steps_a_tmp = steps_a.unsqueeze(0).unsqueeze(2)
-        steps_b_tmp = steps_b.unsqueeze(0).unsqueeze(1)
+        steps_a_tmp = steps_a.unsqueeze(0).unsqueeze(1)
+        steps_b_tmp = steps_b.unsqueeze(0).unsqueeze(2)
         
         #each by each targets : (1, batch_size, batch_size)
         causality_gt = ((steps_a_tmp - steps_b_tmp) > 0).float()
 
-        
         za_tmp = za.unsqueeze(0)
         zb_tmp = zb.unsqueeze(0)
         
