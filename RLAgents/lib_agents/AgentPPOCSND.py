@@ -552,7 +552,9 @@ class AgentPPOCSND():
 
         print(">>> CB ", z_tmp.shape, c_tmp.shape, causality_t.shape)
 
-        causality_t = torch.zeros(self.envs_count, dtype=torch.float32)
+        causality_t = (causality_t > 0.5).float()
+        causality_t = causality_t.mean(dim=2)
+        causality_t = causality_t.squeeze(1).detach().cpu()
 
 
         #add new features into causality buffer 
