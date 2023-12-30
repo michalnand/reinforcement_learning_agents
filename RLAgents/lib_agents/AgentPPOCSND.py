@@ -524,12 +524,10 @@ class AgentPPOCSND():
 
         loss = loss_func(causality_pred, causality_gt)
 
-        print(causality_gt)
-        print((causality_pred > 0.5).float()) 
-
-        acc = ((causality_pred > 0.5).float() == causality_gt).mean()
-        acc = acc.detach()
-
+       
+        acc = ((causality_pred > 0.5).float() == causality_gt).float()
+        acc = acc.mean().detach()
+        
         return loss, acc
 
 
