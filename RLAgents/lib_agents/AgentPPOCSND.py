@@ -352,10 +352,13 @@ class AgentPPOCSND():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target causality part
-                states, steps = self.policy_buffer.sample_states_steps(self.batch_size*self.envs_count, self.device)
+                states_a, steps_a = self.policy_buffer.sample_states_steps(small_batch, self.device)
+                states_b, steps_b = self.policy_buffer.sample_states_steps(small_batch, self.device)
 
-                z = self.model_target(states)
-                loss_target_causality, acc = self._causality_loss(self.model_target.forward_causality, z, steps)
+                za = self.model_target(states_a)
+                zb = self.model_target(states_b)
+
+                loss_target_causality, acc = self._causality_loss(self.model_target.forward_causality, za, zb, steps_a, steps_b)
 
                 loss_target = loss_target_self_supervised + self.causality_loss_coeff*loss_target_causality
 
@@ -502,35 +505,31 @@ class AgentPPOCSND():
     '''
 
 
-    def _causality_loss(self, forward_func, z, steps):
-        seq_length = self.contextual_buffer_size
-        batch_size = z.shape[0]//seq_length
+    def _causality_loss(self, forward_func, za, zb, steps_a, steps_b):
+        #reshape to : (1, batch_size, 1) and (1, 1, batch_size)
+        steps_a_tmp = steps_a.unsqueeze(0).unsqueeze(2)
+        steps_b_tmp = steps_b.unsqueeze(0).unsqueeze(1)
         
+        #each by each targets : (1, batch_size, batch_size)
+        causality_gt = ((steps_a_tmp - steps_b_tmp) > 0).float()
 
-        #causality model works with sequences : (batch_size, seq_length, features)
-        steps_tmp = steps.reshape((batch_size, seq_length))
-        z_tmp = z.reshape((batch_size, seq_length, z.shape[-1]))
+        
+        za_tmp = za.unsqueeze(0)
+        zb_tmp = zb.unsqueeze(0)
+        
+        causality_pred = forward_func(za_tmp, zb_tmp)
+        
+        #binary classification loss
+        loss_func = torch.nn.BCELoss()
 
+        loss = loss_func(causality_pred, causality_gt)
 
-        #sort steps count from lowest to highest
-        indices = torch.argsort(steps_tmp)
-
-        #obtain labels, order indices
-        order_gt  = torch.argsort(indices)
-
-        order_gt_norm = order_gt/(seq_length-1)
-       
-        #obtain predictions logits, shape : (batch_size, seq_length)
-        order_pred = forward_func(z_tmp)
-      
-        #regression loss
-        loss = ((order_gt_norm - order_pred)**2).mean()
-  
-        #compute accuracy for log results
-        acc = (torch.argsort(torch.argsort(order_pred.detach())) == order_gt).float()
-        acc = acc.mean()
+        acc = ((causality_pred > 0).float() == causality_gt).mean()
+        acc = acc.detach()
 
         return loss, acc
+
+
 
 
     #compute internal motivations
@@ -542,29 +541,12 @@ class AgentPPOCSND():
         novelty_t = ((z_target_t - z_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.detach().cpu()
 
-        #add new features into causality buffer
+        #add new features into causality buffer 
         idx = self.iterations%self.contextual_buffer_size
         self.contextual_buffer_states[:, idx, :] = z_target_t.detach()
         self.contextual_buffer_steps[:, idx]     = self.episode_steps.to(self.device)
 
-        #obtain target states ordering from stored episode steps
-        causality_target = torch.argsort(torch.argsort(self.contextual_buffer_steps))
-
-        #obtain prediction states ordering 
-        pred = self.model_target.forward_causality(self.contextual_buffer_states)
-
-        causality_pred = torch.argsort(torch.argsort(pred.detach()))
-
-
-        #main idea of contextual causality internal motivation (CCIM) : 
-        #prediction accuracy is CCIM
-        #the better the model predicts states ordering,
-        #the less chaotic is agent policy
-        #this strongly differs from simple agent logits entropy minimalization ! ,
-        #the CCIM rewards the trajectory itself, directly obtained from environement properties
-        #a.k.a. directly resulted from state, action transitions
-        acc = (causality_target == causality_pred).float()
-        causality_t = acc.mean(dim=1).detach().to("cpu")
+        causality_t = torch.zeros(self.envs_count, device=self.device)
          
         return novelty_t, causality_t
     
