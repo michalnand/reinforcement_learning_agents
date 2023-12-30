@@ -550,11 +550,11 @@ class AgentPPOCSND():
 
         causality_t = self.model_target.forward_causality(z_tmp, c_tmp)
 
-        print(">>> CB ", z_tmp.shape, c_tmp.shape, causality_t.shape)
-
         causality_t = (causality_t > 0.5).float()
         causality_t = causality_t.mean(dim=2)
         causality_t = causality_t.squeeze(1).detach().cpu()
+
+        print(causality_t[0:5])
 
 
         #add new features into causality buffer 
