@@ -524,7 +524,7 @@ class AgentPPOCSND():
 
         loss = loss_func(causality_pred, causality_gt)
 
-        print(">>> ", steps_a_tmp.shape, steps_b_tmp.shape, causality_gt.shape)
+        #print(">>> ", steps_a_tmp.shape, steps_b_tmp.shape, causality_gt.shape)
        
         acc = ((causality_pred > 0.5).float() == causality_gt).float()
         acc = acc.mean().detach()
@@ -545,7 +545,7 @@ class AgentPPOCSND():
 
        
 
-        z_tmp = z_target_t.unsqueeze(1)
+        z_tmp = z_target_t.unsqueeze(1).unsqueeze(2)
         c_tmp = self.contextual_buffer_states.unsqueeze(1)
 
         print(">>> CB ", z_tmp.shape, c_tmp.shape)
