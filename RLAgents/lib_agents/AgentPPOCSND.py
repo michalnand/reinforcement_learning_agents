@@ -517,6 +517,8 @@ class AgentPPOCSND():
         zb_tmp = zb.unsqueeze(0)
         
         causality_pred = forward_func(za_tmp, zb_tmp)
+
+        print(">>>> ", za_tmp.shape, zb_tmp.shape, causality_pred.shape)
         
         #binary classification loss
         loss_func = torch.nn.BCELoss()
