@@ -548,7 +548,9 @@ class AgentPPOCSND():
         z_tmp = z_target_t.unsqueeze(1).unsqueeze(2)
         c_tmp = self.contextual_buffer_states.unsqueeze(1)
 
-        print(">>> CB ", z_tmp.shape, c_tmp.shape)
+        causality_t = self.model_target.forward_causality(z_tmp, c_tmp)
+
+        print(">>> CB ", z_tmp.shape, c_tmp.shape, causality_t.shape)
 
         causality_t = torch.zeros(self.envs_count, dtype=torch.float32)
 
