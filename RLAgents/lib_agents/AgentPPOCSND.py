@@ -506,7 +506,7 @@ class AgentPPOCSND():
 
 
     def _causality_loss(self, forward_func, za, zb, steps_a, steps_b):
-        #reshape to : (1, batch_size, 1) and (1, 1, batch_size)
+        #reshape to : (1, 1, batch_size) and (1, batch_size, 1)
         steps_a_tmp = steps_a.unsqueeze(0).unsqueeze(1)
         steps_b_tmp = steps_b.unsqueeze(0).unsqueeze(2)
         
@@ -523,6 +523,9 @@ class AgentPPOCSND():
 
         loss = loss_func(causality_pred, causality_gt)
 
+        print(causality_gt[0:5, 0:5])
+        print((causality_pred[0:5, 0:5] > 0.5).float())
+        print("\n\n")
        
         acc = ((causality_pred > 0.5).float() == causality_gt).float()
         acc = acc.mean().detach()
