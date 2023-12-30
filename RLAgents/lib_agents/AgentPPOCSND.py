@@ -352,10 +352,10 @@ class AgentPPOCSND():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
                 #train snd target causality part
-                states_a, steps_a = self.policy_buffer.sample_states_steps(small_batch, self.device)
-                states_b, steps_b = self.policy_buffer.sample_states_steps(small_batch, self.device)
+                states_a, steps_a = self.policy_buffer.sample_states_steps(59, self.device)
+                states_b, steps_b = self.policy_buffer.sample_states_steps(61, self.device)
 
-                za = self.model_target(states_a)
+                za = self.model_target(states_a) 
                 zb = self.model_target(states_b)
 
                 loss_target_causality, acc = self._causality_loss(self.model_target.forward_causality, za, zb, steps_a, steps_b)
@@ -523,9 +523,6 @@ class AgentPPOCSND():
 
         loss = loss_func(causality_pred, causality_gt)
 
-        print(causality_gt[0, 0:5, 0:5])
-        print((causality_pred[0, 0:5, 0:5] > 0.5).float())
-        print("\n\n")
        
         acc = ((causality_pred > 0.5).float() == causality_gt).float()
         acc = acc.mean().detach()
