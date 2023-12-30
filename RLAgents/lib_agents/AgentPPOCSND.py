@@ -543,7 +543,6 @@ class AgentPPOCSND():
         novelty_t = ((z_target_t - z_predicted_t)**2).mean(dim=1)
         novelty_t = novelty_t.cpu()
 
-       
 
         z_tmp = z_target_t.unsqueeze(1)
         c_tmp = self.contextual_buffer_states
@@ -553,8 +552,6 @@ class AgentPPOCSND():
         causality_t = (causality_t > 0.5).float()
         causality_t = causality_t.mean(dim=2)
         causality_t = causality_t.squeeze(1).detach().cpu()
-
-        print(causality_t[0:5])
 
 
         #add new features into causality buffer 
