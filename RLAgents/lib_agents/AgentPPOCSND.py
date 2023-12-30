@@ -546,7 +546,7 @@ class AgentPPOCSND():
         self.contextual_buffer_states[:, idx, :] = z_target_t.detach()
         self.contextual_buffer_steps[:, idx]     = self.episode_steps.to(self.device)
 
-        causality_t = torch.zeros(self.envs_count, device=self.device)
+        causality_t = torch.zeros(self.envs_count, dtype=torch.float32)
          
         return novelty_t, causality_t
     
