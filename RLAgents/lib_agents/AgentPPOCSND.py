@@ -347,13 +347,9 @@ class AgentPPOCSND():
                 loss_target_self_supervised = self._target_self_supervised_loss(self.model_target.forward, self._augmentations, states_now, states_similar)                
 
 
-
-                #sample smaller batch for self supervised loss, different distances for different models
-                states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
-
                 #train snd target causality part
-                states_a, steps_a = self.policy_buffer.sample_states_steps(59, self.device)
-                states_b, steps_b = self.policy_buffer.sample_states_steps(61, self.device)
+                states_a, steps_a = self.policy_buffer.sample_states_steps(small_batch, self.device)
+                states_b, steps_b = self.policy_buffer.sample_states_steps(small_batch, self.device)
 
                 za = self.model_target(states_a) 
                 zb = self.model_target(states_b)
