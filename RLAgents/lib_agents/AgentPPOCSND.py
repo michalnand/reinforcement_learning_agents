@@ -545,8 +545,8 @@ class AgentPPOCSND():
 
        
 
-        z_tmp = z_target_t.unsqueeze(1).unsqueeze(2)
-        c_tmp = self.contextual_buffer_states.unsqueeze(1)
+        z_tmp = z_target_t.unsqueeze(1)
+        c_tmp = self.contextual_buffer_states
 
         causality_t = self.model_target.forward_causality(z_tmp, c_tmp)
 
