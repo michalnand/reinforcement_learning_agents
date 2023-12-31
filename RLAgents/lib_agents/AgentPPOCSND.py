@@ -529,7 +529,7 @@ class AgentPPOCSND():
 
 
 
-
+    '''
     #compute internal motivations
     def _internal_motivation(self, states):        
         #distillation novelty detection, mse error
@@ -557,7 +557,35 @@ class AgentPPOCSND():
 
          
         return novelty_t, causality_t
-    
+    '''
+
+
+    #compute internal motivations
+    def _internal_motivation(self, states):        
+        #distillation novelty detection, mse error
+        z_target_t = self.model_target(states).detach()
+        z_predicted_t = self.model_predictor(states).detach()
+
+        novelty_t = ((z_target_t - z_predicted_t)**2).mean(dim=1)
+        novelty_t = novelty_t.cpu()
+
+
+        z_tmp = z_target_t.unsqueeze(1)
+        c_tmp = self.contextual_buffer_states
+
+        print(">>> ", z_tmp.shape, c_tmp.shape)
+        d     = z_tmp - c_tmp
+        print(">>>> d = ", d.shape)
+
+        
+
+        #add new features into causality buffer 
+        idx = self.iterations%self.contextual_buffer_size
+        self.contextual_buffer_states[:, idx, :] = z_target_t
+        self.contextual_buffer_steps[:, idx]     = self.episode_steps.to(self.device)
+
+         
+        return novelty_t, causality_t
  
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
