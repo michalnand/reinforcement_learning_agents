@@ -575,7 +575,11 @@ class AgentPPOCSND():
 
         print(">>> ", z_tmp.shape, c_tmp.shape)
         distances = ((z_tmp - c_tmp)**2).mean(dim=-1)
-        print(">>>> distances = ", distances.shape)
+
+
+        causality_t = distances.mean(dim=1)
+
+        print(causality_t)
 
         
         
