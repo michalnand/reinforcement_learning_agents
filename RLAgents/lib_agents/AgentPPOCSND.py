@@ -540,9 +540,13 @@ class AgentPPOCSND():
 
         print(">>>> im = ", distances.shape, z.shape, context.shape)
 
+        #take closest 10%
+        top_count = distances.shape[1]//10
+        print("top_count = ", top_count)
         distances = torch.sort(distances)[0]
+        distances = distances[:, 0:top_count]
 
-        print(">>>> ", distances[0][0:10])
+        print(">>>> ", distances[0][0:top_count])
  
         #causality_t = distances.mean(dim=1)
         causality_t = torch.min(distances, dim=1)[0]
