@@ -532,8 +532,10 @@ class AgentPPOCSND():
         novelty_t = novelty_t.cpu()
 
 
-        z       = z_target_t
+        z       = z_target_t.unsqueeze(1)
         context = self.contextual_buffer_states
+
+        print(">>> ", z.shape, context.shape)
 
         distances = ((z - context)**2).mean(dim=-1)
 
