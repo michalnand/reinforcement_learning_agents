@@ -532,11 +532,11 @@ class AgentPPOCSND():
         novelty_t = novelty_t.cpu()
 
 
+        #contextual IM
         z       = z_target_t.unsqueeze(1)
         context = self.contextual_buffer_states
 
-
-        distances = ((z - context)**2).mean(dim=-1)
+        distances = ((z - context)**2).mean(dim=-1).detach()
 
 
         #take closest 10%
@@ -544,12 +544,8 @@ class AgentPPOCSND():
         distances = torch.sort(distances)[0]
         distances = distances[:, 0:top_count]
 
-        print(">>> im distances = ", distances.shape)
-    
         causality_t = distances.mean(dim=1)
         causality_t = causality_t.detach().cpu()
-
-        #print(causality_t)
         
         #add new features into causality buffer 
         idx = self.iterations%self.contextual_buffer_size
