@@ -577,9 +577,10 @@ class AgentPPOCSND():
         distances = ((z_tmp - c_tmp)**2).mean(dim=-1)
 
 
-        causality_t = distances.mean(dim=1)
+        #causality_t = distances.mean(dim=1)
+        causality_t = torch.min(distances, dim=1)
 
-        print(causality_t)\
+        print(causality_t)
         
         causality_t = causality_t.detach().cpu()
 
