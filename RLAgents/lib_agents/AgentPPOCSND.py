@@ -535,11 +535,14 @@ class AgentPPOCSND():
         z       = z_target_t.unsqueeze(1)
         context = self.contextual_buffer_states
 
-        print(">>> ", z.shape, context.shape)
 
         distances = ((z - context)**2).mean(dim=-1)
 
         print(">>>> im = ", distances.shape, z.shape, context.shape)
+
+        distances = torch.sort(distances)
+
+        print(">>>> ", distances[0][0:10])
  
         #causality_t = distances.mean(dim=1)
         causality_t = torch.min(distances, dim=1)[0]
