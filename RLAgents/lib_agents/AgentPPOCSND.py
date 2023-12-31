@@ -540,7 +540,7 @@ class AgentPPOCSND():
 
         print(">>>> im = ", distances.shape, z.shape, context.shape)
 
-        distances = torch.sort(distances)
+        distances = torch.sort(distances)[0]
 
         print(">>>> ", distances[0][0:10])
  
