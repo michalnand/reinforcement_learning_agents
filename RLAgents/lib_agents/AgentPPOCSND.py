@@ -579,7 +579,9 @@ class AgentPPOCSND():
 
         causality_t = distances.mean(dim=1)
 
-        print(causality_t)
+        print(causality_t)\
+        
+        causality_t = causality_t.detach().cpu()
 
         
         
