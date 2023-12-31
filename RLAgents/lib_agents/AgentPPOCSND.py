@@ -574,9 +574,10 @@ class AgentPPOCSND():
         c_tmp = self.contextual_buffer_states
 
         print(">>> ", z_tmp.shape, c_tmp.shape)
-        d     = z_tmp - c_tmp
-        print(">>>> d = ", d.shape)
+        distances = ((z_tmp - c_tmp)**2).mean(dim=-1)
+        print(">>>> distances = ", distances.shape)
 
+        
         
 
         #add new features into causality buffer 
