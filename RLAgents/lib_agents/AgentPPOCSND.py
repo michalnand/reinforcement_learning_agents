@@ -509,11 +509,6 @@ class AgentPPOCSND():
 
         #predict distance
         distance_pred = forward_func(za, zb)
-
-        print(distance_gt[0:10, 0])
-        print(distance_pred[0:10, 0])
-        print("\n\n")
-
         loss = ((distance_gt - distance_pred)**2).mean()
 
         acc = (torch.sgn(distance_gt) == torch.sgn(distance_pred)).float()
