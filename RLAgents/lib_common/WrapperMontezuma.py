@@ -172,10 +172,14 @@ class ResizeEnvColor(gym.ObservationWrapper):
 
 
 class VisitedRoomsEnv(gym.Wrapper):
-    def __init__(self, env):
+    '''
+    room_address for games : 
+    montezuma revenge : 3
+    pitfall           : 1
+    '''
+    def __init__(self, env, room_address = 3):
         gym.Wrapper.__init__(self, env)
-        self.room_address = 3
-        #self.room_address = 1
+        self.room_address = room_address
 
         self.visited_rooms = {}
 
@@ -294,6 +298,7 @@ class RawScoreEnv(gym.Wrapper):
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
+    print("wrapper ", env)
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
