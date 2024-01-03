@@ -298,7 +298,9 @@ class RawScoreEnv(gym.Wrapper):
 
 def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
 
-    print("wrapper ", env)
+    env_str = str(env)
+    print("wrapper ", env_str, "MontezumaRevenge" in env_str, "Pitfall" in env_str)
+    
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
