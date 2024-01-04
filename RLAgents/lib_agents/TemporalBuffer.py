@@ -29,19 +29,17 @@ class TemporalBuffer:
  
 
     def sample_batch(self, batch_size, seq_length, device = "cpu"):
-        z_seq       = torch.randn((batch_size, seq_length, self.s_features_count))
-        h_initial   = torch.randn((2, batch_size, self.s_features_count))
-
         idx_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
         idx_env = torch.randint(0, self.envs_count, size=(batch_size, ))
 
-        print(h_initial.shape, self.hidden_states[idx_seq, :, idx_env, :].shape)
+        #resulted shape : 2, batch_size, s_features_count
+        h_initial = self.hidden_states[idx_seq, :, idx_env, :]
 
-        #n = idx.view(-1, 1) + torch.arange(seq_length)
+        #TODO: optimize this
+        #resulted shape : batch_size, seq_length, s_features_count
+        z_seq = torch.zeros((batch_size, seq_length, self.s_features_count), dtype=torch.float32)
+        for n in range(seq_length):
+            z_seq[:, n, :] = z_seq[idx_seq + n, :, idx_env, :]
 
-        #idx = torch.randint(0, self.buffer_size, size=envs_count)
-        #z_seq  = self.states[:, idx+0:idx+seq_length, :]
-
-        
         return z_seq.to(device), h_initial.to(device)
    
