@@ -108,7 +108,7 @@ class AgentPPOCSND():
             self.hidden_state = torch.zeros((self.envs_count, 8), dtype=torch.float32, device=self.device)
 
         #temporal hidden state for im (two, one for target one for predictor)
-        im_hidden_im_state = torch.zeros((2, self.envs_count, im_rnn_size), dtype=torch.float32, device=self.device)
+        self.hidden_im_state = torch.zeros((2, self.envs_count, im_rnn_size), dtype=torch.float32, device=self.device)
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
