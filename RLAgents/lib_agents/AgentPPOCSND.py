@@ -235,9 +235,7 @@ class AgentPPOCSND():
     
     def save(self, save_path):
         torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
-
-        torch.save(self.model_predictor.state_dict(), save_path + "trained/model_predictor.pt")
-        torch.save(self.model_target.state_dict(), save_path + "trained/model_target.pt")
+        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
     
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -246,10 +244,7 @@ class AgentPPOCSND():
         
     def load(self, load_path):
         self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
-
-        self.model_predictor.load_state_dict(torch.load(load_path + "trained/model_predictor.pt", map_location = self.device))
-
-        self.model_target.load_state_dict(torch.load(load_path + "trained/model_target.pt", map_location = self.device))
+        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
