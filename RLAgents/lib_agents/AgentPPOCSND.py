@@ -9,7 +9,6 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
   
-#import matplotlib.pyplot as plt
 
 class AgentPPOCSND():   
     def __init__(self, envs, ModelPPO, ModelIM, config):
