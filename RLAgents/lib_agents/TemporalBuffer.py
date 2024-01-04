@@ -32,15 +32,19 @@ class TemporalBuffer:
         idx_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
         idx_env = torch.randint(0, self.envs_count, size=(batch_size, ))
 
-        #resulted shape : 2, batch_size, s_features_count
-        h_initial = self.hidden_states[idx_seq, :, idx_env, :]
-
         #TODO: optimize this 
         #sample random sequences, with fixed length
         #resulted shape : batch_size, seq_length, s_features_count
         s_seq = torch.zeros((batch_size, seq_length, self.s_features_count), dtype=torch.float32)
         for n in range(seq_length):
             s_seq[:, n, :] = self.states[idx_seq + n, idx_env, :]
+
+        #sample initial state, from begining of sequence
+        #resulted shape : 2, batch_size, s_features_count
+        h_initial = self.hidden_states[idx_seq, :, idx_env, :]
+
+     
+        print(">>>> ", s_seq.shape, h_initial.shape)
  
         return s_seq.to(device), h_initial.to(device)
    
