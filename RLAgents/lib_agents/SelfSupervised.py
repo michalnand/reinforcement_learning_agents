@@ -102,14 +102,14 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
 
 
 
-def loss_vicreg_temporal(model_forward_func, augmentations, xa, xb, h_initial):
+def loss_vicreg_temporal(model_forward_func, augmentations, x, , h_initial):
 
     if augmentations is not None:
-        xa_aug, _ = augmentations(xa)
-        xb_aug, _ = augmentations(xb) 
+        xa_aug, _ = augmentations(x)
+        xb_aug, _ = augmentations(x) 
     else:
-        xa_aug = xa
-        xb_aug = xb 
+        xa_aug = x
+        xb_aug = x  
 
     za = model_forward_func(xa_aug, h_initial)  
     zb = model_forward_func(xb_aug, h_initial)  
