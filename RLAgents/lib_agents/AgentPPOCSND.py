@@ -408,6 +408,8 @@ class AgentPPOCSND():
         zt_target_t,    ht_new = self.model_im.forward_temporal_target(zs_target_t.unsqueeze(1), hidden_im_state[0])
         zt_predictor_t, hs_new = self.model_im.forward_temporal_predictor(zs_predictor_t.unsqueeze(1), hidden_im_state[1])
 
+        zt_target_t    = zt_target_t.squeeze(1)
+        zt_predictor_t = zt_predictor_t.squeeze(1)
         novelty_temporal_t = ((zt_target_t - zt_predictor_t)**2).mean(dim=1)
         novelty_temporal_t = novelty_temporal_t.detach().cpu()
 
