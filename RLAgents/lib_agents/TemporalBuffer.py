@@ -30,7 +30,7 @@ class TemporalBuffer:
 
     def sample_batch(self, batch_size, seq_length, device = "cpu"):
         z_seq       = torch.randn((batch_size, seq_length, self.s_features_count))
-        h_initial   = torch.randn((batch_size, 2, seq_length, self.s_features_count))
+        h_initial   = torch.randn((2, batch_size, seq_length, self.s_features_count))
 
         #n = idx.view(-1, 1) + torch.arange(seq_length)
 
