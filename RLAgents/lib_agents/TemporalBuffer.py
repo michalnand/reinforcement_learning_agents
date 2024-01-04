@@ -12,8 +12,12 @@ class TemporalBuffer:
  
     def add(self, state, hidden_state):
         self.states[self.ptr]       = state.detach().cpu().clone() 
-        self.hidden_states[self.ptr]= hidden_state.detach().cpu().clone()
 
+        h_tmp = hidden_state.detach().cpu()
+        self.hidden_states[0, self.ptr]= h_tmp[0].clone()
+        self.hidden_states[1, self.ptr]= h_tmp[1].clone()
+
+        self.ptr = self.ptr + 1 
 
     def is_full(self):
         if self.ptr >= self.buffer_size:
@@ -23,7 +27,7 @@ class TemporalBuffer:
  
     def clear(self):
         self.states         = torch.zeros((self.buffer_size, self.envs_count, self.s_features_count), dtype=torch.float32)
-        self.hidden_states  = torch.zeros((self.buffer_size, 2, self.envs_count, self.h_features_count), dtype=torch.float32)
+        self.hidden_states  = torch.zeros((2, self.buffer_size, self.envs_count, self.h_features_count), dtype=torch.float32)
 
         self.ptr = 0  
  
@@ -41,10 +45,8 @@ class TemporalBuffer:
 
         #sample initial state, from begining of sequence
         #resulted shape : 2, batch_size, s_features_count
-        h_initial = self.hidden_states[idx_seq, :, idx_env, :]
-        h_initial = torch.transpose(h_initial, 0, 1)
+        h_initial = self.hidden_states[:, idx_seq, idx_env, :]
      
-        print(">>>> ", s_seq.shape, h_initial.shape)
  
         return s_seq.to(device), h_initial.to(device)
    
