@@ -142,7 +142,6 @@ class AgentPPOCSND():
         self.values_logger.add("loss_spatial_distillation", 0.0)
         self.values_logger.add("loss_temporal_distillation", 0.0)
 
-
         self.info_logger = {}
 
    
