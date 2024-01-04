@@ -179,7 +179,7 @@ class AgentPPOCSND():
         rewards_int_a, rewards_int_b, zs_target, hidden_im_state_new  = self._internal_motivation(states_t, self.hidden_im_state)
 
         #store into buffer for spatial IM
-        self.temporal_buffer.add(zs_target, self.hidden_im_state)
+        #self.temporal_buffer.add(zs_target, self.hidden_im_state)
 
         self.hidden_im_state = hidden_im_state_new.detach().clone()
 
@@ -410,8 +410,6 @@ class AgentPPOCSND():
 
         novelty_temporal_t = ((zt_target_t - zt_predictor_t)**2).mean(dim=1)
         novelty_temporal_t = novelty_temporal_t.detach().cpu()
-
-        print(">>>> ", zt_target_t.shape, zt_predictor_t.shape, ht_new.shape, hs_new.shape)
 
         h_new = torch.concatenate([ht_new.unsqueeze(0), hs_new.unsqueeze(0)], dim=0).detach()
  
