@@ -328,9 +328,9 @@ class AgentPPOCSND():
                 #log results
                 self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_spatial_target_self_supervised", loss_spatial_target_self_supervised.detach().cpu().numpy())
-                #self.values_logger.add("loss_temporal_target_self_supervised", loss_temporal_target_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_temporal_target_self_supervised", loss_temporal_target_self_supervised.detach().cpu().numpy())
                 self.values_logger.add("loss_spatial_distillation", loss_spatial_distillation.detach().cpu().numpy())
-                #self.values_logger.add("loss_temporal_distillation", loss_temporal_distillation.detach().cpu().numpy())
+                self.values_logger.add("loss_temporal_distillation", loss_temporal_distillation.detach().cpu().numpy())
 
         self.policy_buffer.clear() 
         self.temporal_buffer.clear()
