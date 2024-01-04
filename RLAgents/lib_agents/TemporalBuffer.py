@@ -32,6 +32,11 @@ class TemporalBuffer:
         z_seq       = torch.randn((batch_size, seq_length, self.s_features_count))
         h_initial   = torch.randn((2, batch_size, self.s_features_count))
 
+        idx_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
+        idx_env = torch.randint(0, self.envs_count, size=(batch_size, ))
+
+        print(h_initial.shape, self.hidden_states[idx_seq, :, idx_env, :].shape)
+
         #n = idx.view(-1, 1) + torch.arange(seq_length)
 
         #idx = torch.randint(0, self.buffer_size, size=envs_count)

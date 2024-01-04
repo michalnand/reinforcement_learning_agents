@@ -306,7 +306,6 @@ class AgentPPOCSND():
 
                 z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
 
-
                 #train snd target model, self supervised    
                 loss_spatial_target_self_supervised = self._spatial_target_self_supervised_loss(self.model_im.forward_spatial_target, self._augmentations, states_now, states_similar)                
 
@@ -391,14 +390,14 @@ class AgentPPOCSND():
 
     #compute internal motivations
     def _internal_motivation(self, states, hidden_im_state):        
-        #spatial distillation novelty detection, mse error
+        #spatial distillation novelty detection, mse loss
         zs_target_t    = self.model_im.forward_spatial_target(states).detach()
         zs_predictor_t = self.model_im.forward_spatial_predictor(states).detach()
 
         novelty_spatial_t = ((zs_target_t - zs_predictor_t)**2).mean(dim=1)
         novelty_spatial_t = novelty_spatial_t.detach().cpu()
 
-        #temporal distillation novelty detection, mse error
+        #temporal distillation novelty detection, mse loss
 
         zt_target_t,    ht_new = self.model_im.forward_temporal_target(zs_target_t.unsqueeze(1), hidden_im_state[0])
         zt_predictor_t, hs_new = self.model_im.forward_temporal_predictor(zs_predictor_t.unsqueeze(1), hidden_im_state[1])
