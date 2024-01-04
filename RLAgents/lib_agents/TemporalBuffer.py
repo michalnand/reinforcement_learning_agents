@@ -35,11 +35,12 @@ class TemporalBuffer:
         #resulted shape : 2, batch_size, s_features_count
         h_initial = self.hidden_states[idx_seq, :, idx_env, :]
 
-        #TODO: optimize this
+        #TODO: optimize this 
+        #sample random sequences, with fixed length
         #resulted shape : batch_size, seq_length, s_features_count
-        z_seq = torch.zeros((batch_size, seq_length, self.s_features_count), dtype=torch.float32)
+        s_seq = torch.zeros((batch_size, seq_length, self.s_features_count), dtype=torch.float32)
         for n in range(seq_length):
-            z_seq[:, n, :] = z_seq[idx_seq + n, :, idx_env, :]
+            s_seq[:, n, :] = self.states[idx_seq + n, :, idx_env, :]
 
-        return z_seq.to(device), h_initial.to(device)
+        return s_seq.to(device), h_initial.to(device)
    
