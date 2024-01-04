@@ -404,6 +404,8 @@ class AgentPPOCSND():
         novelty_spatial_t = novelty_spatial_t.detach().cpu()
 
         #temporal distillation novelty detection, mse error
+
+        print(">>>> ", zs_target_t.shape, hidden_im_state.shape)
         zt_target_t,    ht_new = self.model_im.forward_temporal_target(zs_target_t, hidden_im_state[0])
         zt_predictor_t, hs_new = self.model_im.forward_temporal_predictor(zs_predictor_t, hidden_im_state[1])
 
