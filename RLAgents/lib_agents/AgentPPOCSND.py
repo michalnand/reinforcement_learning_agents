@@ -304,7 +304,9 @@ class AgentPPOCSND():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
-                #z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
+                z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
+
+                print(">>> z seq = ", z_seq.shape, h_initial.shape)
 
                 #train snd target model, self supervised    
                 loss_spatial_target_self_supervised = self._spatial_target_self_supervised_loss(self.model_im.forward_spatial_target, self._augmentations, states_now, states_similar)                

@@ -11,10 +11,6 @@ class TemporalBuffer:
         self.clear()     
  
     def add(self, state, hidden_state):
-        print("buffer add ")
-        print(self.states.shape, state.shape)
-        print(self.hidden_states.shape, hidden_state.shape)
-        print("\n\n")
         self.states[self.ptr]       = state.detach().cpu().clone() 
         self.hidden_states[self.ptr]= hidden_state.detach().cpu().clone()
 
@@ -33,14 +29,14 @@ class TemporalBuffer:
  
 
     def sample_batch(self, batch_size, seq_length, device = "cpu"):
-        envs_count  = self.states.shape[1]
-        buffer_size = self.states.shape[0]
+        z_seq       = torch.randn((batch_size, seq_length, self.s_features_count))
+        h_initial   = torch.randn((batch_size, 2, seq_length, self.s_features_count))
 
-        n = idx.view(-1, 1) + torch.arange(seq_length)
+        #n = idx.view(-1, 1) + torch.arange(seq_length)
 
-        idx = torch.randint(0, self.buffer_size, size=envs_count)
-        z_seq  = self.states[:, idx+0:idx+seq_length, :]
+        #idx = torch.randint(0, self.buffer_size, size=envs_count)
+        #z_seq  = self.states[:, idx+0:idx+seq_length, :]
 
         
-        return z_seq, h_initial
+        return z_seq.to(device), h_initial.to(device)
    
