@@ -306,20 +306,18 @@ class AgentPPOCSND():
 
                 z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
 
-                print(">>> z seq = ", z_seq.shape, h_initial.shape)
 
                 #train snd target model, self supervised    
                 loss_spatial_target_self_supervised = self._spatial_target_self_supervised_loss(self.model_im.forward_spatial_target, self._augmentations, states_now, states_similar)                
 
-                #loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_temporal_target, None, z_seq, z_seq, h_initial)                
+                loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_temporal_target, None, z_seq, h_initial[0])                
 
                 #train snd distillation
                 loss_spatial_distillation  = self._loss_spatial_distillation(states)
-                #loss_temporal_distillation = self._loss_temporal_distillation(z_seq)
+                loss_temporal_distillation = self._loss_temporal_distillation(z_seq, h_initial)
 
 
-                #loss_im = loss_spatial_target_self_supervised + loss_temporal_target_self_supervised + loss_spatial_distillation + loss_temporal_distillation
-                loss_im = loss_spatial_target_self_supervised + loss_spatial_distillation
+                loss_im = loss_spatial_target_self_supervised + loss_temporal_target_self_supervised + loss_spatial_distillation + loss_temporal_distillation
                 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
@@ -383,8 +381,8 @@ class AgentPPOCSND():
 
     #MSE loss for temporal distillation
     def _loss_temporal_distillation(self, z_seq, h):         
-        z_target_t, _     = self.model_im.forward_temporal_target(z_seq, h)        
-        z_predicted_t, _  = self.model_im.forward_temporal_predictor(z_seq, h)
+        z_target_t, _     = self.model_im.forward_temporal_target(z_seq, h[0])        
+        z_predicted_t, _  = self.model_im.forward_temporal_predictor(z_seq, h[1])
         
         loss = ((z_target_t.detach() - z_predicted_t)**2).mean()
 

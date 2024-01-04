@@ -109,7 +109,7 @@ def loss_vicreg_temporal(model_forward_func, augmentations, xa, xb, h_initial):
         xb_aug, _ = augmentations(xb) 
     else:
         xa_aug = xa
-        xb_aug = xb
+        xb_aug = xb 
 
     za = model_forward_func(xa_aug, h_initial)  
     zb = model_forward_func(xb_aug, h_initial)  
