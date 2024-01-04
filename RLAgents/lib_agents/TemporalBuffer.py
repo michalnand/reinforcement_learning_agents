@@ -27,7 +27,7 @@ class TemporalBuffer:
  
     def clear(self):
         self.states         = torch.zeros((self.buffer_size, self.envs_count, self.s_features_count), dtype=torch.float32)
-        self.hidden_states  = torch.zeros((self.buffer_size, self.envs_count, 2, self.h_features_count), dtype=torch.float32)
+        self.hidden_states  = torch.zeros((self.buffer_size, 2, self.envs_count, self.h_features_count), dtype=torch.float32)
 
         self.ptr = 0  
  
