@@ -179,7 +179,7 @@ class AgentPPOCSND():
         rewards_int_a, rewards_int_b, zs_target, hidden_im_state_new  = self._internal_motivation(states_t, self.hidden_im_state)
 
         #store into buffer for spatial IM
-        #self.temporal_buffer.add(zs_target, self.hidden_im_state)
+        self.temporal_buffer.add(zs_target, self.hidden_im_state)
 
         self.hidden_im_state = hidden_im_state_new.detach().clone()
 

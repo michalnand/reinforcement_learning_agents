@@ -11,6 +11,10 @@ class TemporalBuffer:
         self.clear()     
  
     def add(self, state, hidden_state):
+        print("buffer add ")
+        print(self.states.shape, state.shape)
+        print(self.hidden_states.shape, hidden_state.shape)
+        print("\n\n")
         self.states[self.ptr]       = state.detach().cpu().clone() 
         self.hidden_states[self.ptr]= hidden_state.detach().cpu().clone()
 
@@ -23,7 +27,7 @@ class TemporalBuffer:
  
     def clear(self):
         self.states         = torch.zeros((self.buffer_size, self.envs_count, self.s_features_count), dtype=torch.float32)
-        self.hidden_states  = torch.zeros((self.buffer_size, self.envs_count, self.h_features_count), dtype=torch.float32)
+        self.hidden_states  = torch.zeros((self.buffer_size, self.envs_count, 2, self.h_features_count), dtype=torch.float32)
 
         self.ptr = 0  
  
