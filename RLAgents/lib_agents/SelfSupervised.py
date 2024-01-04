@@ -111,18 +111,11 @@ def loss_vicreg_temporal(model_forward_func, augmentations, x, h_initial):
         xa_aug = x
         xb_aug = x  
 
-    print("loss_vicreg_temporal")
-    print(xa_aug.shape, xb_aug.shape, h_initial.shape)
-
     za, _ = model_forward_func(xa_aug, h_initial)  
     zb, _ = model_forward_func(xb_aug, h_initial)  
 
-    print(">>> ", za.shape, zb.shape)
-
     za = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
     zb = zb.reshape((zb.shape[0]*zb.shape[1], zb.shape[2]))
-
-    print(">>> ", za.shape, zb.shape)
 
     return loss_vicreg_direct(za, zb)
 
