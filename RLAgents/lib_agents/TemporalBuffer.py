@@ -42,7 +42,7 @@ class TemporalBuffer:
         #sample initial state, from begining of sequence
         #resulted shape : 2, batch_size, s_features_count
         h_initial = self.hidden_states[idx_seq, :, idx_env, :]
-
+        h_initial = torch.transpose(h_initial, 0, 1)
      
         print(">>>> ", s_seq.shape, h_initial.shape)
  
