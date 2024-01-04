@@ -102,6 +102,24 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
 
 
 
+def loss_vicreg_temporal(model_forward_func, augmentations, xa, xb, h_initial):
+
+    if augmentations is not None:
+        xa_aug, _ = augmentations(xa)
+        xb_aug, _ = augmentations(xb) 
+    else:
+        xa_aug = xa
+        xb_aug = xb
+
+    za = model_forward_func(xa_aug, h_initial)  
+    zb = model_forward_func(xb_aug, h_initial)  
+
+    za = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
+    zb = zb.reshape((zb.shape[0]*zb.shape[1], zb.shape[2]))
+
+    return loss_vicreg_direct(za, zb)
+
+
 def loss_vicreg_mast(model_forward_func, augmentations_func, states_a, states_b):
     
     xa_aug, used_aug_a = augmentations_func(states_a) 

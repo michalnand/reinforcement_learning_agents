@@ -502,63 +502,22 @@ class AgentPPOCSND():
 
 
     def _causality_loss(self, forward_func, za, zb, steps_a, steps_b):
-        #reshape to : (1, 1, batch_size) and (1, batch_size, 1)
-        steps_a_tmp = steps_a.unsqueeze(0).unsqueeze(2)
-        steps_b_tmp = steps_b.unsqueeze(0).unsqueeze(1)
-        
-        #each by each targets : (1, batch_size, batch_size)
-        causality_gt = ((steps_a_tmp - steps_b_tmp) > 0).float()
+        #log state distance with sign
+        dif         = steps_a - steps_b
+        distance_gt = torch.sgn(dif)*torch.log(1.0 + torch.abs(dif))
+        distance_gt = distance_gt.unsqueeze(1)
 
-        za_tmp = za.unsqueeze(0)
-        zb_tmp = zb.unsqueeze(0)
-        
-        causality_pred = forward_func(za_tmp, zb_tmp)
+        #predict distance
+        distance_pred = forward_func(za, zb)
+        loss = ((distance_gt - distance_pred)**2).mean()
 
-
-        #binary classification loss
-        loss_func = torch.nn.BCELoss()
-
-        loss = loss_func(causality_pred, causality_gt)
-
-        #print(">>> ", steps_a_tmp.shape, steps_b_tmp.shape, causality_gt.shape)
-       
-        acc = ((causality_pred > 0.5).float() == causality_gt).float()
+        acc = (torch.sgn(distance_gt) == torch.sgn(distance_pred)).float()
         acc = acc.mean().detach()
         
         return loss, acc
 
 
 
-    '''
-    #compute internal motivations
-    def _internal_motivation(self, states):        
-        #distillation novelty detection, mse error
-        z_target_t = self.model_target(states).detach()
-        z_predicted_t = self.model_predictor(states).detach()
-
-        novelty_t = ((z_target_t - z_predicted_t)**2).mean(dim=1)
-        novelty_t = novelty_t.cpu()
-
-
-        z_tmp = z_target_t.unsqueeze(1)
-        c_tmp = self.contextual_buffer_states
-
-        causality_t = self.model_target.forward_causality(z_tmp, c_tmp)
-
-        causality_t = (causality_t > 0.5).float()
-        causality_t = causality_t.mean(dim=2)
-        causality_t = causality_t.squeeze(1).detach().cpu()
-
-
-        #add new features into causality buffer 
-        idx = self.iterations%self.contextual_buffer_size
-        self.contextual_buffer_states[:, idx, :] = z_target_t
-        self.contextual_buffer_steps[:, idx]     = self.episode_steps.to(self.device)
-
-         
-        return novelty_t, causality_t
-    '''
-
 
     #compute internal motivations
     def _internal_motivation(self, states):        
@@ -570,17 +529,20 @@ class AgentPPOCSND():
         novelty_t = novelty_t.cpu()
 
 
-        z_tmp = z_target_t.unsqueeze(1)
-        c_tmp = self.contextual_buffer_states
+        #contextual IM
+        z       = z_target_t.unsqueeze(1)
+        context = self.contextual_buffer_states
 
-        distances = ((z_tmp - c_tmp)**2).mean(dim=-1)
+        distances = ((z - context)**2).mean(dim=-1).detach()
 
-        #causality_t = distances.mean(dim=1)
-        causality_t = torch.min(distances, dim=1)[0]
 
+        #take closest 10%
+        top_count = distances.shape[1]//10
+        distances = torch.sort(distances)[0]
+        distances = distances[:, 0:top_count]
+
+        causality_t = distances.mean(dim=1)
         causality_t = causality_t.detach().cpu()
-
-        #print(causality_t)
         
         #add new features into causality buffer 
         idx = self.iterations%self.contextual_buffer_size
