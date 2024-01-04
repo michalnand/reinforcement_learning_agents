@@ -108,7 +108,7 @@ class AgentPPOCSND():
             self.hidden_state = torch.zeros((self.envs_count, 8), dtype=torch.float32, device=self.device)
 
         #temporal hidden state for im (two, one for target one for predictor)
-        im_hidden_im_state = torch.zeros((2, self.envs_count, self.rnn_size), dtype=torch.float32, device=self.device)
+        im_hidden_im_state = torch.zeros((2, self.envs_count, im_rnn_size), dtype=torch.float32, device=self.device)
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
@@ -309,19 +309,20 @@ class AgentPPOCSND():
                 #sample smaller batch for self supervised loss, different distances for different models
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(small_batch, self.device, self.similar_states_distance)
 
-                z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
+                #z_seq, h_initial = self.temporal_buffer.sample_batch(small_batch, self.seq_length, self.device)
 
                 #train snd target model, self supervised    
                 loss_spatial_target_self_supervised = self._spatial_target_self_supervised_loss(self.model_im.forward_spatial_target, self._augmentations, states_now, states_similar)                
 
-                loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_temporal_target, None, z_seq, z_seq, h_initial)                
+                #loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_temporal_target, None, z_seq, z_seq, h_initial)                
 
                 #train snd distillation
                 loss_spatial_distillation  = self._loss_spatial_distillation(states)
-                loss_temporal_distillation = self._loss_temporal_distillation(z_seq)
+                #loss_temporal_distillation = self._loss_temporal_distillation(z_seq)
 
 
-                loss_im = loss_spatial_target_self_supervised + loss_temporal_target_self_supervised + loss_spatial_distillation + loss_temporal_distillation
+                #loss_im = loss_spatial_target_self_supervised + loss_temporal_target_self_supervised + loss_spatial_distillation + loss_temporal_distillation
+                loss_im = loss_spatial_target_self_supervised + loss_spatial_distillation
                 
                 self.optimizer_im.zero_grad() 
                 loss_im.backward()
