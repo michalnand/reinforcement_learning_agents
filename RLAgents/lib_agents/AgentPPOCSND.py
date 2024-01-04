@@ -413,8 +413,8 @@ class AgentPPOCSND():
 
         print(">>>> ", zt_target_t.shape, zt_predictor_t.shape, ht_new.shape, hs_new.shape)
 
-        h_new = torch.concatenate([ht_new.unsqueeze[0], hs_new.unsqueeze[0]], dim=0).detach()
-
+        h_new = torch.concatenate([ht_new.unsqueeze(0), hs_new.unsqueeze(0)], dim=0).detach()
+ 
         return novelty_spatial_t, novelty_temporal_t, zs_target_t, h_new
  
     def _augmentations(self, x): 
