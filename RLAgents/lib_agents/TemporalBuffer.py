@@ -40,7 +40,7 @@ class TemporalBuffer:
         #resulted shape : batch_size, seq_length, s_features_count
         s_seq = torch.zeros((batch_size, seq_length, self.s_features_count), dtype=torch.float32)
         for n in range(seq_length):
-            s_seq[:, n, :] = self.states[idx_seq + n, :, idx_env, :]
-
+            s_seq[:, n, :] = self.states[idx_seq + n, idx_env, :]
+ 
         return s_seq.to(device), h_initial.to(device)
    
