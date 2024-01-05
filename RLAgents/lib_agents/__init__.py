@@ -8,7 +8,7 @@ from .ExperienceBufferContinuous        import ExperienceBufferContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
 from .PolicyBufferIM                import PolicyBufferIM
-from .TemporalBuffer                import TemporalBuffer
+from .PolicyBufferIMT               import PolicyBufferIMT
 from .PolicyBufferIMDual            import PolicyBufferIMDual
 
  
