@@ -7,6 +7,8 @@ class PolicyBufferIMT:
         self.state_shape    = state_shape
         self.actions_size   = actions_size
         self.envs_count     = envs_count
+
+        self.hidden_state   = None
       
         self.clear()     
  
