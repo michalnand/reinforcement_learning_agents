@@ -183,7 +183,6 @@ class AgentPPOCSND():
             
             hidden_im_state = self.hidden_im_state.detach().to("cpu")
 
-            print(">>> ", hidden_im_state.shape)
 
             self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_im_state)
 
@@ -198,7 +197,6 @@ class AgentPPOCSND():
         dones_idx = numpy.where(dones)[0]
         for e in dones_idx: 
             self.hidden_im_state[e]   = 0
-            print("done")
 
             
         #collect stats
