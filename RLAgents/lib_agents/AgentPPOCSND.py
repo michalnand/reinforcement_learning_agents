@@ -186,7 +186,8 @@ class AgentPPOCSND():
             self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_im_state)
 
             if self.policy_buffer.is_full():
-                self.train()
+                #self.train()
+                self.policy_buffer.clear()
 
         #udpate rnn hidden state
         self.hidden_im_state = hidden_im_state_new.detach().clone()
@@ -398,6 +399,8 @@ class AgentPPOCSND():
         novelty_temporal = novelty_temporal.detach().cpu()
 
         h_new = torch.concatenate([ht_new.unsqueeze(1), hs_new.unsqueeze(1)], dim=1).detach()
+
+        print(">>>> ", h_new.shape)
  
         return novelty_spatial, novelty_temporal, h_new
  
