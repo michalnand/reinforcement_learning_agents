@@ -104,8 +104,6 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
 
 def loss_vicreg_temporal(forward_spatial_func, forward_temporal_func, augmentations, state_seq, hidden_state, detach_features):
     shape = state_seq.shape
-
-    print("loss_vicreg_temporal")
     
     #reshape to (batch*seq, ch, height, width) for CNN
     x = state_seq.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
