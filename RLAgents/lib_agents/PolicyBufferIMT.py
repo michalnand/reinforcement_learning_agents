@@ -61,7 +61,7 @@ class PolicyBufferIMT:
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         if self.hidden_states is not None: 
-            self.hidden_states = torch.zeros(self.hidden_states.shape)
+            self.hidden_states = torch.zeros((self.buffer_size, self.envs_count, 2, self.hidden_states.shape[-1]), dtype=torch.float32)
 
         self.ptr = 0  
  
