@@ -131,7 +131,7 @@ class PolicyBufferIMT:
         idx_env = torch.randint(0, self.envs_count, size=(batch_size, ))
         idx_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
         
-        idx_base = idx_env*self.buffer_size + idx_seq
+        idx_base = idx_env + idx_seq*self.envs_count
 
         #TODO: optimize this 
         #sample random sequences, with fixed length
