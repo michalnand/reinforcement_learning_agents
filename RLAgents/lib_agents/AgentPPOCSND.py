@@ -283,7 +283,7 @@ class AgentPPOCSND():
 
                 #sample smaller batch for temporal self supervised loss
                 state_seq, hidden_state = self.policy_buffer.sample_seq(small_batch//self.seq_length, self.seq_length, self.device)
-                loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_spatial_target, self.model_im.forward_temporal_target, self._augmentations, state_seq, hidden_state[:, 0], self.detach_features)                
+                loss_temporal_target_self_supervised = self._temporal_target_self_supervised_loss(self.model_im.forward_spatial_target, self.model_im.forward_temporal_target, self._augmentations, state_seq, hidden_state[:, 0].contiguous(), self.detach_features)                
 
                 #train distillation
                 loss_spatial_distillation  = self._loss_spatial_distillation(states)
@@ -369,8 +369,8 @@ class AgentPPOCSND():
             zs_target    = zs_target.detach()
             zs_predictor = zs_predictor.detach()
 
-        zt_target, _     = self.model_im.forward_temporal_target(zs_target, hidden_state[:, 0])        
-        zt_predicted, _  = self.model_im.forward_temporal_predictor(zs_predictor, hidden_state[:, 1])
+        zt_target, _     = self.model_im.forward_temporal_target(zs_target, hidden_state[:, 0].contiguous())        
+        zt_predicted, _  = self.model_im.forward_temporal_predictor(zs_predictor, hidden_state[:, 1].contiguous())
         
         loss = ((zt_target.detach() - zt_predicted)**2).mean()
 
