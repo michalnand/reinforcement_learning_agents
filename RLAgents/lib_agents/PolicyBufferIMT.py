@@ -58,7 +58,7 @@ class PolicyBufferIMT:
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
         if self.hidden_states is not None: 
-            self.hidden_states = torch.zeros(self.hidden_state.shape)
+            self.hidden_states = torch.zeros(self.hidden_states.shape)
 
         self.ptr = 0  
  
@@ -148,7 +148,9 @@ class PolicyBufferIMT:
         #resulted shape : 2, batch_size, s_features_count
         hidden_state = self.hidden_states[idx_base]
         
-        print("buffer sample_seq ", state_seq.shape, hidden_state.shape)
+        #4, 16, 4, 96, 96
+        #4, 2, 512
+        #print("buffer sample_seq ", state_seq.shape, hidden_state.shape)
 
         return state_seq.to(device), hidden_state.to(device)
 
