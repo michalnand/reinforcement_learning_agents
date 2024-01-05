@@ -390,8 +390,8 @@ class AgentPPOCSND():
         if self.shared_features:
             zs_predictor = zs_target
             
-        zt_target,    ht_new = self.model_im.forward_temporal_target(zs_target.unsqueeze(1), hidden_state[:, 0])
-        zt_predictor, hs_new = self.model_im.forward_temporal_predictor(zs_predictor.unsqueeze(1), hidden_state[:, 1])
+        zt_target,    ht_new = self.model_im.forward_temporal_target(zs_target.unsqueeze(1), hidden_state[:, 0].contiguous())
+        zt_predictor, hs_new = self.model_im.forward_temporal_predictor(zs_predictor.unsqueeze(1), hidden_state[:, 1].contiguous())
 
         zt_target    = zt_target.squeeze(1)
         zt_predictor = zt_predictor.squeeze(1)
