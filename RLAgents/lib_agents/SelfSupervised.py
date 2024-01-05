@@ -113,14 +113,11 @@ def loss_vicreg_temporal(forward_spatial_func, forward_temporal_func, augmentati
     xa_aug, _ = augmentations(x)
     xb_aug, _ = augmentations(x) 
 
-    
-    print(x.shape, state_seq.shape)
-
+   
     #obtain features from conv model
     sza = forward_spatial_func(xa_aug)  
     szb = forward_spatial_func(xb_aug)  
 
-    print(sza.shape, szb.shape)
     #if not training conv features
     if detach_features:
        sza = sza.detach()
@@ -130,22 +127,17 @@ def loss_vicreg_temporal(forward_spatial_func, forward_temporal_func, augmentati
     sza = sza.reshape((shape[0], shape[1], sza.shape[-1]))
     szb = szb.reshape((shape[0], shape[1], szb.shape[-1]))
 
-    print(sza.shape, szb.shape, hidden_state.shape)
 
     #obtain RNN features
     zt_target, _     = forward_temporal_func(sza, hidden_state)        
     zt_predicted, _  = forward_temporal_func(szb, hidden_state)
 
-    print(zt_target.shape, zt_predicted.shape)
         
     #reshape for vicreg loss (batch*seq, features)
     zt_target       = zt_target.reshape((zt_target.shape[0]*zt_target.shape[1], zt_target.shape[2]))
     zt_predicted    = zt_predicted.reshape((zt_predicted.shape[0]*zt_predicted.shape[1], zt_predicted.shape[2]))
 
-    print(zt_target.shape, zt_predicted.shape)
-
-    print("\n\n")
-
+   
     return loss_vicreg_direct(zt_target, zt_predicted)
 
 
