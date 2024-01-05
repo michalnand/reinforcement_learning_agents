@@ -137,14 +137,18 @@ class PolicyBufferIMT:
         #sample random sequences, with fixed length
         #resulted shape : batch_size, seq_length, s_features_count
         state_seq = torch.zeros((batch_size, seq_length, ) + self.state_shape, dtype=torch.float32)
+
+        ''' 
         for n in range(seq_length):
             idx = idx_base + n*self.envs_count
             state_seq[:, n] = self.states[idx, :, : , :]
+        '''
 
         #sample initial state, from begining of sequence
         #resulted shape : 2, batch_size, s_features_count
         hidden_state = self.hidden_states[idx_base]
         
+        print("buffer sample_seq ", state_seq.shape, hidden_state.shape)
 
         return state_seq.to(device), hidden_state.to(device)
 

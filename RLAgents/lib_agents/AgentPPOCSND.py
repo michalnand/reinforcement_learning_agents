@@ -186,8 +186,8 @@ class AgentPPOCSND():
             self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_im_state)
 
             if self.policy_buffer.is_full():
-                #self.train()
-                self.policy_buffer.clear()
+                self.train()
+                
 
         #udpate rnn hidden state
         self.hidden_im_state = hidden_im_state_new.detach().clone()
