@@ -39,8 +39,6 @@ class AgentPPOCSND():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
-        self.rnn_policy         = config.rnn_policy
-
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
