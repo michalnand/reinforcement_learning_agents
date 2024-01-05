@@ -399,8 +399,6 @@ class AgentPPOCSND():
         novelty_temporal = novelty_temporal.detach().cpu()
 
         h_new = torch.concatenate([ht_new.unsqueeze(1), hs_new.unsqueeze(1)], dim=1).detach()
-
-        print(">>>> ", h_new.shape)
  
         return novelty_spatial, novelty_temporal, h_new
  
