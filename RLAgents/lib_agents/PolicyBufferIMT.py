@@ -31,9 +31,6 @@ class PolicyBufferIMT:
             if self.hidden_states is None:
                 self.hidden_states   = torch.zeros((self.buffer_size, ) + hidden_state.shape, dtype=torch.float32)
             
-
-            print("add >>> ", self.hidden_states.shape, hidden_state.shape)
-
             self.hidden_states[self.ptr] = hidden_state.clone()
   
         self.ptr = self.ptr + 1 
