@@ -8,7 +8,7 @@ class PolicyBufferIMT:
         self.actions_size   = actions_size
         self.envs_count     = envs_count
 
-        self.hidden_state   = None
+        self.hidden_states   = None
       
         self.clear()     
  
@@ -28,10 +28,10 @@ class PolicyBufferIMT:
         self.dones[self.ptr]       = (1.0*done).clone()
 
         if hidden_state is not None:
-            if self.hidden_state is None:
-                self.hidden_state   = torch.zeros((self.buffer_size, ) + hidden_state.shape, dtype=torch.float32)
+            if self.hidden_states is None:
+                self.hidden_states   = torch.zeros((self.buffer_size, ) + hidden_state.shape, dtype=torch.float32)
             
-            self.hidden_state[self.ptr] = hidden_state.clone()
+            self.hidden_states[self.ptr] = hidden_state.clone()
   
         self.ptr = self.ptr + 1 
 
@@ -57,8 +57,8 @@ class PolicyBufferIMT:
 
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
-        if self.hidden_state is not None: 
-            self.hidden_state = torch.zeros(self.hidden_state.shape)
+        if self.hidden_states is not None: 
+            self.hidden_states = torch.zeros(self.hidden_state.shape)
 
         self.ptr = 0  
  
@@ -88,8 +88,8 @@ class PolicyBufferIMT:
         self.returns_int      = self.returns_int.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_int   = self.advantages_int.reshape((self.buffer_size*self.envs_count, ))
 
-        if self.hidden_state is not None: 
-            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_state.shape[2:])
+        if self.hidden_states is not None: 
+            self.hidden_states = self.hidden_states.reshape((self.buffer_size*self.envs_count, ) + self.hidden_states.shape[2:])
 
 
     def sample_batch(self, batch_size, device = "cpu"):
