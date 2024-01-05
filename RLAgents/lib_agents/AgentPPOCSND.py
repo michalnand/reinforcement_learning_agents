@@ -75,7 +75,6 @@ class AgentPPOCSND():
         print("reward_int_b_coeff                    = ", self.reward_int_b_coeff)
         print("shared_features                       = ", self.shared_features)
         print("detach_features                       = ", self.detach_features)
-        print("rnn_policy                            = ", self.rnn_policy)
         print("similar_states_distance               = ", self.similar_states_distance)
         print("state_normalise                       = ", self.state_normalise)
 
