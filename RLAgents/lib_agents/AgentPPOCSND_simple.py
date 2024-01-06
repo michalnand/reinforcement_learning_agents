@@ -228,7 +228,7 @@ class AgentPPOCSND_simple():
 
         batch_count = self.steps//self.batch_size
 
-        small_batch = 16*self.batch_size 
+        small_batch = 32*self.batch_size 
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
