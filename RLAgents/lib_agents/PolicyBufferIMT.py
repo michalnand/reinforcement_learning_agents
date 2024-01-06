@@ -111,7 +111,7 @@ class PolicyBufferIMT:
    
   
 
-    def sample_states_pairs(self, batch_size, device = "cpu", max_distance = 0):
+    def sample_states_pairs(self, batch_size, max_distance, device):
         count           = self.buffer_size*self.envs_count
 
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
@@ -125,33 +125,39 @@ class PolicyBufferIMT:
         return states_now, states_similar
     
    
-  
-    
-    def sample_seq(self, batch_size, seq_length, device = "cpu"):
-        idx_env = torch.randint(0, self.envs_count, size=(batch_size, ))
-        idx_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
+    def sample_states_pairs_seq(self, batch_size, seq_length, max_distance, device):
+
+        idx_a_env = torch.randint(0, self.envs_count, size=(batch_size, ))
+        idx_a_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
         
-        idx_base = idx_env + idx_seq*self.envs_count
+        idx_a_base = idx_a_env + idx_a_seq*self.envs_count
+
+        distance   = torch.randint(0, 1 + max_distance, (batch_size, ))
+        idx_b_base = torch.clip(idx_a_base + distance*self.envs_count, 0, self.buffer_size*self.envs_count)
+
 
         #TODO: optimize this 
         #sample random sequences, with fixed length
-        #resulted shape : batch_size, seq_length, s_features_count
-        state_seq = torch.zeros((batch_size, seq_length, ) + self.state_shape, dtype=torch.float32)
+        #resulted shape : batch_size, seq_length, state_shape
+        state_seq_a = torch.zeros((batch_size, seq_length, ) + self.state_shape, dtype=torch.float32)
+        state_seq_b = torch.zeros((batch_size, seq_length, ) + self.state_shape, dtype=torch.float32)
 
         for n in range(seq_length):
-            idx = idx_base + n*self.envs_count
-            state_seq[:, n] = self.states[idx, :, : , :]
-        
+            idx_a = idx_a_base + n*self.envs_count
+            state_seq_a[:, n] = self.states[idx_a, :, :, :]
+
+            idx_b = idx_b_base + n*self.envs_count
+            state_seq_b[:, n] = self.states[idx_b, :, :, :]
+       
 
         #sample initial state, from begining of sequence
         #resulted shape : 2, batch_size, s_features_count
-        hidden_state = self.hidden_states[idx_base]
-        
-        #4, 16, 4, 96, 96
-        #4, 2, 512
-        #print("buffer sample_seq ", state_seq.shape, hidden_state.shape)
+        hidden_a = self.hidden_states[idx_a_base]
+        hidden_b = self.hidden_states[idx_b_base]
 
-        return state_seq.to(device), hidden_state.to(device)
+
+        return state_seq_a.to(device), state_seq_b.to(device), hidden_a.to(device), hidden_b.to(device)
+   
 
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
