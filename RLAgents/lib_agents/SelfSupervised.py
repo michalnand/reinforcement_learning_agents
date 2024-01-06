@@ -101,42 +101,29 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
     return loss_vicreg_contrastive_direct(za, zb, episode_steps_a, episode_steps_b)
 
 
-
-def loss_vicreg_temporal(forward_spatial_func, forward_temporal_func, augmentations, state_seq, hidden_state, detach_features):
-    shape = state_seq.shape
+def loss_vicreg_temporal(forward_func, augmentations, states_seq_now, states_seq_similar, hidden_now, hidden_similar):
+    shape = states_seq_now.shape
     
-    #reshape to (batch*seq, ch, height, width) for CNN
-    x = state_seq.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
+    #reshape to (batch*seq, ch, height, width) for augmentations
+    xa_aug = states_seq_now.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
+    xb_aug = states_seq_similar.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
 
-    xa_aug, _ = augmentations(x)
-    xb_aug, _ = augmentations(x) 
+    xa_aug, _ = augmentations(xa_aug)
+    xb_aug, _ = augmentations(xb_aug) 
 
+    #reshape back for model 
+    xa_aug = states_seq_now.reshape(shape)
+    xb_aug = states_seq_similar.reshape(shape)
    
     #obtain features from conv model
-    sza = forward_spatial_func(xa_aug)  
-    szb = forward_spatial_func(xb_aug)  
+    za, _ = forward_func(xa_aug, hidden_now)  
+    zb, _ = forward_func(xb_aug, hidden_similar)  
 
-    #if not training conv features
-    if detach_features:
-       sza = sza.detach()
-       szb = szb.detach() 
-
-    #reshape to (batch, seq, features) for RNN
-    sza = sza.reshape((shape[0], shape[1], sza.shape[-1]))
-    szb = szb.reshape((shape[0], shape[1], szb.shape[-1]))
-
-
-    #obtain RNN features
-    zt_target, _     = forward_temporal_func(sza, hidden_state)        
-    zt_predicted, _  = forward_temporal_func(szb, hidden_state)
-
-        
     #reshape for vicreg loss (batch*seq, features)
-    zt_target       = zt_target.reshape((zt_target.shape[0]*zt_target.shape[1], zt_target.shape[2]))
-    zt_predicted    = zt_predicted.reshape((zt_predicted.shape[0]*zt_predicted.shape[1], zt_predicted.shape[2]))
+    za  = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
+    zb  = zb.reshape((zb.shape[0]*zb.shape[1], zb.shape[2]))
 
-   
-    return loss_vicreg_direct(zt_target, zt_predicted)
+    return loss_vicreg_direct(za, zb)
 
 
 def loss_vicreg_mast(model_forward_func, augmentations_func, states_a, states_b):
