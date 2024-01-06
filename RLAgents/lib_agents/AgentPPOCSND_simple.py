@@ -323,16 +323,15 @@ class AgentPPOCSND_simple():
     #compute internal motivations
     def _internal_motivation(self, states, hidden_state):         
         #distillation novelty detection, mse loss
-        z_target,    h_target_new    = self.model_im.forward_target(states.unsqueeze(1), hidden_state[:, 0].contiguous()).detach()
-        z_predictor, h_predictor_new = self.model_im.forward_predictor(states.unsqueeze(1), hidden_state[:, 1].contiguous()).detach()
+        z_target,    h_target_new    = self.model_im.forward_target(states.unsqueeze(1), hidden_state[:, 0].contiguous())
+        z_predictor, h_predictor_new = self.model_im.forward_predictor(states.unsqueeze(1), hidden_state[:, 1].contiguous())
 
         z_target    = z_target.squeeze(1)
         z_predictor = z_predictor.squeeze(1)
         novelty     = ((z_target - z_predictor)**2).mean(dim=1)
-        novelty     = novelty.detach().cpu()
 
-        h_new = torch.concatenate([h_target_new.unsqueeze(1), h_predictor_new.unsqueeze(1)], dim=1).detach()
-        return novelty, h_new
+        h_new = torch.concatenate([h_target_new.unsqueeze(1), h_predictor_new.unsqueeze(1)], dim=1)
+        return novelty.detach().cpu(), h_new.detach()
  
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
