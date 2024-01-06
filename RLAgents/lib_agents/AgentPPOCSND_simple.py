@@ -257,13 +257,16 @@ class AgentPPOCSND_simple():
 
               
                 #sample smaller batch for self supervised loss
-                states_seq_now, states_seq_similar, hidden_seq_now, hidden_seq_similar = self.policy_buffer.sample_states_pairs_seq(small_batch//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
-                loss_target_self_supervised       = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_seq_now, states_seq_similar, hidden_seq_now[:, 0].contiguous(), hidden_seq_similar[:, 0].contiguous())                
+                states_seq_now, states_seq_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_seq(small_batch//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
+                loss_target_self_supervised       = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_seq_now, states_seq_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous())                
 
-                
+                print("loss_target_self_supervised ", states_seq_now.shape, states_seq_similar.shape, hidden_now.shape, hidden_similar.shape)                
+
                 #train distillation
-                states_seq, _, hidden_seq, _    = self.policy_buffer.sample_states_pairs_seq(small_batch//self.seq_length, self.seq_length, self.device, self.similar_states_distance)
-                loss_distillation               = self._loss_distillation(states_seq, hidden_seq)
+                states_seq, _, hidden, _    = self.policy_buffer.sample_states_pairs_seq(small_batch//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
+                loss_distillation           = self._loss_distillation(states_seq, hidden)
+
+                print("loss_distillation ", states_seq.shape, hidden.shape)                
 
                 #total loss for im model
                 loss_im = loss_target_self_supervised + loss_distillation
