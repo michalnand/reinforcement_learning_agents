@@ -316,8 +316,8 @@ class AgentPPOCSND_simple():
 
     #MSE loss for  distillation
     def _loss_distillation(self, states_seq, hidden_state):  
-        z_target       = self.model_im.forward_target(states_seq, hidden_state[:, 0].contiguous())        
-        z_predictor    = self.model_im.forward_predictor(states_seq, hidden_state[:, 1].contiguous())
+        z_target, _     = self.model_im.forward_target(states_seq, hidden_state[:, 0].contiguous())        
+        z_predictor, _  = self.model_im.forward_predictor(states_seq, hidden_state[:, 1].contiguous())
 
         loss = ((z_target.detach() - z_predictor)**2).mean()
 
