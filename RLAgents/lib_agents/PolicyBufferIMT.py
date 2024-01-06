@@ -123,17 +123,18 @@ class PolicyBufferIMT:
         states_similar  = (self.states[indices_similar]).to(device)
      
         return states_now, states_similar
-    
+     
    
     def sample_states_pairs_seq(self, batch_size, seq_length, max_distance, device):
 
         idx_a_env = torch.randint(0, self.envs_count, size=(batch_size, ))
-        idx_a_seq = torch.randint(0, self.buffer_size - seq_length, size=(batch_size, ))
+        idx_a_seq = torch.randint(0, self.buffer_size - seq_length - max_distance, size=(batch_size, ))
         
         idx_a_base = idx_a_env + idx_a_seq*self.envs_count
 
         distance   = torch.randint(0, 1 + max_distance, (batch_size, ))
-        idx_b_base = torch.clip(idx_a_base + distance*self.envs_count, 0, self.buffer_size*self.envs_count)
+        idx_b_base = idx_a_base + distance*self.envs_count
+        #idx_b_base = torch.clip(idx_a_base + distance*self.envs_count, 0, self.buffer_size*self.envs_count)
 
 
         #TODO: optimize this 
