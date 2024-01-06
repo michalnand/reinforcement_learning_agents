@@ -83,7 +83,7 @@ class AgentPPOCSND_simple():
         self.policy_buffer = PolicyBufferIMT(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         #temporal hidden state for im (two, one for target one for predictor)
-        self.hidden_im_state = torch.zeros((self.envs_count, 2, 512), dtype=torch.float32, device=self.device)
+        self.hidden_im_state = torch.zeros((self.envs_count, 2, self.model_im.hidden_size), dtype=torch.float32, device=self.device)
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
