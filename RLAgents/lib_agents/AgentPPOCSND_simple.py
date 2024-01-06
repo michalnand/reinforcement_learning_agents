@@ -313,8 +313,8 @@ class AgentPPOCSND_simple():
 
     #MSE loss for  distillation
     def _loss_distillation(self, states_seq, hidden_state):  
-        z_target       = self.model_im.forward_spatial_target(states_seq, hidden_state[:, 0].contiguous())        
-        z_predictor    = self.model_im.forward_spatial_predictor(states_seq, hidden_state[:, 1].contiguous())
+        z_target       = self.model_im.forward_target(states_seq, hidden_state[:, 0].contiguous())        
+        z_predictor    = self.model_im.forward_predictor(states_seq, hidden_state[:, 1].contiguous())
 
         loss = ((z_target.detach() - z_predictor)**2).mean()
 
@@ -323,8 +323,8 @@ class AgentPPOCSND_simple():
     #compute internal motivations
     def _internal_motivation(self, states, hidden_state):         
         #distillation novelty detection, mse loss
-        z_target,    h_target_new    = self.model_im.forward_spatial_target(states.unsqueeze(1), hidden_state[:, 0].contiguous()).detach()
-        z_predictor, h_predictor_new = self.model_im.forward_spatial_predictor(states.unsqueeze(1), hidden_state[:, 1].contiguous()).detach()
+        z_target,    h_target_new    = self.model_im.forward_target(states.unsqueeze(1), hidden_state[:, 0].contiguous()).detach()
+        z_predictor, h_predictor_new = self.model_im.forward_predictor(states.unsqueeze(1), hidden_state[:, 1].contiguous()).detach()
 
         z_target    = z_target.squeeze(1)
         z_predictor = z_predictor.squeeze(1)
