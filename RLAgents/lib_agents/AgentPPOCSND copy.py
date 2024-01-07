@@ -2,7 +2,7 @@ import numpy
 import torch 
 
 from .ValuesLogger      import *
-from .PolicyBufferIMNew import *  
+from .PolicyBufferIMT   import *  
 
 from .PPOLoss               import *
 from .SelfSupervised        import * 
@@ -29,6 +29,7 @@ class AgentPPOCSND():
     
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
+        self.seq_length         = config.seq_length
 
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
@@ -39,8 +40,8 @@ class AgentPPOCSND():
         else:
             self._ppo_self_supervised_loss = None
 
-        if config.target_self_supervised_loss == "vicreg":
-            self._target_self_supervised_loss = loss_vicreg
+        if config.target_self_supervised_loss == "vicreg_temporal":
+            self._target_self_supervised_loss = loss_vicreg_temporal
         else:
             self._target_self_supervised_loss = None
 
@@ -57,6 +58,7 @@ class AgentPPOCSND():
         
         print("ppo_self_supervised_loss              = ", self._ppo_self_supervised_loss)
         print("target_self_supervised_loss           = ", self._target_self_supervised_loss)
+        print("seq_length                            = ", self.seq_length)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
@@ -78,9 +80,11 @@ class AgentPPOCSND():
         self.model_im.to(self.device)
         self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
     
-        self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.policy_buffer = PolicyBufferIMT(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-     
+        #temporal hidden state for im (two, one for target one for predictor)
+        self.hidden_im_state = torch.zeros((self.envs_count, 2, self.model_im.hidden_size), dtype=torch.float32, device=self.device)
+
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
@@ -139,7 +143,7 @@ class AgentPPOCSND():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int  = self._internal_motivation(states_t)
+        rewards_int, hidden_im_state_new  = self._internal_motivation(states_t, self.hidden_im_state)
 
         #weighting and clipping im
         rewards_int = rewards_int.detach().to("cpu")
@@ -156,13 +160,23 @@ class AgentPPOCSND():
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
             
+            hidden_im_state = self.hidden_im_state.detach().to("cpu")
 
-            self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
+            self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_im_state)
 
             if self.policy_buffer.is_full():
                 self.train()
                 
 
+        #udpate rnn hidden state
+        self.hidden_im_state = hidden_im_state_new.detach().clone()
+
+        #clear hidden state if done
+        dones_idx = numpy.where(dones)[0]
+        for e in dones_idx: 
+            self.hidden_im_state[e]   = 0
+
+            
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
@@ -211,8 +225,6 @@ class AgentPPOCSND():
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
-
-        ss_batch_size = 64
         
         samples_count = self.steps*self.envs_count
 
@@ -229,7 +241,7 @@ class AgentPPOCSND():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(ss_batch_size, 0, self.device)
+                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.batch_size//8, 0, self.device)
 
                     loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                 else:
@@ -247,15 +259,15 @@ class AgentPPOCSND():
         
         
         #IM model training
+        batch_count = samples_count//(2*self.batch_size)
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
-
-            states_now, states_similar = self.policy_buffer.sample_states_pairs(ss_batch_size, self.similar_states_distance, self.device)
-            loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_now, states_similar)                
+            states_seq_now, states_seq_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_seq(self.batch_size//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
+            loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_seq_now, states_seq_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous())                
 
             #train distillation
-            states, states_similar = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
-            loss_distillation         = self._loss_distillation(states)
+            states_seq, _, hidden, _  = self.policy_buffer.sample_states_pairs_seq(self.batch_size//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
+            loss_distillation         = self._loss_distillation(states_seq, hidden)
 
             #total loss for im model
             loss_im = loss_target_self_supervised + loss_distillation
@@ -302,23 +314,26 @@ class AgentPPOCSND():
    
 
     #MSE loss for  distillation
-    def _loss_distillation(self, states):  
-        z_target     = self.model_im.forward_target(states)        
-        z_predictor  = self.model_im.forward_predictor(states)
+    def _loss_distillation(self, states_seq, hidden_state):  
+        z_target, _     = self.model_im.forward_target(states_seq, hidden_state[:, 0].contiguous())        
+        z_predictor, _  = self.model_im.forward_predictor(states_seq, hidden_state[:, 1].contiguous())
 
         loss = ((z_target.detach() - z_predictor)**2).mean()
 
         return loss  
 
     #compute internal motivations
-    def _internal_motivation(self, states):         
+    def _internal_motivation(self, states, hidden_state):         
         #distillation novelty detection, mse loss
-        z_target    = self.model_im.forward_target(states)
-        z_predictor = self.model_im.forward_predictor(states)
+        z_target,    h_target_new    = self.model_im.forward_target(states.unsqueeze(1), hidden_state[:, 0].contiguous())
+        z_predictor, h_predictor_new = self.model_im.forward_predictor(states.unsqueeze(1), hidden_state[:, 1].contiguous())
 
+        z_target    = z_target.squeeze(1)
+        z_predictor = z_predictor.squeeze(1)
         novelty     = ((z_target - z_predictor)**2).mean(dim=1)
 
-        return novelty.detach().cpu()
+        h_new = torch.concatenate([h_target_new.unsqueeze(1), h_predictor_new.unsqueeze(1)], dim=1)
+        return novelty.detach().cpu(), h_new.detach()
  
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)

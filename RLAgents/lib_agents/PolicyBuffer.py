@@ -12,7 +12,7 @@ class PolicyBuffer:
       
         self.clear()   
  
-    def add(self, state, logits, value, action, reward, done, hidden_state):  
+    def add(self, state, logits, value, action, reward, done, hidden_state = None):  
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
         self.values[self.ptr]    = value.clone()
