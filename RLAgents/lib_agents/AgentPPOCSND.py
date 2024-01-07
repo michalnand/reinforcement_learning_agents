@@ -259,7 +259,7 @@ class AgentPPOCSND():
         
         
         #IM model training
-        for batch_idx in range(batch_count):
+        for batch_idx in range(batch_count//2):
             #sample smaller batch for self supervised loss
             states_seq_now, states_seq_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_seq(self.batch_size//self.seq_length, self.seq_length, self.similar_states_distance, self.device)
             loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_seq_now, states_seq_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous())                
