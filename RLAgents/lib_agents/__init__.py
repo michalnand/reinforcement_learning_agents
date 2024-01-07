@@ -31,17 +31,9 @@ from .AgentPPOSA                    import AgentPPOSA
 
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
-from .AgentPPOCSND_simple           import AgentPPOCSND_simple
 from .AgentPPOSND                   import AgentPPOSND
-from .AgentPPOSNDCE                 import AgentPPOSNDCE
-from .AgentPPOSNDCA                 import AgentPPOSNDCA
-from .AgentPPOCE                    import AgentPPOCE
-
-from .AgentPPOSNDEE                 import AgentPPOSNDEE
-
-from .AgentPPONitenIchi             import AgentPPONitenIchi
-from .AgentPPOTwoHeavens            import AgentPPOTwoHeavens
 from .AgentPPOCSND                  import AgentPPOCSND
+
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 

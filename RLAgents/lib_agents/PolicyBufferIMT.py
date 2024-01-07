@@ -93,7 +93,7 @@ class PolicyBufferIMT:
 
 
     def sample_batch(self, batch_size, device = "cpu"):
-        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states          = (self.states[indices]).to(device)
         logits          = (self.logits[indices]).to(device)
