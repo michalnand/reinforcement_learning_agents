@@ -83,7 +83,7 @@ class PolicyBufferIMNew:
 
         if self.hidden_state is not None:
             print(">>> hidden = ", self.hidden_state.shape)
-            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_state.shape[1:])
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_state.shape[2:])
             print(">>> hidden = ", self.hidden_state.shape)
             print("\n\n")
 
