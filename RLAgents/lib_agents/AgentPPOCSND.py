@@ -147,8 +147,7 @@ class AgentPPOCSND():
         rewards_int = rewards_int.detach().to("cpu")
 
         if self.int_reward_normalise:
-            #rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
-            rewards_int = self._reward_normalise(rewards_int)
+            rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
@@ -167,7 +166,6 @@ class AgentPPOCSND():
             self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.policy_buffer.is_full():
-                print("im norm ", rewards_int.mean(), rewards_int.std(), self.reward_mean, self.reward_var)
                 self.train()
                 
 
@@ -383,6 +381,8 @@ class AgentPPOCSND():
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards, -4.0, 4.0)
+
+        print(">>> ", rewards_result.std(), rewards.std())
       
         return rewards_result
    
