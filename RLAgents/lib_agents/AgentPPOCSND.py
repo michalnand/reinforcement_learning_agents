@@ -369,7 +369,7 @@ class AgentPPOCSND():
         return states_norm
     
 
-    def _reward_normalise(self, rewards, alpha = 0.9): 
+    def _reward_normalise(self, rewards, alpha = 0.99): 
         if self.state_normalise:
             #update running stats
             mean = rewards.mean() 
@@ -380,7 +380,7 @@ class AgentPPOCSND():
              
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
-        rewards_result = numpy.clip(rewards, -4.0, 4.0)
+        rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
 
         print(">>> ", rewards_result.std(), rewards.std())
       
