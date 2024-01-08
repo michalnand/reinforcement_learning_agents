@@ -27,7 +27,7 @@ class PolicyBufferIMNew:
 
         if hidden_state is not None:
             if self.hidden_state is None:
-                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + hidden_state.shape[1:], dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
 
@@ -126,6 +126,23 @@ class PolicyBufferIMNew:
         states_similar  = (self.states[indices_similar]).to(device)
      
         return states_now, states_similar
+    
+
+    def sample_states_pairs_hidden(self, batch_size, max_distance = 0, device = "cpu"):
+        count           = self.buffer_size*self.envs_count
+
+        max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
+
+        indices         = torch.randint(0, count, size=(batch_size, ))
+        indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
+      
+        states_now      = (self.states[indices]).to(device)
+        states_similar  = (self.states[indices_similar]).to(device)
+
+        hidden_now      = (self.hidden_state[indices]).to(device)
+        hidden_similar  = (self.hidden_state[indices_similar]).to(device)
+     
+        return states_now, states_similar, hidden_now, hidden_similar
     
   
   

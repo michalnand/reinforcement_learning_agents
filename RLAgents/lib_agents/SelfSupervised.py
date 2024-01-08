@@ -101,23 +101,12 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
     return loss_vicreg_contrastive_direct(za, zb, episode_steps_a, episode_steps_b)
 
 
-def loss_vicreg_temporal(forward_func, augmentations, states_seq_now, states_seq_similar, hidden_now, hidden_similar):
-    shape = states_seq_now.shape
-    
-    #reshape to (batch*seq, ch, height, width) for augmentations
-    xa_aug = states_seq_now.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
-    xb_aug = states_seq_similar.reshape((shape[0]*shape[1], shape[2], shape[3], shape[4]))
+def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, hidden_a, hidden_b, max_seq_length):
+    xa_aug, _ = augmentations(states_a)
+    xb_aug, _ = augmentations(states_b) 
 
-    xa_aug, _ = augmentations(xa_aug)
-    xb_aug, _ = augmentations(xb_aug) 
-
-    #reshape back for model 
-    xa_aug = states_seq_now.reshape(shape)
-    xb_aug = states_seq_similar.reshape(shape)
-   
-    #obtain features from conv model
-    za, _ = forward_func(xa_aug, hidden_now)  
-    zb, _ = forward_func(xb_aug, hidden_similar)  
+    za, _ = model_forward_func(xa_aug, hidden_a[:, 0].contiguous(), max_seq_length)  
+    zb, _ = model_forward_func(xb_aug, hidden_b[:, 0].contiguous(), max_seq_length) 
 
     #reshape for vicreg loss (batch*seq, features)
     za  = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
