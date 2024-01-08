@@ -166,6 +166,7 @@ class AgentPPOCSND():
             self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.policy_buffer.is_full():
+                print("im norm ", rewards_int.mean(), rewards_int.std(), self.reward_mean, self.reward_var)
                 self.train()
                 
 
@@ -273,6 +274,8 @@ class AgentPPOCSND():
             self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
             
         self.policy_buffer.clear() 
+
+        
 
 
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
