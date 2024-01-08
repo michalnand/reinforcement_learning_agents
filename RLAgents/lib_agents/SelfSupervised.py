@@ -103,10 +103,10 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_
 
 def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, hidden_a, hidden_b, max_seq_length):
     xa_aug, _ = augmentations(states_a)
-    xb_aug, _ = augmentations(states_b) 
+    xb_aug, _ = augmentations(states_b)  
 
-    za, _ = model_forward_func(xa_aug, hidden_a[:, 0].contiguous(), max_seq_length)  
-    zb, _ = model_forward_func(xb_aug, hidden_b[:, 0].contiguous(), max_seq_length) 
+    za, _ = model_forward_func(xa_aug, hidden_a, max_seq_length)  
+    zb, _ = model_forward_func(xb_aug, hidden_b, max_seq_length) 
 
     #reshape for vicreg loss (batch*seq, features)
     za  = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
