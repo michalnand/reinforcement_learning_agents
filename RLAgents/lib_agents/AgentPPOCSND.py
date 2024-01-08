@@ -381,8 +381,6 @@ class AgentPPOCSND():
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
-
-        print(">>> ", rewards_result.std(), rewards.std())
       
         return rewards_result
    
