@@ -147,7 +147,8 @@ class AgentPPOCSND():
         rewards_int = rewards_int.detach().to("cpu")
 
         if self.int_reward_normalise:
-            rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
+            #rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
+            rewards_int = self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
