@@ -369,7 +369,7 @@ class AgentPPOCSND():
         return states_norm
     
 
-    def _reward_normalise(self, rewards, alpha = 0.99): 
+    def _reward_normalise(self, rewards, alpha = 0.9): 
         if self.state_normalise:
             #update running stats
             mean = rewards.mean() 
