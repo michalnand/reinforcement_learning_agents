@@ -63,7 +63,7 @@ def loss_vicreg_direct(za, zb):
         za, zb features, and h contains only the necessary information 
         from za which can't be extracted from zb (and vice versa)
 '''
-def loss_jepa_direct(za, zb, pa, pb, ha, hb):
+def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     eps = 0.0001 
  
     # invariance loss
@@ -153,13 +153,13 @@ def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
     return loss_vicreg_direct(za, zb)
 
 
-def loss_jepa(model_forward_func, augmentations, states_a, states_b):
+def loss_vicreg_jepa(model_forward_func, augmentations, states_a, states_b):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
     za, zb, pa, pb, ha, hb = model_forward_func(xa_aug, xb_aug)  
 
-    return loss_jepa_direct(za, zb, pa, pb, ha, hb)
+    return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb)
 
 
 def loss_vicreg_contrastive(model_forward_func, augmentations, states_a, states_b, episode_steps_a, episode_steps_b):
