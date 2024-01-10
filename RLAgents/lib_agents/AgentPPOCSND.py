@@ -224,6 +224,8 @@ class AgentPPOCSND():
 
         batch_count = samples_count//self.batch_size
 
+        print("ppo_samples = ", self.training_epochs*batch_count*self.batch_size)
+
         #PPO training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
@@ -253,6 +255,10 @@ class AgentPPOCSND():
         
         
         #IM model training
+        batch_count = (samples_count//self.ss_batch_size)//2
+
+        print("ssl_samples = ", batch_count*self.ss_batch_size)
+
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
 
