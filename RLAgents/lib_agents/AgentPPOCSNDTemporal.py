@@ -44,6 +44,8 @@ class AgentPPOCSNDTemporal():
 
         if config.target_self_supervised_loss == "vicreg_temporal":
             self._target_self_supervised_loss = loss_vicreg_temporal
+        elif config.target_self_supervised_loss == "vicreg_jepa_temporal":
+            self._target_self_supervised_loss = loss_vicreg_jepa_temporal
         else:
             self._target_self_supervised_loss = None
 
@@ -224,10 +226,7 @@ class AgentPPOCSNDTemporal():
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
-        ss_batch_size = self.batch_size//8
-        
         samples_count = self.steps*self.envs_count
-
         batch_count = samples_count//self.batch_size
 
         #PPO training
@@ -241,7 +240,7 @@ class AgentPPOCSNDTemporal():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(ss_batch_size, 0, self.device)
+                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
 
                     loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                 else:
@@ -259,11 +258,15 @@ class AgentPPOCSNDTemporal():
         
         
         #IM model training
+        batch_count = (samples_count//self.ss_batch_size)//2
+
+        #print("ssl_samples = ", batch_count*self.ss_batch_size)
+
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
 
-            states_now, states_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_hidden(ss_batch_size, self.similar_states_distance, self.device)
-            loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_target, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous(), self.max_seq_length)                
+            states_now, states_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_hidden(self.ss_batch_size, self.similar_states_distance, self.device)
+            loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous(), self.max_seq_length)                
 
             #train distillation
             states, _, hidden, _ = self.policy_buffer.sample_states_pairs_hidden(self.batch_size, self.similar_states_distance, self.device)

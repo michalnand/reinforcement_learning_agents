@@ -217,11 +217,8 @@ class AgentPPOCSND():
     
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
-
-        #ss_batch_size = self.batch_size//8
         
         samples_count = self.steps*self.envs_count
-
         batch_count = samples_count//self.batch_size
 
         #print("ppo_samples = ", self.training_epochs*batch_count*self.batch_size)
