@@ -32,8 +32,8 @@ def loss_vicreg_direct(za, zb):
 
 
     #info for log
-    z_vol     = ((za**2).mean()).detach().cpu().numpy()
-    z_vol_std = ((za**2).std()).detach().cpu().numpy()
+    z_vol     = ((za**2).mean()).detach().cpu().numpy().item()
+    z_vol_std = ((za**2).std()).detach().cpu().numpy().item()
     
     info = [z_vol, z_vol_std]
 
@@ -102,10 +102,10 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hidden_loss
 
     #info for log
-    z_vol     = ((za**2).mean()).detach().cpu().numpy()
-    z_vol_std = ((za**2).std()).detach().cpu().numpy()
-    h_vol     = ((ha**2).mean()).detach().cpu().numpy()
-    h_vol_std = ((ha**2).std()).detach().cpu().numpy()
+    z_vol     = ((za**2).mean()).detach().cpu().numpy().item()
+    z_vol_std = ((za**2).std()).detach().cpu().numpy().item()
+    h_vol     = ((ha**2).mean()).detach().cpu().numpy().item()
+    h_vol_std = ((ha**2).std()).detach().cpu().numpy().item()
 
     info = [z_vol, z_vol_std, h_vol, h_vol_std]
 
