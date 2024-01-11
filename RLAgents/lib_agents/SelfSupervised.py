@@ -30,12 +30,12 @@ def loss_vicreg_direct(za, zb):
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
-
+ 
     #info for log
-    z_vol     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_vol_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
     
-    info = [z_vol, z_vol_std]
+    info = [z_mag, z_mag_std]
 
     return loss, info
 
@@ -102,15 +102,15 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hidden_loss
 
     #info for log
-    z_vol     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_vol_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    h_vol     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
-    h_vol_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    h_mag     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
+    h_mag_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
 
-    info = [z_vol, z_vol_std, h_vol, h_vol_std]
+    info = [z_mag, z_mag_std, h_mag, h_mag_std]
 
     return loss, info
-
+ 
 
 
 def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
