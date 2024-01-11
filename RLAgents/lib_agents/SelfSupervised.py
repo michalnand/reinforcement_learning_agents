@@ -94,14 +94,14 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
     cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
 
-    #hidden information loss, minimize
+    #hidden information loss, enforce sparsity, and minimize batch-wise variance
     h_mag = torch.abs(ha).mean() + torch.abs(hb).mean() 
     h_std = (ha.std(dim=0)).mean() + (hb.std(dim=0)).mean()
-    hidden_loss = h_mag + h_std
+    hidden_loss = 0.001*h_mag + 0.1*h_std
 
 
     # total loss, vicreg + info-min
-    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.01*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
