@@ -127,6 +127,8 @@ def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, 
     za  = za.reshape((za.shape[0], za.shape[1]*za.shape[2]))
     zb  = zb.reshape((zb.shape[0], zb.shape[1]*zb.shape[2]))
 
+    print(">>> z = ", za.shape, zb.shape)
+
     return loss_vicreg_direct(za, zb)
 
 
@@ -146,6 +148,11 @@ def loss_vicreg_jepa_temporal(model_forward_func, augmentations, states_a, state
 
     ha  = ha.reshape((ha.shape[0], ha.shape[1]*ha.shape[2]))
     hb  = hb.reshape((hb.shape[0], hb.shape[1]*hb.shape[2]))
+
+    print(">>> ", za.shape, pa.shape, ha.shape)
+    print(">>> ", zb.shape, pb.shape, hb.shape)
+    print("\n\n")
+
 
     return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb)
 
