@@ -99,7 +99,7 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
 
 
     # total loss, vicreg + info-min
-    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.01*hidden_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
