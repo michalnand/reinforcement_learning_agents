@@ -93,7 +93,7 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     print(">>> ", (za**2).mean(), (za**2).std(), (ha**2).mean(), (ha**2).std())
 
     # total loss, vicreg + info-min
-    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hidden_loss
 
     return loss
 
