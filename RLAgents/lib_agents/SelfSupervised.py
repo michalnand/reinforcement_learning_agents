@@ -90,6 +90,8 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     #hidden information loss, minimize
     hidden_loss = torch.abs(ha).mean() + torch.abs(hb).mean() 
 
+    print(">>> ", hidden_loss)
+
     # total loss, vicreg + info-min
     loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 10.0*hidden_loss
 
