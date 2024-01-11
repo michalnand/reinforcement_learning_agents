@@ -241,8 +241,10 @@ class AgentPPOCSNDTemporal():
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
                     states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
+                    
+                    loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
 
-                    loss_ppo_self_supervised    = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
+                    self.info_logger["ppo_ssl"] = ppo_ssl
                 else:
                     loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
@@ -266,8 +268,10 @@ class AgentPPOCSNDTemporal():
             #sample smaller batch for self supervised loss
 
             states_now, states_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_hidden(self.ss_batch_size, self.similar_states_distance, self.device)
-            loss_target_self_supervised  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous(), self.max_seq_length)                
+            loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous(), self.max_seq_length)                
 
+            self.info_logger["im_ssl"] = im_ssl
+            
             #train distillation
             states, _, hidden, _ = self.policy_buffer.sample_states_pairs_hidden(self.batch_size, self.similar_states_distance, self.device)
             loss_distillation = self._loss_distillation(states, hidden)

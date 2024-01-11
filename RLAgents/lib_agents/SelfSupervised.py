@@ -30,7 +30,14 @@ def loss_vicreg_direct(za, zb):
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
-    return loss
+
+    #info for log
+    z_vol     = ((za**2).mean()).detach().cpu().numpy()
+    z_vol_std = ((za**2).std()).detach().cpu().numpy()
+    
+    info = [z_vol, z_vol_std]
+
+    return loss, info
 
 
 '''
@@ -90,12 +97,19 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     #hidden information loss, minimize
     hidden_loss = torch.abs(ha).mean() + torch.abs(hb).mean() 
 
-    print(">>> ", (za**2).mean(), (za**2).std(), (ha**2).mean(), (ha**2).std())
 
     # total loss, vicreg + info-min
     loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hidden_loss
 
-    return loss
+    #info for log
+    z_vol     = ((za**2).mean()).detach().cpu().numpy()
+    z_vol_std = ((za**2).std()).detach().cpu().numpy()
+    h_vol     = ((ha**2).mean()).detach().cpu().numpy()
+    h_vol_std = ((ha**2).std()).detach().cpu().numpy()
+
+    info = [z_vol, z_vol_std, h_vol, h_vol_std]
+
+    return loss, info
 
 
 
