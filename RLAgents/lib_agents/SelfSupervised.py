@@ -97,7 +97,7 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
     #hidden information loss, enforce sparsity, and minimize batch-wise variance
     h_mag = torch.abs(ha).mean() + torch.abs(hb).mean() 
     h_std = (ha.std(dim=0)).mean() + (hb.std(dim=0)).mean()
-    hidden_loss = 0.001*h_mag + 0.1*h_std
+    hidden_loss = 0.001*h_mag + 0.01*h_std
 
 
     # total loss, vicreg + info-min
