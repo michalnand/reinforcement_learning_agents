@@ -147,11 +147,10 @@ def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, 
     zb  = zb.reshape((zb.shape[0], zb.shape[1]*zb.shape[2]))
     '''
 
-    #reshape for vicreg loss (batch*seq, features)
-    za  = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
-    zb  = zb.reshape((zb.shape[0]*zb.shape[1], zb.shape[2]))
+    #select only last item from seq
+    za  = za[:, -1, :]
+    zb  = zb[:, -1, :]
 
- 
     return loss_vicreg_direct(za, zb)
 
  
@@ -174,15 +173,15 @@ def loss_vicreg_jepa_temporal(model_forward_func, augmentations, states_a, state
     hb  = hb.reshape((hb.shape[0], hb.shape[1]*hb.shape[2]))
     ''' 
     
-    #reshape for vicreg loss (batch*seq, features)
-    za  = za.reshape((za.shape[0]*za.shape[1], za.shape[2]))
-    zb  = zb.reshape((zb.shape[0]*zb.shape[1], zb.shape[2]))
+    #select only last item from seq
+    za  = za[:, -1, :] 
+    zb  = zb[:, -1, :]
 
-    pa  = pa.reshape((pa.shape[0]*pa.shape[1], pa.shape[2]))
-    pb  = pb.reshape((pb.shape[0]*pb.shape[1], pb.shape[2]))
+    pa  = pa[:, -1, :]
+    pb  = pb[:, -1, :]
 
-    ha  = ha.reshape((ha.shape[0]*ha.shape[1], ha.shape[2]))
-    hb  = hb.reshape((hb.shape[0]*hb.shape[1], hb.shape[2]))
+    ha  = ha[:, -1, :]
+    hb  = hb[:, -1, :]
 
     return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb)
 
