@@ -36,6 +36,8 @@ from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOCSND                  import AgentPPOCSND
 from .AgentPPOCSNDTemporal          import AgentPPOCSNDTemporal
 
+from .AgentPPOJEPA                   import AgentPPOJEPA
+
 
 from .AgentPPOContinuous            import AgentPPOContinuous
 
