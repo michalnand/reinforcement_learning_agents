@@ -104,6 +104,7 @@ class AgentPPOJEPA():
 
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
+        self.values_logger.add("loss_ppo_self_supervised", 0.0)
 
         self.values_logger.add("loss_im", 0.0)
         
