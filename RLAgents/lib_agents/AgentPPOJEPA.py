@@ -145,7 +145,7 @@ class AgentPPOJEPA():
         im_mse, im_hidden = self._internal_motivation(states_prev_t, self.states_t)
         
 
-        rewards_int = im_mse*im_hidden
+        rewards_int = im_hidden
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
