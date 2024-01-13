@@ -145,7 +145,16 @@ class PolicyBufferIMNew:
         return states_now, states_similar, hidden_now, hidden_similar
     
   
-  
+    def sample_states_next_states(self, batch_size, device = "cpu"):
+        count           = self.buffer_size*self.envs_count
+
+        indices_now     = torch.randint(0, count, size=(batch_size, ))
+        indices_next    = torch.clip(indices_now + 1*self.envs_count, 0, count-1)
+      
+        states_now      = (self.states[indices_now]).to(device)
+        states_next     = (self.states[indices_next]).to(device)
+     
+        return states_now, states_next
  
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
