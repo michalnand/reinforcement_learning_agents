@@ -258,7 +258,7 @@ class AgentPPOJEPA():
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
             states, states_next = self.policy_buffer.sample_states_next_states(self.ss_batch_size, self.device)
-            loss_im, im_ssl     = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states, states_next)                
+            loss_im, im_ssl     = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states, states_next, 1.0)                
 
             self.info_logger["im_ssl"] = im_ssl
             

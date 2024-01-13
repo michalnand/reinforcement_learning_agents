@@ -72,7 +72,7 @@ def loss_vicreg_direct(za, zb):
 
         - this necessary information can be camemera position, or noise ...
 '''
-def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
+def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff = 0.01):
     eps = 0.0001 
  
     # invariance loss
@@ -101,7 +101,7 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb):
 
 
     # total loss, vicreg + info-min
-    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.01*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
@@ -125,13 +125,13 @@ def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
     return loss_vicreg_direct(za, zb)
 
 
-def loss_vicreg_jepa(model_forward_func, augmentations, states_a, states_b):
+def loss_vicreg_jepa(model_forward_func, augmentations, states_a, states_b, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
     za, zb, pa, pb, ha, hb = model_forward_func(xa_aug, xb_aug)  
 
-    return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb)
+    return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff)
 
 
 def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, hidden_a, hidden_b, max_seq_length):
