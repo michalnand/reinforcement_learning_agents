@@ -144,6 +144,11 @@ class AgentPPOJEPA():
         im_mse, im_hidden = self._internal_motivation(states_prev_t, self.states_t)
         
 
+        print(im_mse[0:10])
+        print(im_hidden[0:10])
+        print("\n\n")
+
+
         rewards_int = im_mse*im_hidden
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
@@ -310,10 +315,7 @@ class AgentPPOJEPA():
         im_mse      = ((za - pb)**2).mean(dim=-1)
         im_hidden   = (ha**2).mean(dim=-1)
 
-        print(im_mse[0:10])
-        print(im_hidden[0:10])
-        print("\n\n")
-
+        
         return im_mse.detach().cpu(), im_hidden.detach().cpu()
  
     def _augmentations(self, x): 
