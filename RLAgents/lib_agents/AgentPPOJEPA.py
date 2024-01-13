@@ -69,6 +69,7 @@ class AgentPPOJEPA():
         self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
+        
         #IM model
         self.model_im      = ModelIM.Model(self.state_shape)
         self.model_im.to(self.device)
@@ -76,6 +77,8 @@ class AgentPPOJEPA():
     
         self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
+        print(self.model_ppo)
+        print(self.model_im)
      
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
