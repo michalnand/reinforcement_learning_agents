@@ -299,16 +299,7 @@ class AgentPPOJEPA():
 
         return loss 
 
-   
 
-    #MSE loss for  distillation
-    def _loss_distillation(self, states):  
-        z_target     = self.model_im.forward_target(states)        
-        z_predictor  = self.model_im.forward_predictor(states)
-
-        loss = ((z_target.detach() - z_predictor)**2).mean()
-
-        return loss  
 
     #compute internal motivations
     def _internal_motivation(self, states_prev, states_now):         
@@ -316,6 +307,8 @@ class AgentPPOJEPA():
 
         im_mse      = ((za - pb)**2).mean(dim=-1)
         im_hidden   = (ha**2).mean(dim=-1)
+
+        print(im_hidden)
 
         return im_mse.detach().cpu(), im_hidden.detach().cpu()
  
