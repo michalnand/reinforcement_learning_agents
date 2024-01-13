@@ -394,7 +394,7 @@ class AgentPPOCSND():
 
 
         #critic loss
-        loss_critic =  ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
+        loss_critic = ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
 
         #actor loss        
         advantages  = self.ext_adv_coeff*advantages_ext + self.int_adv_coeff*advantages_int
