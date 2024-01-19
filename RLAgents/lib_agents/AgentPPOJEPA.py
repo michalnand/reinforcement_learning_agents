@@ -22,14 +22,16 @@ class AgentPPOJEPA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_a_coeff = config.reward_int_a_coeff
+        self.reward_int_b_coeff = config.reward_int_b_coeff
+        self.hidden_coeff       = config.hidden_coeff
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
         self.steps              = config.steps
         self.batch_size         = config.batch_size  
-        self.ss_batch_size      = config.ss_batch_size      
+        self.ss_batch_size      = config.ss_batch_size       
 
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
@@ -56,7 +58,8 @@ class AgentPPOJEPA():
         print("target_self_supervised_loss           = ", self._target_self_supervised_loss)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
-        print("reward_int_coeff                      = ", self.reward_int_coeff)
+        print("reward_int_a_coeff                    = ", self.reward_int_a_coeff)
+        print("reward_int_b_coeff                    = ", self.reward_int_b_coeff)
         print("state_normalise                       = ", self.state_normalise)
 
         print("\n\n")
@@ -148,8 +151,8 @@ class AgentPPOJEPA():
         im_mse, im_hidden = self._internal_motivation(states_prev_t, self.states_t)
         
 
-        rewards_int = im_hidden
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        rewards_int = self.reward_int_a_coeff*im_mse + self.reward_int_b_coeff*im_hidden
+        rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if training_enabled:
@@ -261,7 +264,7 @@ class AgentPPOJEPA():
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
             states, states_next = self.policy_buffer.sample_states_next_states(self.ss_batch_size, self.device)
-            loss_im, im_ssl     = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states, states_next, 0.1)                
+            loss_im, im_ssl     = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states, states_next, self.hidden_coeff)                
 
             self.info_logger["im_ssl"] = im_ssl
             
