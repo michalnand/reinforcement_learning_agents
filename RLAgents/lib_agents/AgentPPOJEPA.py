@@ -95,12 +95,7 @@ class AgentPPOJEPA():
 
         self.states_t = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
-        #optional int reward normalisation
-        self.reward_mean = 0.0
-        self.reward_var  = 1.0
-
-        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
-
+      
         self.iterations = 0 
 
         self.values_logger  = ValuesLogger() 
