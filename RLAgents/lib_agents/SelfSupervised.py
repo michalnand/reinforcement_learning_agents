@@ -72,27 +72,27 @@ def loss_vicreg_direct(za, zb):
 
         - this necessary information can be camemera position, or noise ...
 '''
-def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff = 0.01):
+def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, qa, qb, hidden_coeff = 0.01):
     eps = 0.0001 
  
     # invariance loss
     sim_loss = ((za - pb)**2).mean() + ((zb - pa)**2).mean()
 
     # variance loss
-    std_za = torch.sqrt(za.var(dim=0) + eps)
-    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
+    std_qa = torch.sqrt(qa.var(dim=0) + eps)
+    std_qb = torch.sqrt(qb.var(dim=0) + eps) 
     
-    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
-    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+    std_loss = torch.mean(torch.relu(1.0 - std_qa)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_qb))
    
     # covariance loss 
-    za_norm = za - za.mean(dim=0)
-    zb_norm = zb - zb.mean(dim=0)
-    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
-    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    qa_norm = qa - qa.mean(dim=0)
+    qb_norm = qb - qb.mean(dim=0)
+    cov_qa = (qa_norm.T @ qa_norm) / (qa.shape[0] - 1.0)
+    cov_qb = (qb_norm.T @ qb_norm) / (qb.shape[0] - 1.0)
     
-    cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
-    cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+    cov_loss = _off_diagonal(cov_qa).pow_(2).sum()/qa.shape[1] 
+    cov_loss+= _off_diagonal(cov_qb).pow_(2).sum()/qb.shape[1]
 
     #hidden information loss, enforce sparsity, and minimize batch-wise variance
     h_mag = torch.abs(ha).mean() + torch.abs(hb).mean() 
@@ -129,9 +129,16 @@ def loss_vicreg_jepa(model_forward_func, augmentations, states_a, states_b, hidd
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
-    za, zb, pa, pb, ha, hb = model_forward_func(xa_aug, xb_aug)  
+    result = model_forward_func(xa_aug, xb_aug)  
 
-    return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff)
+    if len(result) == 6:
+        za, zb, pa, pb, ha, hb = result
+        qa = za
+        qb = zb 
+    else:
+        za, zb, pa, pb, ha, hb, qa, qb = result
+
+    return loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, qa, qb, hidden_coeff)
 
 
 def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, hidden_a, hidden_b, max_seq_length):
