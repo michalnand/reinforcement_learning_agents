@@ -49,6 +49,7 @@ class AgentPPOJEPA():
 
         
         self.state_normalise      = config.state_normalise
+        self.int_reward_normalise = config.int_reward_normalise
         
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
@@ -59,6 +60,7 @@ class AgentPPOJEPA():
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
         print("state_normalise                       = ", self.state_normalise)
+        print("int_reward_normalise                  = ", self.int_reward_normalise)
 
         print("\n\n")
 
@@ -90,6 +92,10 @@ class AgentPPOJEPA():
 
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
+
+        #optional int reward normalisation
+        self.reward_mean = 0.0
+        self.reward_var  = 1.0
 
         self.states_t = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
@@ -139,6 +145,8 @@ class AgentPPOJEPA():
 
         #internal motivation
         rewards_int = self._internal_motivation(states_prev_t, self.states_t)
+
+        rewards_int = self._reward_normalise(rewards_int)
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
@@ -341,4 +349,20 @@ class AgentPPOJEPA():
             states_norm = states
         
         return states_norm
+    
+
+    def _reward_normalise(self, rewards, alpha = 0.99): 
+        if self.state_normalise:
+            #update running stats
+            mean = rewards.mean() 
+            self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
+    
+            var = ((rewards - mean)**2).mean()
+            self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
+             
+        #normalise mean and variance
+        rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
+        rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
+      
+        return rewards_result
     
