@@ -165,6 +165,9 @@ class AgentPPOJEPA():
 
             if self.policy_buffer.is_full():
                 self.train()
+
+                print("mean, var = ", self.reward_mean, self.reward_var)
+
                 
 
         #collect stats
@@ -364,6 +367,5 @@ class AgentPPOJEPA():
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
 
-        print(self.reward_mean, self.reward_var)
         return rewards_result
     
