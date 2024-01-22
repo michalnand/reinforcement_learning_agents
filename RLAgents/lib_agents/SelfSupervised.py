@@ -7,6 +7,8 @@ def _off_diagonal(x):
 
 def loss_vicreg_direct(za, zb):
     eps = 0.0001 
+
+    print(">> za zb ", za.shape, zb.shape)
  
     # invariance loss
     sim_loss = ((za - zb)**2).mean()
