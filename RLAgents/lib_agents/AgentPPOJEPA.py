@@ -145,9 +145,10 @@ class AgentPPOJEPA():
 
         #internal motivation
         rewards_int = self._internal_motivation(states_prev_t, self.states_t)
-
-        rewards_int = self._reward_normalise(rewards_int)
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+        if self.int_reward_normalise:
+            rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
+        else:
+            rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if training_enabled:
@@ -352,13 +353,12 @@ class AgentPPOJEPA():
     
 
     def _reward_normalise(self, rewards, alpha = 0.99): 
-        if self.state_normalise:
-            #update running stats
-            mean = rewards.mean() 
-            self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
-    
-            var = ((rewards - mean)**2).mean()
-            self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
+        #update running stats
+        mean = rewards.mean() 
+        self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
+
+        var = ((rewards - mean)**2).mean()
+        self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
              
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)

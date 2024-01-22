@@ -378,14 +378,13 @@ class AgentPPOCSND():
     
 
     def _reward_normalise(self, rewards, alpha = 0.99): 
-        if self.state_normalise:
-            #update running stats
-            mean = rewards.mean() 
-            self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
-    
-            var = ((rewards - mean)**2).mean()
-            self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
-             
+        #update running stats
+        mean = rewards.mean() 
+        self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
+
+        var = ((rewards - mean)**2).mean()
+        self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
+            
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
