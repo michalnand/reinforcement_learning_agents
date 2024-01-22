@@ -7,8 +7,6 @@ def _off_diagonal(x):
 
 def loss_vicreg_direct(za, zb):
     eps = 0.0001 
-
-    print(">> za zb ", za.shape, zb.shape)
  
     # invariance loss
     sim_loss = ((za - zb)**2).mean()
@@ -76,6 +74,7 @@ def loss_vicreg_direct(za, zb):
 '''
 def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff = 0.01):
     eps = 0.0001 
+
  
     # invariance loss
     sim_loss = ((za - pb)**2).mean() + ((zb - pa)**2).mean()
@@ -120,6 +119,9 @@ def loss_vicreg_jepa_direct(za, zb, pa, pb, ha, hb, hidden_coeff = 0.01):
 
 def loss_vicreg_jepa_proj_direct(za, zb, pa, pb, ha, hb, proj_za, proj_zb, hidden_coeff = 0.01):
     eps = 0.0001 
+
+    print(za.shape, pa.shape, ha.shape, proj_za.shape, proj_zb.shape)
+
  
     # invariance loss
     sim_loss = ((za - pb)**2).mean() + ((zb - pa)**2).mean()
