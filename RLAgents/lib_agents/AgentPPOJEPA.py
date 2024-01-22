@@ -22,8 +22,7 @@ class AgentPPOJEPA():
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
  
-        self.reward_int_a_coeff = config.reward_int_a_coeff
-        self.reward_int_b_coeff = config.reward_int_b_coeff
+        self.reward_int_coeff   = config.reward_int_coeff
         self.hidden_coeff       = config.hidden_coeff
 
         self.entropy_beta       = config.entropy_beta
@@ -58,8 +57,7 @@ class AgentPPOJEPA():
         print("target_self_supervised_loss           = ", self._target_self_supervised_loss)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
-        print("reward_int_a_coeff                    = ", self.reward_int_a_coeff)
-        print("reward_int_b_coeff                    = ", self.reward_int_b_coeff)
+        print("reward_int_coeff                      = ", self.reward_int_coeff)
         print("state_normalise                       = ", self.state_normalise)
 
         print("\n\n")
@@ -107,10 +105,7 @@ class AgentPPOJEPA():
         self.values_logger.add("loss_ppo_critic", 0.0)
         self.values_logger.add("loss_ppo_self_supervised", 0.0)
 
-        self.values_logger.add("loss_im", 0.0)
-        
-        self.values_logger.add("im_mse", 0.0)
-        self.values_logger.add("im_hidden", 0.0)
+        self.values_logger.add("loss_im", 0.0)        
 
         self.info_logger = {} 
 
@@ -143,11 +138,8 @@ class AgentPPOJEPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        im_mse, im_hidden = self._internal_motivation(states_prev_t, self.states_t)
-        
-
-        rewards_int = self.reward_int_a_coeff*im_mse + self.reward_int_b_coeff*im_hidden
-        rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+        rewards_int = self._internal_motivation(states_prev_t, self.states_t)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if training_enabled:
@@ -170,8 +162,6 @@ class AgentPPOJEPA():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-        self.values_logger.add("im_mse",    im_mse.mean().detach().to("cpu").numpy())
-        self.values_logger.add("im_hidden", im_hidden.mean().detach().to("cpu").numpy())
         
         
         self.iterations+= 1
@@ -304,17 +294,14 @@ class AgentPPOJEPA():
         return loss 
 
 
-
     #compute internal motivations
     def _internal_motivation(self, states_prev, states_now):         
         za, zb, pa, pb, ha, hb = self.model_im(states_prev, states_now)
 
-        im_mse      = ((za - pb)**2).mean(dim=-1)
-        im_hidden   = (ha**2).mean(dim=-1)
-
-        
-        return im_mse.detach().cpu(), im_hidden.detach().cpu()
+        im_mse      = ((za - pb)**2).mean(dim=-1)        
+        return im_mse.detach().cpu()
  
+
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
 
@@ -338,7 +325,6 @@ class AgentPPOJEPA():
     
 
     def _state_normalise(self, states, training_enabled, alpha = 0.99): 
-
         if self.state_normalise:
             #update running stats only during training
             if training_enabled:
@@ -351,7 +337,6 @@ class AgentPPOJEPA():
             #normalise mean and variance
             states_norm = (states - self.state_mean)/(numpy.sqrt(self.state_var) + 10**-6)
             states_norm = numpy.clip(states_norm, -4.0, 4.0)
-        
         else:
             states_norm = states
         
