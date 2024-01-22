@@ -363,6 +363,7 @@ class AgentPPOJEPA():
         #normalise mean and variance
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
-      
+
+        print(self.reward_mean, self.reward_var)
         return rewards_result
     
