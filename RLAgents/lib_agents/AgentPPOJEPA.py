@@ -166,7 +166,7 @@ class AgentPPOJEPA():
             if self.policy_buffer.is_full():
                 self.train()
 
-                print("mean, var = ", self.reward_mean, self.reward_var)
+                #print("mean, var = ", self.reward_mean, self.reward_var)
 
                 
 
