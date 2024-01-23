@@ -185,7 +185,7 @@ class AgentPPOCSNDTemporal():
         dones_idx = numpy.where(dones)[0]
         #clear hidden state where env is done
         for e in dones_idx:
-            print(self.im_hidden_state[e, :, :])
+            print((self.im_hidden_state**2).mean(), self.im_hidden_state.std())
             self.im_hidden_state[e, :, :] = 0.0
                 
 
