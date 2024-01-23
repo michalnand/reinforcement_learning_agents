@@ -185,6 +185,7 @@ class AgentPPOCSNDTemporal():
         dones_idx = numpy.where(dones)[0]
         #clear hidden state where env is done
         for e in dones_idx:
+            print(self.im_hidden_state[e, :, :])
             self.im_hidden_state[e, :, :] = 0.0
                 
 
@@ -344,8 +345,6 @@ class AgentPPOCSNDTemporal():
         z_predictor, _  = self.model_im.forward_predictor(x, im_hidden_state[:, 1].contiguous())
 
         loss = ((z_target.detach() - z_predictor)**2).mean()
-
-        print(">>> ", (im_hidden_state**2).mean(), im_hidden_state.var())
 
         return loss   
 
