@@ -77,10 +77,14 @@ class AgentPPOCSNDTemporal():
         self.model_ppo.to(self.device)
         self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
+        print(self.model_ppo)
+
         #IM model
         self.model_im      = ModelIM.Model(self.state_shape)
         self.model_im.to(self.device)
         self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
+
+        print(self.model_im)
 
         #IM RNN hidden state
         self.im_hidden_state = torch.zeros((self.envs_count, 2, self.model_im.num_rnn_features), dtype=torch.float32, device=self.device)
