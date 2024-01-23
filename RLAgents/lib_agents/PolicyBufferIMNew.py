@@ -5,7 +5,7 @@ class PolicyBufferIMNew:
     def __init__(self, buffer_size, state_shape, actions_size, envs_count):
         self.buffer_size    = buffer_size
         self.state_shape    = state_shape
-        self.actions_size   = actions_size
+        self.actions_size   = actions_size 
         self.envs_count     = envs_count
       
         self.clear()     
