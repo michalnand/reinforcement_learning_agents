@@ -278,7 +278,7 @@ class AgentPPOCSNDTemporal():
             #sample smaller batch for self supervised loss
 
             states_now, states_similar, hidden_now, hidden_similar = self.policy_buffer.sample_states_pairs_hidden(self.ss_batch_size, self.similar_states_distance, self.device)
-            loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous())                
+            loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, hidden_now[:, 0].contiguous(), hidden_similar[:, 0].contiguous(), self.seq_max_length)                
 
             self.info_logger["im_ssl"] = im_ssl
             
