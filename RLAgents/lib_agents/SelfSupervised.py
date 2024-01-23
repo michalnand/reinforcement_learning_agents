@@ -154,9 +154,13 @@ def loss_vicreg_jepa(model_forward_func, augmentations, states_a, states_b, hidd
     return loss
 
 
-def loss_vicreg_jepa_temporal(model_forward_func, augmentations, states_a, states_b, rnn_ha, rnn_hb, hidden_coeff = 0.01):
+def loss_vicreg_jepa_temporal(model_forward_func, augmentations, states_a, states_b, rnn_ha, rnn_hb, seq_max_length, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
+
+    #select only required seq length
+    xa_aug = xa_aug[:, 0:seq_max_length, :, :]
+    xb_aug = xb_aug[:, 0:seq_max_length, :, :]
 
     za, zb, pa, pb, ha, hb, _, _ = model_forward_func(xa_aug, xb_aug, rnn_ha, rnn_hb)  
 
