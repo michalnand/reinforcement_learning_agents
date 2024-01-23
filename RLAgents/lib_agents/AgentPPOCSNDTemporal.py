@@ -65,6 +65,7 @@ class AgentPPOCSNDTemporal():
         print("similar_states_distance               = ", self.similar_states_distance)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
+        print("seq_max_length                        = ", self.seq_max_length)
 
         print("\n\n")
 
@@ -335,7 +336,7 @@ class AgentPPOCSNDTemporal():
         if len(x.shape) == 3:
             x = x.unsqueeze(1)
 
-        z_target,  _    = self.model_im.forward_target(x, im_hidden_state[:, 0].contiguous())        
+        z_target,  _    = self.model_im.forward_target(x,    im_hidden_state[:, 0].contiguous())        
         z_predictor, _  = self.model_im.forward_predictor(x, im_hidden_state[:, 1].contiguous())
 
         loss = ((z_target.detach() - z_predictor)**2).mean()

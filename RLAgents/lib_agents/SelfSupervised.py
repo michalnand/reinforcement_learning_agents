@@ -129,10 +129,14 @@ def loss_vicreg(model_forward_func, augmentations, states_a, states_b):
     return loss_vicreg_direct(za, zb)
 
 
-def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, rnn_ha, rnn_hb):
+def loss_vicreg_temporal(model_forward_func, augmentations, states_a, states_b, rnn_ha, rnn_hb, seq_max_length): 
     xa_aug, _ = augmentations(states_a)
     xb_aug, _ = augmentations(states_b)
 
+    #select only required seq length
+    xa_aug = xa_aug[:, 0:seq_max_length, :, :]
+    xb_aug = xb_aug[:, 0:seq_max_length, :, :]
+    
     za, _ = model_forward_func(xa_aug, rnn_ha)
     zb, _ = model_forward_func(xb_aug, rnn_hb)
 
