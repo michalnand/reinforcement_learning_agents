@@ -40,6 +40,46 @@ def loss_vicreg_direct(za, zb):
     return loss, info
 
 
+
+
+def loss_anti_vicreg_direct(za, zb):
+    eps = 0.0001 
+  
+    # invariance loss, maximize distance
+    distance = ((za - zb)**2).mean(dim=-1)
+    sim_loss = torch.mean(torch.relu(1.0 - distance))
+
+    # variance loss
+    std_za = torch.sqrt(za.var(dim=0) + eps)
+    std_zb = torch.sqrt(zb.var(dim=0) + eps) 
+    
+    std_loss = torch.mean(torch.relu(1.0 - std_za)) 
+    std_loss+= torch.mean(torch.relu(1.0 - std_zb))
+   
+    # covariance loss 
+    za_norm = za - za.mean(dim=0)
+    zb_norm = zb - zb.mean(dim=0)
+    cov_za = (za_norm.T @ za_norm) / (za.shape[0] - 1.0)
+    cov_zb = (zb_norm.T @ zb_norm) / (zb.shape[0] - 1.0)
+    
+    cov_loss = _off_diagonal(cov_za).pow_(2).sum()/za.shape[1] 
+    cov_loss+= _off_diagonal(cov_zb).pow_(2).sum()/zb.shape[1]
+
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+ 
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std]
+
+    return loss, info
+
+
+
+
 '''
 1, input images : xa, xb
 

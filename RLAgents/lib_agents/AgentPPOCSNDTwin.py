@@ -329,23 +329,14 @@ class AgentPPOCSNDTwin():
 
         za, zb, pa, pb, qa, qb = self.model_im.forward(states)        
 
+        #distillation loss
         loss_mse = ((qa - qb)**2).mean()
 
-        #maximize pa, pb variance
-        std_pa = torch.sqrt(pa.var(dim=0) + eps)
-        std_pb = torch.sqrt(pb.var(dim=0) + eps) 
-    
-        std_loss = torch.mean(torch.relu(1.0 - std_pa)) 
-        std_loss+= torch.mean(torch.relu(1.0 - std_pb))
+        #decorelate projected space
+        loss_dist, _ = loss_anti_vicreg_direct(pa, pb)
 
-        #minimize pa, pb similarity
-        #loss_corr = (pa*pb).mean(dim=-1)**2
-        #loss_corr = loss_corr.mean()
+        loss = loss_mse + loss_dist
 
-        loss_dist = ((pa - pb)**2).mean(dim=-1)
-        loss_dist = torch.mean(torch.relu(1.0 - loss_dist)) 
-
-        loss = loss_mse + std_loss + loss_dist
 
         #za, zb correlation
         #im_corr = (za*zb).mean(dim=-1)**2
@@ -420,4 +411,8 @@ class AgentPPOCSNDTwin():
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
       
         return rewards_result
-   
+    
+
+    def _off_diagonal(self, x):
+        mask = 1.0 - torch.eye(x.shape[0], device=x.device)
+        return x*mask 
