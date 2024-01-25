@@ -35,6 +35,9 @@ from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOCSND                  import AgentPPOCSND
 from .AgentPPOCSNDTemporal          import AgentPPOCSNDTemporal
 
+from .AgentPPOCSNDTwin              import AgentPPOCSNDTwin
+
+
 from .AgentPPOJEPA                   import AgentPPOJEPA
 
 
