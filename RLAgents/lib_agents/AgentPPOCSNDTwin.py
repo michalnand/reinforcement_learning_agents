@@ -348,10 +348,12 @@ class AgentPPOCSNDTwin():
         loss = loss_mse + std_loss + loss_dist
 
         #za, zb correlation
-        im_corr = (za*zb).mean(dim=-1)**2
-        im_corr = im_corr.mean()
+        #im_corr = (za*zb).mean(dim=-1)**2
+        #im_corr = im_corr.mean()
+        im_dist = ((za - zb)**2).mean(dim=-1)
+        im_dist = im_dist.mean()
 
-        return loss, im_corr 
+        return loss, im_dist 
 
     #compute internal motivations
     def _internal_motivation(self, states):         
