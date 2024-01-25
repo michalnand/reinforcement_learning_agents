@@ -339,10 +339,13 @@ class AgentPPOCSNDTwin():
         std_loss+= torch.mean(torch.relu(1.0 - std_pb))
 
         #minimize pa, pb similarity
-        loss_corr = (pa*pb).mean(dim=-1)**2
-        loss_corr = loss_corr.mean()
+        #loss_corr = (pa*pb).mean(dim=-1)**2
+        #loss_corr = loss_corr.mean()
 
-        loss = loss_mse + std_loss + loss_corr
+        loss_dist = ((pa - pb)**2).mean(dim=-1)
+        loss_dist = torch.mean(torch.relu(1.0 - loss_dist)) 
+
+        loss = loss_mse + std_loss + loss_dist
 
         #za, zb correlation
         im_corr = (za*zb).mean(dim=-1)**2
