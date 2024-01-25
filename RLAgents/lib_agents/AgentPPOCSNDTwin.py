@@ -115,6 +115,7 @@ class AgentPPOCSNDTwin():
         self.values_logger.add("loss_ppo_self_supervised", 0.0)
         self.values_logger.add("loss_self_supervised", 0.0)
         self.values_logger.add("loss_distillation", 0.0)
+        self.values_logger.add("im_corr", 0.0)
 
         self.info_logger = {} 
 
@@ -273,7 +274,7 @@ class AgentPPOCSNDTwin():
             
             #train distillation
             states, _ = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
-            loss_distillation = self._loss_distillation(states)
+            loss_distillation, im_corr = self._loss_distillation(states)
 
             #total loss for im model
             loss_im = loss_self_supervised + loss_distillation
@@ -285,6 +286,7 @@ class AgentPPOCSNDTwin():
             #log results
             self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
             self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
+            self.values_logger.add("im_corr", im_corr.detach().cpu().numpy())
             
         self.policy_buffer.clear() 
 
@@ -342,7 +344,11 @@ class AgentPPOCSNDTwin():
 
         loss = loss_mse + std_loss + loss_corr
 
-        return loss  
+        #za, zb correlation
+        im_corr = ((za*zb)**2).mean(dim=-1)
+        im_corr = im_corr.mean()
+
+        return loss, im_corr 
 
     #compute internal motivations
     def _internal_motivation(self, states):         
