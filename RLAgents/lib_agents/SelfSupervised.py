@@ -41,7 +41,7 @@ def loss_vicreg_direct(za, zb):
 
 
 
-
+ 
 def loss_anti_vicreg_direct(za, zb):
     eps = 0.0001 
   

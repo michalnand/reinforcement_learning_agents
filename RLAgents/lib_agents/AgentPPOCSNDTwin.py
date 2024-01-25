@@ -325,8 +325,6 @@ class AgentPPOCSNDTwin():
 
     #MSE loss for  distillation
     def _loss_distillation(self, states):  
-        eps = 0.0001
-
         za, zb, pa, pb, qa, qb = self.model_im.forward(states)        
 
         #distillation loss
@@ -337,10 +335,7 @@ class AgentPPOCSNDTwin():
 
         loss = loss_mse + loss_dist
 
-
-        #za, zb correlation
-        #im_corr = (za*zb).mean(dim=-1)**2
-        #im_corr = im_corr.mean()
+        #za, zb distance
         im_dist = ((za - zb)**2).mean(dim=-1)
         im_dist = im_dist.mean()
 

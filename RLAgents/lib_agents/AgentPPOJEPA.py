@@ -35,6 +35,7 @@ class AgentPPOJEPA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
+
                 
         if config.ppo_self_supervised_loss == "vicreg":
             self._ppo_self_supervised_loss = loss_vicreg
@@ -47,7 +48,7 @@ class AgentPPOJEPA():
         else:
             self._target_self_supervised_loss = None
 
-        
+        self.similar_states_distance = config.similar_states_distance
         self.state_normalise      = config.state_normalise
         self.int_reward_normalise = config.int_reward_normalise
         
@@ -61,6 +62,7 @@ class AgentPPOJEPA():
         print("reward_int_coeff                      = ", self.reward_int_coeff)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
+        print("similar_states_distance               = ", self.similar_states_distance)
 
         print("\n\n")
 
@@ -144,7 +146,7 @@ class AgentPPOJEPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int = self._internal_motivation(states_prev_t, self.states_t)
+        rewards_int = self._internal_motivation(self.states_t)
         if self.int_reward_normalise:
             rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
         else:
@@ -260,8 +262,8 @@ class AgentPPOJEPA():
 
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
-            states, states_next = self.policy_buffer.sample_states_next_states(self.ss_batch_size, self.device)
-            loss_im, im_ssl     = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states, states_next, self.hidden_coeff)                
+            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
+            loss_im, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
 
             self.info_logger["im_ssl"] = im_ssl
             
@@ -307,10 +309,10 @@ class AgentPPOJEPA():
 
 
     #compute internal motivations
-    def _internal_motivation(self, states_prev, states_now):         
-        za, zb, pa, pb, ha, hb = self.model_im(states_prev, states_now)
+    def _internal_motivation(self, states):         
+        za, zb, pa, pb, ha, hb = self.model_im(states)
 
-        im_mse      = ((za - pb)**2).mean(dim=-1)        
+        im_mse      = ((za - zb)**2).mean(dim=-1)        
         return im_mse.detach().cpu()
  
 
