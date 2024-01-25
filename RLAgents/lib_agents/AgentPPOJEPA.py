@@ -310,7 +310,7 @@ class AgentPPOJEPA():
 
     #compute internal motivations
     def _internal_motivation(self, states):         
-        za, zb, pa, pb, ha, hb = self.model_im(states)
+        za, zb, pa, pb, ha, hb = self.model_im(states, states)
 
         im_mse      = ((za - zb)**2).mean(dim=-1)        
         return im_mse.detach().cpu()
