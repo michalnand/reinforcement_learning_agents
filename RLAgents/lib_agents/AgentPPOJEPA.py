@@ -152,7 +152,7 @@ class AgentPPOJEPA():
         else:
             rewards_int = self.reward_int_coeff*rewards_int
             
-        rewards_int = torch.clip(rewards_int, 0.0, 1.0) 
+        rewards_int = torch.clip(rewards_int, 0.0, 1.0)  
         
         #put into policy buffer
         if training_enabled:
