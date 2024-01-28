@@ -222,10 +222,10 @@ class AgentPPOJEPA():
                 #total loss
                 loss = loss_ppo + loss_self_supervised
 
-                self.optimizer_ppo.zero_grad()        
+                self.optimizer.zero_grad()        
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-                self.optimizer_ppo.step()
+                self.optimizer.step()
 
                 self.info_logger["im_ssl"] = im_ssl
 
