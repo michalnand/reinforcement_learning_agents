@@ -106,7 +106,7 @@ class AgentPPO():
             logits_t        = logits_t.detach().to("cpu")
             values_t        = values_t.squeeze(1).detach().to("cpu") 
             actions         = torch.from_numpy(actions).to("cpu")
-            rewards_t       = torch.from_numpy(rewards_t).to("cpu")
+            rewards_t       = torch.from_numpy(rewards).to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
             hidden_state_t  = self.hidden_state_t.detach().to("cpu")
 
