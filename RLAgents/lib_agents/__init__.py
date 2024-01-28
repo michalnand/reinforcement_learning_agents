@@ -27,16 +27,11 @@ from .AgentDQN                      import AgentDQN
 from .AgentDDPG                     import AgentDDPG
 
 from .AgentPPO                      import AgentPPO
-from .AgentPPONew                   import AgentPPONew
 
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOCSND                  import AgentPPOCSND
-from .AgentPPOCSNDTemporal          import AgentPPOCSNDTemporal
-
-from .AgentPPOCSNDTwin              import AgentPPOCSNDTwin
-
 
 from .AgentPPOJEPA                   import AgentPPOJEPA
 

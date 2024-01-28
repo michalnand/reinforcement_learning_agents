@@ -35,16 +35,13 @@ class AgentPPO():
         else:
             self.self_supervised_loss   = None
 
-        self.model          = Model.Model(self.state_shape, self.actions_count)
+        self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
-        self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
-        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.envs_count):
-            self.states[e], _ = self.envs.reset(e) 
-
+        
         if self.rnn_policy:
             self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
         else:
@@ -62,63 +59,74 @@ class AgentPPO():
         print("\n\n")
 
 
-        self.enable_training()
+        self.states_t = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32)
+        self.logits_t = torch.zeros((self.envs_count, self.actions_count), dtype=torch.float32)
+        self.values_t = torch.zeros((self.envs_count, ) , dtype=torch.float32)
+        self.actions_t = torch.zeros((self.envs_count, ) , dtype=int)
+        self.rewards_t = torch.zeros((self.envs_count, ) , dtype=torch.float32)
+        self.dones_t   = torch.zeros((self.envs_count, ) , dtype=torch.float32)
+
+        if self.rnn_policy:
+            self.hidden_state_t = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
+        else:
+            self.hidden_state_t = torch.zeros((self.envs_count,128) , dtype=torch.float32)
+
+      
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
         
- 
-    def enable_training(self):
-        self.enabled_training = True
+    def round_start(self): 
+        pass
 
-    def disable_training(self):
-        self.enabled_training = False
+    def round_finish(self): 
+        self.policy_buffer.add(self.states_t, self.logits_t, self.values_t, self.actions_t, self.rewards_t, self.dones_t, self.hidden_state_t)
 
-    def main(self):        
-        states  = torch.tensor(self.states, dtype=torch.float).detach().to(self.device)
+        if self.policy_buffer.is_full():
+            self.train() 
 
-        #hs = self.hidden_state[0].detach().cpu().numpy()
-        #print(numpy.round(hs, 3))
+    def episode_done(self, env_idx):
+        self.dones_t[env_idx] = 1.0
+
+    def step(self, states, training_enabled, legal_actions_mask = None):        
+        states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
 
         if self.rnn_policy: 
-            logits, values, hidden_state_new  = self.model.forward(states, self.hidden_state)
+            logits_t, values_t, hidden_state_new  = self.model.forward(states_t, self.hidden_state)
         else:
-            logits, values  = self.model.forward(states)
+            logits_t, values_t  = self.model.forward(states_t)
 
- 
-        actions = self._sample_actions(logits)
-        
+        actions = self._sample_actions(logits_t, legal_actions_mask)
+
         states_new, rewards, dones, _, infos = self.envs.step(actions)
 
-    
-        if self.enabled_training:
-            states      = states.detach().to("cpu")
-            logits      = logits.detach().to("cpu")
-            values      = values.squeeze(1).detach().to("cpu") 
-            actions     = torch.from_numpy(actions).to("cpu")
-            rewards_t   = torch.from_numpy(rewards).to("cpu")
-            dones       = torch.from_numpy(dones).to("cpu")
-
-            hidden_state    = self.hidden_state.detach().to("cpu")
-
-            self.policy_buffer.add(states, logits, values, actions, rewards_t, dones, hidden_state)
-
-            if self.policy_buffer.is_full():
-                self.train()
-
+        #udpate rnn hiddens tate
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
-    
-        self.states = states_new.copy()
-        for e in range(self.envs_count):
-            if dones[e]:
-                self.states[e], _    = self.envs.reset(e)
+
+            dones_idx = numpy.where(dones)
+
+            #clear rnn hidden state if done
+            for e in dones_idx:
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-           
+        
+        #add into temporary buffer, before training
+        training_idx = numpy.where(training_enabled)[0]
+
+        self.states_t[training_idx] = states_t[training_idx].detach().to("cpu")
+        self.logits_t[training_idx] = logits_t[training_idx].detach().to("cpu")
+        self.values_t[training_idx] = values_t[training_idx, 0].detach().to("cpu")
+
+        self.actions_t[training_idx] = torch.from_numpy(actions[training_idx]).to("cpu")
+        self.rewards_t[training_idx] = torch.from_numpy(rewards[training_idx]).to("cpu")
+        self.dones_t[training_idx]   = torch.from_numpy(dones[training_idx]).float().to("cpu")
+
+        self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
+
         self.iterations+= 1
-        return rewards[0], dones[0], infos[0]
+        return states_new, rewards, dones, infos
     
     def save(self, save_path):
         torch.save(self.model.state_dict(), save_path + "trained/model.pt")
@@ -130,11 +138,20 @@ class AgentPPO():
     def get_log(self):
         return self.values_logger.get_str()
     
-    def _sample_actions(self, logits):
+    def _sample_actions(self, logits, legal_actions_mask):
+        legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
+
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
+        
+        #keep only legal actions probs, and renormalise probs
+        action_probs_t        = action_probs_t*legal_actions_mask_t
+        action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1).unsqueeze(1)
+
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
+        
         action_t              = action_distribution_t.sample()
         actions               = action_t.detach().to("cpu").numpy()
+        
         return actions
     
     def train(self): 
