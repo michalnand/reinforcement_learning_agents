@@ -82,15 +82,12 @@ class AgentPPO():
         pass
 
     def round_finish(self): 
-        self.policy_buffer.add(self.states_t, self.logits_t, self.values_t, self.actions_t, self.rewards_t, self.dones_t, self.hidden_state_t)
-
-        if self.policy_buffer.is_full():
-            self.train() 
-
+        pass
+        
     def episode_done(self, env_idx):
-        self.dones_t[env_idx] = 1.0
+        pass
 
-    def step(self, states, training_enabled, legal_actions_mask = None):        
+    def step(self, states, training_enabled, legal_actions_mask):        
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
 
         if self.rnn_policy: 
@@ -102,6 +99,22 @@ class AgentPPO():
 
         states_new, rewards, dones, _, infos = self.envs.step(actions)
 
+        
+        #put into policy buffer
+        if training_enabled:
+            states_t        = states_t.detach().to("cpu")
+            logits_t        = logits_t.detach().to("cpu")
+            values_t        = values_t.squeeze(1).detach().to("cpu") 
+            actions         = torch.from_numpy(actions).to("cpu")
+            rewards_t       = torch.from_numpy(rewards_t).to("cpu")
+            dones           = torch.from_numpy(dones).to("cpu")
+            hidden_state_t  = self.hidden_state_t.detach().to("cpu")
+
+            self.policy_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state_t)
+
+            if self.policy_buffer.is_full():
+                self.train()
+
         #udpate rnn hiddens tate
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
@@ -112,18 +125,7 @@ class AgentPPO():
             for e in dones_idx:
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
         
-        #add into temporary buffer, before training
-        training_idx = numpy.where(training_enabled)[0]
-
-        self.states_t[training_idx] = states_t[training_idx].detach().to("cpu")
-        self.logits_t[training_idx] = logits_t[training_idx].detach().to("cpu")
-        self.values_t[training_idx] = values_t[training_idx, 0].detach().to("cpu")
-
-        self.actions_t[training_idx] = torch.from_numpy(actions[training_idx]).to("cpu")
-        self.rewards_t[training_idx] = torch.from_numpy(rewards[training_idx]).to("cpu")
-        self.dones_t[training_idx]   = torch.from_numpy(dones[training_idx]).float().to("cpu")
-
-        self.hidden_state_t[training_idx] = self.hidden_state[training_idx].detach().to("cpu")
+       
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
