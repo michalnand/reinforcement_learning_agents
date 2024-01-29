@@ -201,6 +201,8 @@ def loss_vicreg_jepa_proj(model_forward_func, augmentations, xa, xb, hidden_coef
     h_std = (ha.std(dim=0)).mean() + (hb.std(dim=0)).mean()
     hidden_loss = h_mag + h_std
 
+    cross_loss = _loss_cross(za, zb)
+
     # total loss, vicreg + info-min
     loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
 
@@ -210,7 +212,9 @@ def loss_vicreg_jepa_proj(model_forward_func, augmentations, xa, xb, hidden_coef
     h_mag     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
     h_mag_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
 
-    info = [z_mag, z_mag_std, h_mag, h_mag_std]
+    cross = round(cross_loss.detach().cpu().numpy().item(), 6)
+
+    info = [z_mag, z_mag_std, h_mag, h_mag_std, cross]
 
     return loss, info
 
