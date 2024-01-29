@@ -38,6 +38,8 @@ class AgentPPOJEPA():
 
         if config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa
+        elif config.self_supervised_loss == "vicreg_jepa_cross":
+            self._self_supervised_loss = loss_vicreg_jepa_cross
         else:
             self._self_supervised_loss = None 
 
