@@ -42,12 +42,10 @@ class AgentPPOCSND():
 
         if config.target_self_supervised_loss == "vicreg":
             self._target_self_supervised_loss = loss_vicreg
-        elif config.target_self_supervised_loss == "vicreg_proj":
-            self._target_self_supervised_loss = loss_vicreg_proj
         elif config.target_self_supervised_loss == "vicreg_jepa":
-            self._target_self_supervised_loss = loss_vicreg_jepa
-        elif config.target_self_supervised_loss == "vicreg_jepa_proj":
-            self._target_self_supervised_loss = loss_vicreg_jepa_proj
+            self._target_self_supervised_loss = loss_vicreg_jepa 
+        elif config.target_self_supervised_loss == "vicreg_jepa_cross":
+            self._target_self_supervised_loss = loss_vicreg_jepa_cross
         else:
             self._target_self_supervised_loss = None
 
