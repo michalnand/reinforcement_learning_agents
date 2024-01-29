@@ -253,7 +253,7 @@ def loss_vicreg_jepa_cross(model_forward_func, augmentations, xa, xb, hidden_coe
     h_mag     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
     h_mag_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
 
-    cross = round(h_mag_std.detach().cpu().numpy().item(), 6)
+    cross = round(cross_loss.detach().cpu().numpy().item(), 6)
 
     info = [z_mag, z_mag_std, h_mag, h_mag_std, cross]
 
