@@ -353,12 +353,18 @@ class AgentPPOCSNDT():
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
 
+        print("a = ", d.shape)
+
         #sort, closest are first
         d = d.sort(dim=-1)[0]
 
+        print("b = ", d.shape)
+
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
-        d = d[:, 0:idx_max]
+        d = d[:, 0:idx_max] 
+
+        print("c = ", d.shape, idx_max)
 
         #average them
         rewards_int_b = d.mean(dim=-1)
