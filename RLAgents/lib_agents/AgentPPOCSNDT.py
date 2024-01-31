@@ -164,6 +164,8 @@ class AgentPPOCSNDT():
             rewards_int = self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+
+        print(">>> ", rewards_int_b[0:10])
          
         #put into policy buffer
         if training_enabled:
@@ -354,7 +356,6 @@ class AgentPPOCSNDT():
 
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
-
 
         '''
         #sort, closest are first
