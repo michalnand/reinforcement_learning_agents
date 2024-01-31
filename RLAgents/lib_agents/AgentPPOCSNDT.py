@@ -164,8 +164,6 @@ class AgentPPOCSNDT():
             rewards_int = self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
-
-        print(">>> ", rewards_int_b[0:10])
          
         #put into policy buffer
         if training_enabled:
