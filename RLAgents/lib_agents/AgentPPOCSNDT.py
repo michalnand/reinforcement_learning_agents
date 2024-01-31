@@ -111,7 +111,7 @@ class AgentPPOCSNDT():
         self.iterations = 0 
 
         self.values_logger  = ValuesLogger() 
-
+                                
         self.values_logger.add("internal_motivation_mean_a", 0.0)
         self.values_logger.add("internal_motivation_std_a" , 0.0)
         self.values_logger.add("internal_motivation_mean_b", 0.0)
@@ -166,8 +166,8 @@ class AgentPPOCSNDT():
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
 
 
-        print(rewards_int_a.mean().detach().to("cpu").numpy())
-        print(rewards_int_b.mean().detach().to("cpu").numpy())
+        print(rewards_int_a)
+        print(rewards_int_b)
         print("\n\n\n")
          
         #put into policy buffer
@@ -195,10 +195,10 @@ class AgentPPOCSNDT():
                 
 
         #collect stats
-        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
-        #self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
-        #self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean_a", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std_a" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean_b", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std_b" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
