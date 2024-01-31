@@ -164,6 +164,11 @@ class AgentPPOCSNDT():
             rewards_int = self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+
+
+        print(rewards_int_a)
+        print(rewards_int_b)
+        print("\n\n\n")
          
         #put into policy buffer
         if training_enabled:
@@ -350,7 +355,7 @@ class AgentPPOCSNDT():
         z_target    = self.model_im.forward_target(states).detach()
         z_predictor = self.model_im.forward_predictor(states).detach()
 
-        rewards_int_a   = ((z_target - z_predictor)**2).mean(dim=1)
+        rewards_int_a = ((z_target - z_predictor)**2).mean(dim=1)
 
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
@@ -365,7 +370,7 @@ class AgentPPOCSNDT():
         #average them
         rewards_int_b = d.mean(dim=-1)
 
-        return rewards_int_a.cpu(), rewards_int_b.cpu(), z_target
+        return rewards_int_a, rewards_int_b, z_target
  
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
