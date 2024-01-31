@@ -88,7 +88,7 @@ class AgentPPOCSNDT():
     
         self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        self.terminal_buffer = torch.nn.zeros((self.terminal_buffer_size, 512), dtype=torch.float32, device=self.device)
+        self.terminal_buffer = torch.zeros((self.terminal_buffer_size, 512), dtype=torch.float32, device=self.device)
         
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
