@@ -166,8 +166,8 @@ class AgentPPOCSNDT():
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
 
 
-        print(rewards_int_a.mean())
-        print(rewards_int_b.mean())
+        print(rewards_int_a.mean().detach().to("cpu").numpy())
+        print(rewards_int_b.mean().detach().to("cpu").numpy())
         print("\n\n\n")
          
         #put into policy buffer
