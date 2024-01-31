@@ -104,7 +104,7 @@ class AgentPPOCSNDT():
         self.reward_mean = 0.0
         self.reward_var  = 1.0
 
-        self.rewards_int      = torch.zeros(self.envs_count, dtype=torch.float32)
+        self.rewards_int = torch.zeros(self.envs_count, dtype=torch.float32)
 
         self.iterations = 0 
 
@@ -188,10 +188,10 @@ class AgentPPOCSNDT():
                 
 
         #collect stats
-        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -353,24 +353,15 @@ class AgentPPOCSNDT():
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
 
-        print("a = ", d.shape)
-
         #sort, closest are first
         d = d.sort(dim=-1)[0]
-
-        print("b = ", d.shape)
 
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
 
-        print("c = ", d.shape, idx_max)
-
         #average them
         rewards_int_b = d.mean(dim=-1)
-
-        print("d = ", rewards_int_b.shape)
-
 
         return rewards_int_a.cpu(), rewards_int_b.cpu(), z_target
  
