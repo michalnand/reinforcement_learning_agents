@@ -345,7 +345,7 @@ class AgentPPOCSNDT():
         return loss  
 
     #compute internal motivations
-    def _internal_motivation(self, states):         
+    def _internal_motivation(self, states, dones):         
         #distillation novelty detection, mse loss
         z_target    = self.model_im.forward_target(states).detach()
         z_predictor = self.model_im.forward_predictor(states).detach()
@@ -355,18 +355,18 @@ class AgentPPOCSNDT():
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
 
+
+        '''
         #sort, closest are first
         d = d.sort(dim=-1)[0]
 
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
+        '''
 
-
-        print(d[0])
-
-        #average them
-        rewards_int_b = d.mean(dim=-1)
+        #average them and mask with dones
+        rewards_int_b = dones*d.mean(dim=-1)
 
         return rewards_int_a, rewards_int_b, z_target
  
