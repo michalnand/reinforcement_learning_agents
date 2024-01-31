@@ -164,11 +164,6 @@ class AgentPPOCSNDT():
             rewards_int = self._reward_normalise(rewards_int)
         else:
             rewards_int = torch.clip(rewards_int, 0.0, 1.0)
-
-
-        print(rewards_int_a)
-        print(rewards_int_b)
-        print("\n\n\n")
          
         #put into policy buffer
         if training_enabled:
@@ -366,6 +361,9 @@ class AgentPPOCSNDT():
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
+
+
+        print(d[0])
 
         #average them
         rewards_int_b = d.mean(dim=-1)
