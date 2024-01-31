@@ -155,7 +155,7 @@ class AgentPPOCSNDT():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int_a, rewards_int_b, features = self._internal_motivation(states_t)
+        rewards_int_a, rewards_int_b, features = self._internal_motivation(states_t, torch.from_numpy(dones).to(self.device) )
 
         #weighting and clipping im
         rewards_int =  self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b
