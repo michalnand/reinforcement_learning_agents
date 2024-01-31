@@ -369,6 +369,8 @@ class AgentPPOCSNDT():
         #average them
         rewards_int_b = d.mean(dim=-1)
 
+        print("d = ", rewards_int_b.shape)
+
 
         return rewards_int_a.cpu(), rewards_int_b.cpu(), z_target
  
