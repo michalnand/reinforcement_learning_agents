@@ -185,7 +185,8 @@ class AgentPPOCSNDT():
         #store terminal states
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
-            self.terminal_buffer[self.terminal_ptr] = features[i].detach()
+            print(i)
+            self.terminal_buffer[self.terminal_ptr] = features[i].detach().clone()
             self.terminal_ptr = (self.terminal_ptr + 1)%self.terminal_buffer_size
                 
 
@@ -362,8 +363,6 @@ class AgentPPOCSNDT():
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
-
-        print(d.mean(dim=-1))        
 
         #average them and mask with dones
         rewards_int_b = dones*d.mean(dim=-1)
