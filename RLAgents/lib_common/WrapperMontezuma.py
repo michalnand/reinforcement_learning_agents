@@ -285,10 +285,8 @@ class RawScoreEnv(gym.Wrapper):
         info["raw_reward"] = reward
 
         reward = numpy.sign(float(reward))
-        #if reward < 0.0:
-        #    reward = -0.001
         if reward < 0.0:
-            reward = 0.0
+            reward = -0.001
                 
         return obs, reward, done, truncated, info
 
