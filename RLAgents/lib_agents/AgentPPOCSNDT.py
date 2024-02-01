@@ -362,6 +362,8 @@ class AgentPPOCSNDT():
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
+
+        print(d)
         
 
         #average them and mask with dones
