@@ -362,8 +362,6 @@ class AgentPPOCSNDT():
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
 
-        print(">>> ", d.shape)
-
         #average them and mask with dones
         rewards_int_b = dones*d.mean(dim=-1)
 
