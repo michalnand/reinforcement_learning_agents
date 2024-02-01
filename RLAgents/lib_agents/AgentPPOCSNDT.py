@@ -355,14 +355,14 @@ class AgentPPOCSNDT():
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
 
-        '''
+        
         #sort, closest are first
         d = d.sort(dim=-1)[0]
 
         #select only 10% closest
         idx_max = int(0.1*self.terminal_buffer_size)
         d = d[:, 0:idx_max] 
-        '''
+        
 
         #average them and mask with dones
         rewards_int_b = dones*d.mean(dim=-1)
