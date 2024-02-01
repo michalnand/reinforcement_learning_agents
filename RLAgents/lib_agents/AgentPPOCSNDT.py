@@ -185,7 +185,6 @@ class AgentPPOCSNDT():
         #store terminal states
         dones_idx = numpy.where(dones)[0]
         for i in dones_idx:
-            print(i)
             self.terminal_buffer[self.terminal_ptr] = features[i].detach().clone()
             self.terminal_ptr = (self.terminal_ptr + 1)%self.terminal_buffer_size
                 
@@ -356,6 +355,7 @@ class AgentPPOCSNDT():
         #measure distances, shape (envs_count, terminal_buffer_size)
         d = torch.cdist(z_target, self.terminal_buffer)
 
+        print(">>> ", d.shape)
         
         #sort, closest are first
         d = d.sort(dim=-1)[0]
