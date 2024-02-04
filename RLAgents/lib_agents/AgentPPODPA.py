@@ -42,7 +42,6 @@ class AgentPPODPA():
         else:
             self._self_supervised_loss = None 
 
-        self.similar_states_distance = config.similar_states_distance
         self.state_normalise      = config.state_normalise
         
         self.augmentations                  = config.augmentations
@@ -54,7 +53,6 @@ class AgentPPODPA():
         print("reward_int_coeff_a                    = ", self.reward_int_coeff_a)
         print("reward_int_coeff_b                    = ", self.reward_int_coeff_b)
         print("state_normalise                       = ", self.state_normalise)
-        print("similar_states_distance               = ", self.similar_states_distance)
 
         print("\n\n")
 
