@@ -227,8 +227,8 @@ class AgentPPODPA():
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_next, self.hidden_coeff)                
 
                 #distillation loss
-                loss_distillation = ((self.model.forward_z_target(states).detach() - self.model.forward_z_predictor(states))**2).mean()
-
+                loss_distillation = ((self.model.forward_features_a(states).detach() - self.model.forward_features_b(states))**2).mean()
+ 
                 #total loss
                 loss = loss_ppo + loss_self_supervised + loss_distillation
 
