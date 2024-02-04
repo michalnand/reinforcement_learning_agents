@@ -103,8 +103,10 @@ class AgentPPODPA():
 
         self.values_logger  = ValuesLogger() 
 
-        self.values_logger.add("internal_motivation_mean", 0.0)
-        self.values_logger.add("internal_motivation_std" , 0.0)
+        self.values_logger.add("internal_motivation_a_mean", 0.0)
+        self.values_logger.add("internal_motivation_a_std" , 0.0)
+        self.values_logger.add("internal_motivation_b_mean", 0.0)
+        self.values_logger.add("internal_motivation_b_std" , 0.0)
         
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
