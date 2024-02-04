@@ -226,7 +226,10 @@ class AgentPPODPA():
                 #train features, self supervised
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_next, self.hidden_coeff)                
 
-                #distillation loss
+                # sample batch for distillation
+                states, _ = self.policy_buffer.sample_states_next_states(self.ss_batch_size, self.device)
+                
+                #distillation loss    
                 loss_distillation = ((self.model.forward_features_a(states).detach() - self.model.forward_features_b(states))**2).mean()
  
                 #total loss
