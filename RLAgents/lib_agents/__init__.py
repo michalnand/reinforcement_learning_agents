@@ -38,6 +38,7 @@ from .AgentPPOJEPA                   import AgentPPOJEPA
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
+from .AgentPPODPA                   import AgentPPODPA
 
 
   
