@@ -285,8 +285,8 @@ class AgentPPODPA():
 
     #MSE loss for  distillation
     def _loss_distillation(self, states):  
-        z_target     = self.model_im.forward_target(states)        
-        z_predictor  = self.model_im.forward_predictor(states)
+        z_target     = self.model.forward_target(states)        
+        z_predictor  = self.model.forward_predictor(states)
 
         loss = ((z_target.detach() - z_predictor)**2).mean()
 
@@ -295,10 +295,10 @@ class AgentPPODPA():
 
     #MSE loss for  prediction 
     def _loss_prediction(self, states, states_next):  
-        z_now     = self.model_im.forward_target(states).detach() 
-        z_next    = self.model_im.forward_target(states_next).detach() 
+        z_now     = self.model.forward_target(states).detach() 
+        z_next    = self.model.forward_target(states_next).detach() 
 
-        z_pred    = self.model_im.forward_state_predictor(z_now)
+        z_pred    = self.model.forward_state_predictor(z_now)
 
         loss = ((z_next - z_pred)**2).mean()
 
