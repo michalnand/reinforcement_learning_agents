@@ -71,6 +71,8 @@ class AgentPPODPA():
         self.model.to(self.device)
         self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
 
+        print(self.model)
+
         self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         #optional, for state mean and variance normalisation        
