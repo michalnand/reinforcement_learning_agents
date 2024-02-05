@@ -154,7 +154,7 @@ class AgentPPODPA():
         #internal motivation
         rewards_int_a, rewards_int_b  = self._internal_motivation(states_t, self.state_prev)
 
-        self.state_prev = states_t.cline()
+        self.state_prev = states_t.clone()
 
         #weighting and clipping im
         rewards_int = self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b
