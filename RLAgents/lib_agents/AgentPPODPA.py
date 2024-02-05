@@ -281,10 +281,17 @@ class AgentPPODPA():
             
             #train distillation and prediction
             states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
-            loss_distillation, loss_prediction = self._loss_im(states, states_next)
+            loss_distillation, loss_prediction, loss_hidden, h = self._loss_im(states, states_next)
+
+
+            h_mag     = round(((h**2).mean()).detach().cpu().numpy().item(), 6)
+            h_mag_std = round(((h**2).std()).detach().cpu().numpy().item(), 6)
+
+            self.info_logger["predictor"] = [h_mag, h_mag_std]
+            
 
             #total loss for im model
-            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction
+            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction + 0.01*loss_hidden
             
             self.optimizer_im.zero_grad() 
             loss_im.backward()
@@ -331,18 +338,21 @@ class AgentPPODPA():
    
 
     #MSE loss for  distillation and prediction
-    def _loss_im(self, states, states_next):  
-        z_target     = self.model_im.forward_target(states)        
-        z_predictor  = self.model_im.forward_predictor(states)
+    def _loss_im(self, states_prev, states_now):  
+        z_target_prev     = self.model_im.forward_target(states_prev)        
+        z_predictor_prev  = self.model_im.forward_predictor(states_prev)
         
-        loss_distillation = ((z_target.detach() - z_predictor)**2).mean()
+        loss_distillation = ((z_target_prev.detach() - z_predictor_prev)**2).mean()
 
-        z_target_next= self.model_im.forward_target(states_next)        
-        z_target_pred= self.model_im.forward_state_predictor(z_target)
+        z_target_next= self.model_im.forward_target(states_now)        
+        z_target_pred, h = self.model_im.forward_state_predictor(z_target_next)
 
         loss_prediction = ((z_target_next - z_target_pred)**2).mean()
 
-        return loss_distillation, loss_prediction
+        #hidden information loss, enforce sparsity, and minimize batch-wise variance
+        loss_hidden = torch.abs(h).mean() + (h.std(dim=0)).mean()
+  
+        return loss_distillation, loss_prediction, loss_hidden, h
 
     #compute internal motivations
     def _internal_motivation(self, states, states_prev):         
@@ -354,7 +364,7 @@ class AgentPPODPA():
 
         #prediction novelty detection
         z_target_prev = self.model_im.forward_target(states_prev)
-        z_pred = self.model_im.forward_state_predictor(z_target_prev)
+        z_pred, _ = self.model_im.forward_state_predictor(z_target_prev, z_target)
 
         prediction_novelty = ((z_target - z_pred)**2).mean(dim=1)
 
