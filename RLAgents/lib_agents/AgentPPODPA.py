@@ -228,7 +228,7 @@ class AgentPPODPA():
                 loss_self_supervised, im_ssl  = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar)                
 
                 #train distillation
-                states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
+                states, states_next = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
                 loss_distillation = self._loss_distillation(states)
 
                 #train prediction
