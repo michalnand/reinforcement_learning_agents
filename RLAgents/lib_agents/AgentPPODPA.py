@@ -152,12 +152,13 @@ class AgentPPODPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int_a, rewards_int_b  = self._internal_motivation(self.state_prev, states_t)
+        rewards_int_a, rewards_int_b, _ = self._internal_motivation(self.state_prev, states_t)
 
         self.state_prev = states_t.clone()
 
         #weighting and clipping im
         rewards_int = self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b
+        rewards_int = rewards_int.detach().cpu()
 
         if self.int_reward_normalise:
             rewards_int = self._reward_normalise(rewards_int) 
