@@ -306,13 +306,14 @@ class AgentPPODPA():
 
     #compute internal motivations
     def _internal_motivation(self, states_prev, states):         
-        z_target_prev      = self.model.forward_target(states_prev)
-        z_state_predicted  = self.model.forward_state_predictor(z_target_prev)
-
         z_target        = self.model.forward_target(states)
         z_predictor     = self.model.forward_predictor(states)
 
         distillation_novelty = ((z_target - z_predictor)**2).mean(dim=1)
+
+        z_target_prev      = self.model.forward_target(states_prev)
+        z_state_predicted  = self.model.forward_state_predictor(z_target_prev)
+
         prediction_novelty   = ((z_target - z_state_predicted)**2).mean(dim=1)
 
         return distillation_novelty.detach().cpu(), prediction_novelty.detach().cpu()
