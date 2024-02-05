@@ -53,7 +53,7 @@ class AgentPPODPA():
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
         
-        print("self_supervised_loss                  = ", self._target_self_supervised_loss)
+        print("self_supervised_loss                  = ", self._self_supervised_loss)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff_a                    = ", self.reward_int_coeff_a)
@@ -99,10 +99,10 @@ class AgentPPODPA():
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
         
-        self.values_logger.add("loss_ppo_self_supervised", 0.0)
-        self.values_logger.add("loss_target_self_supervised", 0.0)
+        self.values_logger.add("loss_self_supervised", 0.0)
         self.values_logger.add("loss_distillation", 0.0)
         self.values_logger.add("loss_prediction", 0.0)
+
 
         self.info_logger = {} 
 
@@ -221,59 +221,33 @@ class AgentPPODPA():
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
-                #train ppo features, self supervised
-                if self._ppo_self_supervised_loss is not None:
-                    #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
+                #self supervised loss
+                states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
+                loss_self_supervised, im_ssl  = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar)                
 
-                    loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
-                    self.info_logger["ppo_ssl"] = ppo_ssl
-                else:
-                    loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
+                #train distillation
+                states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
+                loss_distillation = self._loss_distillation(states)
 
-                #total PPO loss
-                loss = loss_ppo + loss_ppo_self_supervised
+                #train prediction
+                loss_prediction = self._loss_prediction(states, states_next)
 
-                self.optimizer_ppo.zero_grad()        
+
+                #total loss
+                loss = loss_ppo + loss_self_supervised + loss_distillation + loss_prediction
+
+                self.optimizer.zero_grad()        
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
-                self.optimizer_ppo.step()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+                self.optimizer.step()
 
-                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
-        
-        
-        #IM model training
-        batch_count = (samples_count//self.ss_batch_size)//2
+                self.info_logger["im_ssl"] = im_ssl
 
-        #print("ssl_samples = ", batch_count*self.ss_batch_size)
+                self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
+                self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
+                self.values_logger.add("loss_prediction", loss_prediction.detach().cpu().numpy())
 
-        for batch_idx in range(batch_count):
-            #sample smaller batch for self supervised loss
-
-            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
-            loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
-
-            self.info_logger["im_ssl"] = im_ssl
-            
-            #train distillation
-            states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
-            loss_distillation = self._loss_distillation(states)
-
-            #train prediction
-            loss_prediction = self._loss_prediction(states, states_next)
-
-            #total loss for im model
-            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction
-            
-            self.optimizer_im.zero_grad() 
-            loss_im.backward()
-            self.optimizer_im.step()
-
-            #log results
-            self.values_logger.add("loss_target_self_supervised", loss_target_self_supervised.detach().cpu().numpy())
-            self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
-            self.values_logger.add("loss_prediction", loss_prediction.detach().cpu().numpy())
-
+       
         self.policy_buffer.clear() 
 
         
@@ -281,7 +255,7 @@ class AgentPPODPA():
 
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
+        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
 
         #critic loss
         loss_critic = ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
