@@ -10,7 +10,7 @@ from .Augmentations         import *
   
 
 class AgentPPODPA():   
-    def __init__(self, envs, ModelPPO, ModelIM, config):
+    def __init__(self, envs, Model, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -72,19 +72,13 @@ class AgentPPODPA():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        #main ppo agent
-        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
-        self.model_ppo.to(self.device)
-        self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
+        #create model
+        self.model      = Model.Model(self.state_shape, self.actions_count)
+        self.model.to(self.device)
+        self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
 
-        #IM model
-        self.model_im      = ModelIM.Model(self.state_shape)
-        self.model_im.to(self.device)
-        self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
-    
         self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-     
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
@@ -137,7 +131,7 @@ class AgentPPODPA():
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
+        logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
         
         #collect actions 
         actions = self._sample_actions(logits_t, legal_actions_mask)
@@ -185,8 +179,7 @@ class AgentPPODPA():
    
     
     def save(self, save_path):
-        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
-        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
+        torch.save(self.model.state_dict(), save_path + "trained/model.pt")
     
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -194,8 +187,7 @@ class AgentPPODPA():
                 numpy.save(f, self.state_var)
         
     def load(self, load_path):
-        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
-        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
+        self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
@@ -333,9 +325,9 @@ class AgentPPODPA():
         return loss  
     
 
-    #MSE loss for  prediction
+    #MSE loss for  prediction 
     def _loss_prediction(self, states, states_next):  
-        z_now     = self.model_im.forward_target(states).detach()    
+        z_now     = self.model_im.forward_target(states).detach() 
         z_next    = self.model_im.forward_target(states_next).detach() 
 
         z_pred    = self.model_im.forward_state_predictor(z_now)
@@ -346,11 +338,11 @@ class AgentPPODPA():
 
     #compute internal motivations
     def _internal_motivation(self, states_prev, states):         
-        z_target_prev      = self.model_im.forward_target(states_prev)
-        z_state_predicted  = self.model_im.forward_state_predictor(z_target_prev)
+        z_target_prev      = self.model.forward_target(states_prev)
+        z_state_predicted  = self.model.forward_state_predictor(z_target_prev)
 
-        z_target        = self.model_im.forward_target(states)
-        z_predictor     = self.model_im.forward_predictor(states)
+        z_target        = self.model.forward_target(states)
+        z_predictor     = self.model.forward_predictor(states)
 
         distillation_novelty = ((z_target - z_predictor)**2).mean(dim=1)
         prediction_novelty   = ((z_target - z_state_predicted)**2).mean(dim=1)
