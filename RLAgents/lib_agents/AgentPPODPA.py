@@ -344,10 +344,10 @@ class AgentPPODPA():
         
         loss_distillation = ((z_target_prev.detach() - z_predictor_prev)**2).mean()
 
-        z_target_next= self.model_im.forward_target(states_now)        
-        z_target_pred, h = self.model_im.forward_state_predictor(z_target_next)
+        z_target_now = self.model_im.forward_target(states_now)        
+        z_target_pred, h = self.model_im.forward_state_predictor(z_target_prev, z_target_now)
 
-        loss_prediction = ((z_target_next - z_target_pred)**2).mean()
+        loss_prediction = ((z_target_now - z_target_pred)**2).mean()
 
         #hidden information loss, enforce sparsity, and minimize batch-wise variance
         loss_hidden = torch.abs(h).mean() + (h.std(dim=0)).mean()
