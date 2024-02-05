@@ -10,7 +10,7 @@ from .Augmentations         import *
   
 
 class AgentPPODPA():   
-    def __init__(self, envs, Model, config):
+    def __init__(self, envs, ModelPPO, ModelIM, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -35,46 +35,58 @@ class AgentPPODPA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
-     
-        if config.self_supervised_loss == "vicreg":
-            self._self_supervised_loss = loss_vicreg
-        elif config.self_supervised_loss == "vicreg_jepa":
-            self._self_supervised_loss = loss_vicreg_jepa 
-        elif config.self_supervised_loss == "vicreg_jepa_cross":
-            self._self_supervised_loss = loss_vicreg_jepa_cross
+                
+        if config.ppo_self_supervised_loss == "vicreg":
+            self._ppo_self_supervised_loss = loss_vicreg
         else:
-            self._self_supervised_loss = None
+            self._ppo_self_supervised_loss = None
+
+        if config.target_self_supervised_loss == "vicreg":
+            self._target_self_supervised_loss = loss_vicreg
+        elif config.target_self_supervised_loss == "vicreg_jepa":
+            self._target_self_supervised_loss = loss_vicreg_jepa 
+        elif config.target_self_supervised_loss == "vicreg_jepa_cross":
+            self._target_self_supervised_loss = loss_vicreg_jepa_cross
+        else:
+            self._target_self_supervised_loss = None
 
 
         self.similar_states_distance = config.similar_states_distance
         
         self.state_normalise      = config.state_normalise
+        self.int_reward_normalise = config.int_reward_normalise
         
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
         
-        print("self_supervised_loss                  = ", self._self_supervised_loss)
+        print("ppo_self_supervised_loss              = ", self._ppo_self_supervised_loss)
+        print("target_self_supervised_loss           = ", self._target_self_supervised_loss)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff_a                    = ", self.reward_int_coeff_a)
-        print("reward_int_coeff_b                    = ", self.reward_int_coeff_b) 
+        print("reward_int_coeff_b                    = ", self.reward_int_coeff_b)
         print("similar_states_distance               = ", self.similar_states_distance)
         print("state_normalise                       = ", self.state_normalise)
+        print("int_reward_normalise                  = ", self.int_reward_normalise)
 
         print("\n\n")
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        #create model
-        self.model      = Model.Model(self.state_shape, self.actions_count)
-        self.model.to(self.device)
-        self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
+        #main ppo agent
+        self.model_ppo      = ModelPPO.Model(self.state_shape, self.actions_count)
+        self.model_ppo.to(self.device)
+        self.optimizer_ppo  = torch.optim.Adam(self.model_ppo.parameters(), lr=config.learning_rate_ppo)
 
-        print(self.model)
-
+        #IM model
+        self.model_im      = ModelIM.Model(self.state_shape)
+        self.model_im.to(self.device)
+        self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
+    
         self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
+     
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
@@ -85,26 +97,30 @@ class AgentPPODPA():
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
-        self.states_prev = torch.zeros((self.envs_count, ) + self.state_shape,  dtype=torch.float32, device=self.device)
+        #optional int reward normalisation
+        self.reward_mean = 0.0
+        self.reward_var  = 1.0
 
 
+        self.state_prev  = torch.zeros((self.envs_count, ) + self.state_shape, dtype=torch.float32, device=self.device)
 
         self.iterations = 0 
 
         self.values_logger  = ValuesLogger() 
 
-        self.values_logger.add("internal_motivation_a_mean", 0.0)
-        self.values_logger.add("internal_motivation_a_std" , 0.0)
-        self.values_logger.add("internal_motivation_b_mean", 0.0)
-        self.values_logger.add("internal_motivation_b_std" , 0.0)
+        self.values_logger.add("internal_motivation_mean_a", 0.0)
+        self.values_logger.add("internal_motivation_std_a" , 0.0)
+
+        self.values_logger.add("internal_motivation_mean_b", 0.0)
+        self.values_logger.add("internal_motivation_std_b" , 0.0)
         
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
         
-        self.values_logger.add("loss_self_supervised", 0.0)
+        self.values_logger.add("loss_ppo_self_supervised", 0.0)
+        self.values_logger.add("loss_target_self_supervised", 0.0)
         self.values_logger.add("loss_distillation", 0.0)
         self.values_logger.add("loss_prediction", 0.0)
-
 
         self.info_logger = {} 
 
@@ -127,7 +143,7 @@ class AgentPPODPA():
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
+        logits_t, values_ext_t, values_int_t  = self.model_ppo.forward(states_t)
         
         #collect actions 
         actions = self._sample_actions(logits_t, legal_actions_mask)
@@ -136,13 +152,17 @@ class AgentPPODPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int_a, rewards_int_b = self._internal_motivation(self.states_prev, states_t)
-        
-        self.states_prev = states_t.clone()
+        rewards_int_a, rewards_int_b  = self._internal_motivation(states_t, self.state_prev)
+
+        self.state_prev = states_t.cline()
 
         #weighting and clipping im
         rewards_int = self.reward_int_coeff_a*rewards_int_a + self.reward_int_coeff_b*rewards_int_b
-        rewards_int = torch.clip(rewards_int, 0.0, 1.0)
+
+        if self.int_reward_normalise:
+            rewards_int = self._reward_normalise(rewards_int) 
+        else:
+            rewards_int = torch.clip(rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if training_enabled:
@@ -163,11 +183,11 @@ class AgentPPODPA():
                 
 
         #collect stats
-        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean_a", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std_a" , rewards_int_a.std().detach().to("cpu").numpy())
 
-        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean_b", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std_b" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -175,7 +195,8 @@ class AgentPPODPA():
    
     
     def save(self, save_path):
-        torch.save(self.model.state_dict(), save_path + "trained/model.pt")
+        torch.save(self.model_ppo.state_dict(), save_path + "trained/model_ppo.pt")
+        torch.save(self.model_im.state_dict(), save_path + "trained/model_im.pt")
     
         if self.state_normalise:
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
@@ -183,7 +204,8 @@ class AgentPPODPA():
                 numpy.save(f, self.state_var)
         
     def load(self, load_path):
-        self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
+        self.model_ppo.load_state_dict(torch.load(load_path + "trained/model_ppo.pt", map_location = self.device))
+        self.model_im.load_state_dict(torch.load(load_path + "trained/model_im.pt", map_location = self.device))
         
         if self.state_normalise:
             with open(load_path + "trained/" + "state_mean_var.npy", "rb") as f:
@@ -223,33 +245,56 @@ class AgentPPODPA():
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
-                #self supervised loss
-                states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
-                loss_self_supervised, im_ssl  = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar)                
+                #train ppo features, self supervised
+                if self._ppo_self_supervised_loss is not None:
+                    #sample smaller batch for self supervised loss
+                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
 
-                #train distillation 
-                states, states_next = self.policy_buffer.sample_states_next_states(self.ss_batch_size, self.device)
-                loss_distillation = self._loss_distillation(states)
+                    loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
+                    self.info_logger["ppo_ssl"] = ppo_ssl
+                else:
+                    loss_ppo_self_supervised    = torch.zeros((1, ), device=self.device)[0]
 
-                #train prediction
-                loss_prediction = self._loss_prediction(states, states_next)
+                #total PPO loss
+                loss = loss_ppo + loss_ppo_self_supervised
 
-
-                #total loss
-                loss = loss_ppo + loss_self_supervised + loss_distillation + loss_prediction
-
-                self.optimizer.zero_grad()        
+                self.optimizer_ppo.zero_grad()        
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-                self.optimizer.step()
+                torch.nn.utils.clip_grad_norm_(self.model_ppo.parameters(), max_norm=0.5)
+                self.optimizer_ppo.step()
 
-                self.info_logger["im_ssl"] = im_ssl
+                self.values_logger.add("loss_ppo_self_supervised", loss_ppo_self_supervised.detach().cpu().numpy())
+        
+        
+        #IM model training
+        batch_count = (samples_count//self.ss_batch_size)//2
 
-                self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
-                self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
-                self.values_logger.add("loss_prediction", loss_prediction.detach().cpu().numpy())
+        #print("ssl_samples = ", batch_count*self.ss_batch_size)
 
-       
+        for batch_idx in range(batch_count):
+            #sample smaller batch for self supervised loss
+
+            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
+            loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
+
+            self.info_logger["im_ssl"] = im_ssl
+            
+            #train distillation and prediction
+            states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
+            loss_distillation, loss_prediction = self._loss_im(states, states_next)
+
+            #total loss for im model
+            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction
+            
+            self.optimizer_im.zero_grad() 
+            loss_im.backward()
+            self.optimizer_im.step()
+
+            #log results
+            self.values_logger.add("loss_target_self_supervised", loss_target_self_supervised.detach().cpu().numpy())
+            self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
+            self.values_logger.add("loss_prediction", loss_prediction.detach().cpu().numpy())
+            
         self.policy_buffer.clear() 
 
         
@@ -257,7 +302,7 @@ class AgentPPODPA():
 
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):
 
-        logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+        logits_new, values_ext_new, values_int_new  = self.model_ppo.forward(states)
 
         #critic loss
         loss_critic = ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)
@@ -285,38 +330,33 @@ class AgentPPODPA():
 
    
 
-    #MSE loss for  distillation
-    def _loss_distillation(self, states):  
-        z_target     = self.model.forward_target(states)        
-        z_predictor  = self.model.forward_predictor(states)
+    #MSE loss for  distillation and prediction
+    def _loss_im(self, states, states_next):  
+        z_target     = self.model_im.forward_target(states)        
+        z_predictor  = self.model_im.forward_predictor(states)
+        
+        loss_distillation = ((z_target.detach() - z_predictor)**2).mean()
 
-        loss = ((z_target.detach() - z_predictor)**2).mean()
+        z_target_next= self.model_im.forward_target(states_next)        
+        z_target_pred= self.model_im.forward_state_predictor(z_target)
 
-        return loss  
-    
+        loss_prediction = ((z_target_next - z_target_pred)**2).mean()
 
-    #MSE loss for  prediction 
-    def _loss_prediction(self, states, states_next):  
-        z_now     = self.model.forward_target(states).detach() 
-        z_next    = self.model.forward_target(states_next).detach() 
-
-        z_pred    = self.model.forward_state_predictor(z_now)
-
-        loss = ((z_next - z_pred)**2).mean()
-
-        return loss  
+        return loss_distillation, loss_prediction
 
     #compute internal motivations
-    def _internal_motivation(self, states_prev, states):         
-        z_target        = self.model.forward_target(states)
-        z_predictor     = self.model.forward_predictor(states)
+    def _internal_motivation(self, states, states_prev):         
+        #distillation novelty detection
+        z_target    = self.model_im.forward_target(states)
+        z_predictor = self.model_im.forward_predictor(states)
 
         distillation_novelty = ((z_target - z_predictor)**2).mean(dim=1)
 
-        z_target_prev      = self.model.forward_target(states_prev)
-        z_state_predicted  = self.model.forward_state_predictor(z_target_prev)
+        #prediction novelty detection
+        z_target_prev = self.model_im.forward_target(states_prev)
+        z_pred = self.model_im.forward_state_predictor(z_target_prev)
 
-        prediction_novelty   = ((z_target - z_state_predicted)**2).mean(dim=1)
+        prediction_novelty = ((z_target - z_pred)**2).mean(dim=1)
 
         return distillation_novelty.detach().cpu(), prediction_novelty.detach().cpu()
  
@@ -362,3 +402,18 @@ class AgentPPODPA():
         
         return states_norm
     
+
+    def _reward_normalise(self, rewards, alpha = 0.99): 
+        #update running stats
+        mean = rewards.mean() 
+        self.reward_mean = alpha*self.reward_mean + (1.0 - alpha)*mean
+
+        var = ((rewards - mean)**2).mean()
+        self.reward_var  = alpha*self.reward_var + (1.0 - alpha)*var 
+            
+        #normalise mean and variance
+        rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
+        rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
+      
+        return rewards_result
+   
