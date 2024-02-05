@@ -35,20 +35,15 @@ class AgentPPODPA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
-                
-        if config.ppo_self_supervised_loss == "vicreg":
-            self._ppo_self_supervised_loss = loss_vicreg
+     
+        if config.self_supervised_loss == "vicreg":
+            self._self_supervised_loss = loss_vicreg
+        elif config.self_supervised_loss == "vicreg_jepa":
+            self._self_supervised_loss = loss_vicreg_jepa 
+        elif config.self_supervised_loss == "vicreg_jepa_cross":
+            self._self_supervised_loss = loss_vicreg_jepa_cross
         else:
-            self._ppo_self_supervised_loss = None
-
-        if config.target_self_supervised_loss == "vicreg":
-            self._target_self_supervised_loss = loss_vicreg
-        elif config.target_self_supervised_loss == "vicreg_jepa":
-            self._target_self_supervised_loss = loss_vicreg_jepa 
-        elif config.target_self_supervised_loss == "vicreg_jepa_cross":
-            self._target_self_supervised_loss = loss_vicreg_jepa_cross
-        else:
-            self._target_self_supervised_loss = None
+            self._self_supervised_loss = None
 
 
         self.similar_states_distance = config.similar_states_distance
@@ -58,8 +53,7 @@ class AgentPPODPA():
         self.augmentations                  = config.augmentations
         self.augmentations_probs            = config.augmentations_probs
         
-        print("ppo_self_supervised_loss              = ", self._ppo_self_supervised_loss)
-        print("target_self_supervised_loss           = ", self._target_self_supervised_loss)
+        print("self_supervised_loss                  = ", self._target_self_supervised_loss)
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff_a                    = ", self.reward_int_coeff_a)
