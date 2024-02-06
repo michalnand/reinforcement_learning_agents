@@ -292,7 +292,7 @@ class AgentPPODPA():
             
 
             #total loss for im model
-            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction + 0.001*loss_hidden
+            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction + 0.01*loss_hidden
             
             self.optimizer_im.zero_grad() 
             loss_im.backward()
