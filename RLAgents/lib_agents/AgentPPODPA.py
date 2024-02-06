@@ -281,7 +281,7 @@ class AgentPPODPA():
             self.info_logger["im_ssl"] = im_ssl
             
             #train distillation and prediction
-            states, states_next = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
+            states, states_next = self.policy_buffer.sample_states_next_states(self.batch_size, self.device)
             loss_distillation, loss_prediction, loss_hidden, h = self._loss_im(states, states_next)
 
 
