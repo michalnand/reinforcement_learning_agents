@@ -1,0 +1,15 @@
+gym==0.26.2
+gym_super_mario_bros==7.4.0
+gymnasium==0.29.1
+matplotlib==3.8.2
+nes_py==8.2.1
+numpy==1.26.4
+opencv_python==4.8.1.78
+Pillow==10.1.0
+Pillow==10.2.0
+procgen==0.10.7
+pybullet==3.2.6
+scipy==1.12.0
+setuptools==58.0.4
+torch==2.1.2
+vizdoom==1.2.3

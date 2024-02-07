@@ -19,4 +19,4 @@ from .WrapperMontezuma      import WrapperMontezuma, WrapperMontezumaColor, Wrap
 
 #from .WrapperProcgen        import WrapperProcgenEasy, WrapperProcgenHard, WrapperProcgenExploration, WrapperProcgenEasyRender, WrapperProcgenHardRender, WrapperProcgenExplorationRender, WrapperSparseExplorationHard
 
-
+from .Runner import Runner
