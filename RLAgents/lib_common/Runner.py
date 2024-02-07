@@ -5,7 +5,7 @@ import torch
 class Runner:
 
     # devices = [cuda:0, cuda:1]
-    def __init__(self, experiments, devices, delay_s = 0.5):
+    def __init__(self, experiments, devices, delay_s = 10.0):
         multiprocessing.set_start_method('spawn')
         #multiprocessing.set_start_method('fork')
 
