@@ -292,7 +292,7 @@ class AgentPPODPA():
             
 
             #total loss for im model
-            loss_im = loss_target_self_supervised + loss_distillation + 0.1*loss_prediction + 0.01*loss_hidden
+            loss_im = loss_target_self_supervised + loss_distillation + loss_prediction + 0.01*loss_hidden
             
             self.optimizer_im.zero_grad() 
             loss_im.backward()
@@ -346,7 +346,7 @@ class AgentPPODPA():
 
         #prediction novelty detection
         z_target_prev = self.model_im.forward_target(states_prev)
-        z_pred, h = self.model_im.forward_state_predictor(z_target_prev, z_target)
+        z_pred, h = self.model_im.forward_state_predictor(z_target_prev.detach(), z_target.detach())
 
         prediction_novelty = ((z_target - z_pred)**2).mean(dim=1)
 
