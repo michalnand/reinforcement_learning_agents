@@ -339,14 +339,14 @@ class AgentPPODPA():
     #compute internal motivations
     def _internal_motivation(self, states_prev, states_now):         
         #distillation novelty detection 
-        z_target    = self.model_im.forward_target(states_now)
+        z_target    = self.model_im.forward_target(states_now).detach()
         z_predictor = self.model_im.forward_predictor(states_now)
 
-        distillation_novelty = ((z_target.detach() - z_predictor)**2).mean(dim=1)
+        distillation_novelty = ((z_target - z_predictor)**2).mean(dim=1)
 
         #prediction novelty detection
-        z_target_prev = self.model_im.forward_target(states_prev)
-        z_pred, h = self.model_im.forward_state_predictor(z_target_prev.detach(), z_target.detach())
+        z_target_prev = self.model_im.forward_target(states_prev).detach()
+        z_pred, h = self.model_im.forward_state_predictor(z_target_prev, z_target)
 
         prediction_novelty = ((z_target - z_pred)**2).mean(dim=1)
 
