@@ -346,7 +346,7 @@ class AgentPPODPA():
 
         #prediction novelty detection
         z_target_prev = self.model_im.forward_target(states_prev)
-        z_pred, h = self.model_im.forward_state_predictor(z_target_prev, z_target)
+        z_pred, h = self.model_im.forward_state_predictor(z_target_prev.detach(), z_target.detach())
 
         prediction_novelty = ((z_target - z_pred)**2).mean(dim=1)
 
