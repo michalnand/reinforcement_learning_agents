@@ -282,13 +282,13 @@ class AgentPPOJEPA():
     #compute internal motivations
     def _internal_motivation(self, states):         
 
-        if self.jepa_orig is not None:
+        if self.jepa_orig == True:
             z_pred, z_target, p, h = self.model.forward_self_supervised(states, states)
             im_mse = ((p - z_target)**2).mean(dim=-1)
         else:
             za, zb, pa, pb, ha, hb = self.model.forward_self_supervised(states, states)
             im_mse = ((za - pb)**2).mean(dim=-1) + ((zb - pa)**2).mean(dim=-1)
-            im_mse = 0.5*im_mse
+            im_mse = 0.5*im_mse 
 
         return im_mse.detach().cpu()
  
