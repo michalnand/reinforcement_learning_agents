@@ -35,11 +35,17 @@ class AgentPPOJEPA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
+        self.tau = None
+        self.jepa_orig = False
 
         if config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa
         elif config.self_supervised_loss == "vicreg_jepa_cross":
             self._self_supervised_loss = loss_vicreg_jepa_cross
+        elif config.self_supervised_loss == "vicreg_jepa_ema":
+            self._self_supervised_loss = loss_vicreg_jepa_ema
+            self.tau = config.tau
+            self.jepa_orig = True
         else:
             self._self_supervised_loss = None 
 
@@ -232,6 +238,13 @@ class AgentPPOJEPA():
 
                 self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
         
+        #EMA target model update
+        if self.tau is not None:
+            for target_param, pred_param in zip(self.model.model_features_target.parameters(), self.model.model_features_predictor.parameters()):
+                w_new = (1.0 - self.tau)*target_param.data + self.tau*pred_param.data
+                target_param.data.copy_(w_new)
+        
+
     
         self.policy_buffer.clear() 
 
@@ -268,10 +281,14 @@ class AgentPPOJEPA():
 
     #compute internal motivations
     def _internal_motivation(self, states):         
-        za, zb, pa, pb, ha, hb = self.model.forward_self_supervised(states, states)
 
-        im_mse = ((za - pb)**2).mean(dim=-1) + ((zb - pa)**2).mean(dim=-1)
-        im_mse = 0.5*im_mse
+        if self.jepa_orig is not None:
+            z_pred, z_target, p, h = self.model.forward_self_supervised(states, states)
+            im_mse = ((p - z_target)**2).mean(dim=-1)
+        else:
+            za, zb, pa, pb, ha, hb = self.model.forward_self_supervised(states, states)
+            im_mse = ((za - pb)**2).mean(dim=-1) + ((zb - pa)**2).mean(dim=-1)
+            im_mse = 0.5*im_mse
 
         return im_mse.detach().cpu()
  
