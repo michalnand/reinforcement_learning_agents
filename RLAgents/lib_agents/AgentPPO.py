@@ -141,7 +141,10 @@ class AgentPPO():
         return self.values_logger.get_str()
     
     def _sample_actions(self, logits, legal_actions_mask):
-        legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
+        if legal_actions_mask is not None:
+            legal_actions_mask_t  = torch.from_numpy(legal_actions_mask).to(self.device).float()
+        else:
+            legal_actions_mask_t = 1.0
 
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
         

@@ -90,7 +90,7 @@ def loss_vicreg_proj(model_forward_func, augmentations, xa, xb):
     # covariance loss 
     cov_loss = _loss_cov(proj_a)
     cov_loss+= _loss_cov(proj_b)
-   
+    
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
  
@@ -182,49 +182,6 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0
 
 
 
-def loss_vicreg_jepa_proj(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
-    xa_aug, _ = augmentations(xa)
-    xb_aug, _ = augmentations(xb)
-
-    za, zb, pa, pb, ha, hb, proj_a, proj_b = model_forward_func(xa_aug, xb_aug)  
-
-    # invariance loss
-    sim_loss = _loss_mse(za, pb)
-    sim_loss+= _loss_mse(zb, pa) 
-
-    # variance loss
-    std_loss = _loss_std(proj_a)
-    std_loss+= _loss_std(proj_b) 
-
-    # covariance loss 
-    cov_loss = _loss_cov(proj_a)
-    cov_loss+= _loss_cov(proj_b)
-
-    #hidden information loss, enforce sparsity, and minimize batch-wise variance
-    h_mag = torch.abs(ha).mean() + torch.abs(hb).mean() 
-    h_std = (ha.std(dim=0)).mean() + (hb.std(dim=0)).mean()
-    hidden_loss = h_mag + h_std
-
-    cross_loss = _loss_cross(za, zb)
-
-    # total loss, vicreg + info-min
-    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
-
-    #info for log
-    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    h_mag     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
-    h_mag_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
-
-    cross = round(cross_loss.detach().cpu().numpy().item(), 6)
-
-    info = [z_mag, z_mag_std, h_mag, h_mag_std, cross]
-
-    return loss, info
-
-
-
-
 
 
 def loss_vicreg_jepa_cross(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
@@ -270,45 +227,88 @@ def loss_vicreg_jepa_cross(model_forward_func, augmentations, xa, xb, hidden_coe
 
 
 
-
-def loss_vicreg_jepa_ema(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
+def loss_vicreg_jepa_single(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(xa)
     xb_aug, _ = augmentations(xb)
 
-    z_pred, z_target, p, h = model_forward_func(xa_aug, xb_aug)  
+    za, zb, pa, hb = model_forward_func(xa_aug, xb_aug)  
 
     # invariance loss
-    sim_loss = _loss_mse(p, z_target)
+    # predict zb from pa (pa is result from za and hb)
+    sim_loss = _loss_mse(zb, pa)
 
     # variance loss
-    std_loss = _loss_std(z_pred)
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
 
     # covariance loss 
-    cov_loss = _loss_cov(z_pred)
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
 
     #hidden information loss, enforce sparsity, and minimize batch-wise variance
-    h_mag = torch.abs(h).mean()
-    h_std = h.std(dim=0).mean()
+    h_mag = torch.abs(hb).mean()
+    h_std = (hb.std(dim=0)).mean()
     hidden_loss = h_mag + h_std
 
     # total loss, vicreg + info-min
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
 
-    cross_loss = _loss_cross(z_pred, z_target)
+    cross_loss = _loss_cross(za, zb)
     
     #info for log
-    z_mag     = round(((z_pred**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std = round(((z_pred**2).std()).detach().cpu().numpy().item(), 6)
-    h_mag     = round(((h**2).mean()).detach().cpu().numpy().item(), 6)
-    h_mag_std = round(((h**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    h_mag     = round(((hb**2).mean()).detach().cpu().numpy().item(), 6)
+    h_mag_std = round(((hb**2).std()).detach().cpu().numpy().item(), 6)
 
     cross = round(cross_loss.detach().cpu().numpy().item(), 6)
 
     info = [z_mag, z_mag_std, h_mag, h_mag_std, cross]
 
+    return loss, info
 
+
+
+def loss_vicreg_jepa_single_cross(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
+    xa_aug, _ = augmentations(xa)
+    xb_aug, _ = augmentations(xb) 
+
+    za, zb, pa, hb = model_forward_func(xa_aug, xb_aug)  
+
+    # invariance loss
+    # predict zb from pa (pa is result from za and hb)
+    sim_loss = _loss_mse(zb, pa)
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+    cross_loss = _loss_cross(za, zb)
+
+    #hidden information loss, enforce sparsity, and minimize batch-wise variance
+    h_mag = torch.abs(hb).mean()
+    h_std = (hb.std(dim=0)).mean()
+    hidden_loss = h_mag + h_std
+
+    # total loss, vicreg + info-min
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*cross_loss + hidden_coeff*hidden_loss
+    
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    h_mag     = round(((hb**2).mean()).detach().cpu().numpy().item(), 6)
+    h_mag_std = round(((hb**2).std()).detach().cpu().numpy().item(), 6)
+
+    cross = round(cross_loss.detach().cpu().numpy().item(), 6)
+
+    info = [z_mag, z_mag_std, h_mag, h_mag_std, cross]
 
     return loss, info
+
 
 
 if __name__ == "__main__":

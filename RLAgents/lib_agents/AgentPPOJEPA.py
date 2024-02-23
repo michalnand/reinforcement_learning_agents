@@ -42,10 +42,10 @@ class AgentPPOJEPA():
             self._self_supervised_loss = loss_vicreg_jepa
         elif config.self_supervised_loss == "vicreg_jepa_cross":
             self._self_supervised_loss = loss_vicreg_jepa_cross
-        elif config.self_supervised_loss == "vicreg_jepa_ema":
-            self._self_supervised_loss = loss_vicreg_jepa_ema
-            self.tau = config.tau
-            self.jepa_orig = True
+        elif config.self_supervised_loss == "vicreg_jepa_single":
+            self._self_supervised_loss = loss_vicreg_jepa_single
+        elif config.self_supervised_loss == "vicreg_jepa_single_cross":
+            self._self_supervised_loss = loss_vicreg_jepa_single_cross
         else:
             self._self_supervised_loss = None 
 
@@ -281,16 +281,8 @@ class AgentPPOJEPA():
 
     #compute internal motivations
     def _internal_motivation(self, states):         
-
-        if self.jepa_orig == True:
-            z_pred, z_target, p, h = self.model.forward_self_supervised(states, states)
-            im_mse = ((p - z_target)**2).mean(dim=-1)
-        else:
-            za, zb, pa, pb, ha, hb = self.model.forward_self_supervised(states, states)
-            im_mse = ((za - pb)**2).mean(dim=-1) + ((zb - pa)**2).mean(dim=-1)
-            im_mse = 0.5*im_mse 
-
-        return im_mse.detach().cpu()
+        result = self.model.compute_im(states, states) 
+        return result.detach().cpu()
  
 
     def _augmentations(self, x): 
