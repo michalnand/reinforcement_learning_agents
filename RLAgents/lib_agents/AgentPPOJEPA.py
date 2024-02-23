@@ -281,7 +281,7 @@ class AgentPPOJEPA():
 
     #compute internal motivations
     def _internal_motivation(self, states):         
-        result = self.model.compute_im(states, states) 
+        result = self.model.forward_im(states, states) 
         return result.detach().cpu()
  
 
