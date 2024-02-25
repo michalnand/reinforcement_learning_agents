@@ -25,6 +25,11 @@ class AgentPPOJEPA():
         self.reward_int_coeff   = config.reward_int_coeff
         self.hidden_coeff       = config.hidden_coeff
 
+        if hasattr(config, "sim_coeff"):
+            self.sim_coeff = config.sim_coeff
+        else:
+            self.sim_coeff = 1.0
+
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -35,17 +40,10 @@ class AgentPPOJEPA():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
-        self.tau = None
-        self.jepa_orig = False
-
         if config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa
-        elif config.self_supervised_loss == "vicreg_jepa_cross":
-            self._self_supervised_loss = loss_vicreg_jepa_cross
         elif config.self_supervised_loss == "vicreg_jepa_single":
             self._self_supervised_loss = loss_vicreg_jepa_single
-        elif config.self_supervised_loss == "vicreg_jepa_single_cross":
-            self._self_supervised_loss = loss_vicreg_jepa_single_cross
         else:
             self._self_supervised_loss = None 
 
@@ -60,6 +58,7 @@ class AgentPPOJEPA():
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
+        print("sim_coeff                             = ", self.sim_coeff)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
         print("similar_states_distance               = ", self.similar_states_distance)
@@ -139,10 +138,9 @@ class AgentPPOJEPA():
         rewards_int = self._internal_motivation(states_t)
 
         if self.int_reward_normalise:
-            rewards_int = self.reward_int_coeff*self._reward_normalise(rewards_int)
-        else:
-            rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
+            rewards_int = self._reward_normalise(rewards_int) 
       
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
                     
         #put into policy buffer
         if training_enabled:
@@ -210,8 +208,6 @@ class AgentPPOJEPA():
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
-        #print("ppo_samples = ", self.training_epochs*batch_count*self.batch_size)
-
         #PPO training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
@@ -224,7 +220,7 @@ class AgentPPOJEPA():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
 
                 #train features, self supervised
-                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
+                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.sim_coeff, self.hidden_coeff)                
 
                 #total loss
                 loss = loss_ppo + loss_self_supervised
@@ -238,14 +234,6 @@ class AgentPPOJEPA():
 
                 self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
         
-        #EMA target model update
-        if self.tau is not None:
-            for target_param, pred_param in zip(self.model.model_features_target.parameters(), self.model.model_features_predictor.parameters()):
-                w_new = (1.0 - self.tau)*target_param.data + self.tau*pred_param.data
-                target_param.data.copy_(w_new)
-        
-
-    
         self.policy_buffer.clear() 
 
         
@@ -338,5 +326,5 @@ class AgentPPOJEPA():
         rewards_result = rewards/(numpy.sqrt(self.reward_var) + 10**-6)
         rewards_result = numpy.clip(rewards_result, -4.0, 4.0)
 
-        return rewards_result
+        return rewards_result 
     
