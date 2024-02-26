@@ -24,6 +24,7 @@ class AgentPPOJEPA():
  
         self.reward_int_coeff   = config.reward_int_coeff
         self.hidden_coeff       = config.hidden_coeff
+        self.ssl_loss_coeff     = config.ssl_loss_coeff
 
        
         self.entropy_beta       = config.entropy_beta
@@ -54,6 +55,7 @@ class AgentPPOJEPA():
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
+        print("ssl_loss_coeff                        = ", self.ssl_loss_coeff)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
         print("similar_states_distance               = ", self.similar_states_distance)
@@ -218,7 +220,7 @@ class AgentPPOJEPA():
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
 
                 #total loss
-                loss = loss_ppo + loss_self_supervised
+                loss = loss_ppo + self.ssl_loss_coeff*loss_self_supervised
 
                 self.optimizer.zero_grad()        
                 loss.backward()
