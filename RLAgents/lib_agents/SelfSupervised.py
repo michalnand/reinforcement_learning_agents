@@ -42,7 +42,7 @@ def _loss_cross(xa, xb):
 
 
 
-def loss_vicreg(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0):
+def loss_vicreg(model_forward_func, augmentations, xa, xb):
     xa_aug, _ = augmentations(xa) 
     xb_aug, _ = augmentations(xb)
 
@@ -61,7 +61,7 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0):
     cov_loss+= _loss_cov(zb)
    
     # total vicreg loss
-    loss = sim_coeff*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
@@ -73,7 +73,7 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0):
 
 
 
-def loss_vicreg_proj(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0):
+def loss_vicreg_proj(model_forward_func, augmentations, xa, xb):
     xa_aug, _ = augmentations(xa) 
     xb_aug, _ = augmentations(xb)
 
@@ -92,7 +92,7 @@ def loss_vicreg_proj(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0)
     cov_loss+= _loss_cov(proj_b)
     
     # total vicreg loss
-    loss = sim_coeff*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
  
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
@@ -140,7 +140,7 @@ def loss_vicreg_proj(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0)
 
         - this necessary information can be camemera position, or noise ...
 '''
-def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0, hidden_coeff = 0.01):
+def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(xa)
     xb_aug, _ = augmentations(xb)
 
@@ -164,7 +164,7 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0,
     hidden_loss = h_mag + h_std
 
     # total loss, vicreg + info-min
-    loss = 0.5*sim_coeff*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
+    loss = 0.5*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
 
     cross_loss = _loss_cross(za, zb)
     
@@ -181,7 +181,7 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0,
     return loss, info
 
 
-def loss_vicreg_jepa_single(model_forward_func, augmentations, xa, xb, sim_coeff = 1.0, hidden_coeff = 0.01):
+def loss_vicreg_jepa_single(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(xa)
     xb_aug, _ = augmentations(xb)
 
@@ -205,7 +205,7 @@ def loss_vicreg_jepa_single(model_forward_func, augmentations, xa, xb, sim_coeff
     hidden_loss = h_mag + h_std
 
     # total loss, vicreg + info-min
-    loss = 1.0*sim_coeff*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
 
     cross_loss = _loss_cross(za, zb)
     

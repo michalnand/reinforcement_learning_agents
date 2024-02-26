@@ -25,11 +25,7 @@ class AgentPPOJEPA():
         self.reward_int_coeff   = config.reward_int_coeff
         self.hidden_coeff       = config.hidden_coeff
 
-        if hasattr(config, "sim_coeff"):
-            self.sim_coeff = config.sim_coeff
-        else:
-            self.sim_coeff = 1.0
-
+       
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
     
@@ -58,7 +54,6 @@ class AgentPPOJEPA():
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
-        print("sim_coeff                             = ", self.sim_coeff)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
         print("similar_states_distance               = ", self.similar_states_distance)
@@ -220,7 +215,7 @@ class AgentPPOJEPA():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
 
                 #train features, self supervised
-                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.sim_coeff, self.hidden_coeff)                
+                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
 
                 #total loss
                 loss = loss_ppo + loss_self_supervised
