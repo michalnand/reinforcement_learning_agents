@@ -19,7 +19,7 @@ def aug_random_select(xa, xb, p):
 
 #random invert colors
 def aug_inverse(x): 
-    r = torch.randint(0, 2, (x.shape[0], x.shape[1])).unsqueeze(2).unsqueeze(3).to(x.device)
+    r = torch.randint(0, 2, (x.shape[0], x.shape[1]), device=x.device).unsqueeze(2).unsqueeze(3)
     return r*(1.0 - x) + (1.0 - r)*x
 
 #random channels permutation
@@ -53,7 +53,7 @@ def aug_pixel_dropout(x, p = 0.1):
 #apply random convolution filter
 def aug_conv(x):
     #random kernel size : 1, 3, 5, 7
-    kernel_size =  2*numpy.random.randint(0, 4) + 1
+    kernel_size =  2*torch.randint(0, 4) + 1
 
     ch = x.shape[1] 
 
@@ -75,7 +75,7 @@ def aug_mask_tiles(x, p = 0.1):
     else:
         tile_sizes  = [1, 2, 4, 8, 16]
 
-    tile_size   = tile_sizes[numpy.random.randint(len(tile_sizes))]
+    tile_size   = tile_sizes[torch.randint(len(tile_sizes))]
 
     size_h  = x.shape[2]//tile_size
     size_w  = x.shape[3]//tile_size
@@ -93,14 +93,14 @@ def aug_random_tiles(x, max_loops = 4, p_base=0.1):
 
     p       = p_base/((2*loops + 1)**2)
 
-    mask    = (torch.rand((x.shape[0], 1, x.shape[2], x.shape[3])) < p).float()
+    mask    = (torch.rand((x.shape[0], 1, x.shape[2], x.shape[3]), device=x.device) < p).float()
 
     pool    = torch.nn.MaxPool2d(3, stride=1, padding=1)
 
     for i in range(loops):
         mask = pool(mask)
 
-    mask = (1.0 - mask.to(x.device))
+    mask = (1.0 - mask)
     return x*mask
 
 
