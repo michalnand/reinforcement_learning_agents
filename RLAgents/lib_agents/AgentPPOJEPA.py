@@ -24,7 +24,6 @@ class AgentPPOJEPA():
  
         self.reward_int_coeff   = config.reward_int_coeff
         self.hidden_coeff       = config.hidden_coeff
-        self.ssl_loss_coeff     = config.ssl_loss_coeff
 
        
         self.entropy_beta       = config.entropy_beta
@@ -44,7 +43,12 @@ class AgentPPOJEPA():
         else:
             self._self_supervised_loss = None 
 
-        self.similar_states_distance = config.similar_states_distance
+
+        self.inferance_distance             = config.inferance_distance
+        self.training_distance              = config.training_distance
+        self.stochastic_distance            = config.stochastic_distance
+
+
         self.state_normalise      = config.state_normalise
         self.int_reward_normalise = config.int_reward_normalise
         
@@ -55,10 +59,11 @@ class AgentPPOJEPA():
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
-        print("ssl_loss_coeff                        = ", self.ssl_loss_coeff)
+        print("inferance_distance                    = ", self.inferance_distance)
+        print("training_distance                     = ", self.training_distance)
+        print("stochastic_distance                   = ", self.stochastic_distance)
         print("state_normalise                       = ", self.state_normalise)
         print("int_reward_normalise                  = ", self.int_reward_normalise)
-        print("similar_states_distance               = ", self.similar_states_distance)
 
         print("\n\n")
 
@@ -85,12 +90,13 @@ class AgentPPOJEPA():
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
+        self.states_buffer = torch.zeros((self.state_shape[0], self.envs_count) + self.state_shape, dtype=torch.float32, device=self.device)
+
         #optional int reward normalisation
         self.reward_mean = 0.0
         self.reward_var  = 1.0 
 
 
-      
         self.iterations = 0 
 
         self.values_logger  = ValuesLogger() 
@@ -122,6 +128,8 @@ class AgentPPOJEPA():
         #state to tensor
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
+        self._update_states_buffer(states_t)
+
         #compute model output
         logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
         
@@ -132,7 +140,9 @@ class AgentPPOJEPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int = self._internal_motivation(states_t)
+        state_now   = self.states_buffer[0]
+        state_prev  = self.states_buffer[self.inferance_distance]
+        rewards_int = self._internal_motivation(state_now, state_prev)
 
         if self.int_reward_normalise:
             rewards_int = self._reward_normalise(rewards_int) 
@@ -159,7 +169,10 @@ class AgentPPOJEPA():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
-        
+        dones_idx = numpy.where(dones)[0]
+
+        for i in dones_idx:
+            self.states_buffer[:, i] = 0.0
         
         self.iterations+= 1
 
@@ -214,7 +227,7 @@ class AgentPPOJEPA():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 # sample batch pair for self supervised loss
-                states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
+                states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
                 #train features, self supervised
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
@@ -265,8 +278,8 @@ class AgentPPOJEPA():
 
 
     #compute internal motivations
-    def _internal_motivation(self, states):         
-        result = self.model.forward_im(states, states) 
+    def _internal_motivation(self, states_now, states_prev):         
+        result = self.model.forward_im(states_now, states_prev) 
         return result.detach().cpu()
  
 
@@ -291,6 +304,9 @@ class AgentPPOJEPA():
  
         return x.detach(), mask_result 
     
+    def _update_states_buffer(self, states_t):
+        self.states_buffer  = numpy.roll(self.states_buffer, shifts=1, dims=0)
+        self.states_buffer[0] = states_t.clone()
 
     def _state_normalise(self, states, training_enabled, alpha = 0.99): 
         if self.state_normalise:

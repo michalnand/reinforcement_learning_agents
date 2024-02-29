@@ -114,10 +114,13 @@ class PolicyBufferIMNew:
     
    
 
-    def sample_states_pairs(self, batch_size, max_distance = 0, device = "cpu"):
+    def sample_states_pairs(self, batch_size, max_distance = 0, stochastic_distance = True, device = "cpu"):
         count           = self.buffer_size*self.envs_count
 
-        max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
+        if stochastic_distance:
+            max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
+        else:
+            max_distance_   = max_distance
 
         indices         = torch.randint(0, count, size=(batch_size, ))
         indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
