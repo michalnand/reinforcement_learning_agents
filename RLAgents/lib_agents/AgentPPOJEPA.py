@@ -305,8 +305,8 @@ class AgentPPOJEPA():
         return x.detach(), mask_result 
     
     def _update_states_buffer(self, states_t):
-        self.states_buffer  = numpy.roll(self.states_buffer, shifts=1, dims=0)
-        self.states_buffer[0] = states_t.clone()
+        self.states_buffer  = torch.roll(self.states_buffer, shifts=1, dims=0)
+        self.states_buffer[0] = states_t.clone() 
 
     def _state_normalise(self, states, training_enabled, alpha = 0.99): 
         if self.state_normalise:
