@@ -90,7 +90,7 @@ class AgentPPOJEPA():
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
-        self.states_buffer = torch.zeros((self.state_shape[0], self.envs_count) + self.state_shape, dtype=torch.float32, device=self.device)
+        self.states_buffer = torch.zeros((self.state_shape[0] + 1, self.envs_count) + self.state_shape, dtype=torch.float32, device=self.device)
 
         #optional int reward normalisation
         self.reward_mean = 0.0
