@@ -233,7 +233,7 @@ class AgentPPOJEPA():
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
 
                 #total loss
-                loss = loss_ppo + self.ssl_loss_coeff*loss_self_supervised
+                loss = loss_ppo + loss_self_supervised
 
                 self.optimizer.zero_grad()        
                 loss.backward()
