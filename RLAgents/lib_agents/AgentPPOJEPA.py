@@ -44,7 +44,7 @@ class AgentPPOJEPA():
             self._self_supervised_loss = None 
 
 
-        self.inferance_distance             = config.inferance_distance
+        self.inference_distance             = config.inference_distance
         self.training_distance              = config.training_distance
         self.stochastic_distance            = config.stochastic_distance
 
@@ -59,7 +59,7 @@ class AgentPPOJEPA():
         print("augmentations                         = ", self.augmentations)
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_coeff                      = ", self.reward_int_coeff)
-        print("inferance_distance                    = ", self.inferance_distance)
+        print("inference_distance                    = ", self.inference_distance)
         print("training_distance                     = ", self.training_distance)
         print("stochastic_distance                   = ", self.stochastic_distance)
         print("state_normalise                       = ", self.state_normalise)
@@ -140,8 +140,8 @@ class AgentPPOJEPA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        state_now   = self.states_buffer[0]
-        state_prev  = self.states_buffer[self.inferance_distance]
+        state_now   = self.states_buffer[0] 
+        state_prev  = self.states_buffer[self.inference_distance]
         rewards_int = self._internal_motivation(state_now, state_prev)
 
         if self.int_reward_normalise:
