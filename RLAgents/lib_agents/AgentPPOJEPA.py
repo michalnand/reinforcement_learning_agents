@@ -170,7 +170,7 @@ class AgentPPOJEPA():
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
         dones_idx = numpy.where(dones)[0]
-
+        
         for i in dones_idx:
             self.states_buffer[:, i] = 0.0
         
@@ -230,7 +230,7 @@ class AgentPPOJEPA():
                 states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
                 #train features, self supervised
-                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_similar, self.hidden_coeff)                
+                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_similar, states_now, self.hidden_coeff)                
 
                 #total loss
                 loss = loss_ppo + loss_self_supervised
