@@ -122,13 +122,13 @@ class PolicyBufferIMNew:
         else:
             max_distance_   = max_distance
 
-        indices         = torch.randint(0, count, size=(batch_size, ))
-        indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
+        indices_now  = torch.randint(0, count, size=(batch_size, ))
+        indices_past = torch.clip(indices_now - max_distance_*self.envs_count, 0, count-1)
       
-        states_now      = (self.states[indices]).to(device)
-        states_similar  = (self.states[indices_similar]).to(device)
+        states_now   = (self.states[indices_now]).to(device)
+        states_past  = (self.states[indices_past]).to(device)
      
-        return states_now, states_similar
+        return states_now, states_past
     
 
     def sample_states_pairs_hidden(self, batch_size, max_distance = 0, device = "cpu"):

@@ -227,10 +227,10 @@ class AgentPPOJEPA():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 # sample batch pair for self supervised loss
-                states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+                states_now, states_past = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
                 #train features, self supervised
-                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_similar, states_now, self.hidden_coeff)                
+                loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_past, self.hidden_coeff)                
 
                 #total loss
                 loss = loss_ppo + loss_self_supervised
