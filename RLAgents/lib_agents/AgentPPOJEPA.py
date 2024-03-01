@@ -169,8 +169,8 @@ class AgentPPOJEPA():
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
 
+        #clear where done
         dones_idx = numpy.where(dones)[0]
-        
         for i in dones_idx:
             self.states_buffer[:, i] = 0.0
         
