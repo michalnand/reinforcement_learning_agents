@@ -248,8 +248,8 @@ class AgentPPOSNDB():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
-
+                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+                    
                     loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                     self.info_logger["ppo_ssl"] = ppo_ssl
                 else:
