@@ -273,7 +273,7 @@ class AgentPPOSNDB():
 
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
-            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.training_distance, self.stochastic_distance, self.device)
+            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
             #loss SSL target    
             loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
