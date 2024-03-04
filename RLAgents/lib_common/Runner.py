@@ -28,6 +28,9 @@ class Runner:
         for p in process:
             p.join()
 
+        for p in process:
+            del p
+
         print("Runner : experiments done")
 
     def _run(self, experiment, i, device):
