@@ -217,8 +217,6 @@ def aug_mask(x, p = 0.75, granularity = 16):
     mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
     mask = (mask > (1.0 - p)).float().detach()
 
-    print("mask aug")
-
     return mask*x       
 
 
