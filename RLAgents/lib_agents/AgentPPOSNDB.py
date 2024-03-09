@@ -356,22 +356,14 @@ class AgentPPOSNDB():
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
 
-        if "pixelate" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_pixelate)
-            mask_result[0] = mask
-
-        if "random_tiles" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_random_tiles)
+        if "mask" in self.augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
             mask_result[1] = mask
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[2] = mask
 
-        if "inverse" in self.augmentations:
-            x, mask = aug_random_apply(x, self.augmentations_probs, aug_inverse)
-            mask_result[3] = mask
- 
         return x.detach(), mask_result 
     
     def _update_states_buffer(self, states_t):

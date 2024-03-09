@@ -207,3 +207,27 @@ def aug( x):
 
     return x
 '''
+
+def aug_mask(x, p = 0.75, granularity = 16):
+    up_h = x.shape[2]//granularity
+    up_w = x.shape[3]//granularity 
+
+    mask = torch.rand((x.shape[0], x.shape[1], granularity, granularity), device = x.device)
+    
+    mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
+    mask = (mask > (1.0 - p)).float().detach()
+
+    return mask*x       
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    x = torch.rand((20, 3, 96, 128))    
+
+    y = aug_mask(x) 
+
+    print(">>> ", x.shape, y.shape, y.mean())
+
+    plt.matshow(y.cpu().detach().numpy()[0][0])
+    plt.show()
