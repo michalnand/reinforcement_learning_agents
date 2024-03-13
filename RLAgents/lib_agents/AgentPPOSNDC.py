@@ -350,19 +350,20 @@ class AgentPPOSNDC():
 
     #compute internal motivations
     def _internal_motivation(self, states_prev, states_now):        
-            
-        #distillation spatial novelty detection
+
+        #spatial novelty detection
         zs_target    = self.model_im.forward_im_spatial_target(states_now).detach()
         zs_predictor = self.model_im.forward_im_spatial_predictor(states_now)
         im_spatial   = ((zs_target - zs_predictor)**2).mean(dim=1)
 
-        #distillation state prediction novelty detection
+        #state prediction novelty detection
         zt_target    = self.model_im.forward_im_temporal_target(states_now).detach()
         zt_predictor = self.model_im.forward_im_temporal_predictor(states_prev)
         im_temporal   = ((zt_target - zt_predictor)**2).mean(dim=1)
 
         return im_spatial, im_temporal
  
+
     def _augmentations(self, x): 
         mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
 
