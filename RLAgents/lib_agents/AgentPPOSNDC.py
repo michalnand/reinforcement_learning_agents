@@ -160,8 +160,8 @@ class AgentPPOSNDC():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivations
-        state_now   = self.states_buffer[0] 
         state_prev  = self.states_buffer[1]
+        state_now   = self.states_buffer[0] 
         rewards_int_a, rewards_int_b = self._internal_motivation(state_prev, state_now)
 
         #weighting and clipping im
@@ -350,7 +350,7 @@ class AgentPPOSNDC():
 
     #compute internal motivations
     def _internal_motivation(self, states_prev, states_now):        
-        
+            
         #distillation spatial novelty detection
         zs_target    = self.model_im.forward_im_spatial_target(states_now).detach()
         zs_predictor = self.model_im.forward_im_spatial_predictor(states_now)
