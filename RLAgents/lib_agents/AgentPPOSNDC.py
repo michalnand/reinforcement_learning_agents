@@ -292,8 +292,8 @@ class AgentPPOSNDC():
                 loss_predictor_self_supervised, im_ssl  = self._predictor_self_supervised_loss(self.model_im.forward_predictor_self_supervised, self._augmentations, states_now, states_similar)                
                 self.info_logger["im_predictor_ssl"] = im_ssl
             else:
-                loss_predictor_self_supervised = torch.zeros((1, ), device=self.device)
-                
+                loss_predictor_self_supervised = torch.zeros((1, ), device=self.device).mean()
+
             #loss distillation 
             states_now, states_prev = self.policy_buffer.sample_states_pairs(self.batch_size, 1, False, self.device)
             im_spatial, im_temporal = self._internal_motivation(states_prev, states_now)
