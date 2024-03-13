@@ -58,6 +58,7 @@ class AgentPPOSNDC():
 
 
         self.training_distance              = config.training_distance
+        self.prediction_distance            = config.prediction_distance
         self.stochastic_distance            = config.stochastic_distance
         self.predictor_regularization       = config.predictor_regularization
 
@@ -74,6 +75,7 @@ class AgentPPOSNDC():
         print("reward_int_a_coeff                    = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff                    = ", self.reward_int_b_coeff)
         print("training_distance                     = ", self.training_distance)
+        print("prediction_distance                   = ", self.prediction_distance)
         print("stochastic_distance                   = ", self.stochastic_distance)
         print("predictor_regularization              = ", self.predictor_regularization)
 
@@ -160,7 +162,7 @@ class AgentPPOSNDC():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivations
-        state_prev  = self.states_buffer[1]
+        state_prev  = self.states_buffer[self.prediction_distance]
         state_now   = self.states_buffer[0] 
         rewards_int_a, rewards_int_b = self._internal_motivation(state_prev, state_now)
 
@@ -295,7 +297,7 @@ class AgentPPOSNDC():
                 loss_predictor_self_supervised = torch.zeros((1, ), device=self.device).mean()
 
             #loss distillation 
-            states_now, states_prev = self.policy_buffer.sample_states_pairs(self.batch_size, 1, False, self.device)
+            states_now, states_prev = self.policy_buffer.sample_states_pairs(self.batch_size, self.prediction_distance, False, self.device)
             im_spatial, im_temporal = self._internal_motivation(states_prev, states_now)
             
             loss_im_spatial  = im_spatial.mean()
