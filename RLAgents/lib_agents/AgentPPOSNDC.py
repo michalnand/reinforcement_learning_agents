@@ -120,6 +120,8 @@ class AgentPPOSNDC():
         self.values_logger.add("internal_motivation_a_std" , 0.0)
         self.values_logger.add("internal_motivation_b_mean", 0.0)
         self.values_logger.add("internal_motivation_b_std" , 0.0)
+        self.values_logger.add("hidden_mean", 0.0)
+        self.values_logger.add("hidden_std",  0.0)
         
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
@@ -129,6 +131,8 @@ class AgentPPOSNDC():
         self.values_logger.add("loss_predictor_self_supervised", 0.0)
         self.values_logger.add("loss_im_spatial", 0.0)
         self.values_logger.add("loss_im_temporal", 0.0)
+        self.values_logger.add("loss_hidden", 0.0)
+
 
         self.info_logger = {} 
 
@@ -164,7 +168,7 @@ class AgentPPOSNDC():
         #internal motivations
         state_prev  = self.states_buffer[self.prediction_distance]
         state_now   = self.states_buffer[0] 
-        rewards_int_a, rewards_int_b = self._internal_motivation(state_prev, state_now)
+        rewards_int_a, rewards_int_b, hidden = self._internal_motivation(state_prev, state_now)
 
         #weighting and clipping im
         rewards_int = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
@@ -198,7 +202,9 @@ class AgentPPOSNDC():
         self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
-        
+        self.values_logger.add("hidden_mean" , hidden.mean().detach().to("cpu").numpy())
+        self.values_logger.add("hidden_std" , hidden.std().detach().to("cpu").numpy())
+
         self.iterations+= 1
 
         return states_new, rewards_ext, dones, infos
@@ -298,13 +304,16 @@ class AgentPPOSNDC():
 
             #loss distillation 
             states_now, states_prev = self.policy_buffer.sample_states_pairs(self.batch_size, self.prediction_distance, False, self.device)
-            im_spatial, im_temporal = self._internal_motivation(states_prev, states_now)
+            im_spatial, im_temporal, hidden = self._internal_motivation(states_prev, states_now)
             
             loss_im_spatial  = im_spatial.mean()
             loss_im_temporal = im_temporal.mean()
 
+            loss_hidden = torch.abs(hidden).mean() + (hidden.std(dim=0)).mean() 
+
+
             #total loss for im model
-            loss_im = loss_target_self_supervised + loss_predictor_self_supervised + loss_im_spatial + loss_im_temporal
+            loss_im = loss_target_self_supervised + loss_predictor_self_supervised + loss_im_spatial + loss_im_temporal + 0.01*loss_hidden
             
             self.optimizer_im.zero_grad() 
             loss_im.backward()
@@ -315,6 +324,7 @@ class AgentPPOSNDC():
             self.values_logger.add("loss_predictor_self_supervised", loss_predictor_self_supervised.detach().cpu().numpy())
             self.values_logger.add("loss_im_spatial", loss_im_spatial.detach().cpu().numpy())
             self.values_logger.add("loss_im_temporal", loss_im_temporal.detach().cpu().numpy())
+            self.values_logger.add("loss_hidden", loss_hidden.detach().cpu().numpy())
 
         self.policy_buffer.clear() 
 
@@ -354,16 +364,17 @@ class AgentPPOSNDC():
     def _internal_motivation(self, states_prev, states_now):        
 
         #spatial novelty detection
-        zs_target    = self.model_im.forward_im_spatial_target(states_now).detach()
+        zs_target    = self.model_im.forward_im_spatial_target(states_now)
         zs_predictor = self.model_im.forward_im_spatial_predictor(states_now)
-        im_spatial   = ((zs_target - zs_predictor)**2).mean(dim=1)
+        im_spatial   = ((zs_target.detach() - zs_predictor)**2).mean(dim=1)
 
         #state prediction novelty detection
-        zt_target    = self.model_im.forward_im_temporal_target(states_now).detach()
-        zt_predictor = self.model_im.forward_im_temporal_predictor(states_prev)
-        im_temporal   = ((zt_target - zt_predictor)**2).mean(dim=1)
+        zt_target, hidden = self.model_im.forward_im_temporal_target(states_now)
+        zt_predictor      = self.model_im.forward_im_temporal_predictor(states_prev, hidden)
+        im_temporal       = ((zt_target.detach() - zt_predictor)**2).mean(dim=1)
 
-        return im_spatial, im_temporal
+
+        return im_spatial, im_temporal, hidden
  
 
     def _augmentations(self, x): 
