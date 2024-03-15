@@ -197,13 +197,15 @@ class AgentPPOSNDC():
         for i in dones_idx:
             self.states_buffer[:, i] = 0.0
 
+        hidden_tmp = (hidden**2)
+
         #collect stats
         self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
-        self.values_logger.add("hidden_mean" , hidden.mean().detach().to("cpu").numpy())
-        self.values_logger.add("hidden_std" , hidden.std().detach().to("cpu").numpy())
+        self.values_logger.add("hidden_mean" , hidden_tmp.mean().detach().to("cpu").numpy())
+        self.values_logger.add("hidden_std" , hidden_tmp.std().detach().to("cpu").numpy())
 
         self.iterations+= 1
 
