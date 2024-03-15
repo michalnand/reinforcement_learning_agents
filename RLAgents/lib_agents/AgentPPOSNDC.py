@@ -24,6 +24,7 @@ class AgentPPOSNDC():
  
         self.reward_int_a_coeff = config.reward_int_a_coeff
         self.reward_int_b_coeff = config.reward_int_b_coeff
+        self.hidden_coeff       = config.hidden_coeff
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -315,7 +316,7 @@ class AgentPPOSNDC():
 
 
             #total loss for im model
-            loss_im = loss_target_self_supervised + loss_predictor_self_supervised + loss_im_spatial + loss_im_temporal + 0.01*loss_hidden
+            loss_im = loss_target_self_supervised + loss_predictor_self_supervised + loss_im_spatial + loss_im_temporal + self.hidden_coeff*loss_hidden
             
             self.optimizer_im.zero_grad() 
             loss_im.backward()
