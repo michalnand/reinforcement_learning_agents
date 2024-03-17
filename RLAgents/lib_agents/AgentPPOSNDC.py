@@ -25,6 +25,7 @@ class AgentPPOSNDC():
         self.reward_int_a_coeff = config.reward_int_a_coeff
         self.reward_int_b_coeff = config.reward_int_b_coeff
         self.hidden_coeff       = config.hidden_coeff
+        self.use_hidden         = config.use_hidden
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -75,6 +76,8 @@ class AgentPPOSNDC():
         print("augmentations_probs                   = ", self.augmentations_probs)
         print("reward_int_a_coeff                    = ", self.reward_int_a_coeff)
         print("reward_int_b_coeff                    = ", self.reward_int_b_coeff)
+        print("hidden_coeff                          = ", self.hidden_coeff)
+        print("use_hidden                            = ", self.use_hidden)
         print("training_distance                     = ", self.training_distance)
         print("prediction_distance                   = ", self.prediction_distance)
         print("stochastic_distance                   = ", self.stochastic_distance)
@@ -169,7 +172,7 @@ class AgentPPOSNDC():
         #internal motivations
         state_prev  = self.states_buffer[self.prediction_distance]
         state_now   = self.states_buffer[0] 
-        rewards_int_a, rewards_int_b, hidden = self._internal_motivation(state_prev, state_now)
+        rewards_int_a, rewards_int_b, hidden = self._internal_motivation(state_prev, state_now, self.use_hidden)
 
         #weighting and clipping im
         rewards_int = self.reward_int_a_coeff*rewards_int_a + self.reward_int_b_coeff*rewards_int_b
@@ -307,7 +310,7 @@ class AgentPPOSNDC():
 
             #loss distillation 
             states_now, states_prev = self.policy_buffer.sample_states_pairs(self.batch_size, self.prediction_distance, False, self.device)
-            im_spatial, im_temporal, hidden = self._internal_motivation(states_prev, states_now)
+            im_spatial, im_temporal, hidden = self._internal_motivation(states_prev, states_now, True)
             
             loss_im_spatial  = im_spatial.mean()
             loss_im_temporal = im_temporal.mean()
@@ -364,7 +367,7 @@ class AgentPPOSNDC():
 
 
     #compute internal motivations
-    def _internal_motivation(self, states_prev, states_now):        
+    def _internal_motivation(self, states_prev, states_now, use_hidden):        
 
         #spatial novelty detection
         zs_target    = self.model_im.forward_im_spatial_target(states_now)
@@ -373,6 +376,11 @@ class AgentPPOSNDC():
 
         #state prediction novelty detection
         zt_target, hidden = self.model_im.forward_im_temporal_target(states_now)
+
+        #clear hidden information during inference
+        if use_hidden == False:
+            hidden = hidden*0
+
         zt_predictor      = self.model_im.forward_im_temporal_predictor(states_prev, hidden)
         im_temporal       = ((zt_target.detach() - zt_predictor)**2).mean(dim=1)
 
