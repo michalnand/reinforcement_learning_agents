@@ -378,10 +378,12 @@ class AgentPPOSNDC():
         zt_target, hidden = self.model_im.forward_im_temporal_target(states_now)
 
         #clear hidden information during inference
-        if use_hidden == False:
-            hidden = hidden*0
+        if use_hidden == True:
+            hidden_tmp = hidden
+        else:
+            hidden_tmp = 0*hidden
 
-        zt_predictor      = self.model_im.forward_im_temporal_predictor(states_prev, hidden)
+        zt_predictor      = self.model_im.forward_im_temporal_predictor(states_prev, hidden_tmp)
         im_temporal       = ((zt_target.detach() - zt_predictor)**2).mean(dim=1)
 
 
