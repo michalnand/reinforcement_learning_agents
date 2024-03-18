@@ -289,7 +289,7 @@ class AgentPPOSNDC():
         
         
         #IM model training
-        batch_count = (samples_count//self.ss_batch_size)//2
+        batch_count = (samples_count//self.ss_batch_size)
 
         #print("ssl_samples = ", batch_count*self.ss_batch_size)
 
