@@ -43,17 +43,16 @@ class AgentPPOLP():
         
 
         self.model = Model.Model(self.state_shape, self.actions_count, self.prompt_size, 1)
+        self.model.to(self.device)
 
         print(self.model)                    
-
-        self.model.to(self.device)
         
         self.optimizer_ssl = torch.optim.Adam(self.model.model_ssl.parameters(), lr=config.learning_rate)
         self.optimizer_rl  = torch.optim.Adam(self.model.model_rl.parameters(), lr=config.learning_rate)
 
         #initial prompt value
-        self.prompts_t        = torch.zeros((self.envs_count, self.prompt_size), dtype=torch.float32, device=self.device)
-        self.task_id        = torch.zeros((self.envs_count, ), dtype=int, device=self.device)
+        self.prompts_t     = torch.zeros((self.envs_count, self.prompt_size), dtype=torch.float32, device=self.device)
+        self.task_id       = torch.zeros((self.envs_count, ), dtype=int, device=self.device)
 
         self.trajectory_buffer = TrajectoryBufferLP(self.steps, self.state_shape, self.prompt_size, self.actions_count, self.envs_count)
  
