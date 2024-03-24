@@ -41,6 +41,31 @@ def _loss_cross(xa, xb):
 
 
 
+def loss_vicreg_direct(za, zb):
+    # invariance loss
+    sim_loss = _loss_mse(za, zb)
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std]
+
+    return loss, info
+
+
+
 
 def loss_vicreg(model_forward_func, augmentations, xa, xb):
     xa_aug, _ = augmentations(xa) 

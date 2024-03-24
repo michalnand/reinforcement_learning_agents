@@ -7,6 +7,7 @@ from .ExperienceBufferGoals             import ExperienceBufferGoals
 from .ExperienceBufferContinuous        import ExperienceBufferContinuous
 
 from .PolicyBuffer                  import PolicyBuffer
+from .TrajectoryBufferLP            import TrajectoryBufferLP
 from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMT               import PolicyBufferIMT
 from .PolicyBufferIMNew             import PolicyBufferIMNew
