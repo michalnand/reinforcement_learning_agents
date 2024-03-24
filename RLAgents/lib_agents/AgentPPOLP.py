@@ -39,11 +39,8 @@ class AgentPPOLP():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
 
-        self.n_tasks    = 1
-        self.task_id    = torch.zeros(self.envs_count, dtype=int, device=self.device)
- 
-      
-
+        
+        
 
         self.model = Model.Model(self.state_shape, self.actions_count, self.prompt_size, self.n_tasks)
 
@@ -55,8 +52,8 @@ class AgentPPOLP():
         self.optimizer_rl  = torch.optim.Adam(self.model.model_rl.parameters(), lr=config.learning_rate)
 
         #initial prompt value
-        self.prompts_t        = torch.zeros((self.envs_count, self.n_tasks, self.prompt_size), dtype=torch.float32, device=self.device)
-
+        self.prompts_t        = torch.zeros((self.envs_count, self.prompt_size), dtype=torch.float32, device=self.device)
+        self.task_id        = torch.zeros((self.envs_count, ), dtype=int, device=self.device)
 
         self.trajectory_buffer = TrajectoryBufferLP(self.steps, self.state_shape, self.prompt_size, self.actions_count, self.envs_count)
  
@@ -105,7 +102,7 @@ class AgentPPOLP():
 
         #sample new prompt
         if self.self_prompting:
-            self.prompts_t[:, self.task_id, :] = self._sample_prompt(prompt_mean_t, prompt_var_t)
+            self.prompts_t= self._sample_prompt(prompt_mean_t, prompt_var_t)
         
         #put into policy buffer
         if training_enabled:
