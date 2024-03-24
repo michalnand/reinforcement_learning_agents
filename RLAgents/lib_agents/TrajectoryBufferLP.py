@@ -60,9 +60,9 @@ class TrajectoryBufferLP:
         #reshape buffer for faster batch sampling
         self.states     = self.states.reshape((self.buffer_size*self.envs_count, ) + self.state_shape)
         self.prompts    = self.prompts.reshape((self.buffer_size*self.envs_count, self.prompt_size))
-        self.task_ids   = self.task_ids.reshape((self.buffer_size*self.envs_count, ), dtype=int)
+        self.task_ids   = self.task_ids.reshape((self.buffer_size*self.envs_count, ))
 
-        self.logits     = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_size))
+        self.logits     = self.logits.reshape((self.buffer_size*self.envs_count, self.actions_count))
         self.values     = self.values.reshape((self.buffer_size*self.envs_count, ))        
 
         self.prompt_mean= self.prompt_mean.reshape((self.buffer_size*self.envs_count, self.prompt_size))
@@ -98,7 +98,7 @@ class TrajectoryBufferLP:
        
         return states, prompts, task_ids, logits, prompt_mean, prompt_var, actions, returns, advantages
     
-    
+
     def sample_states(self, batch_size, device):
         indices = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
