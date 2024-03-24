@@ -114,7 +114,7 @@ class PolicyBufferIMNew:
     
    
 
-    def sample_states_pairs(self, batch_size, max_distance = 0, stochastic_distance = True, device = "cpu"):
+    def sample_states_pairs(self, batch_size, max_distance, stochastic_distance, device):
         count = self.buffer_size*self.envs_count
 
         if stochastic_distance:
@@ -131,7 +131,7 @@ class PolicyBufferIMNew:
         return states_now, states_prev
     
 
-    def sample_states_pairs_hidden(self, batch_size, max_distance = 0, device = "cpu"):
+    def sample_states_pairs_hidden(self, batch_size, max_distance, device):
         count           = self.buffer_size*self.envs_count
 
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))

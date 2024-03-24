@@ -44,10 +44,6 @@ class AgentPPOCSND():
             self._target_self_supervised_loss = loss_vicreg
         elif config.target_self_supervised_loss == "vicreg_jepa":
             self._target_self_supervised_loss = loss_vicreg_jepa 
-        elif config.target_self_supervised_loss == "vicreg_jepa_proj":
-            self._target_self_supervised_loss = loss_vicreg_jepa_proj
-        elif config.target_self_supervised_loss == "vicreg_jepa_cross":
-            self._target_self_supervised_loss = loss_vicreg_jepa_cross
         else:
             self._target_self_supervised_loss = None
 
@@ -238,7 +234,7 @@ class AgentPPOCSND():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, self.device)
+                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
 
                     loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                     self.info_logger["ppo_ssl"] = ppo_ssl
@@ -264,7 +260,7 @@ class AgentPPOCSND():
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
 
-            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, self.device)
+            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.similar_states_distance, True, self.device)
             loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_self_supervised, self._augmentations, states_now, states_similar)                
 
             self.info_logger["im_ssl"] = im_ssl
