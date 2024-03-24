@@ -14,8 +14,6 @@ class AgentPPOLP():
  
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
-        self.tasks              = config.tasks
         self.envs_count         = config.envs_count
 
         self.gamma              = config.gamma
@@ -64,7 +62,6 @@ class AgentPPOLP():
         print("gamma                    = ", self.gamma)
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", self.learning_rate)
-        print("self_supervised_loss     = ", self._self_supervised_loss)
         print("augmentations            = ", self.augmentations)
         print("augmentations_probs      = ", self.augmentations_probs)
         print("prompt_size              = ", self.prompt_size)
