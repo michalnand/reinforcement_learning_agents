@@ -47,6 +47,7 @@ class AgentPPOLP():
 
         self.model = Model.Model(self.state_shape, self.actions_count, self.prompt_size, self.n_tasks)
 
+        print(self.model)                    
 
         self.model.to(self.device)
         
