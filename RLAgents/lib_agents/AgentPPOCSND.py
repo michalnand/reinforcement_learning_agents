@@ -266,8 +266,8 @@ class AgentPPOCSND():
             self.info_logger["im_ssl"] = im_ssl
             
             #train distillation
-            states, _ = self.policy_buffer.sample_states_pairs(self.batch_size, self.similar_states_distance, self.device)
-            loss_distillation = self._loss_distillation(states)
+            states, _ = self.policy_buffer.sample_states_pairs(self.batch_size, 0, False, self.device)
+            loss_distillation = self._loss_distillation(states) 
 
             #total loss for im model
             loss_im = loss_target_self_supervised + loss_distillation
