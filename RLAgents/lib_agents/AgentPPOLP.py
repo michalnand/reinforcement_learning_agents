@@ -42,7 +42,7 @@ class AgentPPOLP():
         
         
 
-        self.model = Model.Model(self.state_shape, self.actions_count, self.prompt_size, self.n_tasks)
+        self.model = Model.Model(self.state_shape, self.actions_count, self.prompt_size, 1)
 
         print(self.model)                    
 
