@@ -96,8 +96,8 @@ class AgentPPOLP():
         #state to tensor
         states_t = torch.tensor(states, dtype=torch.float).to(self.device)
 
-
-        logits_t, values_t, prompt_mean_t, prompt_var_t  = self.model.forward(states_t, self.prompts_t, self.task_id)
+        prompts_t = prompts_t[:, self.task_id, :]
+        logits_t, values_t, prompt_mean_t, prompt_var_t  = self.model.forward(states_t, prompts_t, self.task_id)
         
         actions = self._sample_actions(logits_t)
 
@@ -105,7 +105,7 @@ class AgentPPOLP():
 
         #sample new prompt
         if self.self_prompting:
-            self.prompts_t = self._sample_prompt(prompt_mean_t, prompt_var_t)
+            self.prompts_t[:, self.task_id, :] = self._sample_prompt(prompt_mean_t, prompt_var_t)
         
         #put into policy buffer
         if training_enabled:
@@ -164,7 +164,7 @@ class AgentPPOLP():
 
         result   = torch.clip(result, -1.0, 1.0)
 
-        return result
+        return result.detach()
     
     def train(self): 
         self.trajectory_buffer.compute_returns(self.gamma)
