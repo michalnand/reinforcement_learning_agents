@@ -66,7 +66,7 @@ class TrajectoryBufferLP:
         self.values     = self.values.reshape((self.buffer_size*self.envs_count, ))        
 
         self.prompt_mean= self.prompt_mean.reshape((self.buffer_size*self.envs_count, self.prompt_size))
-        self.prompt_var = self.prompt_car.reshape((self.buffer_size*self.envs_count, self.prompt_size))
+        self.prompt_var = self.prompt_var.reshape((self.buffer_size*self.envs_count, self.prompt_size))
         
         self.actions    = self.actions.reshape((self.buffer_size*self.envs_count, ))
         
