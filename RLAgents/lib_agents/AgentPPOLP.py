@@ -96,7 +96,7 @@ class AgentPPOLP():
         #state to tensor
         states_t = torch.tensor(states, dtype=torch.float).to(self.device)
 
-        prompts_t = prompts_t[:, self.task_id, :]
+        prompts_t = self.prompts_t[:, self.task_id, :]
         logits_t, values_t, prompt_mean_t, prompt_var_t  = self.model.forward(states_t, prompts_t, self.task_id)
         
         actions = self._sample_actions(logits_t)
