@@ -1,6 +1,6 @@
 import torch
 
-class PolicyBuffer:
+class TrajectoryBuffer:
 
     def __init__(self, buffer_size, state_shape, actions_size, envs_count):
         self.buffer_size    = buffer_size
@@ -74,11 +74,9 @@ class PolicyBuffer:
             self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
 
     def sample_batch(self, batch_size, device):
-        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
-        indices_next    = torch.clip(indices + 1, 0, self.envs_count*self.buffer_size - 1)
+        indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
         states          = torch.index_select(self.states, dim=0, index=indices).to(device)
-        states_next     = torch.index_select(self.states, dim=0, index=indices_next).to(device)
         logits          = torch.index_select(self.logits, dim=0, index=indices).to(device)
         
         actions         = torch.index_select(self.actions, dim=0, index=indices).to(device)
@@ -91,23 +89,19 @@ class PolicyBuffer:
         else:
             hidden_state  = None
        
-        return states, states_next, logits, actions, returns, advantages, hidden_state
+        return states, logits, actions, returns, advantages, hidden_state
     
-    def sample_states_action_pairs(self, batch_size, device, max_distance):
+    def sample_states_pairs(self, batch_size, device, max_distance):
         count           = self.buffer_size*self.envs_count
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 
         indices         = torch.randint(0, count, size=(batch_size, ))
-        indices_next    = torch.clip(indices + self.envs_count, 0, count-1)
         indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
-        indices_random  = torch.randint(0, count, size=(batch_size, )) 
-      
-        states_now      = (self.states[indices]).to(device)
-        states_next     = (self.states[indices_next]).to(device)
-        states_similar  = (self.states[indices_similar]).to(device)
-        states_random   = (self.states[indices_random]).to(device)
-             
-        return states_now, states_next, states_similar, states_random
+       
+        states_a  = (self.states[indices]).to(device)
+        states_b  = (self.states[indices_similar]).to(device)
+
+        return states_a, states_b
      
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]

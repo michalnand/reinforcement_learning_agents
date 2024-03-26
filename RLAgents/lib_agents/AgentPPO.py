@@ -3,9 +3,9 @@ import torch
 import time
 
 from .ValuesLogger      import *
-from .PolicyBuffer      import *
-from .SelfSupervised        import * 
-from .Augmentations         import *
+from .TrajectoryBuffer  import *
+from .SelfSupervised    import * 
+from .Augmentations     import *
   
 class AgentPPO():
     def __init__(self, envs, Model, config):
@@ -39,7 +39,7 @@ class AgentPPO():
         self.model.to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer = PolicyBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.policy_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         
         if self.rnn_policy:
@@ -51,6 +51,7 @@ class AgentPPO():
         print("gamma                    = ", self.gamma)
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", config.learning_rate)
+        print("batch_size               = ", self.batch_size)
         print("rnn_policy               = ", self.rnn_policy)
         print("self_supervised_loss     = ", self.self_supervised_loss)
         if self.self_supervised_loss is not None:
@@ -165,13 +166,13 @@ class AgentPPO():
         batch_count = self.steps//self.batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, _, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
 
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
                 if self.self_supervised_loss is not None:
-                    states_now, states_next, states_similar, states_random = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
-                    loss_self_supervised = self._loss_self_supervised(states_now, states_similar)
+                    states_a, states_b = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
+                    loss_self_supervised = self._loss_self_supervised(states_a, states_b)
                 else:
                     loss_self_supervised = 0
 

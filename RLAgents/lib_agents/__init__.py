@@ -6,7 +6,7 @@ from .ExperienceBuffer                  import ExperienceBuffer
 from .ExperienceBufferGoals             import ExperienceBufferGoals
 from .ExperienceBufferContinuous        import ExperienceBufferContinuous
 
-from .PolicyBuffer                  import PolicyBuffer
+from .TrajectoryBuffer              import TrajectoryBuffer
 from .TrajectoryBufferLP            import TrajectoryBufferLP
 from .PolicyBufferIM                import PolicyBufferIM
 from .PolicyBufferIMT               import PolicyBufferIMT
