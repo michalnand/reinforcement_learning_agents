@@ -77,8 +77,8 @@ class AgentPPO():
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
-        self.values_logger.add("loss_actor", 0.0)
-        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_actor", 10.0)
+        self.values_logger.add("loss_critic", 20.0)
         
     def round_start(self): 
         pass
@@ -241,21 +241,10 @@ class AgentPPO():
         states_a = self._augmentations(states_now)
         states_b = self._augmentations(states_similar)
 
-        if self.self_supervised_loss == "vicreg":
-            za = self.model.forward_self_supervised(states_a)
-            zb = self.model.forward_self_supervised(states_b)
+        za = self.model.forward_self_supervised(states_a)
+        zb = self.model.forward_self_supervised(states_b)
 
-            return loss_vicreg_direct(za, zb) 
-
-        elif self.self_supervised_loss == "vicreg_spatial":
-            zag, zas = self.model.forward_self_supervised(states_a)
-            zbg, zbs = self.model.forward_self_supervised(states_b)
-
-            loss_global  = loss_vicreg_direct(zag, zbg)
-            loss_spatial = loss_vicreg_spatial(zas, zbs)
-
-            return loss_global + loss_spatial
-
+        return loss_vicreg_direct(za, zb) 
 
     
     def _augmentations(self, x, p = 0.5): 
