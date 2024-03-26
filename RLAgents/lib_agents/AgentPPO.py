@@ -37,6 +37,7 @@ class AgentPPO():
 
         self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
+        print(self.model)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.policy_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
