@@ -234,8 +234,6 @@ class AgentPPO():
 
         loss = loss_value + loss_policy + loss_entropy
 
-        print(loss_policy, loss_value)
-
         self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
 
