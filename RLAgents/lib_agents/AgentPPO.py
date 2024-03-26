@@ -164,7 +164,9 @@ class AgentPPO():
     def train(self): 
         self.policy_buffer.compute_returns(self.gamma)
 
-        batch_count = self.steps//self.batch_size
+        samples_count = self.steps*self.envs_count
+        batch_count = samples_count//self.batch_size
+
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 states, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
@@ -172,7 +174,7 @@ class AgentPPO():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
                 if self.self_supervised_loss is not None:
-                    states_a, states_b = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
+                    states_a, states_b = self.policy_buffer.sample_states_action_pairs(self.batch_size//self.training_epochs, self.device, self.max_similar_state_distance)
                     loss_self_supervised = self._loss_self_supervised(states_a, states_b)
                 else:
                     loss_self_supervised = 0    
