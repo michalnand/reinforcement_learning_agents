@@ -77,8 +77,8 @@ class AgentPPO():
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
-        self.values_logger.add("loss_actor", 10.0)
-        self.values_logger.add("loss_critic", 20.0)
+        self.values_logger.add("loss_actor", 0.0)
+        self.values_logger.add("loss_critic", 0.0)
         
     def round_start(self): 
         pass
@@ -175,7 +175,7 @@ class AgentPPO():
                     states_a, states_b = self.policy_buffer.sample_states_action_pairs(64, self.device, self.max_similar_state_distance)
                     loss_self_supervised = self._loss_self_supervised(states_a, states_b)
                 else:
-                    loss_self_supervised = 0
+                    loss_self_supervised = 0    
 
                 loss = loss_ppo + loss_self_supervised
 
@@ -231,6 +231,8 @@ class AgentPPO():
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
         loss = loss_value + loss_policy + loss_entropy
+
+        print(loss_policy, loss_value)
 
         self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
