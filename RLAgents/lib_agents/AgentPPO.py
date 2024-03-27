@@ -41,7 +41,7 @@ class AgentPPO():
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajctory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         
         if self.rnn_policy:
@@ -114,9 +114,9 @@ class AgentPPO():
             dones           = torch.from_numpy(dones).to("cpu")
             hidden_state_t  = self.hidden_state_t.detach().to("cpu")
 
-            self.policy_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state_t)
+            self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state_t)
 
-            if self.policy_buffer.is_full():
+            if self.trajctory_buffer.is_full():
                 self.train()
 
         #udpate rnn hiddens tate
@@ -164,19 +164,19 @@ class AgentPPO():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma)
+        self.trajctory_buffer.compute_returns(self.gamma)
 
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns, advantages, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns, advantages, hidden_state = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
 
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
-                if self.self_supervised_loss is not None:
-                    states_a, states_b = self.policy_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
+                if self.self_supervised_loss_func is not None:
+                    states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
                     loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_self_supervised, self._augmentations, states_a, states_b)
                     self.info_logger["ppo_ssl"] = ssl_info
                 else:
@@ -189,7 +189,7 @@ class AgentPPO():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-        self.policy_buffer.clear()   
+        self.trajctory_buffer.clear()   
 
     
     def _loss_ppo(self, states, logits, actions, returns, advantages, hidden_state):
