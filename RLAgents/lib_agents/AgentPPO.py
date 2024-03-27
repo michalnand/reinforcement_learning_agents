@@ -237,7 +237,7 @@ class AgentPPO():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = loss_value + loss_policy + loss_entropy
+        loss = 0.5*loss_value + loss_policy + loss_entropy
 
         self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
