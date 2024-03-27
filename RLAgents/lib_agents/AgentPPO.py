@@ -78,6 +78,7 @@ class AgentPPO():
         self.values_logger  = ValuesLogger()
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_ssl", 0.0)
 
         self.info_logger = {} 
 
@@ -179,6 +180,7 @@ class AgentPPO():
                     states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
                     loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_self_supervised, self._augmentations, states_a, states_b)
                     self.info_logger["ppo_ssl"] = ssl_info
+                    self.values_logger.add("loss_ssl", loss_self_supervised.detach().cpu().numpy())
                 else:
                     loss_self_supervised = 0    
 
@@ -248,7 +250,7 @@ class AgentPPO():
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, 0.5, aug_mask)
             mask_result[0] = mask
-    
+
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, 0.5, aug_noise)
             mask_result[1] = mask
