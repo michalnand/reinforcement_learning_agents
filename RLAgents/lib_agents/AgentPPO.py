@@ -247,11 +247,11 @@ class AgentPPO():
 
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, 0.5, aug_mask)
-            mask_result[1] = mask
-
+            mask_result[0] = mask
+    
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, 0.5, aug_noise)
-            mask_result[2] = mask
+            mask_result[1] = mask
 
         return x.detach(), mask_result 
     
