@@ -91,7 +91,7 @@ class TrajectoryBuffer:
        
         return states, logits, actions, returns, advantages, hidden_state
     
-    def sample_states_pairs(self, batch_size, device, max_distance):
+    def sample_states_pairs(self, batch_size, max_distance, device):
         count           = self.buffer_size*self.envs_count
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
 

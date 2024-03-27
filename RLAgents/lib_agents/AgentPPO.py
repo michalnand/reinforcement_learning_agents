@@ -27,17 +27,18 @@ class AgentPPO():
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
- 
-        if config.self_supervised_loss is not None:
-            self.self_supervised_loss       = config.self_supervised_loss
-            self.max_similar_state_distance = config.max_similar_state_distance
+
+        if config.self_supervised_loss == "vicreg":
+            self.self_supervised_loss_func = loss_vicreg
             self.augmentations              = config.augmentations
         else:
-            self.self_supervised_loss   = None
+            self.self_supervised_loss_func = None
+            self.augmentations          = None
 
         self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         print(self.model)
+
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.policy_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
@@ -54,10 +55,8 @@ class AgentPPO():
         print("learning_rate            = ", config.learning_rate)
         print("batch_size               = ", self.batch_size)
         print("rnn_policy               = ", self.rnn_policy)
-        print("self_supervised_loss     = ", self.self_supervised_loss)
-        if self.self_supervised_loss is not None:
-            print("max_similar_state_distance = ", self.max_similar_state_distance)
-            print("augmentations              = ", self.augmentations)
+        print("self_supervised_loss     = ", self.self_supervised_loss_func)
+        print("augmentations            = ", self.augmentations)
         print("\n\n")
 
 
@@ -79,6 +78,9 @@ class AgentPPO():
         self.values_logger  = ValuesLogger()
         self.values_logger.add("loss_actor", 0.0)
         self.values_logger.add("loss_critic", 0.0)
+
+        self.info_logger = {} 
+
         
     def round_start(self): 
         pass
@@ -140,7 +142,7 @@ class AgentPPO():
 
 
     def get_log(self):
-        return self.values_logger.get_str()
+        return self.values_logger.get_str() + str(self.info_logger)
     
     def _sample_actions(self, logits, legal_actions_mask):
         if legal_actions_mask is not None:
@@ -174,8 +176,9 @@ class AgentPPO():
                 loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
 
                 if self.self_supervised_loss is not None:
-                    states_a, states_b = self.policy_buffer.sample_states_action_pairs(self.batch_size//self.training_epochs, self.device, self.max_similar_state_distance)
-                    loss_self_supervised = self._loss_self_supervised(states_a, states_b)
+                    states_a, states_b = self.policy_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
+                    loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_self_supervised, self._augmentations, states_a, states_b)
+                    self.info_logger["ppo_ssl"] = ssl_info
                 else:
                     loss_self_supervised = 0    
 
@@ -239,32 +242,17 @@ class AgentPPO():
 
         return loss
 
-    def _loss_self_supervised(self, states_now, states_similar):
-        states_a = self._augmentations(states_now)
-        states_b = self._augmentations(states_similar)
+    def _augmentations(self, x): 
+        mask_result = torch.zeros((2, x.shape[0]), device=x.device, dtype=torch.float32)
 
-        za = self.model.forward_self_supervised(states_a)
-        zb = self.model.forward_self_supervised(states_b)
-
-        return loss_vicreg_direct(za, zb) 
-
-    
-    def _augmentations(self, x, p = 0.5): 
-        if "random_filter" in self.augmentations:
-            x = aug_random_apply(x, p, aug_conv)
+        if "mask" in self.augmentations:
+            x, mask = aug_random_apply(x, 0.5, aug_mask)
+            mask_result[1] = mask
 
         if "noise" in self.augmentations:
-            x = aug_random_apply(x, p, aug_noise)
-        
-        if "random_tiles" in self.augmentations:
-            x = aug_random_apply(x, p, aug_random_tiles)
+            x, mask = aug_random_apply(x, 0.5, aug_noise)
+            mask_result[2] = mask
 
-        if "inverse" in self.augmentations:
-            x = aug_random_apply(x, p, aug_inverse)
-
-        if "permutation" in self.augmentations:
-            x = aug_random_apply(x, p, aug_permutation)
-
-        return x.detach()  
+        return x.detach(), mask_result 
     
     
