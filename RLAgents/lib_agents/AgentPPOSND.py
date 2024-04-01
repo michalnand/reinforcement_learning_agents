@@ -2,7 +2,7 @@ import numpy
 import torch 
 
 from .ValuesLogger      import *
-from .PolicyBufferIM    import *  
+from .TrajectoryBufferIM    import *  
 
 from .PPOLoss               import *
 from .SelfSupervisedLoss    import *
@@ -108,7 +108,7 @@ class AgentPPOSND():
         self.model_snd_target.to(self.device)
         self.optimizer_snd_target  = torch.optim.Adam(self.model_snd_target.parameters(), lr=config.learning_rate_snd_target)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -195,9 +195,9 @@ class AgentPPOSND():
 
             hidden_state    = self.hidden_state.detach().to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
+            self.trajectory_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
 
-            if self.policy_buffer.is_full():
+            if self.trajectory_buffer.is_full():
                 self.train()
 
         
@@ -253,7 +253,7 @@ class AgentPPOSND():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
         batch_count = self.steps//self.batch_size
 
@@ -261,10 +261,10 @@ class AgentPPOSND():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
                 #sample smaller batch
-                states_a, states_b, states_c, action, relations_now, relations_next = self.policy_buffer.sample_states_action_pairs(small_batch, self.device)
+                states_a, states_b, states_c, action, relations_now, relations_next = self.trajectory_buffer.sample_states_action_pairs(small_batch, self.device)
 
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state)
@@ -338,7 +338,7 @@ class AgentPPOSND():
                 self.values_logger.add("loss_distillation",             loss_distillation.detach().to("cpu").numpy())
 
 
-        self.policy_buffer.clear() 
+        self.trajectory_buffer.clear() 
 
     
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):

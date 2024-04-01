@@ -8,14 +8,11 @@ from .ExperienceBufferContinuous        import ExperienceBufferContinuous
 
 from .TrajectoryBuffer              import TrajectoryBuffer
 from .TrajectoryBufferLP            import TrajectoryBufferLP
-from .PolicyBufferIM                import PolicyBufferIM
-from .PolicyBufferIMT               import PolicyBufferIMT
-from .PolicyBufferIMNew             import PolicyBufferIMNew
-from .PolicyBufferIMDual            import PolicyBufferIMDual
+from .TrajectoryBufferIM            import TrajectoryBufferIM
+from .TrajectoryBufferIMNew         import TrajectoryBufferIMNew
 
  
-
-from .PolicyBufferContinuous        import PolicyBufferContinuous
+from .TrajectoryBufferContinuous        import TrajectoryBufferContinuous
 
 
 
@@ -33,16 +30,14 @@ from .AgentPPOLP                    import AgentPPOLP
 from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
-from .AgentPPOCSND                  import AgentPPOCSND
+from .AgentPPOSNDA                  import AgentPPOSNDA
 from .AgentPPOSNDB                  import AgentPPOSNDB
 from .AgentPPOSNDC                  import AgentPPOSNDC
-from .AgentPPOCSNDT                 import AgentPPOCSNDT
 
 from .AgentPPOJEPA                   import AgentPPOJEPA
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
-from .AgentPPODPA                   import AgentPPODPA
 
 
   

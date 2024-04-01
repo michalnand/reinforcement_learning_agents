@@ -2,7 +2,7 @@ import numpy
 import torch 
 
 from .ValuesLogger      import *
-from .PolicyBufferIMNew import *  
+from .TrajectoryBufferIMNew import *  
 
 from .PPOLoss               import *
 from .SelfSupervised        import * 
@@ -76,7 +76,7 @@ class AgentPPOJEPA():
         self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
 
       
-        self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         print(self.model)
      
@@ -160,9 +160,9 @@ class AgentPPOJEPA():
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
             
-            self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
 
-            if self.policy_buffer.is_full():
+            if self.trajectory_buffer.is_full():
                 self.train()
 
         #collect stats
@@ -213,7 +213,7 @@ class AgentPPOJEPA():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
         
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
@@ -221,13 +221,13 @@ class AgentPPOJEPA():
         #PPO training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 
                 # PPO model loss
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
                 # sample batch pair for self supervised loss
-                states_now, states_past = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+                states_now, states_past = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
                 #train features, self supervised
                 loss_self_supervised, im_ssl = self._self_supervised_loss(self.model.forward_self_supervised, self._augmentations, states_now, states_past, self.hidden_coeff)                
@@ -244,7 +244,7 @@ class AgentPPOJEPA():
 
                 self.values_logger.add("loss_self_supervised", loss_self_supervised.detach().cpu().numpy())
         
-        self.policy_buffer.clear() 
+        self.trajectory_buffer.clear() 
 
         
 

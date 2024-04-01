@@ -2,7 +2,7 @@ import numpy
 import torch
 
 from .ValuesLogger      import * 
-from .PolicyBufferIM    import *  
+from .TrajectoryBufferIM    import *  
 from .RunningStats      import *  
 import cv2
       
@@ -39,7 +39,7 @@ class AgentPPORND():
         self.model_rnd      = ModelRND.Model(self.state_shape)
         self.optimizer_rnd  = torch.optim.Adam(self.model_rnd.parameters(), lr=config.learning_rate_rnd)
  
-        self.policy_buffer = PolicyBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferIM(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         for e in range(self.envs_count):
             self.envs.reset(e)
@@ -103,9 +103,9 @@ class AgentPPORND():
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
 
-            self.policy_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
+            self.trajectory_buffer.add(states, logits, values_ext, values_int, actions, rewards_ext_t, rewards_int_t, dones)
 
-            if self.policy_buffer.is_full():
+            if self.trajectory_buffer.is_full():
                 self.train()    
 
 
@@ -160,13 +160,13 @@ class AgentPPORND():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
 
         batch_count = self.steps//self.batch_size
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.policy_buffer.sample_batch(self.batch_size, self.model_ppo.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.model_ppo.device)
 
                 #train PPO model
                 loss_ppo = self._compute_loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -186,7 +186,7 @@ class AgentPPORND():
               
                 self.values_logger.add("loss_rnd", loss_rnd.detach().to("cpu").numpy())
         
-        self.policy_buffer.clear() 
+        self.trajectory_buffer.clear() 
 
     
     def _compute_loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int):

@@ -2,7 +2,7 @@ import numpy
 import torch
 
 from .ValuesLogger              import *
-from .PolicyBufferContinuous    import *
+from .TrajectoryBufferContinuous    import *
 
 class AgentPPOContinuous():
     def __init__(self, envs, Model, config):
@@ -35,7 +35,7 @@ class AgentPPOContinuous():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.policy_buffer  = PolicyBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
+        self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
 
         self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
         for e in range(self.envs_count):
@@ -84,8 +84,8 @@ class AgentPPOContinuous():
             rewards_    = torch.from_numpy(rewards).to("cpu")
             dones       = torch.from_numpy(dones).to("cpu")
              
-            self.policy_buffer.add(states, values, actions, mu, var, rewards_, dones)
-            if self.policy_buffer.is_full():
+            self.trajectory_buffer.add(states, values, actions, mu, var, rewards_, dones)
+            if self.trajectory_buffer.is_full():
                 self.train()
 
         self.states = states_new.copy()
@@ -110,12 +110,12 @@ class AgentPPOContinuous():
         return action
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma)
+        self.trajectory_buffer.compute_returns(self.gamma)
 
         batch_count = self.steps//self.batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.policy_buffer.sample_batch(self.batch_size, self.model.device)
+                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.model.device)
 
                 loss = self._compute_loss(states, actions, actions_mu, actions_var, returns, advantages)
 
@@ -124,7 +124,7 @@ class AgentPPOContinuous():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-        self.policy_buffer.clear()   
+        self.trajectory_buffer.clear()   
     
     def _compute_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
         mu_new, var_new, values_new = self.model.forward(states)        

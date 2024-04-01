@@ -179,6 +179,7 @@ class AgentPPO():
                 if self.self_supervised_loss_func is not None:
                     states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
                     loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_self_supervised, self._augmentations, states_a, states_b)
+                    
                     self.info_logger["ppo_ssl"] = ssl_info
                     self.values_logger.add("loss_ssl", loss_self_supervised.detach().cpu().numpy())
                 else:

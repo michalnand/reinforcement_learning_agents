@@ -1,6 +1,6 @@
 import torch
 
-class PolicyBufferIMNew:
+class TrajectoryBufferIMNew:
 
     def __init__(self, buffer_size, state_shape, actions_size, envs_count):
         self.buffer_size    = buffer_size

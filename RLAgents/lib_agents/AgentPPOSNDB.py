@@ -2,7 +2,7 @@ import numpy
 import torch 
 
 from .ValuesLogger      import *
-from .PolicyBufferIMNew import *  
+from .TrajectoryBufferIMNew import *  
 
 from .PPOLoss               import *
 from .SelfSupervised        import * 
@@ -91,7 +91,7 @@ class AgentPPOSNDB():
         self.model_im.to(self.device)
         self.optimizer_im  = torch.optim.Adam(self.model_im.parameters(), lr=config.learning_rate_im)
     
-        self.policy_buffer = PolicyBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
+        self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
      
         #optional, for state mean and variance normalisation        
@@ -175,9 +175,9 @@ class AgentPPOSNDB():
             dones           = torch.from_numpy(dones).to("cpu")
             
 
-            self.policy_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
 
-            if self.policy_buffer.is_full():
+            if self.trajectory_buffer.is_full():
                 self.train()
                 
         #clear where done
@@ -230,7 +230,7 @@ class AgentPPOSNDB():
         return actions
     
     def train(self): 
-        self.policy_buffer.compute_returns(self.gamma_ext, self.gamma_int)
+        self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
         
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
@@ -240,7 +240,7 @@ class AgentPPOSNDB():
         #PPO training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.policy_buffer.sample_batch(self.batch_size, self.device)
+                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 
                 #train PPO model
                 loss_ppo     = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
@@ -248,7 +248,7 @@ class AgentPPOSNDB():
                 #train ppo features, self supervised
                 if self._ppo_self_supervised_loss is not None:
                     #sample smaller batch for self supervised loss
-                    states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+                    states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
                     
                     loss_ppo_self_supervised, ppo_ssl = self._ppo_self_supervised_loss(self.model_ppo.forward_features, self._augmentations, states_now, states_similar)  
                     self.info_logger["ppo_ssl"] = ppo_ssl
@@ -273,7 +273,7 @@ class AgentPPOSNDB():
 
         for batch_idx in range(batch_count):
             #sample smaller batch for self supervised loss
-            states_now, states_similar = self.policy_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+            states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
             #loss SSL target    
             loss_target_self_supervised, im_ssl  = self._target_self_supervised_loss(self.model_im.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
@@ -284,7 +284,7 @@ class AgentPPOSNDB():
             self.info_logger["im_predictor_ssl"] = im_ssl
             
             #loss MSE distillation
-            states, _ = self.policy_buffer.sample_states_pairs(self.batch_size, 0, False, self.device)
+            states, _ = self.trajectory_buffer.sample_states_pairs(self.batch_size, 0, False, self.device)
             loss_distillation = self._loss_distillation(states)
 
             #total loss for im model
@@ -299,7 +299,7 @@ class AgentPPOSNDB():
             self.values_logger.add("loss_predictor_self_supervised", loss_predictor_self_supervised.detach().cpu().numpy())
             self.values_logger.add("loss_distillation", loss_distillation.detach().cpu().numpy())
             
-        self.policy_buffer.clear() 
+        self.trajectory_buffer.clear() 
 
         
 

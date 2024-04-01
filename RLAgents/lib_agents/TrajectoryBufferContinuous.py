@@ -1,6 +1,6 @@
 import torch
 
-class PolicyBufferContinuous:
+class TrajectoryBufferContinuous:
 
     def __init__(self, buffer_size, state_shape, actions_size, envs_count, device):
         
