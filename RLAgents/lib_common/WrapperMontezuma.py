@@ -136,7 +136,7 @@ class ResizeEnv(gym.ObservationWrapper):
     def observation(self, state):
         img = Image.fromarray(state)
         img = img.convert('L')
-        img = img.resize((self.height, self.width))
+        img = img.resize((self.width, self.height))
 
         self.state    = numpy.roll(self.state, 1, axis=0)
         self.state[0] = (numpy.array(img).astype(self.dtype)/255.0).copy()
@@ -158,9 +158,9 @@ class ResizeEnvColor(gym.ObservationWrapper):
         self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=state_shape, dtype=self.dtype)
         self.state = numpy.zeros(state_shape, dtype=self.dtype)
 
-    def observation(self, state):
+    def observation(self, state):   
         img = Image.fromarray(state)
-        img = img.resize((self.height, self.width))
+        img = img.resize((self.width, self.height))
         img = numpy.array(img).astype(self.dtype)/255.0
         img = numpy.rollaxis(img, 2, 0)
         img = numpy.array(img)
