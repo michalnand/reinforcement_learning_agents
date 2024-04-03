@@ -320,15 +320,23 @@ def WrapperMontezuma(env, height = 96, width = 96, frame_stacking = 4, max_steps
 
 
 
-def WrapperMontezumaColor(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezumaColor(env, height = 105, width = 80, frame_stacking = 4, max_steps = 4500):
+    env_str = str(env)
+
+    if "MontezumaRevenge" in env_str:
+        room_address = 3
+    elif "Pitfall" in env_str:
+        room_address = 1
+    else:
+        room_address = 0
 
     env = NopOpsEnv(env)
     env = StickyActionEnv(env)
     env = RepeatActionEnv(env) 
     #env = ColectStatesEnv(env)
     env = ResizeEnvColor(env, height, width, frame_stacking)
-    
-    env = VisitedRoomsEnv(env)    
+ 
+    env = VisitedRoomsEnv(env, room_address)    
     env = RawScoreEnv(env, max_steps) 
 
     return env
@@ -343,7 +351,7 @@ def WrapperMontezumaVideo(env, height = 96, width = 96, frame_stacking = 4, max_
 
 
 
-def WrapperMontezumaColorVideo(env, height = 96, width = 96, frame_stacking = 4, max_steps = 4500):
+def WrapperMontezumaColorVideo(env, height = 105, width = 85, frame_stacking = 4, max_steps = 4500):
     env = VideoRecorder(env)    
 
     env = WrapperMontezumaColor(env, height, width, frame_stacking, max_steps)
