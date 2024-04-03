@@ -208,9 +208,19 @@ def aug( x):
     return x
 '''
 
-def aug_mask(x, p = 0.75, granularity = 16):
-    up_h = x.shape[2]//granularity
-    up_w = x.shape[3]//granularity 
+def aug_mask(x, p = 0.75):
+    if x.shape[2] == 80:
+        gh = 16
+    else:
+        gh = 16
+
+    if x.shape[3] == 105:
+        gw = 15 
+    else:
+        gw = 16
+
+    up_h = x.shape[2]//gh
+    up_w = x.shape[3]//gw 
 
     mask = torch.rand((x.shape[0], x.shape[1], granularity, granularity), device = x.device)
     
