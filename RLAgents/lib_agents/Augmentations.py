@@ -219,13 +219,18 @@ def aug_mask(x, p = 0.75):
     else:
         gw = 16 
 
+
     up_h = x.shape[2]//gh
     up_w = x.shape[3]//gw 
+
+    print(">>> ", x.shape, gh, gw, up_h, up_w)
 
     mask = torch.rand((x.shape[0], x.shape[1], gh, gw), device = x.device)
     
     mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
     mask = (mask > (1.0 - p)).float().detach()
+
+    print(">>> ", x.shape, mask.shape)
 
     return mask*x       
 
