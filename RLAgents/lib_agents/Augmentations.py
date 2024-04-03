@@ -209,13 +209,13 @@ def aug( x):
 '''
 
 def aug_mask(x, p = 0.75):
-    if x.shape[2] == 80:
-        gh = 16
+    if x.shape[2] == 105:
+        gh = 15
     else:
         gh = 16
 
-    if x.shape[3] == 105:
-        gw = 15 
+    if x.shape[3] == 80:
+        gw = 16 
     else:
         gw = 16 
 
