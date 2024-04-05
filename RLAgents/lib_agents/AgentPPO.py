@@ -16,6 +16,8 @@ class AgentPPO():
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip
+        self.adv_coeff          = config.adv_coeff
+        self.val_coeff          = config.val_coeff 
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -23,7 +25,7 @@ class AgentPPO():
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
  
-        self.rnn_policy         = config.rnn_policy
+        self.rnn_policy         = config.rnn_policy 
 
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.n
@@ -53,6 +55,8 @@ class AgentPPO():
         print("gamma                    = ", self.gamma)
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", config.learning_rate)
+        print("adv_coeff                = ", self.adv_coeff)
+        print("val_coeff                = ", self.val_coeff)
         print("batch_size               = ", self.batch_size)
         print("rnn_policy               = ", self.rnn_policy)
         print("self_supervised_loss     = ", self.self_supervised_loss_func)
@@ -218,7 +222,7 @@ class AgentPPO():
         ''' 
         compute actor loss, surrogate loss
         '''
-        advantages       = advantages.detach() 
+        advantages       = self.adv_coeff*advantages.detach() 
         #this normalisation has no effect
         advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
@@ -238,7 +242,7 @@ class AgentPPO():
         loss_entropy = (probs_new*log_probs_new).sum(dim = 1)
         loss_entropy = self.entropy_beta*loss_entropy.mean()
 
-        loss = 0.5*loss_value + loss_policy + loss_entropy
+        loss = self.val_coeff*loss_value + loss_policy + loss_entropy
 
         self.values_logger.add("loss_actor",  loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_critic", loss_value.detach().to("cpu").numpy())
