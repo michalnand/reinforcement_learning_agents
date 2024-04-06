@@ -205,36 +205,45 @@ class AgentPPOSNDAdvA():
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
-
-        loss_w = 1.0/self.training_epochs
-
-        #main training loop
+        #main PPO training loop
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 #PPO RL loss
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
-                #internal motivation loss   
-                states, _ = self.trajectory_buffer.sample_states_pairs(self.batch_size, 0, False, self.device)
-                loss_im = self._internal_motivation(states).mean()
-
-                #target regularisation
-                states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
-                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
-                self.info_logger["spatial_target_ssl"] = im_ssl
-
-                #total PPO loss
-                loss = loss_ppo + loss_w*loss_im + loss_w*loss_ssl
-
                 self.optimizer.zero_grad()            
-                loss.backward()
+                loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step()
 
-                self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
-                self.values_logger.add("loss_ssl", loss_ssl.detach().cpu().numpy())
-       
+                
+
+        batch_count = samples_count//self.ss_batch_size
+        
+        #main IM training loop
+        for batch_idx in range(batch_count):    
+            #internal motivation loss   
+            states, _ = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+            loss_im = self._internal_motivation(states).mean()
+
+            #target SSL regularisation
+            states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+            loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
+            self.info_logger["spatial_target_ssl"] = im_ssl
+
+            #total PPO loss
+            loss = loss_im + loss_ssl
+
+            self.optimizer.zero_grad()            
+            loss.backward()     
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
+            self.optimizer.step()
+
+            self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
+            self.values_logger.add("loss_ssl", loss_ssl.detach().cpu().numpy())
+
+
         self.trajectory_buffer.clear() 
 
         
