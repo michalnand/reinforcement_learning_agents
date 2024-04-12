@@ -23,6 +23,7 @@ class AgentPPOSNDAdvA():
         self.int_adv_coeff      = config.int_adv_coeff
  
         self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_diff_coeff  = config.reward_diff_coeff
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -57,6 +58,7 @@ class AgentPPOSNDAdvA():
         print("augmentations          = ", self.augmentations)
         print("augmentations_probs    = ", self.augmentations_probs)
         print("reward_int_coeff       = ", self.reward_int_coeff)
+        print("reward_diff_coeff      = ", self.reward_diff_coeff)
         print("training_distance      = ", self.training_distance)
         print("stochastic_distance    = ", self.stochastic_distance)
         
@@ -87,7 +89,7 @@ class AgentPPOSNDAdvA():
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
 
-
+        self.rewards_int = torch.zeros((self.envs_count, ), dtype=torch.float32, device=self.device)
 
         self.iterations = 0 
 
@@ -132,7 +134,10 @@ class AgentPPOSNDAdvA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int = self._internal_motivation(states_t)
+        self.rewards_int_prev = self.rewards_int.clone()    
+        self.rewards_int = self._internal_motivation(states_t).detach()
+
+        rewards_int = torch.clip(self.rewards_int - self.reward_diff_coeff*self.rewards_int_prev, 0.0, 1.0)
 
         #weighting and clipping im
         rewards_int = rewards_int.detach().to("cpu")
@@ -154,6 +159,10 @@ class AgentPPOSNDAdvA():
 
             if self.trajectory_buffer.is_full():
                 self.train()
+
+        dones_idx = numpy.where(dones)[0]
+        for e in dones_idx:
+            self.rewards_int_prev[e] = 0.0
                 
 
         #collect stats
