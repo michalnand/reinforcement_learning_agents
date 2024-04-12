@@ -135,13 +135,11 @@ class AgentPPOSNDAdvA():
 
         #internal motivation
         self.rewards_int_prev = self.rewards_int.clone()    
-        self.rewards_int = self._internal_motivation(states_t).detach()
-
-        rewards_int = torch.clip(self.rewards_int - self.reward_diff_coeff*self.rewards_int_prev, 0.0, 1.0)
+        self.rewards_int = self.reward_int_coeff*self._internal_motivation(states_t).detach()
 
         #weighting and clipping im
+        rewards_int = torch.clip(self.rewards_int - self.reward_diff_coeff*self.rewards_int_prev, 0.0, 1.0)
         rewards_int = rewards_int.detach().to("cpu")
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         
         #put into policy buffer
         if training_enabled:
