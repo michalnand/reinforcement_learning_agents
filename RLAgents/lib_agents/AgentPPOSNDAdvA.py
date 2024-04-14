@@ -36,7 +36,14 @@ class AgentPPOSNDAdvA():
         self.envs_count         = config.envs_count
 
         self.state_normalise    = config.state_normalise
-       
+
+
+        if config.rl_self_supervised_loss == "vicreg":
+            self._rl_self_supervised_loss = loss_vicreg
+        elif config.rl_self_supervised_loss == "vicreg_jepa":
+            self._rl_self_supervised_loss = loss_vicreg_jepa 
+        else:
+            self._rl_self_supervised_loss = None
 
         if config.self_supervised_loss == "vicreg":
             self._self_supervised_loss = loss_vicreg
@@ -219,8 +226,17 @@ class AgentPPOSNDAdvA():
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, _ = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int)
                 
+                if self._rl_self_supervised_loss is not None:
+                    sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
+
+                    self.info_logger["rl_ssl"] = rl_ssl
+                    loss = loss_ppo + loss_ssl
+                else:
+                    loss = loss_ppo
+
                 self.optimizer.zero_grad()            
-                loss_ppo.backward()
+                loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step()
 
