@@ -61,6 +61,7 @@ class AgentPPOSNDAdvA():
         
 
         print("state_normalise        = ", self.state_normalise)
+        print("rl_self_supervised_loss= ", self._rl_self_supervised_loss)
         print("self_supervised_loss   = ", self._self_supervised_loss)
         print("augmentations          = ", self.augmentations)
         print("augmentations_probs    = ", self.augmentations_probs)
