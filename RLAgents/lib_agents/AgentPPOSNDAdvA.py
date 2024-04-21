@@ -21,6 +21,7 @@ class AgentPPOSNDAdvA():
               
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff
+        self.dist_loss_coeff    = config.dist_loss_coeff
  
         self.reward_int_coeff   = config.reward_int_coeff
         self.reward_diff_coeff  = config.reward_diff_coeff
@@ -256,8 +257,8 @@ class AgentPPOSNDAdvA():
             loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
             self.info_logger["spatial_target_ssl"] = im_ssl
 
-            #total PPO loss
-            loss = loss_im + loss_ssl
+            #total IM loss  
+            loss = self.dist_loss_coeff*loss_im + loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
