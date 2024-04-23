@@ -20,11 +20,8 @@ class AgentPPOSNDAdvA():
         self.gamma_int          = config.gamma_int
               
         self.ext_adv_coeff      = config.ext_adv_coeff
-        self.int_adv_coeff      = config.int_adv_coeff
-        self.dist_loss_coeff    = config.dist_loss_coeff
- 
+        self.int_adv_coeff      = config.int_adv_coeff 
         self.reward_int_coeff   = config.reward_int_coeff
-        self.reward_diff_coeff  = config.reward_diff_coeff
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -62,13 +59,11 @@ class AgentPPOSNDAdvA():
         
 
         print("state_normalise        = ", self.state_normalise)
-        print("dist_loss_coeff        = ", self.dist_loss_coeff)
         print("rl_self_supervised_loss= ", self._rl_self_supervised_loss)
         print("self_supervised_loss   = ", self._self_supervised_loss)
         print("augmentations          = ", self.augmentations)
         print("augmentations_probs    = ", self.augmentations_probs)
         print("reward_int_coeff       = ", self.reward_int_coeff)
-        print("reward_diff_coeff      = ", self.reward_diff_coeff)
         print("training_distance      = ", self.training_distance)
         print("stochastic_distance    = ", self.stochastic_distance)
         
@@ -98,8 +93,6 @@ class AgentPPOSNDAdvA():
         self.state_mean/= self.envs_count
         self.state_var = numpy.ones(self.state_shape,  dtype=numpy.float32)
 
-
-        self.rewards_int = torch.zeros((self.envs_count, ), dtype=torch.float32, device=self.device)
 
         self.iterations = 0 
 
@@ -144,12 +137,9 @@ class AgentPPOSNDAdvA():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        self.rewards_int_prev = self.rewards_int.clone()    
-        self.rewards_int = self.reward_int_coeff*self._internal_motivation(states_t).detach()
+        rewards_int = self._internal_motivation(states_t)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
 
-        #weighting and clipping im
-        rewards_int = torch.clip(self.rewards_int - self.reward_diff_coeff*self.rewards_int_prev, 0.0, 1.0)
-        rewards_int = rewards_int.detach().to("cpu")
         
         #put into policy buffer
         if training_enabled:
@@ -246,6 +236,7 @@ class AgentPPOSNDAdvA():
                 
 
         batch_count = samples_count//self.ss_batch_size
+        batch_count = batch_count//2
         
         #main IM training loop
         for batch_idx in range(batch_count):    
@@ -259,7 +250,7 @@ class AgentPPOSNDAdvA():
             self.info_logger["spatial_target_ssl"] = im_ssl
 
             #total IM loss  
-            loss = self.dist_loss_coeff*loss_im + loss_ssl
+            loss = loss_im + loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
