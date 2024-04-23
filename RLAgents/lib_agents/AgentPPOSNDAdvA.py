@@ -158,11 +158,7 @@ class AgentPPOSNDAdvA():
             if self.trajectory_buffer.is_full():
                 self.train()
 
-        dones_idx = numpy.where(dones)[0]
-        for e in dones_idx:
-            self.rewards_int_prev[e] = 0.0
-                
-
+      
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
