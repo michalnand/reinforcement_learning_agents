@@ -158,8 +158,12 @@ def loss_vicreg_complement(model_forward_func, augmentations, x, x_):
     #info for log
     z_mag     = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+
+    sim_loss_ = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_ = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_ = round(cov_loss.detach().cpu().numpy().item(), 6)
     
-    info = [z_mag, z_mag_std]
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_]
 
     return loss, info
 
