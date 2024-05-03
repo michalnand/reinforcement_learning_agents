@@ -242,7 +242,7 @@ def aug_mask_advanced(x):
 
     mask = torch.rand((x.shape[0], x.shape[1], gh, gw), device = x.device)
 
-    p    = torch.rand((x.shape[0], 1, 1, 1))
+    p    = torch.rand((x.shape[0], 1, 1, 1), device = x.device)
     
     mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
     mask = (mask > p).float().detach()
