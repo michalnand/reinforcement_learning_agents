@@ -141,13 +141,15 @@ def loss_vicreg_complement(model_forward_func, augmentations, x, x_):
 
     # invariance loss
     sim_loss = _loss_mse(z, za + zb)
-
+ 
     # variance loss
-    std_loss = _loss_std(za)
+    std_loss = _loss_std(z)
+    std_loss+= _loss_std(za)
     std_loss+= _loss_std(zb)
-     
+   
     # covariance loss 
-    cov_loss = _loss_cov(za)
+    cov_loss = _loss_cov(z)
+    cov_loss+= _loss_cov(za)
     cov_loss+= _loss_cov(zb)
    
     # total vicreg loss
