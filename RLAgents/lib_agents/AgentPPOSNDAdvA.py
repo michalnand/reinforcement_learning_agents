@@ -38,6 +38,8 @@ class AgentPPOSNDAdvA():
 
         if config.rl_self_supervised_loss == "vicreg":
             self._rl_self_supervised_loss = loss_vicreg
+        elif config.rl_self_supervised_loss == "vicreg_complement":
+            self._rl_self_supervised_loss = loss_vicreg_complement
         elif config.rl_self_supervised_loss == "vicreg_jepa":
             self._rl_self_supervised_loss = loss_vicreg_jepa 
         else:
@@ -45,6 +47,8 @@ class AgentPPOSNDAdvA():
 
         if config.self_supervised_loss == "vicreg":
             self._self_supervised_loss = loss_vicreg
+        elif config.self_supervised_loss == "vicreg_complement":
+            self._self_supervised_loss = loss_vicreg_complement
         elif config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa 
         else:
@@ -306,6 +310,10 @@ class AgentPPOSNDAdvA():
 
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
+            mask_result[0] = mask
+
+        if "mask_advanced" in self.augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[1] = mask
 
         if "noise" in self.augmentations:

@@ -131,6 +131,40 @@ def loss_vicreg_proj(model_forward_func, augmentations, xa, xb):
 
 
 
+def loss_vicreg_complement(model_forward_func, augmentations, x, x_):
+    xa_aug, _ = augmentations(x) 
+    xb_aug    = x - xa_aug
+    
+    z  = model_forward_func(x)
+    za = model_forward_func(xa_aug)
+    zb = model_forward_func(xb_aug)
+
+    # invariance loss
+    sim_loss = _loss_mse(z, za + zb)
+
+    # variance loss
+    std_loss = _loss_std(z)
+    std_loss+= _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(z)
+    cov_loss+= _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std]
+
+    return loss, info
+
+
+
 
 
 '''

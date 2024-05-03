@@ -232,12 +232,32 @@ def aug_mask(x, p = 0.75):
     return mask*x       
 
 
+
+def aug_mask_advanced(x):
+    gh = 16
+    gw = 16 
+
+    up_h = x.shape[2]//gh
+    up_w = x.shape[3]//gw 
+
+    mask = torch.rand((x.shape[0], x.shape[1], gh, gw), device = x.device)
+
+    p    = torch.rand((x.shape[0], 1, 1, 1))
+    
+    mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
+    mask = (mask > p).float().detach()
+
+    return mask*x       
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    x = torch.rand((20, 3, 96, 128))    
+    x = torch.ones((20, 3, 96, 128))    
+    #x = torch.ones((20, 3, 96, 96))    
 
-    y = aug_mask(x) 
+    #y = aug_mask(x) 
+    y = aug_mask_advanced(x) 
 
     print(">>> ", x.shape, y.shape, y.mean())
 
