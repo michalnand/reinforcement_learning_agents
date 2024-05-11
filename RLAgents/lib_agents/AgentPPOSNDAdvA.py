@@ -89,9 +89,9 @@ class AgentPPOSNDAdvA():
         self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         if self.rnn_model:
-            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
+            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32, device=self.device)
         else:
-            self.hidden_state = torch.zeros((self.envs_count, 1) , dtype=torch.float32)
+            self.hidden_state = torch.zeros((self.envs_count, 1) , dtype=torch.float32, device=self.device)
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
