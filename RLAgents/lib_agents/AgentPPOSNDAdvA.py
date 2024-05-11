@@ -89,9 +89,9 @@ class AgentPPOSNDAdvA():
         self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
         if self.rnn_model:
-            self.hidden_state_t = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
+            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
         else:
-            self.hidden_state_t = torch.zeros((self.envs_count, 1) , dtype=torch.float32)
+            self.hidden_state = torch.zeros((self.envs_count, 1) , dtype=torch.float32)
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
@@ -164,10 +164,10 @@ class AgentPPOSNDAdvA():
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
-            hidden_state_t  = self.hidden_state.detach().to("cpu")
+            hidden_state    = self.hidden_state.detach().to("cpu")
 
 
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_state_t)
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
 
             if self.trajectory_buffer.is_full():
                 self.train()
