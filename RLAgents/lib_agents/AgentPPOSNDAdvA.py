@@ -34,7 +34,11 @@ class AgentPPOSNDAdvA():
         self.envs_count         = config.envs_count
 
         self.state_normalise    = config.state_normalise
-        self.rnn_model          = config.rnn_model
+
+        if hasattr(config, "rnn_model"):
+            self.rnn_model          = config.rnn_model
+        else:
+            self.rnn_model          = False
 
 
         if config.rl_self_supervised_loss == "vicreg":
