@@ -338,9 +338,9 @@ class AgentPPOSNDAdvA():
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
         if self.stochastic_distance:
-            mask_result[:, 0] = 1
-        else:
             mask_result[:, 0] = 0
+        else:
+            mask_result[:, 0] = 1
 
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
