@@ -112,6 +112,10 @@ def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
     #merge masks into one
     mask = torch.max(mask_a, mask_b)
 
+    print(mask_a[0])
+    print(mask_b[0])
+    print("\n\n")
+
     #add mask flag where inputs are time-shifted (temporal augmentation)
     diff = ((xa - xb)**2).mean(dim=(1, 2, 3))
     mask[:, 0] = (diff > 10**-6)
@@ -119,7 +123,6 @@ def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
     repeats = za.shape[1]//mask.shape[1]
     mask_rep= torch.repeat_interleave(mask, repeats, dim=1)
 
-    print(">>>> ", za.shape, zb.shape, mask_rep.shape)
 
     za_masked = za*mask_rep
     zb_masked = zb*mask_rep
