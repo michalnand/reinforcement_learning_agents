@@ -98,6 +98,69 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
 
 
+
+
+def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
+    xa_aug, mask_a = augmentations(xa) 
+    xb_aug, mask_b = augmentations(xb)
+
+    #obtain model output features
+    za = model_forward_func(xa_aug)
+    zb = model_forward_func(xb_aug)
+
+
+    #merge masks into one
+    mask = torch.max(mask_a, mask_b)
+
+    #add mask flag where inputs are time-shifted (temporal augmentation)
+    diff = ((xa - xb)**2).mean(dim=(1, 2, 3))
+    mask[0] = (diff > 10**-6)
+
+    repeats = za.shape[1]//mask.shape[1]
+    mask_rep= torch.repeat_interleave(mask, repeats, dim=1)
+
+
+    za_masked = za*mask_rep
+    zb_masked = zb*mask_rep
+
+    # invariance loss
+    sim_loss = _loss_mse(za_masked, zb_masked)
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+
+    info = [z_mag, z_mag_std]
+
+    #partial subsbaces magnitudes logs
+    for i in range(mask.shape[1]):
+        mask_tmp                             = torch.zeros(za.shape, device=za.device)
+        mask_tmp[:, i*repeats:(i+1)*repeats] = 1.0
+
+        z_tmp = za*mask_tmp
+
+        mag = round(((z_tmp**2).mean()).detach().cpu().numpy().item(), 6)
+        std = round(((z_tmp**2).std()).detach().cpu().numpy().item(), 6)
+    
+        info.append(mag)
+        info.append(std)
+    
+
+    return loss, info
+
+
+
 def loss_vicreg_proj(model_forward_func, augmentations, xa, xb):
     xa_aug, _ = augmentations(xa) 
     xb_aug, _ = augmentations(xb)

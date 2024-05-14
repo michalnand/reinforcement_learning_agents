@@ -50,6 +50,8 @@ class AgentPPOSNDAdvA():
             self._self_supervised_loss = loss_vicreg
         elif config.self_supervised_loss == "vicreg_complement":
             self._self_supervised_loss = loss_vicreg_complement
+        elif config.self_supervised_loss == "vicreg_mask":
+            self._self_supervised_loss = loss_vicreg_mask
         elif config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa 
         else:
@@ -329,19 +331,19 @@ class AgentPPOSNDAdvA():
         return novelty
  
     def _augmentations(self, x): 
-        mask_result = torch.zeros((4, x.shape[0]), device=x.device, dtype=torch.float32)
+        mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
-            mask_result[0] = mask
+            mask_result[:, 1] = mask
 
         if "mask_advanced" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
-            mask_result[1] = mask
+            mask_result[:, 2] = mask
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
-            mask_result[2] = mask
+            mask_result[:, 3] = mask
 
         return x.detach(), mask_result 
  
