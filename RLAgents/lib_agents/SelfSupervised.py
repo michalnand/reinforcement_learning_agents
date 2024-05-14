@@ -118,12 +118,6 @@ def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
     mask[:, 0] = torch.max(mask[:, 0], (diff > 10**-6))
 
 
-    print(mask_a[0])    
-    print(mask_b[0])
-    print(mask[0])
-    print("\n\n")
-
-
     repeats = za.shape[1]//mask.shape[1]
     mask_rep= torch.repeat_interleave(mask, repeats, dim=1)
 
