@@ -54,8 +54,8 @@ class AgentPPOSNDAdvA():
             self._self_supervised_loss = loss_vicreg
         elif config.self_supervised_loss == "vicreg_complement":
             self._self_supervised_loss = loss_vicreg_complement
-        elif config.self_supervised_loss == "vicreg_mask":
-            self._self_supervised_loss = loss_vicreg_mask
+        elif config.self_supervised_loss == "vicreg_augs":
+            self._self_supervised_loss = loss_vicreg_augs
         elif config.self_supervised_loss == "vicreg_jepa":
             self._self_supervised_loss = loss_vicreg_jepa 
         else:
@@ -272,7 +272,12 @@ class AgentPPOSNDAdvA():
 
             #target SSL regularisation
             states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
-            loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
+
+            if hasattr(self.model, "forward_im_aux"):
+                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self.model.forward_im_aux, self._augmentations, states_now, states_similar)                
+            else:
+                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
+
             self.info_logger["spatial_target_ssl"] = im_ssl
 
             #total IM loss  
@@ -337,30 +342,18 @@ class AgentPPOSNDAdvA():
     def _augmentations(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
-        if self.stochastic_distance:
-            mask_result[:, 0] = 0
-        else:
-            mask_result[:, 0] = 1
-
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
             mask_result[:, 1] = mask
-        else:
-            mask_result[:, 1] = 1
-
-
+       
         if "mask_advanced" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[:, 2] = mask
-        else:
-            mask_result[:, 2] = 1
-
+      
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[:, 3] = mask
-        else:
-            mask_result[:, 2] = 1
-
+      
         return x.detach(), mask_result 
  
 

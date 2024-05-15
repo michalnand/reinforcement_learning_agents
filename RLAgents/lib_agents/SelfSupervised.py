@@ -99,7 +99,7 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
 
 
-
+'''
 def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
     xa_aug, mask_a = augmentations(xa) 
     xb_aug, mask_b = augmentations(xb)
@@ -160,7 +160,66 @@ def loss_vicreg_mask(model_forward_func, augmentations, xa, xb):
     
 
     return loss, info
+'''
 
+
+
+def loss_vicreg_augs(model_forward_func, model_forward_func_aug, augmentations, xa, xb):
+    xa_aug, aug_mask_a = augmentations(xa) 
+    xb_aug, aug_mask_b = augmentations(xb)
+
+    #obtain model output features
+    za = model_forward_func(xa_aug)
+    zb = model_forward_func(xb_aug)
+
+    # invariance loss
+    sim_loss = _loss_mse(za, zb)
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+
+
+    #augmentation prediction loss
+    aug_pred = model_forward_func_aug(za, zb)
+    aug_pred = torch.sigmoid(aug_pred)
+
+    #merge aug_mask into one
+    aug_target = torch.max(aug_mask_a, aug_mask_b)
+
+    #add mask flag where inputs are time-shifted (temporal augmentation)
+    diff = ((xa - xb)**2).mean(dim=(1, 2, 3))
+    aug_target[:, 0] = (diff > 10**-6).float()
+
+    loss_func = torch.nn.BCELoss()
+    loss_aug  = loss_func(aug_pred, aug_target.float())
+
+    #class accuracy
+    class_acc = ((aug_target > 0.5) == (aug_pred > 0.5))
+    class_acc = class_acc.mean(dim=0)
+    class_acc = class_acc.detach().cpu().numpy()
+   
+
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + loss_aug
+
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+
+    info = [z_mag, z_mag_std]
+
+    for i in range(class_acc.shape[0]):
+        info.append(round(class_acc[i].item(), 6))
+
+
+    return loss, info
 
 
 def loss_vicreg_proj(model_forward_func, augmentations, xa, xb):
