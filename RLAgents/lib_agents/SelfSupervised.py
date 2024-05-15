@@ -200,13 +200,8 @@ def loss_vicreg_augs(model_forward_func, model_forward_func_aug, augmentations, 
     loss_func = torch.nn.BCELoss()
     loss_aug  = loss_func(aug_pred, aug_target.float())
 
-    #class accuracy
-    class_acc = ((aug_target > 0.5) == (aug_pred > 0.5)).float()
-    class_acc = class_acc.mean(dim=0)
-    class_acc = class_acc.detach().cpu().numpy()
+   
     
-    print(loss_aug)
-
 
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + loss_aug
@@ -216,6 +211,12 @@ def loss_vicreg_augs(model_forward_func, model_forward_func_aug, augmentations, 
     z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
 
     info = [z_mag, z_mag_std]
+
+
+    #class accuracy for log
+    class_acc = ((aug_target > 0.5) == (aug_pred > 0.5)).float()
+    class_acc = class_acc.mean(dim=0)
+    class_acc = class_acc.detach().cpu().numpy()
 
     for i in range(class_acc.shape[0]):
         info.append(round(class_acc[i].item(), 6))
