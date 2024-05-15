@@ -196,16 +196,18 @@ def loss_vicreg_augs(model_forward_func, model_forward_func_aug, augmentations, 
     diff = ((xa - xb)**2).mean(dim=(1, 2, 3))
     aug_target[:, 0] = (diff > 10**-6).float()
 
+    print(">>>> ", aug_target.shape, aug_pred.shape)
+
     loss_func = torch.nn.BCELoss()
     loss_aug  = loss_func(aug_pred, aug_target.float())
 
     #class accuracy
-    class_acc = ((aug_target > 0.5) == (aug_pred > 0.5))
+    class_acc = ((aug_target > 0.5) == (aug_pred > 0.5)).float()
     class_acc = class_acc.mean(dim=0)
     class_acc = class_acc.detach().cpu().numpy()
    
 
-   
+
     # total vicreg loss
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + loss_aug
 
