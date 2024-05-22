@@ -39,9 +39,9 @@ class TrainingNew:
         score = numpy.zeros(self.envs_count)
 
         #obtain binary masking of legal actions, returns None if not provided in info
-        legal_actions_mask = self._get_legal_actions_mask(self.infos)
+        #legal_actions_mask =  self._get_legal_actions_mask(self.infos)
 
-        states_new, rewards, dones, infos = self.agent.step(self.states, True, legal_actions_mask)
+        states_new, rewards, dones, infos = self.agent.step(self.states, True, None)
 
         self.states = states_new.copy()
         self.infos  = infos.copy()

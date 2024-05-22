@@ -8,19 +8,13 @@ class AgentPPOContinuous():
     def __init__(self, envs, Model, config):
         self.envs = envs
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
         self.gamma              = config.gamma
         self.entropy_beta       = config.entropy_beta
-        self.mode               = config.mode
-
-        if self.mode == "kl_div":
-            self.kl_coeff           = 1.0
-            self.kl_cutoff          = config.eps_clip
-        elif self.mode == "clipped":
-            self.eps_clip           = config.eps_clip
-        else:
-            self.mode   = "clipped"
-            self.eps_clip           = config.eps_clip
-            print("uknow policy clipping mode, setting to clip")
+        self.eps_clip           = config.eps_clip
+        self.adv_coeff          = config.adv_coeff
+        self.val_coeff          = config.val_coeff
         
 
         self.steps              = config.steps
@@ -35,34 +29,45 @@ class AgentPPOContinuous():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
-        self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.model.device)
+        self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.device)
 
-        self.states = numpy.zeros((self.envs_count, ) + self.state_shape, dtype=numpy.float32)
-        for e in range(self.envs_count):
-            self.states[e] = self.envs.reset(e)
-
-        self.enable_training()
+      
         self.iterations = 0
 
         self.values_logger                  = ValuesLogger()
      
-        self.values_logger.add("loss_actor", 0.0)
-        self.values_logger.add("loss_critic", 0.0)
+        self.values_logger.add("loss_policy", 0.0)
+        self.values_logger.add("loss_value", 0.0)
+        self.values_logger.add("loss_entropy", 0.0)
+
+        print(self.model)
+
+        print("gamma                    = ", self.gamma)
+        print("entropy_beta             = ", self.entropy_beta)
+        print("learning_rate            = ", config.learning_rate)
+        print("adv_coeff                = ", self.adv_coeff)
+        print("val_coeff                = ", self.val_coeff)
+        print("batch_size               = ", self.batch_size)
+        print("\n\n")
      
 
     def get_log(self): 
         return self.values_logger.get_str()
 
-    def enable_training(self):
-        self.enabled_training = True
+    def round_start(self): 
+        pass
 
-    def disable_training(self):
-        self.enabled_training = False
+    def round_finish(self): 
+        pass
+        
+    def episode_done(self, env_idx):
+        pass
 
-    def main(self):        
-        states                = torch.tensor(self.states, dtype=torch.float).detach().to(self.model.device)
+    def step(self, states, training_enabled, legal_actions_mask):        
+    
+        states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
  
-        mu, var, values   = self.model.forward(states)
+        mu, var, values   = self.model.forward(states_t)
 
        
         mu_np   = mu.detach().to("cpu").numpy()
@@ -72,10 +77,10 @@ class AgentPPOContinuous():
         for e in range(self.envs_count):
             actions[e] = self._sample_action(mu_np[e], var_np[e])
 
-        states_new, rewards, dones, infos = self.envs.step(actions)
+        states_new, rewards, dones, _, infos = self.envs.step(actions)
         
-        if self.enabled_training: 
-            states      = states.detach().to("cpu")
+        if training_enabled: 
+            states      = states_t.detach().to("cpu")
             values      = values.squeeze(1).detach().to("cpu")
             mu          = mu.detach().to("cpu")
             var         = var.detach().to("cpu")
@@ -85,22 +90,19 @@ class AgentPPOContinuous():
             dones       = torch.from_numpy(dones).to("cpu")
              
             self.trajectory_buffer.add(states, values, actions, mu, var, rewards_, dones)
+
             if self.trajectory_buffer.is_full():
                 self.train()
 
-        self.states = states_new.copy()
-        for e in range(self.envs_count):
-            if dones[e]:
-                self.states[e] = self.envs.reset(e)
-         
         self.iterations+= 1
-        return rewards[0], dones[0], infos[0]
+        return states_new, rewards, dones, infos
     
     def save(self, save_path):
-        self.model.save(save_path + "trained/")
+        torch.save(self.model.state_dict(), save_path + "trained/model.pt")
 
-    def load(self, save_path):
-        self.model.load(save_path + "trained/")
+    def load(self, load_path):
+        self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
+
 
     def _sample_action(self, mu, var):
         sigma    = numpy.sqrt(var)
@@ -115,9 +117,9 @@ class AgentPPOContinuous():
         batch_count = self.steps//self.batch_size
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.model.device)
+                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
-                loss = self._compute_loss(states, actions, actions_mu, actions_var, returns, advantages)
+                loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages)
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -126,7 +128,7 @@ class AgentPPOContinuous():
 
         self.trajectory_buffer.clear()   
     
-    def _compute_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
+    def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
         mu_new, var_new, values_new = self.model.forward(states)        
 
         log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
@@ -150,34 +152,15 @@ class AgentPPOContinuous():
         with adaptive kl_coeff coefficient
         https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
         '''
-        if self.mode == "clipped":
-            advantages  = advantages.unsqueeze(1).detach()
+        advantages  = advantages.unsqueeze(1).detach()
 
-            ratio       = torch.exp(log_probs_new - log_probs_old)
-            p1          = ratio*advantages
-            p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
-            loss_policy = -torch.min(p1, p2)  
-            loss_policy = loss_policy.mean() 
+        ratio       = torch.exp(log_probs_new - log_probs_old)
+        p1          = ratio*advantages
+        p2          = torch.clamp(ratio, 1.0 - self.eps_clip, 1.0 + self.eps_clip)*advantages
+        loss_policy = -torch.min(p1, p2)  
+        loss_policy = loss_policy.mean() 
 
-            loss_kl     = 0.0
-        else:
-            advantages  = advantages.unsqueeze(1).detach()
-        
-            ratio       = torch.exp(log_probs_new - log_probs_old)
-            loss_policy = -ratio*advantages
-            loss_policy = loss_policy.mean()
-
-            kl_div      = torch.exp(log_probs_old)*(log_probs_old - log_probs_new) 
-            kl_div      = kl_div.mean()
-            loss_kl     = self.kl_coeff*kl_div
-
-            if kl_div > (self.kl_cutoff * 1.5):
-                self.kl_coeff *= 2.0
-            elif kl_div < (self.kl_cutoff / 1.5):
-                self.kl_coeff *= 0.5
-
-            self.kl_coeff = numpy.clip(self.kl_coeff, 0.000001, 1000.0)
-        
+      
 
         '''
         compute entropy loss, to avoid greedy strategy
@@ -186,10 +169,11 @@ class AgentPPOContinuous():
         loss_entropy = -(torch.log(2.0*numpy.pi*var_new) + 1.0)/2.0
         loss_entropy = self.entropy_beta*loss_entropy.mean()
  
-        loss = loss_value + loss_policy + loss_kl + loss_entropy 
+        loss = loss_value + loss_policy + loss_entropy 
 
-        self.values_logger.add("loss_actor",    loss_policy.detach().to("cpu").numpy())
-        self.values_logger.add("loss_critic",   loss_value.detach().to("cpu").numpy())
+        self.values_logger.add("loss_policy",    loss_policy.detach().to("cpu").numpy())
+        self.values_logger.add("loss_value",    loss_value.detach().to("cpu").numpy())
+        self.values_logger.add("loss_entropy",  loss_entropy.detach().to("cpu").numpy())
         
         return loss
 
