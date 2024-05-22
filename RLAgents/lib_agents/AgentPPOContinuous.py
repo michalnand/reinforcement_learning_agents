@@ -27,6 +27,8 @@ class AgentPPOContinuous():
         self.actions_count  = self.envs.action_space.shape[0]
 
         self.model          = Model.Model(self.state_shape, self.actions_count)
+        self.model.to(self.device)
+        
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.device)
