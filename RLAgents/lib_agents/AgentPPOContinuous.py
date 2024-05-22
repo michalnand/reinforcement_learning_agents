@@ -28,7 +28,7 @@ class AgentPPOContinuous():
 
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
-        
+
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.device)
@@ -147,14 +147,13 @@ class AgentPPOContinuous():
  
         '''
         clipped loss
-        '''
-        '''
         compute actor loss with KL divergence loss to prevent policy collapse
         see https://lilianweng.github.io/lil-log/2018/04/08/policy-gradient-algorithms.html#ppo
         with adaptive kl_coeff coefficient
         https://github.com/rrmenon10/PPO/blob/7d18619960913d39a5fb0143548abbaeb02f410e/pgrl/algos/ppo_adpkl.py#L136
         '''
         advantages  = advantages.unsqueeze(1).detach()
+        advantages  = (advantages - torch.mean(advantages))/(torch.std(advantages) + 1e-10)
 
         ratio       = torch.exp(log_probs_new - log_probs_old)
         p1          = ratio*advantages
