@@ -64,8 +64,8 @@ class TrajectoryBufferContinuous:
         self.advantages       = self.advantages.reshape((self.buffer_size*self.envs_count, ))
 
 
-    def sample_batch(self, batch_size, device):
-        indices     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size*self.envs_count, ))
+    def sample_batch(self, batch_size, device):     
+        indices     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
                         
         states      = torch.index_select(self.states, dim=0, index=indices).to(device)
         
