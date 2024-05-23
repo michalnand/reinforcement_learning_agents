@@ -123,7 +123,7 @@ class AgentPPOContinuous():
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
-        print(">>> ", self.steps, self.batch_size)
+        print(">>> ", self.steps, self.batch_size, batch_count)
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
