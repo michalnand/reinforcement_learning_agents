@@ -41,6 +41,7 @@ class AgentPPOContinuous():
         self.values_logger.add("loss_policy", 0.0)
         self.values_logger.add("loss_value", 0.0)
         self.values_logger.add("loss_entropy", 0.0)
+        self.values_logger.add("variance", 0.0)
 
         print(self.model)
 
@@ -172,9 +173,11 @@ class AgentPPOContinuous():
  
         loss = loss_value + loss_policy + loss_entropy 
 
-        self.values_logger.add("loss_policy",    loss_policy.detach().to("cpu").numpy())
+        self.values_logger.add("loss_policy",   loss_policy.detach().to("cpu").numpy())
         self.values_logger.add("loss_value",    loss_value.detach().to("cpu").numpy())
         self.values_logger.add("loss_entropy",  loss_entropy.detach().to("cpu").numpy())
+        self.values_logger.add("variance",      var_new.mean().detach().to("cpu").numpy())
+
         
         return loss
 
