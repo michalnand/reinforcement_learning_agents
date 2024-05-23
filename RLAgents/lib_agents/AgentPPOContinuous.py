@@ -116,6 +116,8 @@ class AgentPPOContinuous():
         return action
     
     def train(self): 
+        print(">>> training ", self.iterations)
+        
         self.trajectory_buffer.compute_returns(self.gamma)
 
         batch_count = self.steps//self.batch_size
