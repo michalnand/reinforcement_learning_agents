@@ -50,6 +50,7 @@ class AgentPPOContinuous():
         print("learning_rate            = ", config.learning_rate)
         print("adv_coeff                = ", self.adv_coeff)
         print("val_coeff                = ", self.val_coeff)
+        print("steps                    = ", self.steps)
         print("batch_size               = ", self.batch_size)
         print("\n\n")
      
