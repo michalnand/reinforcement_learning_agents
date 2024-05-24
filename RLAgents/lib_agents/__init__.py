@@ -40,6 +40,7 @@ from .AgentPPOSNDAdvA               import AgentPPOSNDAdvA
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
+from .AgentPPOFMContinuous          import AgentPPOFMContinuous
 
 
   

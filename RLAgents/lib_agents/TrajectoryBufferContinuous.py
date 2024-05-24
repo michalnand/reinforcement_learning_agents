@@ -84,6 +84,21 @@ class TrajectoryBufferContinuous:
        
         return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages 
 
+    def sample_trajectory(self, batch_size, length, device):
+
+        result_states = torch.zeros((length, batch_size) + self.state_shape, dtype=torch.float32, device=device)
+        result_actions = torch.zeros((length, batch_size, self.actions_size), dtype=torch.float32, device=device)
+
+        indices     = torch.randint(0, self.envs_count*(self.buffer_size - length), size=(batch_size, ))
+
+        for n in range(length):
+            indices_ = indices + n*self.envs_count
+            result_states[n]  = torch.index_select(self.states,  dim=0, index=indices_).to(device)
+            result_actions[n] = torch.index_select(self.actions, dim=0, index=indices_).to(device)
+
+        return result_states, result_actions
+
+
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]

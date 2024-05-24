@@ -4,7 +4,7 @@ import torch
 from .ValuesLogger              import *
 from .TrajectoryBufferContinuous    import *
 
-class AgentPPOContinuous():
+class AgentPPOFMContinuous():
     def __init__(self, envs, Model, config):
         self.envs = envs
 
@@ -18,7 +18,10 @@ class AgentPPOContinuous():
         
 
         self.steps              = config.steps
-        self.batch_size         = config.batch_size        
+        self.batch_size         = config.batch_size
+
+        self.prediction_rollout = config.prediction_rollout
+        self.training_rollout   = config.training_rollout
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
@@ -39,10 +42,13 @@ class AgentPPOContinuous():
 
         self.values_logger                  = ValuesLogger()
      
-        self.values_logger.add("loss_policy", 0.0)
-        self.values_logger.add("loss_value", 0.0)
-        self.values_logger.add("loss_entropy", 0.0)
-        self.values_logger.add("variance", 0.0)
+        self.values_logger.add("loss_policy",   0.0)
+        self.values_logger.add("loss_value",    0.0)
+        self.values_logger.add("loss_entropy",  0.0)
+        self.values_logger.add("variance",      0.0)
+        self.values_logger.add("fm_mse_start",  0.0)
+        self.values_logger.add("fm_mse_mean",   0.0)
+        self.values_logger.add("fm_mse_end",    0.0)
 
         print(self.model)
 
@@ -53,6 +59,8 @@ class AgentPPOContinuous():
         print("val_coeff                = ", self.val_coeff)
         print("steps                    = ", self.steps)
         print("batch_size               = ", self.batch_size)
+        print("prediction_rollout       = ", self.prediction_rollout)
+        print("training_rollout         = ", self.training_rollout)
         print("\n\n")
      
 
@@ -122,16 +130,24 @@ class AgentPPOContinuous():
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
+        # PPO agent training
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
+                # ppo model training
                 states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                ppo_loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages)
 
-                loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages)
+                # forward model training
+                states_seq, actions_seq = self.trajectory_buffer.sample_trajectory(self.batch_size//self.training_epochs, self.prediction_rollout + 1, self.device)
+                fm_loss = self._fm_loss(states_seq, actions_seq)
+
+                loss = ppo_loss + fm_loss
 
                 self.optimizer.zero_grad()        
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
+
 
         self.trajectory_buffer.clear()   
     
@@ -190,4 +206,30 @@ class AgentPPOContinuous():
         p2 = -torch.log(torch.sqrt(2.0*numpy.pi*var)) 
 
         return p1 + p2
+    
 
+    def _fm_loss(self, states_seq, actions_seq):
+        
+        seq_length = states_seq.shape[0] - 1
+
+        #set initial state only
+        states_pred = states_seq[0].detach().clone()
+
+        #rollout predictions in whole sequence
+        loss_seq = []
+        for n in range(seq_length):
+            states_pred = self.model.forward_fm(states_pred, actions_seq[n])
+
+            loss_step = ((states_seq[n+1] - states_pred)**2).mean()
+
+            loss_seq.append(loss_step)
+
+        loss_seq = torch.stack(loss_seq, dim=0)
+        loss = loss_seq.mean()
+
+        #log results, loss on begining, mean and end
+        self.values_logger.add("fm_mse_start",  loss_seq[0].detach().to("cpu").numpy())
+        self.values_logger.add("fm_mse_mean",   loss.detach().to("cpu").numpy())
+        self.values_logger.add("fm_mse_end",    loss_seq[-1].detach().to("cpu").numpy())
+
+        return loss
