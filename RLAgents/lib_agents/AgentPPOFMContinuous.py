@@ -300,12 +300,13 @@ class AgentPPOFMContinuous():
         loss_seq = torch.stack(loss_seq, dim=0)
         loss = loss_seq.mean()
 
-        fm_q = (2.0*loss_seq[0]/(loss_seq[0] + loss_seq[-1])).detach()
-
+        fm_q = (2.0*loss_seq[0]/(loss_seq[0] + loss_seq[-1]))**2
+        
+    
         #log results, loss on begining, mean and end
         self.values_logger.add("fm_mse_start",  loss_seq[0].detach().to("cpu").numpy())
         self.values_logger.add("fm_mse_mean",   loss.detach().to("cpu").numpy())
         self.values_logger.add("fm_mse_end",    loss_seq[-1].detach().to("cpu").numpy())
         self.values_logger.add("fm_q",          fm_q.detach().to("cpu").numpy())
 
-        return loss, fm_q
+        return loss, fm_q.detach()
