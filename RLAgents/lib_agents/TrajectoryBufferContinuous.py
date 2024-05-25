@@ -13,6 +13,9 @@ class TrajectoryBufferContinuous:
         self.clear() 
 
     def add(self, state, value, action, action_mu, action_var, reward, done):
+        if self.ptr >= self.buffer_size:
+            return False
+        
         self.states[self.ptr]        = state.clone()
         self.values[self.ptr]        = value.clone()
         self.actions[self.ptr]       = action.clone()
@@ -23,6 +26,8 @@ class TrajectoryBufferContinuous:
         self.dones[self.ptr]         = (1.0*done).clone()
         
         self.ptr = self.ptr + 1 
+
+        return True
         
 
     def is_full(self):
