@@ -50,6 +50,7 @@ class AgentPPOFMContinuous():
         self.values_logger.add("fm_mse_start",  0.0)
         self.values_logger.add("fm_mse_mean",   0.0)
         self.values_logger.add("fm_mse_end",    0.0)
+        self.values_logger.add("fm_q",          0.0)
         self.values_logger.add("loss_policy_im",0.0)
         
 
@@ -181,9 +182,9 @@ class AgentPPOFMContinuous():
                                         
                 # forward model training
                 states_seq, actions_seq = self.trajectory_buffer.sample_trajectory(self.batch_size//self.training_epochs, self.prediction_rollout + 1, self.device)
-                fm_loss = self._fm_loss(states_seq, actions_seq)
+                fm_loss, fm_q = self._fm_loss(states_seq, actions_seq)
 
-                loss = ppo_loss + im_loss + fm_loss
+                loss = ppo_loss + im_loss + fm_q*fm_loss
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -299,9 +300,12 @@ class AgentPPOFMContinuous():
         loss_seq = torch.stack(loss_seq, dim=0)
         loss = loss_seq.mean()
 
+        fm_q = (2.0*loss_seq[0]/(loss_seq[0] + loss_seq[-1])).detach()
+
         #log results, loss on begining, mean and end
         self.values_logger.add("fm_mse_start",  loss_seq[0].detach().to("cpu").numpy())
         self.values_logger.add("fm_mse_mean",   loss.detach().to("cpu").numpy())
         self.values_logger.add("fm_mse_end",    loss_seq[-1].detach().to("cpu").numpy())
+        self.values_logger.add("fm_q",          fm_q.detach().to("cpu").numpy())
 
-        return loss
+        return loss, fm_q
