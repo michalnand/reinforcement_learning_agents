@@ -296,7 +296,7 @@ class AgentPPOFMContinuous():
         for n in range(seq_length):
             states_pred, reward_pred = self.model.forward_fm(states_pred, actions_seq[n])
 
-            print(">>> ", reward_seq.shape, reward_pred.shape)
+            print(">>> ", reward_seq[n].shape, reward_pred.shape)
 
             loss_step = ((states_seq[n+1] - states_pred)**2).mean()
             loss_step+= ((reward_seq[n] - reward_pred[:, 0])**2).mean()
