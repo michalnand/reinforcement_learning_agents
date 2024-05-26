@@ -181,8 +181,8 @@ class AgentPPOFMContinuous():
 
                 # im ppo policy loss
                 states, _, actions, actions_mu, actions_var, _, _, returns, advantages = self.trajectory_buffer_im.sample_batch(self.batch_size, self.device)
-                im_loss = self._im_loss(states, actions, actions_mu, actions_var, returns, advantages)
-                                        
+                im_loss = self._im_loss(states, actions, actions_mu, actions_var, advantages)
+
                 # forward model training
                 states_seq, actions_seq, rewards_seq = self.trajectory_buffer.sample_trajectory(self.batch_size//self.training_epochs, self.prediction_rollout + 1, self.device)
                 fm_loss, fm_q = self._fm_loss(states_seq, actions_seq, rewards_seq)
