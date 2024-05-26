@@ -178,13 +178,13 @@ class AgentPPOFMContinuous():
 
                 # im ppo policy loss
                 states, _, actions, actions_mu, actions_var, _, _, returns, advantages = self.trajectory_buffer_im.sample_batch(self.batch_size, self.device)
-                im_loss = self._im_loss(states, actions, actions_mu, actions_var, advantages)
+                im_loss = self._im_loss(states, actions, actions_mu, actions_var, returns, advantages)
                                         
                 # forward model training
-                states_seq, actions_seq = self.trajectory_buffer.sample_trajectory(self.batch_size//self.training_epochs, self.prediction_rollout + 1, self.device)
-                fm_loss, fm_q = self._fm_loss(states_seq, actions_seq)
+                states_seq, actions_seq, rewards_seq = self.trajectory_buffer.sample_trajectory(self.batch_size//self.training_epochs, self.prediction_rollout + 1, self.device)
+                fm_loss, fm_q = self._fm_loss(states_seq, actions_seq, rewards_seq)
 
-                loss = ppo_loss + im_loss + fm_q*fm_loss
+                loss = ppo_loss + fm_q*im_loss + fm_loss
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -281,7 +281,7 @@ class AgentPPOFMContinuous():
         return p1 + p2
     
 
-    def _fm_loss(self, states_seq, actions_seq):
+    def _fm_loss(self, states_seq, actions_seq, reward_seq):
         
         seq_length = states_seq.shape[0] - 1
 
@@ -291,9 +291,10 @@ class AgentPPOFMContinuous():
         #rollout predictions in whole sequence
         loss_seq = []
         for n in range(seq_length):
-            states_pred = self.model.forward_fm(states_pred, actions_seq[n])
+            states_pred, reward_pred = self.model.forward_fm(states_pred, actions_seq[n])
 
             loss_step = ((states_seq[n+1] - states_pred)**2).mean()
+            loss_step+= ((reward_seq[n] - reward_pred)**2).mean()
 
             loss_seq.append(loss_step)
 
