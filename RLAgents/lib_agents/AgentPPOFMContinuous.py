@@ -122,22 +122,25 @@ class AgentPPOFMContinuous():
                     mu_np   = mu.detach().to("cpu").numpy()
                     var_np  = var.detach().to("cpu").numpy()
                     actions = self._sample_action(mu_np, var_np)
+                    actions = torch.from_numpy(actions).to("cpu").float()
+
+                    #next states prediction with forward model
+                    states_next_t, rewards_t = self.model.forward_fm(states_t, actions.to(self.device))
 
                     states  = states_t.detach().to("cpu")
                     values  = values.squeeze(1).detach().to("cpu")
                     mu      = mu.detach().to("cpu")
                     var     = var.detach().to("cpu")
 
-                    actions     = torch.from_numpy(actions).to("cpu").float()
-                    rewards_    = torch.zeros((self.envs_count, ), device="cpu")
+                    rewards_    = rewards_t.squeeze(1).detach().to("cpu")
                     dones       = torch.zeros((self.envs_count, ), device="cpu")
 
                     #add into inner loop buffer
                     self.trajectory_buffer_im.add(states, values, actions, mu, var, rewards_, dones)
 
-                    #next states prediction with forward model
-                    states_t = self.model.forward_fm(states_t, actions.to(self.device))
+                    states_t = states_next_t.detach()
 
+                    
 
             if self.trajectory_buffer.is_full():
                 self.train()
@@ -292,6 +295,8 @@ class AgentPPOFMContinuous():
         loss_seq = []
         for n in range(seq_length):
             states_pred, reward_pred = self.model.forward_fm(states_pred, actions_seq[n])
+
+            print(">>> ", reward_seq.shape, reward_pred.shape)
 
             loss_step = ((states_seq[n+1] - states_pred)**2).mean()
             loss_step+= ((reward_seq[n] - reward_pred)**2).mean()
