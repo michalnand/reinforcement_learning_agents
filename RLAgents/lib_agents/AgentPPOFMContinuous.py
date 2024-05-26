@@ -299,7 +299,7 @@ class AgentPPOFMContinuous():
             print(">>> ", reward_seq.shape, reward_pred.shape)
 
             loss_step = ((states_seq[n+1] - states_pred)**2).mean()
-            loss_step+= ((reward_seq[n] - reward_pred)**2).mean()
+            loss_step+= ((reward_seq[n] - reward_pred[:, 0])**2).mean()
 
             loss_seq.append(loss_step)
 
