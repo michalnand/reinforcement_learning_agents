@@ -10,9 +10,11 @@ class TrajectoryBufferContinuous:
         self.envs_count     = envs_count
         self.device         = device
 
+        self.hidden_state = None
+
         self.clear() 
 
-    def add(self, state, value, action, action_mu, action_var, reward, done):
+    def add(self, state, value, action, action_mu, action_var, reward, done, hidden_state = None):
         if self.ptr >= self.buffer_size:
             return False
         
@@ -24,6 +26,14 @@ class TrajectoryBufferContinuous:
         self.rewards[self.ptr]       = reward.clone()
 
         self.dones[self.ptr]         = (1.0*done).clone()
+
+        # hidden state for rnn policy
+        if hidden_state is not None:
+            if self.hidden_state is None:
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+            
+            self.hidden_state[self.ptr] = hidden_state.clone()
+        
         
         self.ptr = self.ptr + 1 
 
@@ -47,7 +57,7 @@ class TrajectoryBufferContinuous:
         self.rewards          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
         self.dones            = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
        
-      
+        self.hidden_state = None
         self.ptr = 0 
 
 
@@ -68,26 +78,33 @@ class TrajectoryBufferContinuous:
         self.returns          = self.returns.reshape((self.buffer_size*self.envs_count, ))
         self.advantages       = self.advantages.reshape((self.buffer_size*self.envs_count, ))
 
+        if self.hidden_state is not None:
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
+
 
     def sample_batch(self, batch_size, device):     
         indices     = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
                         
-        states      = torch.index_select(self.states, dim=0, index=indices).to(device)
+        states      =  self.states[indices].to(device) 
         
-        values      = torch.index_select(self.values, dim=0, index=indices).to(device)
+        values      =  self.values[indices].to(device)
         
-        actions      = torch.index_select(self.actions, dim=0, index=indices).to(device)
-        actions_mu   = torch.index_select(self.actions_mu, dim=0, index=indices).to(device)
-        actions_var  = torch.index_select(self.actions_var, dim=0, index=indices).to(device)
+        actions      =  self.actions[indices].to(device)
+        actions_mu   =  self.actions_mu[indices].to(device)
+        actions_var  =  self.actions_var[indices].to(device)
 
-        rewards     = torch.index_select(self.rewards, dim=0, index=indices).to(device)
-        dones       = torch.index_select(self.dones, dim=0, index=indices).to(device)
+        rewards     =  self.rewards[indices].to(device)
+        dones       =  self.dones[indices].to(device)
 
-        returns     = torch.index_select(self.returns, dim=0, index=indices).to(device)
-        advantages  = torch.index_select(self.advantages, dim=0, index=indices).to(device)
+        returns     =  self.returns[indices].to(device)
+        advantages  =  self.advantages[indices].to(device)
+
+        if self.hidden_state is not None:
+            hidden_state  = self.hidden_state[indices].to(device)
+        else:
+            hidden_state  = None
  
-       
-        return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages 
+        return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_state
 
     def sample_trajectory(self, batch_size, length, device):
 

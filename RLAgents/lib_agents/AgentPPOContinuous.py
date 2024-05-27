@@ -22,6 +22,7 @@ class AgentPPOContinuous():
         
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
+        self.rnn_policy         = config.rnn_policy
 
 
         self.state_shape    = self.envs.observation_space.shape
@@ -30,11 +31,18 @@ class AgentPPOContinuous():
         self.model          = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
 
+
+        
+
         self.optimizer      = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
  
         self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.device)
 
-      
+        if self.rnn_policy:
+            self.hidden_state = torch.zeros((self.envs_count, self.model.n_hidden_state), dtype=torch.float32, device=self.device)
+        else:
+            self.hidden_state = None
+
         self.iterations = 0
 
         self.values_logger                  = ValuesLogger()
@@ -53,6 +61,7 @@ class AgentPPOContinuous():
         print("val_coeff                = ", self.val_coeff)
         print("steps                    = ", self.steps)
         print("batch_size               = ", self.batch_size)
+        print("rnn_policy               = ", self.rnn_policy)
         print("\n\n")
      
 
@@ -72,9 +81,12 @@ class AgentPPOContinuous():
     
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
  
-        mu, var, values   = self.model.forward(states_t)
+        if self.rnn_policy: 
+            mu, var, values, hidden_state_new = self.model.forward(states_t, self.hidden_state)
+        else:
+            mu, var, values = self.model.forward(states_t)
 
-       
+
         mu_np   = mu.detach().to("cpu").numpy()
         var_np  = var.detach().to("cpu").numpy()
 
@@ -93,11 +105,26 @@ class AgentPPOContinuous():
             actions     = torch.from_numpy(actions).to("cpu")
             rewards_    = torch.from_numpy(rewards).to("cpu")
             dones       = torch.from_numpy(dones).to("cpu")
+
+            if self.rnn_policy:
+                hidden_state = self.hidden_state.detach().to("cpu")
+            else:
+                hidden_state = None
              
-            self.trajectory_buffer.add(states, values, actions, mu, var, rewards_, dones)
+            self.trajectory_buffer.add(states, values, actions, mu, var, rewards_, dones, hidden_state)
 
             if self.trajectory_buffer.is_full():
                 self.train()
+
+        #udpate rnn hiddens state
+        if self.rnn_policy:
+            self.hidden_state = hidden_state_new.detach().clone()
+
+            #clear rnn hidden state if done
+            dones_idx = numpy.where(dones)
+            for e in dones_idx:
+                self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
+        
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
@@ -124,9 +151,9 @@ class AgentPPOContinuous():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_state = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
-                loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages)
+                loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages, hidden_state)
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -135,8 +162,12 @@ class AgentPPOContinuous():
 
         self.trajectory_buffer.clear()   
     
-    def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages):
-        mu_new, var_new, values_new = self.model.forward(states)        
+    def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages, hidden_state):
+
+        if self.rnn_policy:
+            mu_new, var_new, values_new, _ = self.model.forward(states, hidden_state)        
+        else:
+            mu_new, var_new, values_new = self.model.forward(states)        
 
         log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
         log_probs_new = self._log_prob(actions, mu_new, var_new)
