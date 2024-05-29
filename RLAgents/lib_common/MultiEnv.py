@@ -10,15 +10,14 @@ class MultiEnvSeq:
 
 		for i in range(envs_count):
 
-			try:
+			if isinstance(env_name, str):
 				if render:
 					env = gym.make(env_name, render_mode = "human")
 				else:
 					env = gym.make(env_name)
-				if wrapper is not None:
-					env 	= wrapper(env)
-			except:
-				env = wrapper(env_name)
+			else:
+				env = env_name(render)
+
 
 			self.envs.append(env)
 
