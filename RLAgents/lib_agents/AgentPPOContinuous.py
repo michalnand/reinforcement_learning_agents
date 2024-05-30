@@ -27,7 +27,7 @@ class AgentPPOContinuous():
 
 
         self.state_shape    = self.envs.observation_space.shape
-        self.actions_count  = self.envs.action_space.shape[0]
+        self.actions_count  = self.envs.action_space.shape[0] 
 
         self.model          = Model.Model(self.state_shape, self.actions_count, self.var_coeff)
         self.model.to(self.device)
