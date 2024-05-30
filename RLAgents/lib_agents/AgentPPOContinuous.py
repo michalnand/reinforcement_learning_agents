@@ -15,6 +15,7 @@ class AgentPPOContinuous():
         self.eps_clip           = config.eps_clip
         self.adv_coeff          = config.adv_coeff
         self.val_coeff          = config.val_coeff
+        self.var_coeff          = config.var_coeff
         
 
         self.steps              = config.steps
@@ -88,11 +89,15 @@ class AgentPPOContinuous():
 
 
         mu_np   = mu.detach().to("cpu").numpy()
-        var_np  = var.detach().to("cpu").numpy()
+        var_np  = self.var_coeff*var.detach().to("cpu").numpy()
 
+        '''
         actions = numpy.zeros((self.envs_count, self.actions_count))
         for e in range(self.envs_count):
-            actions[e] = self._sample_action(mu_np[e], var_np[e])
+            actions[e] = self._sample_action(mu_np[e], self.var_coeff*var_np[e])
+        '''
+
+        actions = self._sample_action(mu_np, var_np)
 
         states_new, rewards, dones, _, infos = self.envs.step(actions)
         
@@ -138,7 +143,6 @@ class AgentPPOContinuous():
 
     def _sample_action(self, mu, var):
         sigma    = numpy.sqrt(var)
-
         action   = numpy.random.normal(mu, sigma)
         action   = numpy.clip(action, -1, 1)
         return action
