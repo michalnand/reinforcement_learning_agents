@@ -29,7 +29,7 @@ class AgentPPOContinuous():
         self.state_shape    = self.envs.observation_space.shape
         self.actions_count  = self.envs.action_space.shape[0]
 
-        self.model          = Model.Model(self.state_shape, self.actions_count)
+        self.model          = Model.Model(self.state_shape, self.actions_count, self.var_coeff)
         self.model.to(self.device)
 
 
@@ -90,15 +90,15 @@ class AgentPPOContinuous():
 
 
         mu_np   = mu.detach().to("cpu").numpy()
-        var_np  = self.var_coeff*var.detach().to("cpu").numpy()
+        var_np  = var.detach().to("cpu").numpy()
 
-        '''
+        
         actions = numpy.zeros((self.envs_count, self.actions_count))
         for e in range(self.envs_count):
-            actions[e] = self._sample_action(mu_np[e], self.var_coeff*var_np[e])
-        '''
+            actions[e] = self._sample_action(mu_np[e], var_np[e])
+        
 
-        actions = self._sample_action(mu_np, var_np)
+        #actions = self._sample_action(mu_np, var_np)
 
         states_new, rewards, dones, _, infos = self.envs.step(actions)
         
