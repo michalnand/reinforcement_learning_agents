@@ -105,9 +105,9 @@ def loss_vicreg_contrastive(model_forward_func, augmentations, xa, xb):
     zb = model_forward_func(xb_aug)
 
     # distance loss
-    target_distances = 1.0 - torch.eye(xa.shape[0])
-    distances        = torch.cdist(xa, xb)/xa.shape[1]  
-    print(">>> ", xa.shape, xb.shape, target_distances.shape, distances.shape, "\n\n")
+    target_distances = 1.0 - torch.eye(za.shape[0])
+    distances        = torch.cdist(za, zb)/za.shape[1]   
+    print(">>> ", za.shape, zb.shape, target_distances.shape, distances.shape, "\n\n")
     distance_loss    = ((target_distances - distances)**2).mean()
 
     # variance loss
