@@ -140,7 +140,7 @@ class AgentPPOSNDAdvA():
     def episode_done(self, env_idx):
         pass
 
-    def step(self, states, training_enabled):        
+    def step(self, states, training_enabled, legal_actions_mask):        
         #normalise state
         states_norm = self._state_normalise(states, training_enabled)
         
@@ -154,7 +154,7 @@ class AgentPPOSNDAdvA():
             logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
 
         #collect actions 
-        actions = self._sample_actions(logits_t)
+        actions = self._sample_actions(logits_t, legal_actions_mask)
         
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
@@ -221,12 +221,17 @@ class AgentPPOSNDAdvA():
     def get_log(self): 
         return self.values_logger.get_str() + str(self.info_logger)
 
-    def _sample_actions(self, logits, legal_actions_mask = 1):
+    def _sample_actions(self, logits, legal_actions_mask = None):
+
+        if legal_actions_mask is not None:
+            legal_actions_mask_t = torch.from_numpy(legal_actions_mask, dtype=torch.float32, device=self.device)
+        else:
+            legal_actions_mask_t = 1
 
         action_probs_t        = torch.nn.functional.softmax(logits, dim = 1)
 
         #keep only legal actions probs, and renormalise probs
-        action_probs_t        = action_probs_t*legal_actions_mask
+        action_probs_t        = action_probs_t*legal_actions_mask_t
         action_probs_t        = action_probs_t/action_probs_t.sum(dim=-1).unsqueeze(1)
 
         action_distribution_t = torch.distributions.Categorical(action_probs_t)
