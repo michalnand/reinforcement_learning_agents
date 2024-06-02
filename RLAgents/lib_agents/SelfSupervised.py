@@ -97,6 +97,38 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
     return loss, info
 
 
+def loss_vicreg_contrastive(model_forward_func, augmentations, xa, xb):
+    xa_aug, _ = augmentations(xa) 
+    xb_aug, _ = augmentations(xb)
+
+    za = model_forward_func(xa_aug)
+    zb = model_forward_func(xb_aug)
+
+    # distance loss
+    target_distances = 1.0 - torch.eye(xa.shape[0])
+    distances        = torch.cdist(xa, xb)/xa.shape[1]
+    distance_loss    = ((target_distances - distances)**2).mean()
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*distance_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std]
+
+    return loss, info
+
+
 
 
 '''
