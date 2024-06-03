@@ -75,7 +75,7 @@ class AgentPPO():
         self.dones_t   = torch.zeros((self.envs_count, ) , dtype=torch.float32)
 
         if self.rnn_policy:
-            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
+            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32, device=self.device)
         
     
         self.iterations = 0   
@@ -123,8 +123,6 @@ class AgentPPO():
                 hidden_state  = self.hidden_state.detach().to("cpu")
             else:
                 hidden_state  = None
-
-            print("ADDD = ", (hidden_state**2).mean())
 
             self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state)
 
@@ -185,9 +183,10 @@ class AgentPPO():
             for batch_idx in range(batch_count):
 
                 if self.rnn_policy:
-                    states, logits, actions, returns, advantages, hidden_state = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)
+                    states, logits, actions, returns, advantages, hidden_states = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)
                     
-                    loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
+                    print(">>>> ", (hidden_states**2).mean())
+                    loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_states)
                 else:
                     states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
                     loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages)

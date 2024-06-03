@@ -110,8 +110,6 @@ class TrajectoryBuffer:
 
             indices+= self.envs_count 
 
-        print(">>>> ", (self.hidden_state**2).mean(), (hidden_states**2).mean())
-
         return states, logits, actions, returns, advantages, hidden_states
     
 
