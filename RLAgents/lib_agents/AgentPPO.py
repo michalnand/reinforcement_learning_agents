@@ -187,6 +187,8 @@ class AgentPPO():
                 if self.rnn_policy:
                     states, logits, actions, returns, advantages, hidden_state = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)
                     loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_state)
+
+                    print(">>>> ", (hidden_state**2).mean())
                 else:
                     states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
                     loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages)
