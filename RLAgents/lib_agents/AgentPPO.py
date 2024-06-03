@@ -139,7 +139,8 @@ class AgentPPO():
             for e in dones_idx:
                 self.hidden_state[e] = 0.0
         
-            self.info_logger["rnn_magnitude"] = round((self.hidden_state**2).mean().detach().cpu().numpy().item(), 5)
+            self.info_logger["hidden_mean"] = round((self.hidden_state**2).mean().detach().cpu().numpy().item(), 5)
+            self.info_logger["hidden_std"] = round((self.hidden_state).std().detach().cpu().numpy().item(), 5)
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
