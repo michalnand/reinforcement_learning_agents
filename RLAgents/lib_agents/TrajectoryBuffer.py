@@ -24,8 +24,8 @@ class TrajectoryBuffer:
         if hidden_state is not None:
             
             if self.hidden_state is None:
-                self.hidden_shape   = hidden_state.shape[1:]
-                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape), dtype=torch.float32)
+                self.hidden_shape   = hidden_state.shape[1:]    
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape, dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
         
