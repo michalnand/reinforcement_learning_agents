@@ -88,7 +88,7 @@ class TrajectoryBuffer:
         return states, logits, actions, returns, advantages
     
 
-     def sample_batch_seq(self, seq_length, batch_size, device):
+    def sample_batch_seq(self, seq_length, batch_size, device):
         indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
         
         states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
