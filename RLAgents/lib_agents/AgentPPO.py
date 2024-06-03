@@ -75,11 +75,9 @@ class AgentPPO():
         self.dones_t   = torch.zeros((self.envs_count, ) , dtype=torch.float32)
 
         if self.rnn_policy:
-            self.hidden_state_t = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
-        else:
-            self.hidden_state_t = torch.zeros((self.envs_count,128) , dtype=torch.float32)
-
-      
+            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32)
+        
+    
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
@@ -122,13 +120,13 @@ class AgentPPO():
             dones           = torch.from_numpy(dones).to("cpu")
 
             if self.rnn_policy:
-                hidden_state_t  = self.hidden_state_t.detach().to("cpu")
+                hidden_state  = self.hidden_state.detach().to("cpu")
             else:
-                hidden_state_t  = None
+                hidden_state  = None
 
-            print("ADDD = ", (hidden_state_t**2).mean())
+            print("ADDD = ", (hidden_state**2).mean())
 
-            self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state_t)
+            self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state)
 
             if self.trajctory_buffer.is_full():
                 self.train()
