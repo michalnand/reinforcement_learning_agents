@@ -74,6 +74,8 @@ class TrajectoryBuffer:
         if self.hidden_state is not None:
             self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
 
+        
+
     def sample_batch(self, batch_size, device):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
@@ -108,7 +110,7 @@ class TrajectoryBuffer:
 
             indices+= self.envs_count 
 
-        print(">>>> ", (states**2).mean(), (hidden_states**2).mean())
+        print(">>>> ", (self.hidden_state**2).mean(), (hidden_states**2).mean())
 
         return states, logits, actions, returns, advantages, hidden_states
     
