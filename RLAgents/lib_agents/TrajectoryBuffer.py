@@ -110,6 +110,10 @@ class TrajectoryBuffer:
 
             indices+= self.envs_count 
 
+            print("sampling : ", n, indices[0]//self.envs_count)
+        
+        print("\n\n")
+
         return states, logits, actions, returns, advantages, hidden_states
     
 
