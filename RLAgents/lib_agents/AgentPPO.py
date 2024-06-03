@@ -126,6 +126,8 @@ class AgentPPO():
             else:
                 hidden_state_t  = None
 
+            print("ADDD = ", (hidden_state_t**2).mean())
+
             self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state_t)
 
             if self.trajctory_buffer.is_full():
