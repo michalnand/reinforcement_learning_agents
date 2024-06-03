@@ -24,7 +24,8 @@ class TrajectoryBuffer:
         if hidden_state is not None:
             
             if self.hidden_state is None:
-                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+                self.hidden_shape   = hidden_state.shape[1:]
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape), dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
         
@@ -76,21 +77,40 @@ class TrajectoryBuffer:
     def sample_batch(self, batch_size, device):
         indices         = torch.randint(0, self.envs_count*self.buffer_size, size=(batch_size, ))
 
-        states          = torch.index_select(self.states, dim=0, index=indices).to(device)
-        logits          = torch.index_select(self.logits, dim=0, index=indices).to(device)
+        states          = self.states[indices].to(device)
+        logits          = self.logits[indices].to(device)
         
-        actions         = torch.index_select(self.actions, dim=0, index=indices).to(device)
+        actions         = self.actions[indices].to(device)
         
-        returns         = torch.index_select(self.returns, dim=0, index=indices).to(device)
-        advantages      = torch.index_select(self.advantages, dim=0, index=indices).to(device)
-
-        if self.hidden_state is not None:
-            hidden_state  = (self.hidden_state[indices]).to(device)
-        else:
-            hidden_state  = None
+        returns         = self.returns[indices].to(device)
+        advantages      = self.advantages[indices].to(device)
        
-        return states, logits, actions, returns, advantages, hidden_state
+        return states, logits, actions, returns, advantages
     
+
+     def sample_batch_seq(self, seq_length, batch_size, device):
+        indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
+        
+        states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        hidden_states  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
+
+        for n in range(seq_length):
+            states[n]        = self.states[indices].to(device)
+            hidden_states[n] = self.hidden_state[indices].to(device)
+
+            if n == (seq_length-1): 
+                logits     = self.logits[indices].to(device)
+                
+                actions    = self.actions[indices].to(device)
+                
+                returns    = self.returns[indices].to(device)
+                advantages = self.advantages[indices].to(device)
+
+            indices+= self.envs_count 
+
+        return states, logits, actions, returns, advantages, hidden_states
+    
+
     def sample_states_pairs(self, batch_size, max_distance, device):
         count           = self.buffer_size*self.envs_count
         max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
