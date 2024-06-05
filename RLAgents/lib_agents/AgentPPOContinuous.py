@@ -40,9 +40,11 @@ class AgentPPOContinuous():
         self.trajectory_buffer  = TrajectoryBufferContinuous(self.steps, self.state_shape, self.actions_count, self.envs_count, self.device)
 
         if self.rnn_policy:
-            self.hidden_state = torch.zeros((self.envs_count, self.model.n_hidden_state), dtype=torch.float32, device=self.device)
+            self.hidden_state   = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
+            self.rnn_seq_length = config.rnn_seq_length
         else:
             self.hidden_state = None
+            self.rnn_seq_length = -1
 
         self.iterations = 0
 
@@ -64,11 +66,14 @@ class AgentPPOContinuous():
         print("steps                    = ", self.steps)
         print("batch_size               = ", self.batch_size)
         print("rnn_policy               = ", self.rnn_policy)
+        print("rnn_seq_length           = ", self.rnn_seq_length)
         print("\n\n")
      
+        self.info_logger = {}
+
 
     def get_log(self): 
-        return self.values_logger.get_str()
+        return self.values_logger.get_str() + str(self.info_logger)
 
     def round_start(self): 
         pass
@@ -80,7 +85,6 @@ class AgentPPOContinuous():
         pass
 
     def step(self, states, training_enabled, legal_actions_mask):        
-    
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
  
         if self.rnn_policy: 
@@ -122,7 +126,7 @@ class AgentPPOContinuous():
             if self.trajectory_buffer.is_full():
                 self.train()
 
-        #udpate rnn hiddens state
+        #udpate rnn hidden state
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 
@@ -130,7 +134,10 @@ class AgentPPOContinuous():
             dones_idx = numpy.where(dones)
             for e in dones_idx:
                 self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-        
+
+            self.info_logger["hidden_mean"] = round((self.hidden_state**2).mean().detach().cpu().numpy().item(), 5)
+            self.info_logger["hidden_std"] = round((self.hidden_state).std().detach().cpu().numpy().item(), 5)
+
 
         self.iterations+= 1
         return states_new, rewards, dones, infos
@@ -156,9 +163,13 @@ class AgentPPOContinuous():
 
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
-                states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_state = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
 
-                loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages, hidden_state)
+                if self.rnn_policy:
+                    states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_states = self.trajectory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)
+                    loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages, hidden_states)
+                else:
+                    states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    loss = self._ppo_loss(states, actions, actions_mu, actions_var, returns, advantages)
 
                 self.optimizer.zero_grad()        
                 loss.backward()
@@ -168,11 +179,12 @@ class AgentPPOContinuous():
         self.trajectory_buffer.clear()   
     
     def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages, hidden_state):
-
-        if self.rnn_policy:
-            mu_new, var_new, values_new, _ = self.model.forward(states, hidden_state)        
-        else:
+        
+        if hidden_state is None:
             mu_new, var_new, values_new = self.model.forward(states)        
+        else:
+            mu_new, var_new, values_new, _ = self.model.forward(states, hidden_state, True)        
+            
 
         log_probs_old = self._log_prob(actions, actions_mu, actions_var).detach()
         log_probs_new = self._log_prob(actions, mu_new, var_new)

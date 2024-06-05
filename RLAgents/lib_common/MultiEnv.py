@@ -18,6 +18,9 @@ class MultiEnvSeq:
 			else:
 				env = env_name(render)
 
+			if wrapper is not None:
+				env = wrapper(env)
+
 
 			self.envs.append(env)
 

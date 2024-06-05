@@ -30,7 +30,8 @@ class TrajectoryBufferContinuous:
         # hidden state for rnn policy
         if hidden_state is not None:
             if self.hidden_state is None:
-                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, hidden_state.shape[1]), dtype=torch.float32)
+                self.hidden_shape   = hidden_state.shape[1:]
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape, dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
         
@@ -79,7 +80,7 @@ class TrajectoryBufferContinuous:
         self.advantages       = self.advantages.reshape((self.buffer_size*self.envs_count, ))
 
         if self.hidden_state is not None:
-            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_shape)
 
 
     def sample_batch(self, batch_size, device):     
@@ -98,13 +99,37 @@ class TrajectoryBufferContinuous:
 
         returns     =  self.returns[indices].to(device)
         advantages  =  self.advantages[indices].to(device)
-
-        if self.hidden_state is not None:
-            hidden_state  = self.hidden_state[indices].to(device)
-        else:
-            hidden_state  = None
  
-        return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_state
+        return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages
+
+    def sample_batch_seq(self, seq_length, batch_size, device):     
+        indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
+
+        states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        hidden_states  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
+
+        for n in range(seq_length):
+            states[n]        = self.states[indices].to(device)
+            hidden_states[n] = self.hidden_state[indices].to(device)
+
+            if n == (seq_length-1): 
+                values      =  self.values[indices].to(device)  
+                
+                actions      =  self.actions[indices].to(device)
+                actions_mu   =  self.actions_mu[indices].to(device)
+                actions_var  =  self.actions_var[indices].to(device)
+
+                rewards     =  self.rewards[indices].to(device)
+                dones       =  self.dones[indices].to(device)
+
+                returns     =  self.returns[indices].to(device)
+                advantages  =  self.advantages[indices].to(device)
+
+            indices+= self.envs_count   
+
+        return states, values, actions, actions_mu, actions_var, rewards, dones, returns, advantages, hidden_states
+
+
 
     def sample_trajectory(self, batch_size, length, device):
 
