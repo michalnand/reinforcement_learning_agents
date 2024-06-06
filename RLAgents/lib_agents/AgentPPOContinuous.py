@@ -177,7 +177,7 @@ class AgentPPOContinuous():
 
         self.trajectory_buffer.clear()   
     
-    def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages, hidden_state):
+    def _ppo_loss(self, states, actions, actions_mu, actions_var, returns, advantages, hidden_state = None):
         
         if hidden_state is None:
             mu_new, var_new, values_new = self.model.forward(states)        
