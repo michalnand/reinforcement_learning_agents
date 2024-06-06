@@ -262,12 +262,12 @@ class AgentPPOSNDAdvA():
             for batch_idx in range(batch_count):
                 #PPO RL loss
                 if self.rnn_policy:
-                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)                    
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states = self.trajectory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)                    
                     loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states)
                 else:
-                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                     loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
-                
+
 
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
