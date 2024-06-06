@@ -148,9 +148,8 @@ class AgentPPOContinuous():
     def load(self, load_path):
         self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
 
-
     def _sample_action(self, mu, var):
-        sigma    = numpy.sqrt(var)
+        sigma    = numpy.sqrt(var) + 10**-4
         action   = numpy.random.normal(mu, sigma)
         action   = numpy.clip(action, -1, 1)
         return action
