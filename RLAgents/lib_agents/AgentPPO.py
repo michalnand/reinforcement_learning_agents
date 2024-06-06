@@ -129,7 +129,7 @@ class AgentPPO():
             if self.trajctory_buffer.is_full():
                 self.train()
 
-        #udpate rnn hiddens tate
+        #udpate rnn hidden tate
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 

@@ -72,7 +72,7 @@ class TrajectoryBuffer:
         self.advantages = self.advantages.reshape((self.buffer_size*self.envs_count, ))
 
         if self.hidden_state is not None:
-            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, self.hidden_state.shape[2]))
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_shape)
 
         
 

@@ -35,12 +35,14 @@ class AgentPPOSNDAdvA():
 
         self.state_normalise    = config.state_normalise
 
-        if hasattr(config, "rnn_model"):
-            self.rnn_model          = config.rnn_model
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy          = config.rnn_policy
+            self.rnn_seq_length      = config.rnn_seq_length
         else:
-            self.rnn_model          = False
-
-
+            self.rnn_policy          = False
+            self.rnn_seq_length      = -1
+            
+       
         if config.rl_self_supervised_loss == "vicreg":
             self._rl_self_supervised_loss = loss_vicreg
         elif config.self_supervised_loss == "vicreg_contrastive":
@@ -81,7 +83,8 @@ class AgentPPOSNDAdvA():
         print("reward_int_coeff       = ", self.reward_int_coeff)
         print("training_distance      = ", self.training_distance)
         print("stochastic_distance    = ", self.stochastic_distance)
-        print("rnn_model              = ", self.rnn_model)
+        print("rnn_policy             = ", self.rnn_policy)
+        print("rnn_seq_length         = ", self.rnn_seq_length)
         
 
         print("\n\n")
@@ -98,10 +101,10 @@ class AgentPPOSNDAdvA():
      
         self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-        if self.rnn_model:
-            self.hidden_state = torch.zeros((self.envs_count, self.model.rnn_size) , dtype=torch.float32, device=self.device)
-        else:
-            self.hidden_state = torch.zeros((self.envs_count, 1) , dtype=torch.float32, device=self.device)
+        if self.rnn_policy:
+            self.hidden_state   = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
+            self.rnn_seq_length = config.rnn_seq_length
+        
 
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
@@ -148,10 +151,10 @@ class AgentPPOSNDAdvA():
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         #compute model output
-        if self.rnn_model: 
-            logits_t, values_ext_t, values_int_t, hidden_state_new  = self.model.forward(states_t, self.hidden_state)
+        if self.rnn_policy: 
+            logits_t, values_ext_t, values_int_t, hidden_state_new  = self.model.forward(states_t, self.hidden_state, False)
         else:
-            logits_t, values_ext_t, values_int_t  = self.model.forward(states_t)
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         #collect actions 
         actions = self._sample_actions(logits_t, legal_actions_mask)
@@ -174,23 +177,31 @@ class AgentPPOSNDAdvA():
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
             rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
-            hidden_state    = self.hidden_state.detach().to("cpu")
 
+            if self.rnn_policy:
+                hidden_state  = self.hidden_state.detach().to("cpu")
+            else:
+                hidden_state  = None
 
             self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
 
             if self.trajectory_buffer.is_full():
                 self.train()
-
-        if self.rnn_model:
+  
+        #udpate rnn hidden tate
+        if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 
             dones_idx = numpy.where(dones)
 
-            #clear rnn hidden state if episode done
+            #clear rnn hidden state if done
             for e in dones_idx:
-                self.hidden_state[e] = torch.zeros(self.hidden_state.shape[1], dtype=torch.float32, device=self.device)
-        
+                self.hidden_state[e] = 0.0
+
+            #hidden space stats
+            self.info_logger["hidden_mean"] = round((self.hidden_state**2).mean().detach().cpu().numpy().item(), 5)
+            self.info_logger["hidden_std"] = round((self.hidden_state).std().detach().cpu().numpy().item(), 5)
+
 
       
         #collect stats
@@ -250,9 +261,14 @@ class AgentPPOSNDAdvA():
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 #PPO RL loss
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state)
+                if self.rnn_policy:
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)                    
+                    loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states)
+                else:
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
+                    loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
                 
+
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
                     loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
@@ -305,12 +321,12 @@ class AgentPPOSNDAdvA():
         
 
 
-    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state):
+    def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states):
 
-        if self.rnn_model:
-            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_state)
+        if hidden_states is None:
+            logits_new, values_ext_new, values_int_new    = self.model.forward(states)
         else:
-            logits_new, values_ext_new, values_int_new  = self.model.forward(states)
+            logits_new, values_ext_new, values_int_new, _ = self.model.forward(states, hidden_states, True)
 
         #critic loss
         loss_critic = ppo_compute_critic_loss(values_ext_new, returns_ext, values_int_new, returns_int)

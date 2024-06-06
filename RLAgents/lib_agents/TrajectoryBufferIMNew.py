@@ -7,6 +7,8 @@ class TrajectoryBufferIMNew:
         self.state_shape    = state_shape
         self.actions_size   = actions_size 
         self.envs_count     = envs_count
+
+        self.hidden_state = None
       
         self.clear()     
  
@@ -26,8 +28,10 @@ class TrajectoryBufferIMNew:
         self.dones[self.ptr]       = (1.0*done).clone()
 
         if hidden_state is not None:
+            
             if self.hidden_state is None:
-                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + hidden_state.shape[1:], dtype=torch.float32)
+                self.hidden_shape   = hidden_state.shape[1:]    
+                self.hidden_state   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape, dtype=torch.float32)
             
             self.hidden_state[self.ptr] = hidden_state.clone()
 
@@ -57,9 +61,6 @@ class TrajectoryBufferIMNew:
 
         self.hidden_state   = None
 
-        self.exploration_mode = torch.zeros((self.buffer_size, self.envs_count), dtype=torch.float32)
-        self.episode_steps    = torch.zeros((self.buffer_size, self.envs_count), dtype=torch.float32)
-
         self.ptr = 0  
  
 
@@ -82,7 +83,7 @@ class TrajectoryBufferIMNew:
         self.dones            = self.dones.reshape((self.buffer_size*self.envs_count, ))
 
         if self.hidden_state is not None:
-            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_state.shape[2:])
+            self.hidden_state = self.hidden_state.reshape((self.buffer_size*self.envs_count, ) + self.hidden_shape)
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -105,15 +106,40 @@ class TrajectoryBufferIMNew:
         advantages_ext  = (self.advantages_ext[indices]).to(device)
         advantages_int  = (self.advantages_int[indices]).to(device)
 
-        if self.hidden_state is not None:
-            hidden_state  = (self.hidden_state[indices]).to(device)
-        else:
-            hidden_state  = None
- 
-        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_state
+       
+        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
+    
+
+    def sample_batch_seq(self, seq_length, batch_size, device = "cpu"):
+        indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
+        
+        states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        hidden_states  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
+
+        for n in range(seq_length):
+            states[n]        = self.states[indices].to(device)
+            hidden_states[n] = self.hidden_state[indices].to(device)
+
+            if n == (seq_length-1): 
+                logits     = self.logits[indices].to(device)
+                
+                actions    = self.actions[indices].to(device)
+                
+              
+                returns_ext     = (self.returns_ext[indices]).to(device)
+                returns_int     = (self.returns_int[indices]).to(device)
+
+                advantages_ext  = (self.advantages_ext[indices]).to(device)
+                advantages_int  = (self.advantages_int[indices]).to(device)
+
+
+            indices+= self.envs_count 
+
+        return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states
     
    
 
+    
     def sample_states_pairs(self, batch_size, max_distance, stochastic_distance, device):
         count = self.buffer_size*self.envs_count
 
@@ -131,23 +157,7 @@ class TrajectoryBufferIMNew:
         return states_now, states_prev
     
 
-    def sample_states_pairs_hidden(self, batch_size, max_distance, device):
-        count           = self.buffer_size*self.envs_count
-
-        max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
-
-        indices         = torch.randint(0, count, size=(batch_size, ))
-        indices_similar = torch.clip(indices + max_distance_*self.envs_count, 0, count-1)
-      
-        states_now      = (self.states[indices]).to(device)
-        states_similar  = (self.states[indices_similar]).to(device)
-
-        hidden_now      = (self.hidden_state[indices]).to(device)
-        hidden_similar  = (self.hidden_state[indices_similar]).to(device)
-     
-        return states_now, states_similar, hidden_now, hidden_similar
-    
-  
+    '''
     def sample_states_next_states(self, batch_size, device = "cpu"):
         count           = self.buffer_size*self.envs_count
 
@@ -158,7 +168,8 @@ class TrajectoryBufferIMNew:
         states_next     = (self.states[indices_next]).to(device)
      
         return states_now, states_next
- 
+    '''
+
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]
         envs_count  = rewards.shape[1]
