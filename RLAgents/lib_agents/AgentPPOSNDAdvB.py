@@ -246,7 +246,10 @@ class AgentPPOSNDAdvB():
 
             states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
 
-            print(">>> ", batch_idx, states.shape)
+            loss_im     = self._internal_motivation(states).mean()
+
+            print(">>> ", batch_idx, states.shape, loss_im)
+
 
             #internal motivation loss   
             #states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
