@@ -30,7 +30,6 @@ class AgentPPOSNDAdvB():
         self.batch_size         = config.batch_size  
         
         self.im_batch_size      = config.im_batch_size
-        self.ss_batch_size      = config.ss_batch_size
 
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
@@ -64,7 +63,6 @@ class AgentPPOSNDAdvB():
         print("reward_int_coeff       = ", self.reward_int_coeff)
         print("training_distance      = ", self.training_distance)
         print("im_batch_size          = ", self.im_batch_size)
-        print("ss_batch_size          = ", self.ss_batch_size)
         
         print("\n\n")
 
