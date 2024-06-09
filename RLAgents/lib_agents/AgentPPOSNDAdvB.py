@@ -317,6 +317,8 @@ class AgentPPOSNDAdvB():
         for n in range(batch_size):
             states = self.trajectory_buffer.states[:, n].contiguous()
             states = states.unsqueeze(0).to(self.device)
+
+            print(">>> ", states.shape)
             
             z_target    = self.model.forward_im_contextual_target(states)
             z_predictor = self.model.forward_im_contextual_predictor(states)
