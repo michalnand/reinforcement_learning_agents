@@ -246,6 +246,8 @@ class AgentPPOSNDAdvB():
 
             states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
 
+            print("states = ", states.shape)
+            
             loss_im     = self._internal_motivation(states).mean()
 
             print(">>> ", batch_idx, states.shape, loss_im)
@@ -314,7 +316,7 @@ class AgentPPOSNDAdvB():
         novelty_result = [] 
 
         batch_size = states.shape[1]
-        
+
         for n in range(batch_size):
             states = self.trajectory_buffer.states[:, n].contiguous()
             states = states.unsqueeze(0).to(self.device)
