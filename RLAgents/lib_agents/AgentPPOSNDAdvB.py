@@ -308,9 +308,6 @@ class AgentPPOSNDAdvB():
             states = states.unsqueeze(0).to(self.device)
             
 
-
-            print("states = ", states.shape)
-
             z_target    = self.model.forward_im_contextual_target(states)[0]
             z_predictor = self.model.forward_im_contextual_predictor(states)[0]
 
@@ -319,6 +316,7 @@ class AgentPPOSNDAdvB():
             novelty_result.append(novelty)
 
         novelty_result = torch.tensor(novelty_result)
+        novelty_result = torch.unsqueeze(1)
 
         return novelty_result
  
