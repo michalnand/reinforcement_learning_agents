@@ -311,12 +311,15 @@ class AgentPPOSNDAdvB():
             z_target    = self.model.forward_im_contextual_target(states)
             z_predictor = self.model.forward_im_contextual_predictor(states)
 
-            novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)[0]
-            print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
+            novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
+            #print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
 
-            novelty_result.append(novelty)
+            novelty_result.append(novelty[:, 0])
 
         novelty_result = torch.tensor(novelty_result)
+
+        print("novelty_result = ", novelty_result.shape)
+
 
         return novelty_result
  
