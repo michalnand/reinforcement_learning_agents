@@ -271,7 +271,7 @@ class AgentPPOSNDAdvB():
 
             
             #target SSL regularisation
-            states_now, states_similar, hidden_now, hidden_similar = self.trajectory_buffer.sample_states_pairs_seq(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+            states_now, states_similar, hidden_now, hidden_similar = self.trajectory_buffer.sample_states_pairs_seq(self.rnn_seq_length, self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
             loss_ssl, im_ssl = self._self_supervised_loss(self.model.forward_target_self_supervised, states_now, states_similar, hidden_now, hidden_similar)                
 

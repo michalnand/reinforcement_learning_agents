@@ -159,7 +159,7 @@ class TrajectoryBufferIMNew:
     def sample_states_pairs_seq(self, seq_length, batch_size, max_distance, stochastic_distance, device):
         count = self.envs_count*(self.buffer_size - seq_length)
 
-        if stochastic_distance:
+        if stochastic_distance: 
             max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
         else:
             max_distance_   = max_distance
