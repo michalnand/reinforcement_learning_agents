@@ -122,8 +122,12 @@ def loss_vicreg_seq(model_forward_func, xa, xb, ha, hb):
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+
+    sim_loss_np = round((sim_loss.mean()).detach().cpu().numpy().item(), 6)
+    std_loss_np = round((std_loss.mean()).detach().cpu().numpy().item(), 6)
+    cov_loss_np = round((cov_loss.mean()).detach().cpu().numpy().item(), 6)
     
-    info = [z_mag, z_mag_std]
+    info = [z_mag, z_mag_std, sim_loss_np, std_loss_np, cov_loss_np]
 
     return loss, info
 
