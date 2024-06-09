@@ -277,7 +277,7 @@ class AgentPPOSNDAdvB():
             states, _, _, _, _, _, _, hidden_states = self.trajectory_buffer.sample_batch_seq(self.rnn_seq_length, self.ss_batch_size, self.device)
             loss_im = self._internal_motivation_seq(states, hidden_states).mean()
 
-            '''
+            
             #target SSL regularisation
             states_now, states_similar, hidden_now, hidden_similar = self.trajectory_buffer.sample_states_pairs_seq(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
@@ -287,7 +287,7 @@ class AgentPPOSNDAdvB():
 
             #total IM loss  
             loss = loss_im + loss_ssl
-            '''
+            
 
             loss = loss_im
 
