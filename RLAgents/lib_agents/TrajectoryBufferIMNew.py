@@ -155,6 +155,39 @@ class TrajectoryBufferIMNew:
 
         return states_now, states_prev
     
+
+    def sample_states_pairs_seq(self, seq_length, batch_size, max_distance, stochastic_distance, device):
+        count = self.envs_count*(self.buffer_size - seq_length)
+
+        if stochastic_distance:
+            max_distance_   = torch.randint(0, 1 + max_distance, (batch_size, ))
+        else:
+            max_distance_   = max_distance
+
+        indices_now  = torch.randint(0, count, size=(batch_size, ))
+        indices_prev = torch.clip(indices_now - max_distance_*self.envs_count, 0, count-1)
+
+        states_now         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        states_prev        = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        hidden_states_now  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
+        hidden_states_prev = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
+
+      
+        states_now   = (self.states[indices_now]).to(device)
+        states_prev  = (self.states[indices_prev]).to(device)
+
+        for n in range(seq_length):
+            states_now[n]  = self.states[indices_now].to(device)
+            states_prev[n] = self.states[indices_prev].to(device)
+
+            hidden_states_now[n]  = self.hidden_states[indices_now].to(device)
+            hidden_states_prev[n] = self.hidden_states[indices_prev].to(device)
+          
+            indices_now+= self.envs_count 
+            indices_prev+= self.envs_count 
+
+        return states_now, states_prev, hidden_states_now, hidden_states_prev
+    
     
 
 

@@ -49,16 +49,8 @@ class AgentPPOSNDAdvB():
         else:
             self._rl_self_supervised_loss = None
 
-        if config.self_supervised_loss == "vicreg":
-            self._self_supervised_loss = loss_vicreg
-        elif config.self_supervised_loss == "vicreg_contrastive":
-            self._self_supervised_loss = loss_vicreg_contrastive
-        elif config.self_supervised_loss == "vicreg_complement":
-            self._self_supervised_loss = loss_vicreg_complement
-        elif config.self_supervised_loss == "vicreg_augs":
-            self._self_supervised_loss = loss_vicreg_augs
-        elif config.self_supervised_loss == "vicreg_jepa":
-            self._self_supervised_loss = loss_vicreg_jepa 
+        if config.self_supervised_loss == "vicreg_seq":
+            self._self_supervised_loss = loss_vicreg_seq
         else:
             self._self_supervised_loss = None
 
@@ -281,16 +273,13 @@ class AgentPPOSNDAdvB():
             #target SSL regularisation
             states_now, states_similar, hidden_now, hidden_similar = self.trajectory_buffer.sample_states_pairs_seq(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
 
-            loss_ssl, im_ssl = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar, hidden_now, hidden_similar)                
+            loss_ssl, im_ssl = self._self_supervised_loss(self.model.forward_target_self_supervised, states_now, states_similar, hidden_now, hidden_similar)                
 
             self.info_logger["spatial_target_ssl"] = im_ssl
 
             #total IM loss  
             loss = loss_im + loss_ssl
             
-
-            loss = loss_im
-
             self.optimizer.zero_grad()            
             loss.backward()     
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
