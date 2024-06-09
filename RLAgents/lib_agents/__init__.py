@@ -37,6 +37,7 @@ from .AgentPPOSNDC                  import AgentPPOSNDC
 from .AgentPPOJEPA                   import AgentPPOJEPA
 
 from .AgentPPOSNDAdvA               import AgentPPOSNDAdvA
+from .AgentPPOSNDAdvB               import AgentPPOSNDAdvB
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous
