@@ -154,6 +154,7 @@ class AgentPPOSNDAdvB():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
+        print("self.hidden_state = ", self.hidden_state.shape)
         rewards_int, hidden_state_new = self._internal_motivation(states_t, self.hidden_state, False)
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
 
@@ -337,7 +338,6 @@ class AgentPPOSNDAdvB():
 
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states, hidden_state, process_sequence):  
-        print("hidden = ", hidden_state.shape)      
         z_target,    ht = self.model.forward_im_target(states, hidden_state[:, 0].contiguous(), process_sequence)
         z_predictor, hp = self.model.forward_im_predictor(states, hidden_state[:, 1].contiguous(), process_sequence)
 
