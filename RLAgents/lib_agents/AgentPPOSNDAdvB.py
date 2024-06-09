@@ -205,8 +205,6 @@ class AgentPPOSNDAdvB():
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         self.trajectory_buffer.reward_int = rewards_int.to("cpu")
 
-        print(rewards_int.mean())
-
         #collect stats for IM
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
         self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
@@ -224,6 +222,7 @@ class AgentPPOSNDAdvB():
                 states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                 loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
 
+                '''
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
                     loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
@@ -232,9 +231,10 @@ class AgentPPOSNDAdvB():
                     loss = loss_ppo + loss_ssl
                 else:
                     loss = loss_ppo
+                '''
 
                 self.optimizer.zero_grad()            
-                loss.backward()
+                loss_ppo.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step()   
 
@@ -243,8 +243,13 @@ class AgentPPOSNDAdvB():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
+
+            states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
+
+            print(">>> ", batch_idx, states.shape)
+
             #internal motivation loss   
-            states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+            #states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
             #loss_im     = self._internal_motivation(states).mean()
 
             '''
@@ -318,7 +323,6 @@ class AgentPPOSNDAdvB():
             novelty_result.append(novelty[:, 0])
 
         novelty_result = torch.stack(novelty_result)
-
 
         return novelty_result
  

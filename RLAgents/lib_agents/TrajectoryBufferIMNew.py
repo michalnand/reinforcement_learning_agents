@@ -110,7 +110,7 @@ class TrajectoryBufferIMNew:
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int
     
 
-    def sample_batch_seq(self, seq_length, batch_size, device = "cpu"):
+    def sample_batch_seq_hidden(self, seq_length, batch_size, device = "cpu"):
         indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
         
         states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
@@ -136,6 +136,19 @@ class TrajectoryBufferIMNew:
             indices+= self.envs_count 
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states
+    
+    
+
+    def sample_states_seq(self, seq_length, batch_size, device = "cpu"):
+        indices  = torch.zeros((batch_size, ), dtype=int)
+        
+        states   = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+
+        for n in range(seq_length):
+            states[n] = self.states[indices].to(device)
+            indices+= self.envs_count 
+
+        return states
     
    
 
