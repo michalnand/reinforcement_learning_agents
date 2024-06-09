@@ -247,7 +247,6 @@ class AgentPPOSNDAdvB():
             states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
 
             loss_im     = self._internal_motivation(states)
-            print(">>>> ", loss_im.shape)
             #print(">>> ", batch_idx, states.shape, loss_im)
 
             #internal motivation loss   
@@ -309,6 +308,8 @@ class AgentPPOSNDAdvB():
    
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states): 
+
+        print("IM = ", states.shape)
         novelty_result = [] 
 
         batch_size = states.shape[1]
