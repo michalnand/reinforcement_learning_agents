@@ -313,11 +313,12 @@ class AgentPPOSNDAdvB():
     def _internal_motivation(self, states): 
         novelty_result = [] 
 
-        for n in range(self.envs_count):
+        batch_size = states.shape[1]
+        
+        for n in range(batch_size):
             states = self.trajectory_buffer.states[:, n].contiguous()
             states = states.unsqueeze(0).to(self.device)
             
-
             z_target    = self.model.forward_im_contextual_target(states)
             z_predictor = self.model.forward_im_contextual_predictor(states)
 
