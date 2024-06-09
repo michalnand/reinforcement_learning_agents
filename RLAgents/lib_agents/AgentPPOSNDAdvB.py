@@ -203,11 +203,11 @@ class AgentPPOSNDAdvB():
         #compute contextual IM
         rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
         rewards_int = torch.clip(self.int_adv_coeff*rewards_int, 0.0, 1.0)
-        #self.trajectory_buffer.reward_int = rewards_int.to("cpu")
+        self.trajectory_buffer.reward_int = rewards_int.to("cpu")
 
         #collect stats for IM
-        #self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        #self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
      
         #compute returns, and reshape arrays for faster batched access
         self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
@@ -312,13 +312,10 @@ class AgentPPOSNDAdvB():
             z_predictor = self.model.forward_im_contextual_predictor(states)
 
             novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
-            #print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
 
             novelty_result.append(novelty[:, 0])
 
         novelty_result = torch.stack(novelty_result)
-
-        print("novelty_result = ", novelty_result.shape)
 
 
         return novelty_result
