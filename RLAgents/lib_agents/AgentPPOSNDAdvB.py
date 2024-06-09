@@ -336,7 +336,8 @@ class AgentPPOSNDAdvB():
    
 
     #distillation novelty detection, mse loss
-    def _internal_motivation(self, states, hidden_state, process_sequence):        
+    def _internal_motivation(self, states, hidden_state, process_sequence):  
+        print("hidden = ", hidden_state.shape)      
         z_target,    ht = self.model.forward_im_target(states, hidden_state[:, 0].contiguous(), process_sequence)
         z_predictor, hp = self.model.forward_im_predictor(states, hidden_state[:, 1].contiguous(), process_sequence)
 
