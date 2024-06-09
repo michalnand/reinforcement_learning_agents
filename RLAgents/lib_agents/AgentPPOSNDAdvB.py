@@ -202,7 +202,7 @@ class AgentPPOSNDAdvB():
     def train(self): 
 
         #compute contextual IM
-        rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
+        rewards_int = self._internal_motivation_seqential(self.trajectory_buffer.states).detach()
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
         self.trajectory_buffer.reward_int = rewards_int.to("cpu")
 
@@ -307,13 +307,28 @@ class AgentPPOSNDAdvB():
 
    
     #distillation novelty detection, mse loss
-    def _internal_motivation(self, states): 
-       
-        states_tmp = states.to(self.device)
+    def _internal_motivation_seqential(self, states): 
+        novelty_result = [] 
+        batch_size = states.shape[1]
 
-        z_target    = self.model.forward_im_contextual_target(states_tmp)
-            
-        z_predictor = self.model.forward_im_contextual_predictor(states_tmp)
+        for n in range(batch_size):
+            states = states[:, n].contiguous()
+            states = states.unsqueeze(0).to(self.device)
+
+            z_target    = self.model.forward_im_contextual_target(states)
+            z_predictor = self.model.forward_im_contextual_predictor(states)
+
+            novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
+
+            novelty_result.append(novelty[:, 0])
+
+        novelty_result = torch.stack(novelty_result)
+
+        return novelty_result
+    
+    def _internal_motivation(self, states): 
+        z_target    = self.model.forward_im_contextual_target(states)
+        z_predictor = self.model.forward_im_contextual_predictor(states)
 
         novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
 
