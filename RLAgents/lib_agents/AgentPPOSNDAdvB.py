@@ -203,7 +203,6 @@ class AgentPPOSNDAdvB():
         #compute contextual IM
         rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
         rewards_int = torch.clip(self.int_adv_coeff*rewards_int, 0.0, 1.0)
-        print(">>> ", rewards_int.shape)
         #self.trajectory_buffer.reward_int = rewards_int.to("cpu")
 
         #collect stats for IM
@@ -309,8 +308,8 @@ class AgentPPOSNDAdvB():
             states = states.unsqueeze(0).to(self.device)
             
 
-            z_target    = self.model.forward_im_contextual_target(states)[0]
-            z_predictor = self.model.forward_im_contextual_predictor(states)[0]
+            z_target    = self.model.forward_im_contextual_target(states)
+            z_predictor = self.model.forward_im_contextual_predictor(states)
 
             novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
             print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
