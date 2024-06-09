@@ -102,6 +102,8 @@ def loss_vicreg_seq(model_forward_func, xa, xb, ha, hb):
     xa_aug = xa
     xb_aug = xb
 
+    print("model input = ", xa_aug.shape, ha.shape, xb_aug.shape, hb.shape)
+
     za = model_forward_func(xa_aug, ha)
     zb = model_forward_func(xb_aug, hb)
 
