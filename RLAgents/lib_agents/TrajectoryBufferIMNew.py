@@ -172,9 +172,6 @@ class TrajectoryBufferIMNew:
         hidden_states_now  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
         hidden_states_prev = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
 
-      
-        states_now   = (self.states[indices_now]).to(device)
-        states_prev  = (self.states[indices_prev]).to(device)
 
         for n in range(seq_length):
             states_now[n]  = self.states[indices_now].to(device)
