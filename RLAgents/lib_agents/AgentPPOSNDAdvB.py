@@ -343,6 +343,8 @@ class AgentPPOSNDAdvB():
 
         novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
 
+        print(">>> ", ht.shape, hp.shape)
+
         hidden_state_new = torch.concatenate([ht.unsqueeze(1), hp.unsqueeze(1)], dim=-1)
 
         return novelty, hidden_state_new
