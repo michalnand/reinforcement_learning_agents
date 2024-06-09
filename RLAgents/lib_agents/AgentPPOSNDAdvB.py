@@ -244,7 +244,7 @@ class AgentPPOSNDAdvB():
         for batch_idx in range(batch_count):    
             #internal motivation loss   
             states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-            loss_im     = self._internal_motivation(states).mean()
+            #loss_im     = self._internal_motivation(states).mean()
 
             '''
             #target SSL regularisation
