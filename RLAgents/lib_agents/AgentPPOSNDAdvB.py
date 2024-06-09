@@ -308,28 +308,16 @@ class AgentPPOSNDAdvB():
    
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states): 
+       
+        states_tmp = states.to(self.device)
 
-        print("IM = ", states.shape)
-        novelty_result = [] 
-
-        batch_size = states.shape[1]
-
-        for n in range(batch_size):
-            states = self.trajectory_buffer.states[:, n].contiguous()
-            states = states.unsqueeze(0).to(self.device)
-
-            print(">>> ", states.shape)
+        z_target    = self.model.forward_im_contextual_target(states_tmp)
             
-            z_target    = self.model.forward_im_contextual_target(states)
-            z_predictor = self.model.forward_im_contextual_predictor(states)
+        z_predictor = self.model.forward_im_contextual_predictor(states_tmp)
 
-            novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
+        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
 
-            novelty_result.append(novelty[:, 0])
-
-        novelty_result = torch.stack(novelty_result)
-
-        return novelty_result
+        return novelty
  
 
     def _augmentations(self, x): 
