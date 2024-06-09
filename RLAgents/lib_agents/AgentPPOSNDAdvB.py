@@ -145,8 +145,6 @@ class AgentPPOSNDAdvB():
             rewards_int_t   = torch.from_numpy(rewards_ext).to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
 
-            print("rewards_ext_t = ", rewards_ext_t.shape)
-
             self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
 
             if self.trajectory_buffer.is_full():
@@ -318,7 +316,6 @@ class AgentPPOSNDAdvB():
             novelty_result.append(novelty)
 
         novelty_result = torch.tensor(novelty_result)
-        novelty_result = novelty_result.unsqueeze(1)
 
         return novelty_result
  
