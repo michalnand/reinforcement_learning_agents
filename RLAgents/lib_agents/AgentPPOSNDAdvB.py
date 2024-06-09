@@ -276,7 +276,7 @@ class AgentPPOSNDAdvB():
         for batch_idx in range(batch_count):    
             #internal motivation loss   
             states, _, _, _, _, _, _, hidden_states = self.trajectory_buffer.sample_batch_seq(self.rnn_seq_length, self.ss_batch_size, self.device)
-            loss_im, _ = self._internal_motivation(states, hidden_states, True).mean()
+            loss_im = self._internal_motivation_seq(states, hidden_states).mean()
 
             '''
             #target SSL regularisation
@@ -337,9 +337,9 @@ class AgentPPOSNDAdvB():
    
 
     #distillation novelty detection, mse loss
-    def _internal_motivation(self, states, hidden_state, process_sequence):  
-        z_target,    ht = self.model.forward_im_target(states, hidden_state[:, 0].contiguous(), process_sequence)
-        z_predictor, hp = self.model.forward_im_predictor(states, hidden_state[:, 1].contiguous(), process_sequence)
+    def _internal_motivation(self, states, hidden_state):  
+        z_target,    ht = self.model.forward_im_target(states,    hidden_state[:, 0].contiguous(), False)
+        z_predictor, hp = self.model.forward_im_predictor(states, hidden_state[:, 1].contiguous(), False)
 
         novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
 
@@ -347,6 +347,14 @@ class AgentPPOSNDAdvB():
         hidden_state_new = torch.concatenate([ht.unsqueeze(1), hp.unsqueeze(1)], dim=1)
 
         return novelty, hidden_state_new
+    
+    def _internal_motivation_seq(self, states, hidden_state):  
+        z_target,    _ = self.model.forward_im_target(states,    hidden_state[:, :, 0].contiguous(), True)
+        z_predictor, _ = self.model.forward_im_predictor(states, hidden_state[:, :, 1].contiguous(), True)
+
+        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
+
+        return novelty
  
 
     def _augmentations(self, x): 
