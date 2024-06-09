@@ -200,6 +200,7 @@ class AgentPPOSNDAdvB():
     
 
     def train(self): 
+
         #compute contextual IM
         rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
@@ -243,12 +244,10 @@ class AgentPPOSNDAdvB():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-
             states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
 
-            print("states = ", states.shape)
-
-            #loss_im     = self._internal_motivation(states).mean()
+            loss_im     = self._internal_motivation(states)
+            print(">>>> ", loss_im.shape)
             #print(">>> ", batch_idx, states.shape, loss_im)
 
             #internal motivation loss   
@@ -272,7 +271,6 @@ class AgentPPOSNDAdvB():
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
             self.values_logger.add("loss_ssl", loss_ssl.detach().cpu().numpy())
             '''
-
 
         self.trajectory_buffer.clear() 
 
