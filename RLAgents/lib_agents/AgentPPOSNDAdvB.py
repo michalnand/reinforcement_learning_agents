@@ -53,6 +53,7 @@ class AgentPPOSNDAdvB():
 
         self.augmentations       = config.augmentations
         self.augmentations_probs = config.augmentations_probs
+        self.ss_batch_size = 64
         
 
         print("state_normalise        = ", self.state_normalise)
