@@ -316,7 +316,7 @@ class AgentPPOSNDAdvB():
 
             novelty_result.append(novelty[:, 0])
 
-        novelty_result = torch.tensor(novelty_result)
+        novelty_result = torch.stack(novelty_result)
 
         print("novelty_result = ", novelty_result.shape)
 
