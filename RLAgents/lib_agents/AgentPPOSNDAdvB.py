@@ -200,14 +200,14 @@ class AgentPPOSNDAdvB():
 
     def train(self): 
         #compute contextual IM
-        rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
-        rewards_int = torch.clip(self.int_adv_coeff*rewards_int, 0.0, 1.0)
-        print(">>> ", rewards_int.shape)
-        self.trajectory_buffer.reward_int = rewards_int.to("cpu")
+        #rewards_int = self._internal_motivation(self.trajectory_buffer.states).detach()
+        #rewards_int = torch.clip(self.int_adv_coeff*rewards_int, 0.0, 1.0)
+        #print(">>> ", rewards_int.shape)
+        #self.trajectory_buffer.reward_int = rewards_int.to("cpu")
 
         #collect stats for IM
-        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        #self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
      
         #compute returns, and reshape arrays for faster batched access
         self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
