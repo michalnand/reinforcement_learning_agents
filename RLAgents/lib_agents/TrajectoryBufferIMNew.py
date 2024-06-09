@@ -139,7 +139,8 @@ class TrajectoryBufferIMNew:
     
     
 
-    def sample_states_seq(self, seq_length, batch_size, device = "cpu"):
+    def sample_states_seq(self, batch_size, device = "cpu"):
+        seq_length = self.buffer_size
         indices  = torch.zeros((batch_size, ), dtype=int)
         
         states   = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
