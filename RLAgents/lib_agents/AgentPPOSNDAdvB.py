@@ -134,6 +134,7 @@ class AgentPPOSNDAdvB():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
+        print("rewards_ext = ", rewards_ext.shape)
         #put into policy buffer
         if training_enabled:
             states_t        = states_t.detach().to("cpu")
