@@ -155,7 +155,7 @@ class AgentPPOSNDAdvB():
 
         #internal motivation
         print("self.hidden_state = ", self.hidden_state.shape)
-        rewards_int, hidden_state_new = self._internal_motivation(states_t, self.hidden_state, False)
+        rewards_int, hidden_state_new = self._internal_motivation(states_t, self.hidden_state)
         rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
 
         
