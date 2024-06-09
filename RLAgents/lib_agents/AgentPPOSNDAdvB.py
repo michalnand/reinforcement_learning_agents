@@ -305,7 +305,8 @@ class AgentPPOSNDAdvB():
 
         for n in range(self.envs_count):
             states = self.trajectory_buffer.states[:, n].contiguous()
-            states = states.unsqueeze(0)
+            states = states.unsqueeze(0).to(self.device)
+            
 
 
             print("states = ", states.shape)
