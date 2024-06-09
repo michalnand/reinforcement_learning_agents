@@ -316,7 +316,7 @@ class AgentPPOSNDAdvB():
             novelty_result.append(novelty)
 
         novelty_result = torch.tensor(novelty_result)
-        novelty_result = novelty_result.torch.unsqueeze(1)
+        novelty_result = novelty_result.unsqueeze(1)
 
         return novelty_result
  
