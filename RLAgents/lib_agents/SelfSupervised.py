@@ -102,8 +102,8 @@ def loss_vicreg_seq(model_forward_func, xa, xb, ha, hb):
     xa_aug = xa
     xb_aug = xb
 
-    za = model_forward_func(xa_aug, ha, True)
-    zb = model_forward_func(xb_aug, hb, True)
+    za = model_forward_func(xa_aug, ha)
+    zb = model_forward_func(xb_aug, hb)
 
     # invariance loss
     sim_loss = _loss_mse(za, zb)
