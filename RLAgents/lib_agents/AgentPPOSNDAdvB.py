@@ -313,6 +313,7 @@ class AgentPPOSNDAdvB():
             z_predictor = self.model.forward_im_contextual_predictor(states)[0]
 
             novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
+            print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
 
             novelty_result.append(novelty)
 

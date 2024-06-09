@@ -65,7 +65,6 @@ class TrajectoryBufferIMNew:
  
 
     def compute_returns(self, gamma_ext, gamma_int, lam = 0.95):
-        print("compute = ", self.reward_ext.shape, self.reward_int.shape)
         self.returns_ext, self.advantages_ext = self._gae(self.reward_ext, self.values_ext, self.dones, gamma_ext, lam)
         self.returns_int, self.advantages_int = self._gae(self.reward_int, self.values_int, self.dones, gamma_int, lam)
         
