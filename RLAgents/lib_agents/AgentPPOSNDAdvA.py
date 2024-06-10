@@ -200,9 +200,10 @@ class AgentPPOSNDAdvA():
                 self.hidden_state[e] = 0.0
 
             #hidden space stats
-            hidden_mean = (self.hidden_state**2).mean().detach().cpu().numpy().item()
-            hidden_std  = self.hidden_state.std(dim=0).mean().detach().cpu().numpy().item()
-            self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std, 5)]
+            hidden_mean   = (self.hidden_state**2).mean().detach().cpu().numpy().item()
+            hidden_std_a  = self.hidden_state.std(dim=0).mean().detach().cpu().numpy().item()
+            hidden_std_b  = self.hidden_state.std(dim=1).mean().detach().cpu().numpy().item()
+            self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std_a, 5), , round(hidden_std_b, 5)]
       
         #collect stats
         self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
