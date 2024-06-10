@@ -186,7 +186,6 @@ class AgentPPOSNDAdvA():
             self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_state)
 
             if self.trajectory_buffer.is_full():
-                print(self.hidden_state)
                 self.train()
   
         #udpate rnn hidden tate
