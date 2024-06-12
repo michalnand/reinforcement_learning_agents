@@ -287,7 +287,7 @@ class AgentPPOSNDAdvA():
                 
 
         batch_count = samples_count//self.ss_batch_size
-        batch_count = batch_count//2
+        #batch_count = batch_count//2
         
         #main IM training loop
         for batch_idx in range(batch_count):    
