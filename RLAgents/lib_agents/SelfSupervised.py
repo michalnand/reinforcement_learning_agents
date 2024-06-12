@@ -68,8 +68,12 @@ def loss_vicreg_direct(za, zb):
 
 
 def loss_vicreg(model_forward_func, augmentations, xa, xb):
-    xa_aug, _ = augmentations(xa) 
-    xb_aug, _ = augmentations(xb)
+    if augmentations is not None:
+        xa_aug, _ = augmentations(xa) 
+        xb_aug, _ = augmentations(xb)
+    else:
+        xa_aug = xa 
+        xb_aug = xb
 
     za = model_forward_func(xa_aug)
     zb = model_forward_func(xb_aug)

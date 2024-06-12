@@ -229,7 +229,16 @@ def aug_mask(x, p = 0.75):
     mask = (mask > (1.0 - p)).float().detach()
 
 
-    return mask*x       
+    return mask*x      
+
+
+def aug_channel_mask(x):
+    indices = torch.randint(0, x.shape[1], (x.shape[0], ))
+
+    result = x.clone()
+    result[range(indices.shape[0]), indices] = 0
+    
+    return result
 
 
 

@@ -271,7 +271,8 @@ class AgentPPOSNDAdvA():
 
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
+                    #loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
+                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, None, sa, sb)
 
                     self.info_logger["rl_ssl"] = rl_ssl 
                     loss = loss_ppo + loss_ssl
@@ -369,6 +370,10 @@ class AgentPPOSNDAdvA():
         if "mask" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
             mask_result[:, 1] = mask
+
+        if "channelmask" in self.augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
+            mask_result[:, 1] = mask    
        
         if "mask_advanced" in self.augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
