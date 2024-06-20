@@ -260,7 +260,7 @@ class AgentPPOSNDAdvA():
                 #PPO self supervised loss
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._rl_augmentations, sa, sb)
+                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations_rl_func, sa, sb)
 
                     self.info_logger["rl_ssl"] = rl_ssl 
                 else:
@@ -287,7 +287,7 @@ class AgentPPOSNDAdvA():
             #target SSL regularisation
             if self._im_self_supervised_loss is not None:
                 states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
-                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._im_augmentations, states_now, states_similar)                
+                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations_im_func, states_now, states_similar)                
 
                 self.info_logger["im_ssl"] = im_ssl
             else:
@@ -351,44 +351,44 @@ class AgentPPOSNDAdvA():
 
         return novelty
  
-    def _rl_augmentations(self, x): 
+    def _augmentations_rl_func(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
-        if "mask" in self.rl_augmentations:
+        if "mask" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
-            mask_result[:, 1] = mask
+            mask_result[:, 0] = mask
 
-        if "channelmask" in self.rl_augmentations:
+        if "channelmask" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
             mask_result[:, 1] = mask    
        
-        if "mask_advanced" in self.rl_augmentations:
+        if "mask_advanced" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[:, 2] = mask
       
-        if "noise" in self.rl_augmentations:
+        if "noise" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[:, 3] = mask
       
         return x.detach(), mask_result 
     
 
-    def _im_augmentations(self, x): 
+    def _augmentations_im_func(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
-        if "mask" in self.im_augmentations:
+        if "mask" in self.augmentations_im:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
-            mask_result[:, 1] = mask
+            mask_result[:, 0] = mask
 
-        if "channelmask" in self.im_augmentations:
+        if "channelmask" in self.augmentations_im:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
             mask_result[:, 1] = mask    
        
-        if "mask_advanced" in self.im_augmentations:
+        if "mask_advanced" in self.augmentations_im:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[:, 2] = mask
       
-        if "noise" in self.im_augmentations:
+        if "noise" in self.augmentations_im:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[:, 3] = mask
       
