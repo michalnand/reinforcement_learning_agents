@@ -138,7 +138,7 @@ def loss_vicreg_hypercube(model_forward_func, augmentations, xa, xb):
     hc_loss+= _loss_hypercube_corner(zb)
    
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 0.1*hc_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*hc_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
