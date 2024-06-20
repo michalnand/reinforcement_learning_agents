@@ -98,8 +98,8 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
     loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     #info for log
-    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
     sim_loss_  = round(sim_loss.detach().cpu().numpy().item(), 6)
     std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
@@ -138,7 +138,7 @@ def loss_vicreg_hypercube(model_forward_func, augmentations, xa, xb):
     hc_loss+= _loss_hypercube_corner(zb)
    
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hc_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*hc_loss
 
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)

@@ -45,41 +45,31 @@ class AgentPPOSNDAdvA():
        
         if config.rl_self_supervised_loss == "vicreg":
             self._rl_self_supervised_loss = loss_vicreg
-        elif config.self_supervised_loss == "vicreg_contrastive":
-            self._self_supervised_loss = loss_vicreg_contrastive
-        elif config.rl_self_supervised_loss == "vicreg_complement":
-            self._rl_self_supervised_loss = loss_vicreg_complement
-        elif config.rl_self_supervised_loss == "vicreg_jepa":
-            self._rl_self_supervised_loss = loss_vicreg_jepa 
         else:
             self._rl_self_supervised_loss = None
 
-        if config.self_supervised_loss == "vicreg":
-            self._self_supervised_loss = loss_vicreg
-        elif config.self_supervised_loss == "vicreg_contrastive":
-            self._self_supervised_loss = loss_vicreg_contrastive
-        elif config.self_supervised_loss == "vicreg_complement":
-            self._self_supervised_loss = loss_vicreg_complement
-        elif config.self_supervised_loss == "vicreg_augs":
-            self._self_supervised_loss = loss_vicreg_augs
-        elif config.self_supervised_loss == "vicreg_jepa":
-            self._self_supervised_loss = loss_vicreg_jepa 
+        if config.im_self_supervised_loss == "vicreg":
+            self._im_self_supervised_loss = loss_vicreg
         else:
-            self._self_supervised_loss = None
+            self._im_self_supervised_loss = None
 
 
         self.training_distance              = config.training_distance
         self.stochastic_distance            = config.stochastic_distance
 
-        self.augmentations                  = config.augmentations
+        self.augmentations_rl               = config.augmentations_el
+        self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
+        self.distillation_coeff             = config.distillation_coeff
         
 
         print("state_normalise        = ", self.state_normalise)
         print("rl_self_supervised_loss= ", self._rl_self_supervised_loss)
-        print("self_supervised_loss   = ", self._self_supervised_loss)
-        print("augmentations          = ", self.augmentations)
+        print("im_self_supervised_loss= ", self._im_self_supervised_loss)
+        print("augmentations_im       = ", self.augmentations_im)
+        print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_probs    = ", self.augmentations_probs)
+        print("distillation_coeff     = ", self.distillation_coeff)   
         print("reward_int_coeff       = ", self.reward_int_coeff)
         print("training_distance      = ", self.training_distance)
         print("stochastic_distance    = ", self.stochastic_distance)
@@ -128,7 +118,6 @@ class AgentPPOSNDAdvA():
         self.values_logger.add("loss_ppo_critic", 0.0)
         
         self.values_logger.add("loss_im", 0.0)
-        self.values_logger.add("loss_ssl", 0.0)
 
         self.info_logger = {} 
 
@@ -268,16 +257,17 @@ class AgentPPOSNDAdvA():
                     states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
                     loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
 
-
+                #PPO self supervised loss
                 if self._rl_self_supervised_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-                    #loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
-                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, None, sa, sb)
+                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._rl_augmentations, sa, sb)
 
                     self.info_logger["rl_ssl"] = rl_ssl 
-                    loss = loss_ppo + loss_ssl
                 else:
-                    loss = loss_ppo
+                    loss_ssl = 0
+                
+                
+                loss = loss_ppo + loss_ssl
 
                 self.optimizer.zero_grad()            
                 loss.backward()
@@ -287,26 +277,24 @@ class AgentPPOSNDAdvA():
                 
 
         batch_count = samples_count//self.ss_batch_size
-        #batch_count = batch_count//2
         
         #main IM training loop
         for batch_idx in range(batch_count):    
             #internal motivation loss   
-            states, _ = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-            loss_im = self._internal_motivation(states).mean()
+            states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+            loss_im     = self._internal_motivation(states).mean()
 
             #target SSL regularisation
-            states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+            if self._im_self_supervised_loss is not None:
+                states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._im_augmentations, states_now, states_similar)                
 
-            if hasattr(self.model, "forward_im_aux"):
-                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self.model.forward_im_aux, self._augmentations, states_now, states_similar)                
+                self.info_logger["im_ssl"] = im_ssl
             else:
-                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations, states_now, states_similar)                
-
-            self.info_logger["spatial_target_ssl"] = im_ssl
+                loss_ssl = 0
 
             #total IM loss  
-            loss = loss_im + loss_ssl
+            loss = self.distillation_coeff*loss_im + loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
@@ -314,7 +302,6 @@ class AgentPPOSNDAdvA():
             self.optimizer.step()
 
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
-            self.values_logger.add("loss_ssl", loss_ssl.detach().cpu().numpy())
 
 
         self.trajectory_buffer.clear() 
@@ -364,22 +351,44 @@ class AgentPPOSNDAdvA():
 
         return novelty
  
-    def _augmentations(self, x): 
+    def _rl_augmentations(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
-        if "mask" in self.augmentations:
+        if "mask" in self.rl_augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
             mask_result[:, 1] = mask
 
-        if "channelmask" in self.augmentations:
+        if "channelmask" in self.rl_augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
             mask_result[:, 1] = mask    
        
-        if "mask_advanced" in self.augmentations:
+        if "mask_advanced" in self.rl_augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[:, 2] = mask
       
-        if "noise" in self.augmentations:
+        if "noise" in self.rl_augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
+            mask_result[:, 3] = mask
+      
+        return x.detach(), mask_result 
+    
+
+    def _im_augmentations(self, x): 
+        mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
+
+        if "mask" in self.im_augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
+            mask_result[:, 1] = mask
+
+        if "channelmask" in self.im_augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
+            mask_result[:, 1] = mask    
+       
+        if "mask_advanced" in self.im_augmentations:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
+            mask_result[:, 2] = mask
+      
+        if "noise" in self.im_augmentations:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[:, 3] = mask
       
