@@ -57,7 +57,7 @@ class AgentPPOSNDAdvA():
         self.training_distance              = config.training_distance
         self.stochastic_distance            = config.stochastic_distance
 
-        self.augmentations_rl               = config.augmentations_el
+        self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
         self.distillation_coeff             = config.distillation_coeff
