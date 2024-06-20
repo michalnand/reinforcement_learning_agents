@@ -264,7 +264,7 @@ class AgentPPOSNDAdvA():
 
                     self.info_logger["rl_ssl"] = rl_ssl 
                 else:
-                    loss_ssl = 0
+                    loss_ssl = 0    
                 
                 
                 loss = loss_ppo + loss_ssl
@@ -287,7 +287,7 @@ class AgentPPOSNDAdvA():
             #target SSL regularisation
             if self._im_self_supervised_loss is not None:
                 states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
-                loss_ssl, im_ssl  = self._self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations_im_func, states_now, states_similar)                
+                loss_ssl, im_ssl  = self._im_self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations_im_func, states_now, states_similar)                
 
                 self.info_logger["im_ssl"] = im_ssl
             else:
