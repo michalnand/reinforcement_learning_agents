@@ -500,7 +500,7 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0
     return loss, info
 
 
-def loss_vicreg_jepa_single(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
+def loss_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
     xa_aug, _ = augmentations(xa)
     xb_aug, _ = augmentations(xb)
 
