@@ -243,8 +243,8 @@ def loss_jepa_sim(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01
     #info for log
     z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    h_mag     = round(((h**2).mean()).detach().cpu().numpy().item(), 6)
-    h_mag_std = round(((h**2).std()).detach().cpu().numpy().item(), 6)
+    h_mag     = round(((ha**2).mean()).detach().cpu().numpy().item(), 6)
+    h_mag_std = round(((ha**2).std()).detach().cpu().numpy().item(), 6)
 
     sim_loss_ = round(sim_loss.detach().cpu().numpy().item(), 6)
     std_loss_ = round(std_loss.detach().cpu().numpy().item(), 6)
