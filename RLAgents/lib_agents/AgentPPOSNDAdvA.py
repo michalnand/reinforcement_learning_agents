@@ -47,6 +47,8 @@ class AgentPPOSNDAdvA():
             self._rl_self_supervised_loss = loss_vicreg
         elif config.rl_self_supervised_loss == "jepa":
             self._rl_self_supervised_loss = loss_jepa
+        elif config.rl_self_supervised_loss == "jepa_sim":
+            self._rl_self_supervised_loss = loss_jepa_sim
         else:
             self._rl_self_supervised_loss = None
 
@@ -54,6 +56,8 @@ class AgentPPOSNDAdvA():
             self._im_self_supervised_loss = loss_vicreg
         elif config.im_self_supervised_loss == "jepa":
             self._im_self_supervised_loss = loss_jepa
+        elif config.im_self_supervised_loss == "jepa_sim":
+            self._im_self_supervised_loss = loss_jepa_sim
         else:
             self._im_self_supervised_loss = None
 

@@ -151,17 +151,17 @@ def loss_vicreg_seq(model_forward_func, xa, xb, ha, hb):
 4,  hidden information is computed :
         h = h(za)
     which contains transformerd information about zb
-    in final, goal is to minimize hb, to provide minimum hidden information
+    in final, goal is to minimize h, to provide minimum hidden information
 
 5, predictor is computed as : 
-        p = predictor(zb, h)
+        p = predictor(za, h)
 
         and invariance (mse loss) is called :
         MSE(za - p)
 
         essence of JEPA is : p-model can easily predict za from zb, 
-        because pa contains not only augmented context from za,
-        but also "cheating" information about zb (here called hidden information)
+        because p contains not only augmented context from zb,
+        but also "cheating" information from za (here contained hidden information)
         
         however, h-features are forced by loss to minimize information, 
         which leads to good za, zb features, and h contains only the necessary information 
@@ -189,6 +189,51 @@ def loss_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
     #hidden information loss, enforce sparsity, and minimize batch-wise variance
     h_mag = torch.abs(h).mean()
     h_std = (h.std(dim=0)).mean()
+    hidden_loss = h_mag + h_std
+
+    # total loss, vicreg + info-min
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + hidden_coeff*hidden_loss
+
+
+    #info for log
+    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    h_mag     = round(((h**2).mean()).detach().cpu().numpy().item(), 6)
+    h_mag_std = round(((h**2).std()).detach().cpu().numpy().item(), 6)
+
+    sim_loss_ = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_ = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_ = round(cov_loss.detach().cpu().numpy().item(), 6)
+    hidden_loss_ = round(hidden_loss.detach().cpu().numpy().item(), 6)
+   
+    info = [z_mag, z_mag_std, h_mag, h_mag_std, sim_loss_, std_loss_, cov_loss_, hidden_loss_]
+
+    return loss, info
+
+
+
+def loss_jepa_sim(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
+    xa_aug, _ = augmentations(xa)
+    xb_aug, _ = augmentations(xb)
+
+    za, zb, ha, pa, hb, pb = model_forward_func(xa_aug, xb_aug)  
+
+    # invariance loss - predict za from pa
+    sim_loss = _loss_mse(za, pa)
+    # invariance loss - predict zb from pb
+    sim_loss+= _loss_mse(zb, pb)
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+    #hidden information loss, enforce sparsity, and minimize batch-wise variance
+    h_mag = torch.abs(ha).mean() + torch.abs(hb).mean()
+    h_std = (ha.std(dim=0)).mean() + (hb.std(dim=0)).mean()
     hidden_loss = h_mag + h_std
 
     # total loss, vicreg + info-min
