@@ -175,8 +175,7 @@ def loss_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0.01):
 
     za, zb, h, p = model_forward_func(xa_aug, xb_aug)  
 
-    # invariance loss
-    # predict za from p
+    # invariance loss - predict za from p
     sim_loss = _loss_mse(za, p)
 
     # variance loss
