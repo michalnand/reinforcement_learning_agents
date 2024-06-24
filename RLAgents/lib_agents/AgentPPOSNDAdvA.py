@@ -45,8 +45,8 @@ class AgentPPOSNDAdvA():
        
         if config.rl_self_supervised_loss == "vicreg":
             self._rl_self_supervised_loss = loss_vicreg
-        elif config.im_self_supervised_loss == "jepa":
-            self._im_self_supervised_loss = loss_jepa
+        elif config.rl_self_supervised_loss == "jepa":
+            self._rl_self_supervised_loss = loss_jepa
         else:
             self._rl_self_supervised_loss = None
 
