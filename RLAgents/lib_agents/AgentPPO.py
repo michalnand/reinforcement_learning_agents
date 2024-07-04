@@ -37,6 +37,11 @@ class AgentPPO():
             self.self_supervised_loss_func  = None
             self.augmentations              = None
 
+        if hasattr(config, bias_epoch_count):
+            self.bias_epoch_count = config, bias_epoch_count
+        else:
+            self.bias_epoch_count = 0
+
         self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         print(self.model)
@@ -127,7 +132,14 @@ class AgentPPO():
             self.trajctory_buffer.add(states_t, logits_t, values_t, actions, rewards_t, dones, hidden_state)
 
             if self.trajctory_buffer.is_full():
+                self.trajctory_buffer.compute_returns(self.gamma)
+
+                for e in range(self.bias_epoch_count):
+                    self.train()    
+                self.bias_epoch_count = 0
+
                 self.train()
+                self.trajctory_buffer.clear()  
 
         #udpate rnn hidden tate
         if self.rnn_policy:
@@ -177,8 +189,6 @@ class AgentPPO():
         return actions
     
     def train(self): 
-        self.trajctory_buffer.compute_returns(self.gamma)
-
         samples_count = self.steps*self.envs_count
         batch_count = samples_count//self.batch_size
 
@@ -208,7 +218,7 @@ class AgentPPO():
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
-        self.trajctory_buffer.clear()   
+         
 
     
     def _loss_ppo(self, states, logits, actions, returns, advantages, hidden_state = None):
