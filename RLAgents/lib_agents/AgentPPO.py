@@ -37,7 +37,7 @@ class AgentPPO():
             self.self_supervised_loss_func  = None
             self.augmentations              = None
 
-        if hasattr(config, bias_epoch_count):
+        if hasattr(config, "bias_epoch_count"):
             self.bias_epoch_count = config, bias_epoch_count
         else:
             self.bias_epoch_count = 0
@@ -135,6 +135,7 @@ class AgentPPO():
                 self.trajctory_buffer.compute_returns(self.gamma)
 
                 for e in range(self.bias_epoch_count):
+                    print("training bias epoch ", e)
                     self.train()    
                 self.bias_epoch_count = 0
 
