@@ -38,7 +38,7 @@ class AgentPPO():
             self.augmentations              = None
 
         if hasattr(config, "bias_epoch_count"):
-            self.bias_epoch_count = config, bias_epoch_count
+            self.bias_epoch_count = config.bias_epoch_count
         else:
             self.bias_epoch_count = 0
 
