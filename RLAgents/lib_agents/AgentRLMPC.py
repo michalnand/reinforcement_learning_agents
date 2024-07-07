@@ -160,7 +160,7 @@ class AgentRLMPC():
 
         for batch_idx in range(batch_count):
 
-            states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch_trajectory(self.rollout_length, self.batch_size, self.device)                    
+            states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch_trajectory(self.rollout_length+1, self.batch_size, self.device)                    
 
             z  = self.model.forward_features(states[0])
 
@@ -168,17 +168,15 @@ class AgentRLMPC():
             values_pred = self.model.model_critic(z).squeeze(1)
             loss_value  = ((returns[0] - values_pred)**2).mean()
             
-
             self.values_logger.add("loss_value", loss_value.detach().to("cpu").numpy())
 
             
             # MPC unrolled loss
-            loss_mpc = 0.0
-
+            loss_mpc        = 0.0
             loss_value_pred = 0.0
 
             loss_mpc_trajectory = []
-            for n in range(self.rollout_length-1):
+            for n in range(self.rollout_length):
                 # actions one hot encoding
                 action = torch.zeros((self.batch_size, self.actions_count), dtype=torch.float32, device=self.device)
                 action[range(self.batch_size), actions[n, range(self.batch_size)] ] = 1.0
@@ -201,8 +199,8 @@ class AgentRLMPC():
 
                 loss_mpc_trajectory.append(round(loss_mpc.detach().cpu().numpy().item(), 6))
 
-            loss_mpc        = loss_mpc/(self.rollout_length-1)
-            loss_value_pred = loss_value_pred/(self.rollout_length-1)
+            loss_mpc        = loss_mpc/self.rollout_length
+            loss_value_pred = loss_value_pred/self.rollout_length
 
             self.info_logger["loss_mpc"] = loss_mpc_trajectory            
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
