@@ -179,7 +179,6 @@ class AgentRLMPC():
                 action = torch.zeros((self.batch_size, self.actions_count), dtype=torch.float32, device=self.device)
                 action[range(self.batch_size), actions[n, range(self.batch_size)] ] = 1.0
 
-                print(n, action[0:5])
                 
                 z_pred   = self.model.forward_mpc(z, action)
                 z_target = self.model.forward_features(states[n+1]).detach()
