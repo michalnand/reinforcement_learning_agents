@@ -198,12 +198,11 @@ class AgentRLMPC():
 
                 loss_value_pred+= loss_value_pred_tmp
 
-                loss_mpc_trajectory.append(round(loss.detach().cpu().numpy().item(), 6))
+                loss_mpc_trajectory.append(round(loss_mpc.detach().cpu().numpy().item(), 6))
 
-            self.info_logger["loss_mpc"] = loss_mpc_trajectory
-            
+
+            self.info_logger["loss_mpc"] = loss_mpc_trajectory            
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
-
             self.values_logger.add("loss_value_pred", loss_value_pred.detach().to("cpu").numpy())
             
 
