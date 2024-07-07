@@ -44,4 +44,7 @@ from .AgentPPOContinuous            import AgentPPOContinuous
 from .AgentPPOFMContinuous          import AgentPPOFMContinuous
 
 
+from .AgentRLMPC                    import AgentRLMPC
+
+
   
