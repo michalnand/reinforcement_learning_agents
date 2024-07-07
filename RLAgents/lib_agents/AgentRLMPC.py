@@ -184,7 +184,7 @@ class AgentRLMPC():
                 action[range(self.batch_size), actions[n, range(self.batch_size)] ] = 1.0
 
                 # predict next z-space state using current z, and current action
-                z   = self.model.forward_mpc(z, action)
+                z = self.model.forward_mpc(z, action)
 
                 # future z, target
                 z_target = self.model.forward_features(states[n+1]).detach()
