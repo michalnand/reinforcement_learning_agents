@@ -168,11 +168,9 @@ class AgentRLMPC():
             loss_value  = (returns - values_pred)**2
             loss_value  = loss_value.mean()
 
-            print(">>> ", returns.shape, values_pred.shape)
-
             self.values_logger.add("loss_value", loss_value.detach().to("cpu").numpy())
 
-            '''
+            
             # forward model unrolled loss
             loss_mpc = 0.0
 
@@ -192,7 +190,7 @@ class AgentRLMPC():
             self.info_logger["loss_mpc"] = loss_mpc_trajectory
 
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
-            '''
+            
 
             # self supervised regularisation
             states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size, 0, self.device)
