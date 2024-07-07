@@ -159,12 +159,14 @@ class AgentRLMPC():
 
             states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch_trajectory(self.rollout_length, self.batch_size, self.device)                    
 
-            z = self.model.forward_features(states[0])
+            
 
             # critic MSE loss
+            z           = self.model.forward_features(states[0])
+            returns     = returns[0].detach()
             values_pred = self.model.model_critic(z).squeeze(1)
-            loss_value = (returns.detach() - values_pred)**2
-            loss_value = loss_value.mean()
+            loss_value  = (returns - values_pred)**2
+            loss_value  = loss_value.mean()
 
             print(">>> ", returns.shape, values_pred.shape)
 
