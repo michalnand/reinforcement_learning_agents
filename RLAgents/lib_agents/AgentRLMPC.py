@@ -103,6 +103,8 @@ class AgentRLMPC():
             z_next = self.model.forward_mpc(z, a_one_hot)
             value_next = self.model.forward_critic(z_next)
 
+            print(">>> ", a_one_hot.shape, value_next.shape, logits_t.shape)
+
             logits_t[:, a] = value_next[:, 0]
 
 
