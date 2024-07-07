@@ -98,11 +98,12 @@ class AgentRLMPC():
         # find actions evaluation
         for a in range(self.actions_count):
             a_one_hot       = torch.zeros((batch_size, self.actions_count), device=self.device, dtype=torch.float32)
-            a_one_hot[:, a] = 1.0
+            a_one_hot[:, a] = 1.0   
 
-            _, value = self.model.forward(z, a_one_hot)
+            z_next = self.model.forward_mpc(z, a_one_hot)
+            value_next = self.model.forward_critic(z_next)
 
-            logits_t[:, a] = value[:, 0]
+            logits_t[:, a] = value_next[:, 0]
 
 
         actions = self._sample_actions(logits_t)
