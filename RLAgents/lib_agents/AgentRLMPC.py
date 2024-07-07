@@ -157,7 +157,7 @@ class AgentRLMPC():
 
         for batch_idx in range(batch_count):
 
-            states, logits, actions, returns, advantages, hidden_states = self.trajctory_buffer.sample_batch_seq(self.rollout_length, self.batch_size, self.device)                    
+            states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch_trajectory(self.rollout_length, self.batch_size, self.device)                    
 
             z = self.model.forward_features(states[0])
 
@@ -194,7 +194,7 @@ class AgentRLMPC():
 
             # self supervised regularisation
             states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size, 0, self.device)
-            loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_rl_ssl, self._augmentations, states_a, states_b)
+            loss_self_supervised, ssl_info = self.self_supervised_loss_func(self.model.forward_ssl, self._augmentations, states_a, states_b)
                 
             self.info_logger["loss_ssl"] = ssl_info
             self.values_logger.add("loss_ssl", loss_self_supervised.detach().cpu().numpy())

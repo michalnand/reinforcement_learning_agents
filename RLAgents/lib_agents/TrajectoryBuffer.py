@@ -112,6 +112,30 @@ class TrajectoryBuffer:
 
         return states, logits, actions, returns, advantages, hidden_states
     
+    def sample_batch_trajectory(self, seq_length, batch_size, device):
+        indices        = torch.randint(0, self.envs_count*(self.buffer_size - seq_length), size=(batch_size, ))
+        
+        states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
+        logits         = torch.zeros((seq_length, batch_size, self.actions_size), dtype=torch.float32, device=device)
+        actions        = torch.zeros((seq_length, batch_size, ), dtype=int, device=device)
+        returns        = torch.zeros((seq_length, batch_size, ),  dtype=torch.float32, device=device)
+        advantages     = torch.zeros((seq_length, batch_size, self.actions_size), dtype=torch.float32, device=device)
+
+
+        for n in range(seq_length):
+            states[n]      = self.states[indices].to(device)
+            logits[n]      = self.logits[indices].to(device)
+            actions[n]     = self.actions[indices].to(device)
+            returns[n]     = self.returns[indices].to(device)
+            advantages[n]  = self.advantages[indices].to(device)
+
+
+            indices+= self.envs_count 
+
+        return states, logits, actions, returns, advantages
+    
+
+    
 
     def sample_states_pairs(self, batch_size, max_distance, device):
         count           = self.buffer_size*self.envs_count
