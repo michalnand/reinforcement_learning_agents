@@ -185,9 +185,9 @@ class AgentRLMPC():
                 z_target = self.model.forward_features(states[n+1]).detach()
 
                 loss = ((z_target - z_pred)**2).mean()
-                loss_mpc+= loss 
+                loss_mpc+= loss     
 
-                loss_mpc_trajectory.append(round(loss.detach().cpu().numpy(), 6))
+                loss_mpc_trajectory.append(round(loss.detach().cpu().numpy().item(), 6))
 
             self.info_logger["loss_mpc"] = loss_mpc_trajectory
 
