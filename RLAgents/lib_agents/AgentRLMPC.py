@@ -95,12 +95,12 @@ class AgentRLMPC():
         # find current state evaluation
         values_t = self.model.model_critic(z)
 
-        # find actions evaluation
+        # find all actions evaluation using next state prediction
         for a in range(self.actions_count):
             a_one_hot       = torch.zeros((batch_size, self.actions_count), device=self.device, dtype=torch.float32)
             a_one_hot[:, a] = 1.0   
 
-            z_next = self.model.forward_mpc(z, a_one_hot)
+            z_next     = self.model.forward_mpc(z, a_one_hot)
             value_next = self.model.forward_critic(z_next)
 
             logits_t[:, a] = value_next.squeeze(1)
@@ -124,7 +124,7 @@ class AgentRLMPC():
 
             if self.trajctory_buffer.is_full():
                 self.trajctory_buffer.compute_returns(self.gamma)
-                #self.train()
+                self.train()
                 self.trajctory_buffer.clear()  
 
       
@@ -162,12 +162,15 @@ class AgentRLMPC():
             z = self.model.forward_features(states[0])
 
             # critic MSE loss
-            values_pred = self.model.model_critic(z)
-            loss_value = (returns.detach() - values_pred.squeeze(1))**2
+            values_pred = self.model.model_critic(z).squeeze(1)
+            loss_value = (returns.detach() - values_pred)**2
             loss_value = loss_value.mean()
+
+            print(">>> ", returns.shape, values_pred.shape)
 
             self.values_logger.add("loss_value", loss_value.detach().to("cpu").numpy())
 
+            '''
             # forward model unrolled loss
             loss_mpc = 0.0
 
@@ -187,7 +190,7 @@ class AgentRLMPC():
             self.info_logger["loss_mpc"] = loss_mpc_trajectory
 
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
-
+            '''
 
             # self supervised regularisation
             states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size, 0, self.device)
@@ -198,7 +201,7 @@ class AgentRLMPC():
 
             
                                    
-            loss = loss_mpc + loss_value + loss_self_supervised
+            loss = loss_value + loss_self_supervised
 
             self.optimizer.zero_grad()        
             loss.backward()
