@@ -118,8 +118,8 @@ class TrajectoryBuffer:
         states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
         logits         = torch.zeros((seq_length, batch_size, self.actions_size), dtype=torch.float32, device=device)
         actions        = torch.zeros((seq_length, batch_size, ), dtype=int, device=device)
-        returns        = torch.zeros((seq_length, batch_size, ),  dtype=torch.float32, device=device)
-        advantages     = torch.zeros((seq_length, batch_size, self.actions_size), dtype=torch.float32, device=device)
+        returns        = torch.zeros((seq_length, batch_size, ), dtype=torch.float32, device=device)
+        advantages     = torch.zeros((seq_length, batch_size, ), dtype=torch.float32, device=device)
 
 
         for n in range(seq_length):
