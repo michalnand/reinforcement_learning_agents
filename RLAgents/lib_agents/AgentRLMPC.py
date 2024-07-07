@@ -159,10 +159,9 @@ class AgentRLMPC():
 
             states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch_trajectory(self.rollout_length, self.batch_size, self.device)                    
 
-            
+            z  = self.model.forward_features(states[0])
 
             # critic MSE loss
-            z           = self.model.forward_features(states[0])
             returns     = returns[0].detach()
             values_pred = self.model.model_critic(z).squeeze(1)
             loss_value  = (returns - values_pred)**2
@@ -176,14 +175,18 @@ class AgentRLMPC():
 
             loss_mpc_trajectory = []
             for n in range(self.rollout_length-1):
+                # actions one hot encoding
                 action = torch.zeros((self.batch_size, self.actions_count), dtype=torch.float32, device=self.device)
                 action[range(self.batch_size), actions[n, range(self.batch_size)] ] = 1.0
 
-                
-                z_pred   = self.model.forward_mpc(z, action)
+                # predict next z-space state using current z, and current action
+                z   = self.model.forward_mpc(z, action)
+
+                # future z, target
                 z_target = self.model.forward_features(states[n+1]).detach()
 
-                loss = ((z_target - z_pred)**2).mean()
+                # MSE loss
+                loss = ((z_target - z)**2).mean()
                 loss_mpc+= loss     
 
                 loss_mpc_trajectory.append(round(loss.detach().cpu().numpy().item(), 6))
