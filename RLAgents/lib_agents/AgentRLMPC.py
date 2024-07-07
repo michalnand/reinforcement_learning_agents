@@ -18,6 +18,7 @@ class AgentRLMPC():
         self.gamma              = config.gamma
         self.temperature        = config.temperature
         self.rollout_length     = config.rollout_length
+        self.value_pred_coeff   = config.value_pred_coeff
 
         self.steps              = config.steps
         self.batch_size         = config.batch_size        
@@ -68,9 +69,10 @@ class AgentRLMPC():
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
-        self.values_logger.add("loss_value", 0.0)
-        self.values_logger.add("loss_mpc", 0.0)
-        self.values_logger.add("loss_ssl", 0.0)
+        self.values_logger.add("loss_value",      0.0)
+        self.values_logger.add("loss_value_pred", 0.0)
+        self.values_logger.add("loss_mpc",        0.0)
+        self.values_logger.add("loss_ssl",        0.0)
 
         self.info_logger = {} 
 
@@ -162,16 +164,17 @@ class AgentRLMPC():
             z  = self.model.forward_features(states[0])
 
             # critic MSE loss
-            returns     = returns[0].detach()
             values_pred = self.model.model_critic(z).squeeze(1)
-            loss_value  = (returns - values_pred)**2
-            loss_value  = loss_value.mean()
+            loss_value  = ((returns[0] - values_pred)**2).mean()
+            
 
             self.values_logger.add("loss_value", loss_value.detach().to("cpu").numpy())
 
             
-            # forward model unrolled loss
+            # MPC unrolled loss
             loss_mpc = 0.0
+
+            loss_value_pred = 0.0
 
             loss_mpc_trajectory = []
             for n in range(self.rollout_length-1):
@@ -185,15 +188,23 @@ class AgentRLMPC():
                 # future z, target
                 z_target = self.model.forward_features(states[n+1]).detach()
 
-                # MSE loss
-                loss = ((z_target - z)**2).mean()
-                loss_mpc+= loss     
+                # MSE loss for state prediction
+                loss_mpc_tmp = ((z_target - z)**2).mean()
+                loss_mpc+= loss_mpc_tmp  
+
+                # MSE loss for state evaluation
+                values_pred          = self.model.model_critic(z).squeeze(1)
+                loss_value_pred_tmp  = ((returns[n+1] - values_pred)**2).mean()
+
+                loss_value_pred+= loss_value_pred_tmp
 
                 loss_mpc_trajectory.append(round(loss.detach().cpu().numpy().item(), 6))
 
             self.info_logger["loss_mpc"] = loss_mpc_trajectory
-
+            
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
+
+            self.values_logger.add("loss_value_pred", loss_value_pred.detach().to("cpu").numpy())
             
 
             # self supervised regularisation
@@ -203,9 +214,8 @@ class AgentRLMPC():
             self.info_logger["loss_ssl"] = ssl_info
             self.values_logger.add("loss_ssl", loss_self_supervised.detach().cpu().numpy())
 
-            
                                    
-            loss = loss_value + loss_self_supervised
+            loss = loss_value + loss_mpc + self.value_pred_coeff*loss_value_pred + loss_self_supervised
 
             self.optimizer.zero_grad()        
             loss.backward()
