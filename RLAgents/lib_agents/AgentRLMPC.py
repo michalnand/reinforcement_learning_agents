@@ -124,7 +124,7 @@ class AgentRLMPC():
 
             if self.trajctory_buffer.is_full():
                 self.trajctory_buffer.compute_returns(self.gamma)
-                self.train()
+                #self.train()
                 self.trajctory_buffer.clear()  
 
       
