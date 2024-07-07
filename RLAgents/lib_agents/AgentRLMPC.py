@@ -48,6 +48,7 @@ class AgentRLMPC():
         print("gamma                    = ", self.gamma)
         print("temperature              = ", self.temperature)
         print("rollout_length           = ", self.rollout_length)
+        print("value_pred_coeff         = ", self.value_pred_coeff)
         print("learning_rate            = ", config.learning_rate)
 
         print("steps                    = ", self.steps)
@@ -107,7 +108,7 @@ class AgentRLMPC():
 
             logits_t[:, a] = value_next.squeeze(1)
 
-
+        # use action evaluation to sample actual action
         actions = self._sample_actions(logits_t)
 
         states_new, rewards, dones, _, infos = self.envs.step(actions)
@@ -200,6 +201,8 @@ class AgentRLMPC():
 
                 loss_mpc_trajectory.append(round(loss_mpc.detach().cpu().numpy().item(), 6))
 
+            loss_mpc        = loss_mpc/(self.rollout_length-1)
+            loss_value_pred = loss_value_pred/(self.rollout_length-1)
 
             self.info_logger["loss_mpc"] = loss_mpc_trajectory            
             self.values_logger.add("loss_mpc", loss_mpc.detach().to("cpu").numpy())
