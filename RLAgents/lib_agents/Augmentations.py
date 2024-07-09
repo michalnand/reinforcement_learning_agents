@@ -40,6 +40,7 @@ def aug_mask(x, p = 0.75):
 
 
 def aug_conv(x, kernel_size = 5):
+    print("aug conv")
     size    = x.shape[0]*x.shape[1]
     x_tmp   = x.reshape((1, x.shape[0]*x.shape[1], x.shape[2], x.shape[3]))
     weights = torch.randn((size, 1, kernel_size, kernel_size), device=x.device)
