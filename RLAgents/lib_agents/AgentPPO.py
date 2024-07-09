@@ -272,16 +272,20 @@ class AgentPPO():
 
         return loss
 
-    def _augmentations(self, x): 
-        mask_result = torch.zeros((2, x.shape[0]), device=x.device, dtype=torch.float32)
-
-        if "mask" in self.augmentations:
-            x, mask = aug_random_apply(x, 0.5, aug_mask)
-            mask_result[0] = mask
+    def _augmentations(self, x):    
+        mask_result = torch.zeros((3, x.shape[0]), device=x.device, dtype=torch.float32)
 
         if "noise" in self.augmentations:
             x, mask = aug_random_apply(x, 0.5, aug_noise)
+            mask_result[0] = mask
+        
+        if "mask" in self.augmentations:
+            x, mask = aug_random_apply(x, 0.5, aug_mask)
             mask_result[1] = mask
+        
+        if "conv" in self.augmentations:
+            x, mask = aug_random_apply(x, 0.5, aug_conv)
+            mask_result[2] = mask
 
         return x.detach(), mask_result 
     

@@ -9,6 +9,49 @@ def aug_random_apply(x, p, aug_func):
  
     return y, mask  
 
+#uniform aditional noise
+def aug_noise(x, k = 0.2): 
+    pointwise_noise = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
+    return x + pointwise_noise  
+
+
+def aug_mask(x, p = 0.75):
+    if x.shape[2] == 105:
+        gh = 15
+    else:
+        gh = 16
+
+    if x.shape[3] == 80:
+        gw = 16 
+    else:
+        gw = 16 
+
+
+    up_h = x.shape[2]//gh
+    up_w = x.shape[3]//gw 
+
+    mask = torch.rand((x.shape[0], x.shape[1], gh, gw), device = x.device)
+    
+    mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
+    mask = (mask > (1.0 - p)).float().detach()
+
+    return mask*x   
+
+
+
+def aug_conv(x, kernel_size = 5):
+    size    = x.shape[0]*x.shape[1]
+    x_tmp   = x.reshape((1, x.shape[0]*x.shape[1], x.shape[2], x.shape[3]))
+    weights = torch.randn((size, 1, kernel_size, kernel_size), device=x.device)
+
+    y  = torch.nn.functional.conv2d(x_tmp, weights, stride=1, padding=kernel_size//2, groups=size)
+    y  = y.reshape((x.shape[0], x.shape[1], x.shape[2], x.shape[3]))
+
+    return y
+
+
+
+
 #random select xa or xb, xa with prob (1 - p), xb with prob p
 def aug_random_select(xa, xb, p):
     mask     = (torch.rand(xa.shape[0]) < p).float().to(xa.device)
@@ -48,22 +91,6 @@ def aug_pixelate(x, p = 0.5):
 def aug_pixel_dropout(x, p = 0.1):
     mask = 1.0 - (torch.rand_like(x) < p).float()
     return x*mask  
-
-
-#apply random convolution filter
-def aug_conv(x):
-    #random kernel size : 1, 3, 5, 7
-    kernel_size =  2*torch.randint(0, 4) + 1
-
-    ch = x.shape[1] 
-
-    #random weights
-    w   = torch.randn((ch, 1, kernel_size, kernel_size), dtype=torch.float32, device = x.device)
-    
-    #apply filter
-    y   = torch.nn.functional.conv2d(x, w, padding=kernel_size//2, groups=ch)
-
-    return y
 
 
 
@@ -126,11 +153,6 @@ def aug_edges(x):
 
     return y
 
-#uniform aditional noise
-def aug_noise(x, k = 0.2): 
-    pointwise_noise   = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
-    return x + pointwise_noise
-
 #random choice from xa or xb, 50:50 prob default
 def choice_augmentation(xa, xb, pa_prob = 0.5):
     s = (torch.rand(xa.shape[0], 1, 1, 1).to(xa.device) < pa_prob).float()
@@ -157,7 +179,7 @@ def aug_noisy_tiles(x, sizes = [1, 2, 4, 8, 16], p = 0.1):
     return result
 
 '''
-random brightness and offsete, channel idependent 
+random brightness and offset, channel idependent 
 '''
 def aug_intensity(x, k_min = 0.5, k_max = 1.5, q_min = -1.0, q_max = 1.0):
 
@@ -207,29 +229,7 @@ def aug( x):
 
     return x
 '''
-
-def aug_mask(x, p = 0.75):
-    if x.shape[2] == 105:
-        gh = 15
-    else:
-        gh = 16
-
-    if x.shape[3] == 80:
-        gw = 16 
-    else:
-        gw = 16 
-
-
-    up_h = x.shape[2]//gh
-    up_w = x.shape[3]//gw 
-
-    mask = torch.rand((x.shape[0], x.shape[1], gh, gw), device = x.device)
-    
-    mask = torch.nn.functional.interpolate(mask, scale_factor = (up_h, up_w), mode="bicubic")
-    mask = (mask > (1.0 - p)).float().detach()
-
-
-    return mask*x      
+   
 
 
 def aug_channel_mask(x):
@@ -262,13 +262,16 @@ def aug_mask_advanced(x):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    x = torch.ones((20, 3, 96, 128))    
-    #x = torch.ones((20, 3, 96, 96))    
-
-    #y = aug_mask(x) 
-    y = aug_mask_advanced(x) 
+    x = torch.ones((20, 3, 96, 96))    
+    
+    #y = aug_noise(x) 
+    y = aug_mask(x) 
+    y = aug_conv(y) 
+    #y = aug_mask_advanced(x) 
 
     print(">>> ", x.shape, y.shape, y.mean())
 
     plt.matshow(y.cpu().detach().numpy()[0][0])
+    plt.matshow(y.cpu().detach().numpy()[1][0])
+    plt.matshow(y.cpu().detach().numpy()[2][0])
     plt.show()
