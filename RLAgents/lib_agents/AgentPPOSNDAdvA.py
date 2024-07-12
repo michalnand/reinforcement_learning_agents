@@ -8,7 +8,7 @@ from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
   
-
+    
 class AgentPPOSNDAdvA():   
     def __init__(self, envs, Model, config):
 
@@ -50,7 +50,7 @@ class AgentPPOSNDAdvA():
         elif config.rl_self_supervised_loss == "jepa_sim":
             self._rl_self_supervised_loss = loss_jepa_sim
         else:
-            self._rl_self_supervised_loss = None
+            self._rl_self_supervised_loss = None    
 
         if config.im_self_supervised_loss == "vicreg":
             self._im_self_supervised_loss = loss_vicreg
@@ -295,7 +295,7 @@ class AgentPPOSNDAdvA():
             #target SSL regularisation
             if self._im_self_supervised_loss is not None:
                 states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
-                loss_ssl, im_ssl  = self._im_self_supervised_loss(self.model.forward_target_self_supervised, self._augmentations_im_func, states_now, states_similar)                
+                loss_ssl, im_ssl  = self._im_self_supervised_loss(self.model.forward_im_ssl, self._augmentations_im_func, states_now, states_similar)                
 
                 self.info_logger["im_ssl"] = im_ssl
             else:
@@ -352,8 +352,8 @@ class AgentPPOSNDAdvA():
 
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states):        
-        z_target    = self.model.forward_im_spatial_target(states)
-        z_predictor = self.model.forward_im_spatial_predictor(states)
+        z_target    = self.model.forward_im_target(states)
+        z_predictor = self.model.forward_im_predictor(states)
 
         novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
 

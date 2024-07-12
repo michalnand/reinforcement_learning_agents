@@ -25,12 +25,7 @@ def _loss_cov(x):
     loss = _off_diagonal(cov_x).pow_(2).sum()/x.shape[1] 
     return loss
 
-# force x term into values -1 or +1 (corners of hypercube)
-def _loss_hypercube_corner(x):
-    loss = (1.0 - (x**2))**2
-    loss = loss.mean()
 
-    return loss
 
 
 
@@ -64,16 +59,22 @@ def loss_vicreg_direct(za, zb):
 
 
 def loss_vicreg(model_forward_func, augmentations, xa, xb):
+
+    '''
     if augmentations is not None:
         xa_aug, _ = augmentations(xa) 
         xb_aug, _ = augmentations(xb)
     else:
         xa_aug = xa 
         xb_aug = xb
+    '''
+    if augmentations is not None:
+        xb_aug, _ = augmentations(xb)
+    else:
+        xb_aug    = xb
 
-    za = model_forward_func(xa_aug)
-    zb = model_forward_func(xb_aug)
-
+    za, zb = model_forward_func(xa, xb_aug)
+    
     # invariance loss
     sim_loss = _loss_mse(za, zb)
 
@@ -101,39 +102,6 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
 
 
-
-def loss_vicreg_seq(model_forward_func, xa, xb, ha, hb):
-    xa_aug = xa
-    xb_aug = xb
-
-    za = model_forward_func(xa_aug, ha)
-    zb = model_forward_func(xb_aug, hb)
-
-    # invariance loss
-    sim_loss = _loss_mse(za, zb)
-
-    # variance loss
-    std_loss = _loss_std(za)
-    std_loss+= _loss_std(zb)
-   
-    # covariance loss 
-    cov_loss = _loss_cov(za)
-    cov_loss+= _loss_cov(zb)
-   
-    # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
-
-    #info for log
-    z_mag     = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-
-    sim_loss_np = round((sim_loss.mean()).detach().cpu().numpy().item(), 6)
-    std_loss_np = round((std_loss.mean()).detach().cpu().numpy().item(), 6)
-    cov_loss_np = round((cov_loss.mean()).detach().cpu().numpy().item(), 6)
-    
-    info = [z_mag, z_mag_std, sim_loss_np, std_loss_np, cov_loss_np]
-
-    return loss, info
 
 
 

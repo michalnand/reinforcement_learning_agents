@@ -14,19 +14,8 @@ def aug_noise(x, k = 0.2):
     pointwise_noise = k*(2.0*torch.rand(x.shape, device=x.device) - 1.0)
     return x + pointwise_noise  
 
-
-def aug_mask(x, p = 0.75):
-    if x.shape[2] == 105:
-        gh = 15
-    else:
-        gh = 16
-
-    if x.shape[3] == 80:
-        gw = 16 
-    else:
-        gw = 16 
-
-
+# random black mask
+def aug_mask(x, p = 0.75, gw = 16, gh = 16):
     up_h = x.shape[2]//gh
     up_w = x.shape[3]//gw 
 
@@ -37,8 +26,7 @@ def aug_mask(x, p = 0.75):
 
     return mask*x   
 
-
-
+# random conv kernel augmentation
 def aug_conv(x, kernel_size = 5):
     size    = x.shape[0]*x.shape[1]
     x_tmp   = x.reshape((1, x.shape[0]*x.shape[1], x.shape[2], x.shape[3]))
