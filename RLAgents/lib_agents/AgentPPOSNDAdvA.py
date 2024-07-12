@@ -68,7 +68,6 @@ class AgentPPOSNDAdvA():
         self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
-        self.distillation_coeff             = config.distillation_coeff
         
 
         print("state_normalise        = ", self.state_normalise)
@@ -77,7 +76,6 @@ class AgentPPOSNDAdvA():
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
-        print("distillation_coeff     = ", self.distillation_coeff)   
         print("reward_int_coeff       = ", self.reward_int_coeff)
         print("training_distance      = ", self.training_distance)
         print("stochastic_distance    = ", self.stochastic_distance)
@@ -302,7 +300,7 @@ class AgentPPOSNDAdvA():
                 loss_ssl = 0
 
             #total IM loss  
-            loss = self.distillation_coeff*loss_im + loss_ssl
+            loss = loss_im + loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
