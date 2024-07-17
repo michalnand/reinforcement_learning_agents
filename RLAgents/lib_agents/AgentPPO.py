@@ -35,18 +35,18 @@ class AgentPPO():
             self.augmentations              = config.augmentations
         else:
             self.self_supervised_loss_func  = None
-            self.augmentations              = None
+            self.augmentations              = None       
 
-        if hasattr(config, "bias_epoch_count"):
-            self.bias_epoch_count = config.bias_epoch_count
+        if hasattr(config, "weight_decay"):
+            self.weight_decay = config.weight_decay
         else:
-            self.bias_epoch_count = 0
+            self.weight_decay = 0
 
         self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         print(self.model)
 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, weight_decay=self.weight_decay)
  
         self.trajctory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
@@ -133,12 +133,6 @@ class AgentPPO():
 
             if self.trajctory_buffer.is_full():
                 self.trajctory_buffer.compute_returns(self.gamma)
-
-                for e in range(self.bias_epoch_count):
-                    print("training bias epoch ", e)
-                    self.train()    
-                self.bias_epoch_count = 0
-
                 self.train()
                 self.trajctory_buffer.clear()  
 
