@@ -44,7 +44,7 @@ class AgentPPO():
             self.weight_decay = 0
         
         if hasattr(config, "use_grok_fast"):
-            self.use_grok_fast = config.grok_fast
+            self.use_grok_fast = config.use_grok_fast
         else:
             self.use_grok_fast = False
 
