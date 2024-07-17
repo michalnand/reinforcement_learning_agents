@@ -6,6 +6,7 @@ from .ValuesLogger      import *
 from .TrajectoryBuffer  import *
 from .SelfSupervised    import * 
 from .Augmentations     import *
+from .GrokFast          import *
   
 class AgentPPO():
     def __init__(self, envs, Model, config):
@@ -41,12 +42,20 @@ class AgentPPO():
             self.weight_decay = config.weight_decay
         else:
             self.weight_decay = 0
+        
+        if hasattr(config, "use_grok_fast"):
+            self.use_grok_fast = config.grok_fast
+        else:
+            self.use_grok_fast = False
 
         self.model = Model.Model(self.state_shape, self.actions_count)
         self.model.to(self.device)
         print(self.model)
 
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate, weight_decay=self.weight_decay)
+
+        if self.use_grok_fast:
+            self.grok_fast = GrokFast(self.model)
  
         self.trajctory_buffer = TrajectoryBuffer(self.steps, self.state_shape, self.actions_count, self.envs_count)
  
@@ -63,6 +72,7 @@ class AgentPPO():
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", config.learning_rate)
         print("weight_decay             = ", self.weight_decay)
+        print("use_grok_fast            = ", self.use_grok_fast)
         print("adv_coeff                = ", self.adv_coeff)
         print("val_coeff                = ", self.val_coeff)
         print("batch_size               = ", self.batch_size)
@@ -211,6 +221,10 @@ class AgentPPO():
 
                 self.optimizer.zero_grad()        
                 loss.backward()
+                
+                if self.use_grok_fast:
+                    self.grok_fast.step()
+                
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
 
