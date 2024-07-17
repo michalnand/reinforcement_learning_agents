@@ -62,6 +62,7 @@ class AgentPPO():
         print("gamma                    = ", self.gamma)
         print("entropy_beta             = ", self.entropy_beta)
         print("learning_rate            = ", config.learning_rate)
+        print("weight_decay             = ", self.weight_decay)
         print("adv_coeff                = ", self.adv_coeff)
         print("val_coeff                = ", self.val_coeff)
         print("batch_size               = ", self.batch_size)
