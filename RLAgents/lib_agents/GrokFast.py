@@ -9,7 +9,7 @@ def params_stats(model):
     
     count = 0
     for name, param in model.named_parameters():
-        print(name, param)
+        print(name)
         gradient = param.grad
 
         params_mag+= (param**2).mean().detach().cpu().numpy()
@@ -18,16 +18,11 @@ def params_stats(model):
         grads_std+= gradient.std().detach().cpu().numpy()
 
         count+= 1
-
+    print("\n\n")
     params_mag = params_mag/count
     params_std = params_std/count
     grads_mag  = grads_mag/count
     grads_std  = grads_std/count
-
-    params_mag = params_mag.detach().cpu().numpy()
-    params_std = params_std.detach().cpu().numpy()
-    grads_mag  = grads_mag.detach().cpu().numpy()
-    grads_std  = grads_std.detach().cpu().numpy()
 
     return params_mag, params_std, grads_mag, grads_std
     
