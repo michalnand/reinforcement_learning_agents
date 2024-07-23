@@ -9,15 +9,16 @@ def params_stats(model):
     
     count = 0
     for name, param in model.named_parameters():
-        print(name, param.std())
-        gradient = param.grad
+        if "weight" in name:
+            print(name, param.std())
+            gradient = param.grad
 
-        params_mag+= (param**2).mean().detach().cpu().numpy()
-        params_std+= param.std().detach().cpu().numpy()
-        grads_mag+= (gradient**2).mean().detach().cpu().numpy()
-        grads_std+= gradient.std().detach().cpu().numpy()
+            params_mag+= (param**2).mean().detach().cpu().numpy()
+            params_std+= param.std().detach().cpu().numpy()
+            grads_mag+= (gradient**2).mean().detach().cpu().numpy()
+            grads_std+= gradient.std().detach().cpu().numpy()
 
-        count+= 1
+            count+= 1
     print("\n\n")
     params_mag = params_mag/count
     params_std = params_std/count
