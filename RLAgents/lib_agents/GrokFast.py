@@ -10,7 +10,6 @@ def params_stats(model):
     count = 0
     for name, param in model.named_parameters():
         if "weight" in name:
-            print(name, param.std())
             gradient = param.grad
 
             params_mag+= (param**2).mean().detach().cpu().numpy()
@@ -19,11 +18,11 @@ def params_stats(model):
             grads_std+= gradient.std().detach().cpu().numpy()
 
             count+= 1
-    print("\n\n")
-    params_mag = params_mag/count
-    params_std = params_std/count
-    grads_mag  = grads_mag/count
-    grads_std  = grads_std/count
+
+    params_mag = round(params_mag/count, 7)
+    params_std = round(params_std/count, 7)
+    grads_mag  = round(grads_mag/count, 7)
+    grads_std  = round(grads_std/count, 7)
 
     return params_mag, params_std, grads_mag, grads_std
     
