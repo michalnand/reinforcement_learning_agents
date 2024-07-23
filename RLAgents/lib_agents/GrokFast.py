@@ -8,7 +8,8 @@ def params_stats(model):
     grads_std  = 0.0
     
     count = 0
-    for name, param in self.model.named_parameters():
+    for name, param in model.named_parameters():
+        print(name, param)
         gradient = param.grad
 
         params_mag+= (param**2).mean().detach().cpu().numpy()
