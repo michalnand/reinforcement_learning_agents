@@ -400,14 +400,15 @@ def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = N
     # log results
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-   
+    
+    dist_loss_    = round(dist_loss.mean().detach().cpu().numpy().item(), 6)
     d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
     d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
     d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
     d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
     
 
-    info = [z_mag, z_mag_std, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+    info = [z_mag, z_mag_std, dist_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
 
     return dist_loss, info
 
@@ -452,6 +453,7 @@ def loss_metrics_cov_var(model_forward_func, augmentations, x, x_steps, scaling_
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
 
+    dist_loss_ = round(dist_loss.detach().cpu().numpy().item(), 6)
     std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
    
@@ -461,6 +463,6 @@ def loss_metrics_cov_var(model_forward_func, augmentations, x, x_steps, scaling_
     d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
     
 
-    info = [z_mag, z_mag_std, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
 
     return loss, info
