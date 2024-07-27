@@ -32,13 +32,12 @@ from .AgentPPORND                   import AgentPPORND
 from .AgentPPOCND                   import AgentPPOCND
 from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDA                  import AgentPPOSNDA
-from .AgentPPOSNDB                  import AgentPPOSNDB
-from .AgentPPOSNDC                  import AgentPPOSNDC
+from .AgentPPOSNDD                  import AgentPPOSNDD
 
 from .AgentPPOJEPA                   import AgentPPOJEPA
 
 from .AgentPPOSNDAdvA               import AgentPPOSNDAdvA
-from .AgentPPOSNDAdvB               import AgentPPOSNDAdvB
+
 
 
 from .AgentPPOContinuous            import AgentPPOContinuous

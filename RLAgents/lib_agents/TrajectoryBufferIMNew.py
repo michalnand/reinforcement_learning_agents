@@ -12,7 +12,7 @@ class TrajectoryBufferIMNew:
         
         self.clear()     
  
-    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None):
+    def add(self, state, logits, value_ext, value_int, action, reward_ext, reward_int, done, hidden_state = None, steps = None):
         
         self.states[self.ptr]    = state.clone() 
         self.logits[self.ptr]    = logits.clone()
@@ -34,6 +34,12 @@ class TrajectoryBufferIMNew:
                 self.hidden_states   = torch.zeros((self.buffer_size, self.envs_count, ) + self.hidden_shape, dtype=torch.float32)
             
             self.hidden_states[self.ptr] = hidden_state.clone()
+
+        if steps is not None:
+            if self.steps is None:
+                self.steps = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
+            
+            self.steps[self.ptr] = steps
 
         self.ptr = self.ptr + 1 
 
@@ -59,7 +65,8 @@ class TrajectoryBufferIMNew:
 
         self.dones          = torch.zeros((self.buffer_size, self.envs_count, ), dtype=torch.float32)
 
-        self.hidden_states   = None
+        self.hidden_states  = None
+        self.steps          = None
 
         self.ptr = 0  
  
@@ -84,6 +91,9 @@ class TrajectoryBufferIMNew:
 
         if self.hidden_states is not None:
             self.hidden_states = self.hidden_states.reshape((self.buffer_size*self.envs_count, ) + self.hidden_shape)
+
+        if self.steps is not None:
+            self.steps = self.steps.reshape((self.buffer_size*self.envs_count, ))
 
         self.returns_ext      = self.returns_ext.reshape((self.buffer_size*self.envs_count, ))
         self.advantages_ext   = self.advantages_ext.reshape((self.buffer_size*self.envs_count, ))
@@ -137,7 +147,7 @@ class TrajectoryBufferIMNew:
 
         return states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states
     
-    
+
    
     def sample_states_pairs(self, batch_size, max_distance, stochastic_distance, device):
         count = self.buffer_size*self.envs_count
@@ -186,7 +196,15 @@ class TrajectoryBufferIMNew:
         return states_now, states_prev, hidden_states_now, hidden_states_prev
     
     
+    def sample_states_steps(self, batch_size, device):
+        count = self.buffer_size*self.envs_count
 
+        indices  = torch.randint(0, count, size=(batch_size, ))
+      
+        states   = (self.states[indices]).to(device)
+        steps    = (self.steps[indices]).to(device)
+
+        return states, steps
 
     def _gae(self, rewards, values, dones, gamma, lam):
         buffer_size = rewards.shape[0]

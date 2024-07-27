@@ -7,14 +7,14 @@ from .TrajectoryBufferIMNew import *
 from .PPOLoss               import *
 from .SelfSupervised        import * 
 from .Augmentations         import *
-  
-
-class AgentPPOSNDAdvB():   
+   
+    
+class AgentPPOSNDD():   
     def __init__(self, envs, Model, config):
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.envs   = envs    
+        self.envs = envs    
           
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
@@ -28,43 +28,53 @@ class AgentPPOSNDAdvB():
     
         self.steps              = config.steps
         self.batch_size         = config.batch_size  
+        self.ss_batch_size      = config.ss_batch_size   
         
-        self.im_batch_size      = config.im_batch_size
 
         self.training_epochs    = config.training_epochs
         self.envs_count         = config.envs_count
 
         self.state_normalise    = config.state_normalise
 
-       
-        if config.rl_self_supervised_loss == "vicreg":
-            self._rl_self_supervised_loss = loss_vicreg
+        if hasattr(config, "rnn_policy"):
+            self.rnn_policy          = config.rnn_policy
+            self.rnn_seq_length      = config.rnn_seq_length
         else:
-            self._rl_self_supervised_loss = None
+            self.rnn_policy          = False
+            self.rnn_seq_length      = -1
+            
 
-        if config.self_supervised_loss == "vicreg":
-            self._self_supervised_loss = loss_vicreg
+        if config.rl_ssl_loss == "vicreg":
+            self._rl_ssl_loss = loss_vicreg
         else:
-            self._self_supervised_loss = None   
+            self._rl_ssl_loss = None    
 
+        if config.im_ssl_loss == "metrics":
+            self._im_ssl_loss = loss_metrics
+        elif config.im_ssl_loss == "metrics_cov_var":
+            self._im_ssl_loss = loss_metrics_cov_var
+        else:
+            self._im_ssl_loss = None
 
-        self.training_distance   = config.training_distance
-        self.stochastic_distance = config.stochastic_distance
+        self.metrics_scaling_func           = config.metrics_scaling_func
 
-        self.augmentations       = config.augmentations
-        self.augmentations_probs = config.augmentations_probs
-        self.ss_batch_size = 64
+        self.augmentations_rl               = config.augmentations_rl
+        self.augmentations_im               = config.augmentations_im
+        self.augmentations_probs            = config.augmentations_probs
         
 
         print("state_normalise        = ", self.state_normalise)
-        print("rl_self_supervised_loss= ", self._rl_self_supervised_loss)
-        print("self_supervised_loss   = ", self._self_supervised_loss)
-        print("augmentations          = ", self.augmentations)
+        print("rl_ssl_loss            = ", self._rl_ssl_loss)
+        print("im_ssl_loss            = ", self._im_ssl_loss)
+        print("metrics_scaling_func   = ", self.metrics_scaling_func)
+        print("augmentations_rl       = ", self.augmentations_rl)
+        print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
         print("reward_int_coeff       = ", self.reward_int_coeff)
-        print("training_distance      = ", self.training_distance)
-        print("im_batch_size          = ", self.im_batch_size)
+        print("rnn_policy             = ", self.rnn_policy)
+        print("rnn_seq_length         = ", self.rnn_seq_length)
         
+
         print("\n\n")
 
         self.state_shape    = self.envs.observation_space.shape
@@ -79,7 +89,12 @@ class AgentPPOSNDAdvB():
      
         self.trajectory_buffer = TrajectoryBufferIMNew(self.steps, self.state_shape, self.actions_count, self.envs_count)
 
-     
+        if self.rnn_policy:
+            self.hidden_state   = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
+            self.rnn_seq_length = config.rnn_seq_length
+        
+        self.episode_steps = torch.zeros((self.envs_count), dtype=int)
+
         #optional, for state mean and variance normalisation        
         self.state_mean  = numpy.zeros(self.state_shape, dtype=numpy.float32)
 
@@ -102,22 +117,19 @@ class AgentPPOSNDAdvB():
         self.values_logger.add("loss_ppo_critic", 0.0)
         
         self.values_logger.add("loss_im", 0.0)
-        self.values_logger.add("loss_ssl", 0.0)
 
         self.info_logger = {} 
 
    
+ 
     def round_start(self): 
         pass
-
 
     def round_finish(self): 
         pass
 
-
     def episode_done(self, env_idx):
         pass
-
 
     def step(self, states, training_enabled, legal_actions_mask):        
         #normalise state
@@ -127,7 +139,10 @@ class AgentPPOSNDAdvB():
         states_t = torch.tensor(states_norm, dtype=torch.float).to(self.device)
 
         #compute model output
-        logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
+        if self.rnn_policy: 
+            logits_t, values_ext_t, values_int_t, hidden_state_new  = self.model.forward(states_t, self.hidden_state, False)
+        else:
+            logits_t, values_ext_t, values_int_t = self.model.forward(states_t)
 
         #collect actions 
         actions = self._sample_actions(logits_t, legal_actions_mask)
@@ -135,6 +150,11 @@ class AgentPPOSNDAdvB():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
+        #internal motivation
+        rewards_int = self._internal_motivation(states_t)
+        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
+
+        
         #put into policy buffer
         if training_enabled:
             states_t        = states_t.detach().to("cpu")
@@ -143,15 +163,47 @@ class AgentPPOSNDAdvB():
             values_int_t    = values_int_t.squeeze(1).detach().to("cpu")
             actions         = torch.from_numpy(actions).to("cpu")
             rewards_ext_t   = torch.from_numpy(rewards_ext).to("cpu")
-            rewards_int_t   = torch.from_numpy(rewards_ext).to("cpu")
+            rewards_int_t   = rewards_int.detach().to("cpu")
             dones           = torch.from_numpy(dones).to("cpu")
 
-            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones)
+            if self.rnn_policy:
+                hidden_state  = self.hidden_state.detach().to("cpu")
+            else:
+                hidden_state  = None
+
+            self.trajectory_buffer.add(states_t, logits_t, values_ext_t, values_int_t, actions, rewards_ext_t, rewards_int_t, dones, hidden_state, self.episode_steps)
 
             if self.trajectory_buffer.is_full():
                 self.train()
-    
-         
+
+        self.episode_steps+= 1
+
+        dones_idx = numpy.where(dones)
+
+        #clear episode steps counter
+        for e in dones_idx:
+            self.episode_steps[e] = 0
+  
+        #udpate rnn hidden tate
+        if self.rnn_policy:
+            self.hidden_state = hidden_state_new.detach().clone()
+
+            dones_idx = numpy.where(dones)
+
+            #clear rnn hidden state if done
+            for e in dones_idx:
+                self.hidden_state[e] = 0.0
+
+            #hidden space stats
+            hidden_mean   = (self.hidden_state**2).mean().detach().cpu().numpy().item()
+            hidden_std_a  = self.hidden_state.std(dim=0).mean().detach().cpu().numpy().item()
+            hidden_std_b  = self.hidden_state.std(dim=1).mean().detach().cpu().numpy().item()
+            self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std_a, 5), round(hidden_std_b, 5)]
+      
+        #collect stats
+        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        
         self.iterations+= 1
 
         return states_new, rewards_ext, dones, infos
@@ -164,8 +216,7 @@ class AgentPPOSNDAdvB():
             with open(save_path + "trained/" + "state_mean_var.npy", "wb") as f:
                 numpy.save(f, self.state_mean)
                 numpy.save(f, self.state_var)
-
-
+        
     def load(self, load_path):
         self.model.load_state_dict(torch.load(load_path + "trained/model.pt", map_location = self.device))
         
@@ -174,10 +225,8 @@ class AgentPPOSNDAdvB():
                 self.state_mean = numpy.load(f) 
                 self.state_var  = numpy.load(f)
     
-
     def get_log(self): 
         return self.values_logger.get_str() + str(self.info_logger)
-
 
     def _sample_actions(self, logits, legal_actions_mask = None):
 
@@ -198,66 +247,58 @@ class AgentPPOSNDAdvB():
 
         return actions
     
-
     def train(self): 
-
-        #compute contextual IM
-        rewards_int = self._internal_motivation_seqential(self.trajectory_buffer.states).detach()
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0)
-        self.trajectory_buffer.reward_int = rewards_int.to("cpu")
-
-        #collect stats for IM
-        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
-     
-        #compute returns, and reshape arrays for faster batched access
         self.trajectory_buffer.compute_returns(self.gamma_ext, self.gamma_int)
         
-        samples_count   = self.steps*self.envs_count
-        batch_count     = samples_count//self.batch_size
+        samples_count = self.steps*self.envs_count
+        batch_count = samples_count//self.batch_size
 
         #main PPO training loop
         for e in range(self.training_epochs):
             for batch_idx in range(batch_count):
                 #PPO RL loss
-                states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
-                loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
+                if self.rnn_policy:
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states = self.trajectory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)                    
+                    loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states)
+                else:
+                    states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int = self.trajectory_buffer.sample_batch(self.batch_size, self.device)
+                    loss_ppo = self._loss_ppo(states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, None)
 
-                '''
-                if self._rl_self_supervised_loss is not None:
+                #PPO self supervised loss
+                if self._rl_ssl_loss is not None:
                     sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-                    loss_ssl, rl_ssl = self._rl_self_supervised_loss(self.model.forward_rl_ssl, self._augmentations, sa, sb)
+                    loss_ssl, rl_ssl = self._rl_ssl_loss(self.model.forward_rl_ssl, self._augmentations_rl_func, sa, sb)
 
                     self.info_logger["rl_ssl"] = rl_ssl 
-                    loss = loss_ppo + loss_ssl
                 else:
-                    loss = loss_ppo
-                '''
+                    loss_ssl = 0    
+                
+                
+                loss = loss_ppo + loss_ssl
 
                 self.optimizer.zero_grad()            
-                loss_ppo.backward()
+                loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
-                self.optimizer.step()   
+                self.optimizer.step()
 
                 
-        batch_count = samples_count//self.im_batch_size
+
+        batch_count = samples_count//self.ss_batch_size
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-            states = self.trajectory_buffer.sample_states_seq(self.im_batch_size, self.device)
-
-            loss_im     = self._internal_motivation(states)
-            #print(">>> ", batch_idx, states.shape, loss_im)
-
             #internal motivation loss   
-            #states, _   = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
-            #loss_im     = self._internal_motivation(states).mean()
+            states, _ = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
+            loss_im     = self._internal_motivation(states).mean()
 
-            '''
             #target SSL regularisation
-            states_now, states_similar = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, self.training_distance, self.stochastic_distance, self.device)
+            if self._im_ssl_loss is not None:
+                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
+                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states, steps, self.metrics_scaling_func)
 
-            self.info_logger["spatial_target_ssl"] = im_ssl
+                self.info_logger["im_ssl"] = im_ssl
+            else:   
+                loss_ssl = 0
 
             #total IM loss  
             loss = loss_im + loss_ssl
@@ -268,12 +309,13 @@ class AgentPPOSNDAdvB():
             self.optimizer.step()
 
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
-            self.values_logger.add("loss_ssl", loss_ssl.detach().cpu().numpy())
-            '''
+
 
         self.trajectory_buffer.clear() 
 
         
+
+
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states):
 
         if hidden_states is None:
@@ -306,47 +348,54 @@ class AgentPPOSNDAdvB():
         return loss 
 
    
+
     #distillation novelty detection, mse loss
-    def _internal_motivation_seqential(self, states): 
-        novelty_result = [] 
-        batch_size = states.shape[1]
+    def _internal_motivation(self, states):        
+        z_target    = self.model.forward_im_target(states)
+        z_predictor = self.model.forward_im_predictor(states)
 
-        for n in range(batch_size):
-            states = states[:, n].contiguous()
-            states = states.unsqueeze(0).to(self.device)
-
-            z_target    = self.model.forward_im_contextual_target(states)
-            z_predictor = self.model.forward_im_contextual_predictor(states)
-
-            novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
-
-            novelty_result.append(novelty[:, 0])
-
-        novelty_result = torch.stack(novelty_result)
-
-        return novelty_result
-    
-    def _internal_motivation(self, states): 
-        z_target    = self.model.forward_im_contextual_target(states)
-        z_predictor = self.model.forward_im_contextual_predictor(states)
-
-        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=-1)
+        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
 
         return novelty
  
-
-    def _augmentations(self, x): 
+    def _augmentations_rl_func(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
 
-        if "mask" in self.augmentations:
+        if "mask" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
-            mask_result[:, 1] = mask
+            mask_result[:, 0] = mask
+
+        if "channelmask" in self.augmentations_rl:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
+            mask_result[:, 1] = mask    
        
-        if "mask_advanced" in self.augmentations:
+        if "mask_advanced" in self.augmentations_rl:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
             mask_result[:, 2] = mask
       
-        if "noise" in self.augmentations:
+        if "noise" in self.augmentations_rl:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
+            mask_result[:, 3] = mask
+      
+        return x.detach(), mask_result 
+    
+
+    def _augmentations_im_func(self, x): 
+        mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
+
+        if "mask" in self.augmentations_im:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask)
+            mask_result[:, 0] = mask
+
+        if "channelmask" in self.augmentations_im:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_channel_mask)
+            mask_result[:, 1] = mask    
+       
+        if "mask_advanced" in self.augmentations_im:
+            x, mask = aug_random_apply(x, self.augmentations_probs, aug_mask_advanced)
+            mask_result[:, 2] = mask
+      
+        if "noise" in self.augmentations_im:
             x, mask = aug_random_apply(x, self.augmentations_probs, aug_noise)
             mask_result[:, 3] = mask
       

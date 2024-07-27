@@ -17,6 +17,18 @@ def _loss_std(x):
     loss = torch.mean(torch.relu(1.0 - std_x)) 
     return loss
 
+# variance loss with limit of max alloved variance
+def _loss_std_limited(x, std_max_limit):
+    eps      = 0.0001 
+    std_x    = torch.sqrt(x.var(dim=0) + eps)
+
+    tmp = (std_x < std_max_limit).float().detach()
+
+    loss = -tmp*std_x + (1.0 - tmp)*(std_x - 2.0*std_max_limit)
+
+    return loss.mean()
+
+
 # covariance loss 
 def _loss_cov(x):
     x_norm = x - x.mean(dim=0)
@@ -26,7 +38,17 @@ def _loss_cov(x):
     return loss
 
 
+# variance loss 
+def _loss_triangle(xa, xb, xc):
+    ab = (xa - xb).abs().mean(dim=-1)
+    bc = (xb - xc).abs().mean(dim=-1)
+    ca = (xc - xa).abs().mean(dim=-1)
 
+    # positive d means not valid triangle inquality
+    d = ca - (ab + bc)
+
+    loss = torch.mean(torch.relu(d))
+    return loss
 
 
 
@@ -100,6 +122,54 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
     return loss, info
 
+
+
+
+def loss_vicreg_max_var(model_forward_func, augmentations, xa, xb):
+
+    '''
+    if augmentations is not None:
+        xa_aug, _ = augmentations(xa) 
+        xb_aug, _ = augmentations(xb)
+    else:
+        xa_aug = xa 
+        xb_aug = xb
+    '''
+    if augmentations is not None:
+        xb_aug, _ = augmentations(xb)
+    else:
+        xb_aug    = xb
+
+    xa_std_max = xa.std(dim=0).mean()
+    xb_std_max = xb.std(dim=0).mean() 
+    za, zb = model_forward_func(xa, xb_aug)
+    
+    # invariance loss
+    sim_loss = _loss_mse(za, zb)
+
+    # variance loss
+    std_loss = _loss_std_limited(za, xa_std_max)
+    std_loss+= _loss_std_limited(zb, xb_std_max)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    sim_loss_  = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
+    xa_std_max_= round(xa_std_max.detach().cpu().numpy.item(), 6)
+    xb_std_max_= round(xb_std_max.detach().cpu().numpy.item(), 6)
+    
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, xa_std_max_, xb_std_max_]
+
+    return loss, info
 
 
 
@@ -302,3 +372,103 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0
 
     return loss, info
 
+
+
+
+def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = None):
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x
+
+    # predict features  
+    za, zb = model_forward_func(x, x_aug)
+
+    # predicted distances, normalise
+    n_features = za.shape[-1]
+    d_pred = torch.cdist(za, zb)/n_features
+
+    # target each by each distance in steps count
+    d_target = x_steps.float().unsqueeze(1)
+    d_target = torch.cdist(d_target, d_target)/n_features
+    if scaling_func is not None:
+        d_target = scaling_func(d_target)
+    
+    # MSE loss
+    dist_loss = ((d_target - d_pred)**2).mean()
+
+    # log results
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+   
+    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
+    
+
+    info = [z_mag, z_mag_std, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+
+    return dist_loss, info
+
+
+
+def loss_metrics_cov_var(model_forward_func, augmentations, x, x_steps, scaling_func = None):
+
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x
+
+    # predict features  
+    za, zb = model_forward_func(x, x_aug)
+
+    # predicted distances, normalise
+    n_features = za.shape[-1]
+    d_pred = torch.cdist(za, zb)/n_features
+
+    # target each by each distance in steps count
+    d_target = x_steps.float().unsqueeze(1)
+    d_target = torch.cdist(d_target, d_target)/n_features
+    if scaling_func is not None:
+        d_target = scaling_func(d_target)
+    
+    
+    # MSE loss
+    dist_loss = ((d_target - d_pred)**2).mean()
+
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std, std_loss_, cov_loss_]
+
+
+    # log results
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+
+    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
+   
+    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
+    
+
+    info = [z_mag, z_mag_std, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+
+    return loss, info
