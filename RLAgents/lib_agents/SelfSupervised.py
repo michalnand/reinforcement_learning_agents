@@ -447,14 +447,6 @@ def loss_metrics_cov_var(model_forward_func, augmentations, x, x_steps, scaling_
     # total vicreg loss
     loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
-    #info for log
-    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
-    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
-    
-    info = [z_mag, z_mag_std, std_loss_, cov_loss_]
-
 
     # log results
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
