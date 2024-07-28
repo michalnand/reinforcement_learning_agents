@@ -311,17 +311,21 @@ def loss_metrics(model_forward_func, x, x_steps, scaling_func):
 
     # target distances scaling if any (e.g. logarithmic)
     if scaling_func is not None:
-        d_target = scaling_func(d_target)
-    
+        d_target_scaled = scaling_func(d_target)
+    else:
+        d_target_scaled = d_target
+
     # MSE loss
-    loss = ((d_target - d_pred)**2).mean()
+    loss = ((d_target_scaled - d_pred)**2).mean()
 
     # log results
-    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
-    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
-    d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
-    d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
+    d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std         = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_target_scaled_mean = round(d_target_scaled.mean().detach().cpu().numpy().item(), 6)
+    d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
+    d_pred_mean          = round(d_pred.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std           = round(d_pred.std().detach().cpu().numpy().item(), 6)
    
-    info = [d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+    info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean, d_pred_std]
 
     return loss, info
