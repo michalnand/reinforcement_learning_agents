@@ -49,12 +49,15 @@ class AgentPPOSNDD():
         else:
             self._rl_ssl_loss = None    
 
-        if config.im_ssl_loss == "metrics":
-            self._im_ssl_loss = loss_metrics
-        elif config.im_ssl_loss == "metrics_cov_var":
-            self._im_ssl_loss = loss_metrics_cov_var
+        if config.im_ssl_loss == "vicreg":
+            self._im_ssl_loss = loss_vicreg
         else:
             self._im_ssl_loss = None
+
+        if config.im_dist_loss == "metrics":
+            self._im_dist_loss = loss_metrics
+        else:
+            self._im_dist_loss = None
 
         self.metrics_scaling_func           = config.metrics_scaling_func
 
@@ -66,6 +69,7 @@ class AgentPPOSNDD():
         print("state_normalise        = ", self.state_normalise)
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
         print("im_ssl_loss            = ", self._im_ssl_loss)
+        print("im_dist_loss           = ", self._im_dist_loss)
         print("metrics_scaling_func   = ", self.metrics_scaling_func)
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
@@ -117,6 +121,7 @@ class AgentPPOSNDD():
         self.values_logger.add("loss_ppo_critic", 0.0)
         
         self.values_logger.add("loss_im", 0.0)
+        self.values_logger.add("loss_distance", 0.0)
 
         self.info_logger = {} 
 
@@ -293,15 +298,25 @@ class AgentPPOSNDD():
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
-                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states, steps, self.metrics_scaling_func)
+                sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, sa, sb)
 
                 self.info_logger["im_ssl"] = im_ssl
             else:   
                 loss_ssl = 0
 
+            #target distance metrics learning   
+            if self._im_dist_loss is not None:
+                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
+                loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_distance, states, steps, self.metrics_scaling_func)
+
+                self.info_logger["im_distance"] = im_distance
+            else:
+                loss_distance = 0
+
+
             #total IM loss  
-            loss = loss_im + loss_ssl
+            loss = loss_im + loss_ssl + loss_distance
 
             self.optimizer.zero_grad()            
             loss.backward()     
@@ -309,6 +324,7 @@ class AgentPPOSNDD():
             self.optimizer.step()
 
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
+            self.values_logger.add("loss_distance",  loss_distance.detach().cpu().numpy())
 
 
         self.trajectory_buffer.clear() 
