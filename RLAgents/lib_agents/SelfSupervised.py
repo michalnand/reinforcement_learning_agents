@@ -390,11 +390,11 @@ def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = N
 
     # target each by each distance in steps count
     d_target = x_steps.float().unsqueeze(1)
-    d_target = torch.cdist(d_target, d_target)/n_features
+    d_target = torch.cdist(d_target, d_target)
     if scaling_func is not None:
         d_target = scaling_func(d_target)
     
-    # MSE loss
+    # MSE loss      
     dist_loss = ((d_target - d_pred)**2).mean()
 
     # log results
@@ -430,7 +430,7 @@ def loss_metrics_cov_var(model_forward_func, augmentations, x, x_steps, scaling_
 
     # target each by each distance in steps count
     d_target = x_steps.float().unsqueeze(1)
-    d_target = torch.cdist(d_target, d_target)/n_features
+    d_target = torch.cdist(d_target, d_target)
     if scaling_func is not None:
         d_target = scaling_func(d_target)
     
