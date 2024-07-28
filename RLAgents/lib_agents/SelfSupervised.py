@@ -393,9 +393,13 @@ def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = N
     d_target = torch.cdist(d_target, d_target)
     if scaling_func is not None:
         d_target = scaling_func(d_target)
+
+    reg_loss = (za**2).mean() + (zb**2).mean()
     
     # MSE loss      
     dist_loss = ((d_target - d_pred)**2).mean()
+
+    loss = dist_loss + 0.001*dist_loss  
 
     # log results
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
@@ -410,7 +414,7 @@ def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = N
 
     info = [z_mag, z_mag_std, dist_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
 
-    return dist_loss, info
+    return loss, info
 
 
 
