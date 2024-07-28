@@ -399,7 +399,7 @@ def loss_metrics(model_forward_func, augmentations, x, x_steps, scaling_func = N
     # MSE loss      
     dist_loss = ((d_target - d_pred)**2).mean()
 
-    loss = dist_loss + 0.1*reg_loss  
+    loss = dist_loss + 0.01*reg_loss  
 
     # log results
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
