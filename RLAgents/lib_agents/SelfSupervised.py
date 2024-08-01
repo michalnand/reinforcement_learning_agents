@@ -300,7 +300,7 @@ def loss_vicreg_jepa(model_forward_func, augmentations, xa, xb, hidden_coeff = 0
 
 
 
-def loss_metrics(model_forward_func, x, x_steps, scaling_func):
+def loss_metric(model_forward_func, x, x_steps, scaling_func):
     
     # predicted distances, each by each
     d_pred = model_forward_func(x)
@@ -325,6 +325,39 @@ def loss_metrics(model_forward_func, x, x_steps, scaling_func):
     d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
     d_pred_mean          = round(d_pred.mean().detach().cpu().numpy().item(), 6)
     d_pred_std           = round(d_pred.std().detach().cpu().numpy().item(), 6)
+   
+    info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean, d_pred_std]
+
+    return loss, info
+
+
+def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
+    
+    # predicted distances, each by each
+    d_pred_mean, d_pred_var = model_forward_func(x)
+
+    # target each by each distance in steps count
+    d_target = x_steps.float().unsqueeze(1)
+    d_target = torch.cdist(d_target, d_target)
+
+    # target distances scaling if any (e.g. logarithmic)
+    if scaling_func is not None:
+        d_target_scaled = scaling_func(d_target)
+    else:
+        d_target_scaled = d_target
+
+    # NLL loss : negative log-likelihood of the Gaussian distribution
+    loss = 0.5*torch.log(2.0*torch.pi*d_pred_var) 
+    loss+= ((d_target - d_pred_mean)**2)/(2.0*d_pred_var + 0.0001)
+    loss = loss.mean()
+
+    # log results
+    d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std         = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_target_scaled_mean = round(d_target_scaled.mean().detach().cpu().numpy().item(), 6)
+    d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
+    d_pred_mean          = round(d_pred_mean.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std           = round(d_pred_mean.std().detach().cpu().numpy().item(), 6)
    
     info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean, d_pred_std]
 

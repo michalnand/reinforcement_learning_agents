@@ -54,12 +54,14 @@ class AgentPPOSNDD():
         else:
             self._im_ssl_loss = None
 
-        if config.im_dist_loss == "metrics":
-            self._im_dist_loss = loss_metrics
+        if config.im_dist_loss == "metric":
+            self._im_dist_loss = loss_metric
+        elif config.im_dist_loss == "metric_distributional":
+            self._im_dist_loss = loss_metric_distributional
         else:
             self._im_dist_loss = None
 
-        self.metrics_scaling_func           = config.metrics_scaling_func
+        self.metric_scaling_func            = config.metric_scaling_func
 
         self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
@@ -70,7 +72,7 @@ class AgentPPOSNDD():
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
         print("im_ssl_loss            = ", self._im_ssl_loss)
         print("im_dist_loss           = ", self._im_dist_loss)
-        print("metrics_scaling_func   = ", self.metrics_scaling_func)
+        print("metric_scaling_func    = ", self.metric_scaling_func)
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
@@ -305,10 +307,10 @@ class AgentPPOSNDD():
             else:   
                 loss_ssl = 0
 
-            #target distance metrics learning   
+            #target distance metric learning   
             if self._im_dist_loss is not None:
                 states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-                loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_distance, states, steps, self.metrics_scaling_func)
+                loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_distance, states, steps, self.metric_scaling_func)
 
                 self.info_logger["im_distance"] = im_distance
             else:
