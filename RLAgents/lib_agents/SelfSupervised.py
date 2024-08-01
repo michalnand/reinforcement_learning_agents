@@ -356,9 +356,9 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
     d_target_std         = round(d_target.std().detach().cpu().numpy().item(), 6)
     d_target_scaled_mean = round(d_target_scaled.mean().detach().cpu().numpy().item(), 6)
     d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
-    d_pred_mean          = round(d_pred_mean.mean().detach().cpu().numpy().item(), 6)
-    d_pred_std           = round(d_pred_mean.std().detach().cpu().numpy().item(), 6)
+    d_pred_mean_         = round(d_pred_mean.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std_          = round(d_pred_mean.std().detach().cpu().numpy().item(), 6)
    
-    info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean, d_pred_std]
+    info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean_, d_pred_std_]
 
     return loss, info
