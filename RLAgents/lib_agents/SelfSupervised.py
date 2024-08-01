@@ -348,8 +348,8 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
 
     # NLL loss : negative log-likelihood of the Gaussian distribution
     loss = 0.5*torch.log(2.0*torch.pi*d_pred_var) 
-    loss+= ((d_target - d_pred_mean)**2)/(2.0*d_pred_var + 0.0001)
-    loss = loss.mean()
+    loss+= ((d_target_scaled - d_pred_mean)**2)/(2.0*d_pred_var + 0.0001)
+    loss = loss.mean()  
 
     # log results
     d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
