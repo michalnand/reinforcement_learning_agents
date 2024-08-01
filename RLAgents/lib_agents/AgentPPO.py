@@ -225,7 +225,8 @@ class AgentPPO():
                 if self.use_grok_fast:  
                     self.grok_fast.step()
 
-                self.info_logger["params_stats"] = params_stats(self.model)
+                if self.use_grok_fast:
+                    self.info_logger["params_stats"] = params_stats(self.model)
                 
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
                 self.optimizer.step() 
