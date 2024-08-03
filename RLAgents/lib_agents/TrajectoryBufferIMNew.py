@@ -166,6 +166,20 @@ class TrajectoryBufferIMNew:
         return states_now, states_prev
     
 
+    def sample_states_distance_pairs(self, batch_size, max_distance, device):
+        count = self.buffer_size*self.envs_count
+
+        distance    = torch.randint(0, 1 + max_distance, (batch_size, ))
+
+        indices_a   = torch.randint(0, count, size=(batch_size, ))
+        indices_b   = torch.clip(indices_a - distance*self.envs_count, 0, count-1)
+      
+        xa   = (self.states[indices_a]).to(device)
+        xb   = (self.states[indices_b]).to(device)
+
+        return xa, xb, distance
+    
+
     def sample_states_pairs_seq(self, seq_length, batch_size, max_distance, stochastic_distance, device):
         count = self.envs_count*(self.buffer_size - seq_length)
 

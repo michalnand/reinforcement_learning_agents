@@ -98,6 +98,54 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
 
 
+'''
+    xa - one random set of states
+    xb - another random set of states
+'''
+def loss_vicreg_ssim(model_forward_func, augmentations, xa, xb):
+
+    # optional augmentations
+    if augmentations is not None:
+        xa_aug, _ = augmentations(xa)
+        xb_aug, _ = augmentations(xb)
+    else:
+        xa_aug    = xa
+        xb_aug    = xb
+
+    # output features
+    za, zb = model_forward_func(xa_aug, xb_aug)
+
+    # invariance loss
+    similarity_index = _ssim(xa, xb)
+    target_distance  = 1.0 - similarity_index
+    distance         = ((za - zb)**2).mean(dim = -1)
+    sim_loss         = ((target_distance - distance)**2).mean()
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    #info for log
+    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    sim_loss_  = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
+    ssim_mean  = round(similarity_index.mean().detach().cpu().numpy().item(), 6)
+    ssim_std   = round(similarity_index.std().detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, ssim_mean, ssim_std]
+
+    return loss, info
+
+
 
 
 
@@ -360,5 +408,26 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
     d_pred_std_          = round(d_pred_mean.std().detach().cpu().numpy().item(), 6)
    
     info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, d_pred_mean_, d_pred_std_]
+
+    return loss, info
+
+
+def loss_metric_categorical(model_forward_func, xa, xb, distances):
+    # predicted distances
+    distances_pred = model_forward_func(xa, xb)
+
+    loss_func = torch.nn.CrossEntropyLoss()
+
+    loss = loss_func(distances_pred, distances)
+
+    # accuracy
+    acc  = (torch.argmax(distances_pred, dim=1) == distances).float().mean()
+
+    # log results
+    d_target_mean = round(distances.mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(distances.std().detach().cpu().numpy().item(), 6)
+    acc           = round(acc.detach().cpu().numpy().item(), 6)
+   
+    info = [d_target_mean, d_target_std, acc]
 
     return loss, info
