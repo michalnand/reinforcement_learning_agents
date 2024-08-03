@@ -420,6 +420,8 @@ def loss_metric_categorical(model_forward_func, xa, xb, distances):
 
     loss = loss_func(distances_pred, distances)
 
+    print(distances)
+
     # accuracy
     acc  = (torch.argmax(distances_pred, dim=1) == distances).float().mean()
 

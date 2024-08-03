@@ -177,7 +177,7 @@ class TrajectoryBufferIMNew:
         xa   = (self.states[indices_a]).to(device)
         xb   = (self.states[indices_b]).to(device)
 
-        return xa, xb, distance
+        return xa, xb, distance.to(device)
     
 
     def sample_states_pairs_seq(self, seq_length, batch_size, max_distance, stochastic_distance, device):
