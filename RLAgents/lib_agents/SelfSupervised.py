@@ -423,13 +423,14 @@ def loss_metric_categorical(model_forward_func, xa, xb, distances):
     print(distances)
 
     # accuracy
-    acc  = (torch.argmax(distances_pred, dim=1) == distances).float().mean()
+    tmp      = (torch.argmax(distances_pred, dim=1) == distances).float()
+    acc_mean = tmp.mean()
+    acc_std  = tmp.std()
 
     # log results
-    d_target_mean = round(distances.mean().detach().cpu().numpy().item(), 6)
-    d_target_std  = round(distances.std().detach().cpu().numpy().item(), 6)
-    acc           = round(acc.detach().cpu().numpy().item(), 6)
-   
-    info = [d_target_mean, d_target_std, acc]
+    acc_mean = round(acc_mean.detach().cpu().numpy().item(), 6)
+    acc_std  = round(acc_std.detach().cpu().numpy().item(), 6)
+    
+    info = [acc_mean, acc_std]
 
     return loss, info
