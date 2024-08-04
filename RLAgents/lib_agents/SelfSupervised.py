@@ -424,8 +424,8 @@ def loss_metric_categorical(model_forward_func, x, x_steps, scaling_func):
     # log results
     d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
     d_target_std         = round(d_target.std().detach().cpu().numpy().item(), 6)
-    d_target_scaled_mean = round(d_target_scaled.mean().detach().cpu().numpy().item(), 6)
-    d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
+    d_target_scaled_mean = round(d_target_scaled.float().mean().detach().cpu().numpy().item(), 6)
+    d_target_scaled_std  = round(d_target_scaled.float().std().detach().cpu().numpy().item(), 6)
     acc_mean             = round(acc.mean().detach().cpu().numpy().item(), 6)
     acc_std              = round(acc.std().detach().cpu().numpy().item(), 6)
    
