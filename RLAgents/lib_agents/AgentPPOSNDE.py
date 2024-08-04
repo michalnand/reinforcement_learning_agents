@@ -431,13 +431,13 @@ class AgentPPOSNDE():
         
         return states_norm
     
-    '''
+    
     def _im_dist_loss(self, features_forward_func, distance_forward_func, states):
-        za = features_forward_func(states[0])
-        zb = features_forward_func(states[1])
-        zc = features_forward_func(states[2])
+        za = distance_forward_func(features_forward_func(states[0]))
+        zb = distance_forward_func(features_forward_func(states[1]))
+        zc = distance_forward_func(features_forward_func(states[2]))
 
-        zc_pred = za + 2.0*distance_forward_func(zb - za) 
+        zc_pred = za + 2.0*(zb - za) 
         dif = (zc - zc_pred)**2
 
         loss = dif.mean()
@@ -447,9 +447,10 @@ class AgentPPOSNDE():
    
         info = [loss_mean_, loss_std_]
 
-        return loss, info
-    '''
+        return loss, info   
+    
 
+    '''
     def _im_dist_loss(self, features_forward_func, distance_forward_func, states):
         seq_length = states.shape[0]
 
@@ -483,4 +484,4 @@ class AgentPPOSNDE():
         info = [loss_mean_, loss_std_]
 
         return loss, info
-    
+    '''
