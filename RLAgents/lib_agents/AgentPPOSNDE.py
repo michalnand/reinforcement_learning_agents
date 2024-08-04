@@ -457,20 +457,23 @@ class AgentPPOSNDE():
         z_seq = []
         for n in range(seq_length):
             z = features_forward_func(states[n])
+            z = distance_forward_func(z)
             z_seq.append(z)   
 
         # initial sequence start-point
-        z_pred = z_seq[0]   
+        z_pred = z_seq[0]    
 
-        # compute integral over trajector
+        loss_tmp = loss_cov_var(z_pred)
+
+        # compute integral over trajectory
         for n in range(seq_length-1):
             dz = z_seq[n+1] - z_seq[n]
-            z_pred+= distance_forward_func(dz[n])
+            z_pred+= dz
 
         # compare if matches with sequence end-point
         dif = (z_seq[-1] - z_pred)**2
 
-        loss = dif.mean()
+        loss = loss_tmp + dif.mean()
 
         loss_mean_ = round(dif.mean().detach().cpu().numpy().item(), 6)
         loss_std_  = round(dif.std().detach().cpu().numpy().item(), 6)
@@ -478,3 +481,4 @@ class AgentPPOSNDE():
         info = [loss_mean_, loss_std_]
 
         return loss, info
+    

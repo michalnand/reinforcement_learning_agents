@@ -26,6 +26,16 @@ def _loss_cov(x):
     return loss
 
 
+def loss_cov_var(z):
+    # variance loss
+    std_loss = _loss_std(z)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(z)
+
+    loss = 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    return loss
 
 def loss_vicreg_direct(za, zb):
     # invariance loss
