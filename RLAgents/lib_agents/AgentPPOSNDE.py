@@ -301,8 +301,8 @@ class AgentPPOSNDE():
 
             #target distance metric learning    
             states = self.trajectory_buffer.sample_states_seq(3, self.ss_batch_size, self.device)
-            loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_features, self.forward_im_distance, states)
-
+            loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_features, self.model.forward_im_distance, states)
+    
             self.info_logger["im_distance"] = im_distance
          
 
