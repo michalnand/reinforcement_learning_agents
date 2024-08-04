@@ -61,6 +61,7 @@ class AgentPPOSNDE():
         self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
+        self.trajectory_length              = config.trajectory_length
 
         print("state_normalise        = ", self.state_normalise)
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
@@ -68,6 +69,7 @@ class AgentPPOSNDE():
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
+        print("trajectory_length      = ", self.trajectory_length)
         print("reward_int_coeff       = ", self.reward_int_coeff)
         print("rnn_policy             = ", self.rnn_policy)
         print("rnn_seq_length         = ", self.rnn_seq_length)
@@ -300,9 +302,9 @@ class AgentPPOSNDE():
                 loss_ssl = 0
 
             #target distance metric learning    
-            states = self.trajectory_buffer.sample_states_seq(3, self.ss_batch_size, self.device)
+            states = self.trajectory_buffer.sample_states_seq(self.trajectory_length, self.ss_batch_size, self.device)
             loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_features, self.model.forward_im_distance, states)
-    
+
             self.info_logger["im_distance"] = im_distance
          
 
