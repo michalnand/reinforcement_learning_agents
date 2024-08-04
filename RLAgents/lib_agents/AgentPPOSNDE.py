@@ -456,7 +456,7 @@ class AgentPPOSNDE():
         # obtain features over trajectory
         z_seq = []
 
-        loss_cov_var_ = 0
+        loss_cov_var_ = -1
         for n in range(seq_length):
             z = features_forward_func(states[n])
             #z = distance_forward_func(z)
