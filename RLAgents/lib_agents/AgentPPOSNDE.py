@@ -437,7 +437,7 @@ class AgentPPOSNDE():
         zb = distance_forward_func(features_forward_func(states[1]))
         zc = distance_forward_func(features_forward_func(states[2]))
 
-        loss_cov_var_ = loss_cov_var(za) + loss_cov_var(zb) + loss_cov_var(zc)
+        loss_cov_var_ = loss_cov_var(za)
 
         zc_pred = za + 2.0*(zb - za) 
         dif = (zc - zc_pred)**2
