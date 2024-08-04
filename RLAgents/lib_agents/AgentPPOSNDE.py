@@ -465,7 +465,7 @@ class AgentPPOSNDE():
         # compute integral over trajector
         for n in range(seq_length-1):
             dz = z_seq[n+1] - z_seq[n]
-            z_pred+= distance_forward_func(dz[n])
+            z_pred+= dz[n] #distance_forward_func(dz[n])
 
         # compare if matches with sequence end-point
         dif = (z_seq[-1] - z_pred)**2
