@@ -416,10 +416,10 @@ def loss_metric_categorical(model_forward_func, x, x_steps, scaling_func):
     # classification loss
     loss_func = torch.nn.CrossEntropyLoss()
 
-    loss = loss_func(d_pred, d_target_scaled)
+    loss = loss_func(d_pred, d_target_scaled)   
 
     # accuracy
-    acc      = (torch.argmax(d_pred, dim=1) == distances).float()
+    acc      = (torch.argmax(d_pred, dim=1) == d_target_scaled).float()
 
     # log results
     d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
