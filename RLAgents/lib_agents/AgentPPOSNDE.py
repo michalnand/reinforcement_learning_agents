@@ -465,6 +465,8 @@ class AgentPPOSNDE():
 
         loss_tmp = loss_cov_var(z_pred)
 
+        print(loss_tmp.shape)
+
         # compute integral over trajectory
         for n in range(seq_length-1):
             dz = z_seq[n+1] - z_seq[n]
