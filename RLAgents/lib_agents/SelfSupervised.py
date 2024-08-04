@@ -26,7 +26,7 @@ def _loss_cov(x):
     return loss
 
 
-def loss_cov_var(z):
+def loss_cov_var(z):    
     # variance loss
     std_loss = _loss_std(z)
    

@@ -460,9 +460,9 @@ class AgentPPOSNDE():
         for n in range(seq_length):
             z = features_forward_func(states[n])
             z = distance_forward_func(z)
-            z_seq.append(z) 
+            z_seq.append(z)     
 
-            loss_cov_var_+= loss_cov_var(z)
+            loss_cov_var_ = loss_cov_var(z)
   
         # initial sequence start-point
         z_pred = z_seq[0]    
