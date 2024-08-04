@@ -56,8 +56,8 @@ class AgentPPOSNDD():
 
         if config.im_dist_loss == "metric":
             self._im_dist_loss = loss_metric
-        elif config.im_dist_loss == "metric_distributional":
-            self._im_dist_loss = loss_metric_distributional
+        elif config.im_dist_loss == "metric_categorical":
+            self._im_dist_loss = loss_metric_categorical
         else:
             self._im_dist_loss = None
 

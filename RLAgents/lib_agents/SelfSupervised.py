@@ -389,6 +389,46 @@ def loss_metric(model_forward_func, x, x_steps, scaling_func):
     return loss, info
 
 
+
+
+def loss_metric_categorical(model_forward_func, x, x_steps, scaling_func):
+    
+    # predicted distances, each by each
+    d_pred = model_forward_func(x)
+
+    # target each by each distance in steps count
+    d_target = x_steps.float().unsqueeze(1)
+    d_target = torch.cdist(d_target, d_target)
+
+    # target distances scaling if any (e.g. logarithmic)
+    if scaling_func is not None:
+        d_target_scaled = scaling_func(d_target)
+    else:
+        d_target_scaled = d_target  
+
+    print(d_target_scaled)
+
+    # classification loss
+    loss_func = torch.nn.CrossEntropyLoss()
+
+    loss = loss_func(d_pred, d_target_scaled)
+
+    # accuracy
+    acc      = (torch.argmax(d_pred, dim=1) == distances).float()
+
+    # log results
+    d_target_mean        = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std         = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_target_scaled_mean = round(d_target_scaled.mean().detach().cpu().numpy().item(), 6)
+    d_target_scaled_std  = round(d_target_scaled.std().detach().cpu().numpy().item(), 6)
+    acc_mean             = round(acc.mean().detach().cpu().numpy().item(), 6)
+    acc_std              = round(acc.std().detach().cpu().numpy().item(), 6)
+   
+    info = [d_target_mean, d_target_std, d_target_scaled_mean, d_target_scaled_std, acc_mean, acc_std]
+
+    return loss, info
+
+
 def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
     
     # predicted distances, each by each
@@ -405,7 +445,7 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
         d_target_scaled = d_target
 
     # NLL loss : negative log-likelihood of the Gaussian distribution
-    loss = 0.5*torch.log(2.0*torch.pi*d_pred_var) 
+    loss = 0.5*torch.log(2.0*torch.pi*d_pred_var + 0.0001) 
     loss+= ((d_target_scaled - d_pred_mean)**2)/(2.0*d_pred_var + 0.0001)
     loss = loss.mean()   
 
@@ -421,24 +461,3 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
 
     return loss, info
 
-
-def loss_metric_categorical(model_forward_func, xa, xb, distances):
-    # predicted distances
-    distances_pred = model_forward_func(xa, xb)
-
-    loss_func = torch.nn.CrossEntropyLoss()
-
-    loss = loss_func(distances_pred, distances)
-
-    # accuracy
-    tmp      = (torch.argmax(distances_pred, dim=1) == distances).float()
-    acc_mean = tmp.mean()
-    acc_std  = tmp.std()
-
-    # log results
-    acc_mean = round(acc_mean.detach().cpu().numpy().item(), 6)
-    acc_std  = round(acc_std.detach().cpu().numpy().item(), 6)
-    
-    info = [acc_mean, acc_std]
-
-    return loss, info
