@@ -437,10 +437,12 @@ class AgentPPOSNDE():
         zb = distance_forward_func(features_forward_func(states[1]))
         zc = distance_forward_func(features_forward_func(states[2]))
 
+        loss_cov_var_ = loss_cov_var(za) + loss_cov_var(zb) + loss_cov_var(zc)
+
         zc_pred = za + 2.0*(zb - za) 
         dif = (zc - zc_pred)**2
 
-        loss = dif.mean()
+        loss = loss_cov_var_ + dif.mean()
 
         loss_mean_ = round(dif.mean().detach().cpu().numpy().item(), 6)
         loss_std_  = round(dif.std().detach().cpu().numpy().item(), 6)
