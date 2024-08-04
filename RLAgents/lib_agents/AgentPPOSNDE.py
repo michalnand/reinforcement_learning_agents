@@ -453,12 +453,13 @@ class AgentPPOSNDE():
     def _im_dist_loss(self, features_forward_func, distance_forward_func, states):
         seq_length = states.shape[0]
 
+        # obtain features over trajectory
         z_seq = []
         for n in range(seq_length):
             z = features_forward_func(states[n])
             z_seq.append(z) 
 
-        # initial sequence start point
+        # initial sequence start-point
         z_pred = z_seq[0]
 
         # compute integral over trajector
@@ -466,7 +467,7 @@ class AgentPPOSNDE():
             dz = z_seq[n+1] - z_seq[n]
             z_pred+= distance_forward_func(dz[n])
 
-        # compare if matches with sequence end point
+        # compare if matches with sequence end-point
         dif = (z_seq[-1] - z_pred)**2
 
         loss = dif.mean()
