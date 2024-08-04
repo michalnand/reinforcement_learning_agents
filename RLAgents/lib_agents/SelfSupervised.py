@@ -406,7 +406,7 @@ def loss_metric_categorical(model_forward_func, x, x_steps, scaling_func):
     else:
         d_target_scaled = d_target  
 
-    print(d_target_scaled)
+    print(d_pred.shape, d_target_scaled.shape)
 
     # classification loss
     loss_func = torch.nn.CrossEntropyLoss()
