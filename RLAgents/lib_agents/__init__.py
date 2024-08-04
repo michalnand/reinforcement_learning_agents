@@ -34,6 +34,7 @@ from .AgentPPOSND                   import AgentPPOSND
 from .AgentPPOSNDA                  import AgentPPOSNDA
 from .AgentPPOSNDC                  import AgentPPOSNDC
 from .AgentPPOSNDD                  import AgentPPOSNDD
+from .AgentPPOSNDE                  import AgentPPOSNDE
 
 from .AgentPPOJEPA                   import AgentPPOJEPA
 
