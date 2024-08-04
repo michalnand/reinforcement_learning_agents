@@ -456,19 +456,18 @@ class AgentPPOSNDE():
         z_seq = []
         for n in range(seq_length):
             z = features_forward_func(states[n])
-            z_seq.append(z)
+            z_seq.append(z) 
 
-        dz_seq = []
+        # initial sequence start point
+        z_pred = z_seq[0]
+
+        # compute integral over trajector
         for n in range(seq_length-1):
             dz = z_seq[n+1] - z_seq[n]
-            dz_seq.append(dz)   
-
-        z_pred = z_seq[0]
-        for n in range(seq_length-1):
             z_pred+= distance_forward_func(dz[n])
 
+        # compare if matches with sequence end point
         dif = (z_seq[-1] - z_pred)**2
-
 
         loss = dif.mean()
 
