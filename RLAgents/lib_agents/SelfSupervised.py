@@ -422,10 +422,12 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
 
     z = torch.stack(z, dim=0)
 
-    print("z = ", x.shape, z.shape)
 
     r = torch.arange(seq_length)/seq_length
     w = torch.exp(-k*r)
+
+    print("w = ", w.shape, z.shape)
+    print(w, w.sum())
     
     # distance weighted target
     z_target = (w.unsqueeze(1).unsqueeze(2)*z).sum(dim=0)/w.sum()   
