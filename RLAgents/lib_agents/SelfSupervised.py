@@ -65,20 +65,14 @@ def loss_vicreg_direct(za, zb):
 
 def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
-    '''
-    if augmentations is not None:
-        xa_aug, _ = augmentations(xa) 
-        xb_aug, _ = augmentations(xb)
-    else:
-        xa_aug = xa 
-        xb_aug = xb
-    '''
     if augmentations is not None:
         xb_aug, _ = augmentations(xb)
     else:
         xb_aug    = xb
 
-    za, zb = model_forward_func(xa, xb_aug)
+    # obtain features
+    za = model_forward_func(xa)
+    zb = model_forward_func(xb_aug)
     
     # invariance loss
     sim_loss = _loss_mse(za, zb)
@@ -105,55 +99,6 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
     return loss, info
 
-
-
-
-'''
-    xa - one random set of states
-    xb - another random set of states
-'''
-def loss_vicreg_ssim(model_forward_func, augmentations, xa, xb):
-
-    # optional augmentations
-    if augmentations is not None:
-        xa_aug, _ = augmentations(xa)
-        xb_aug, _ = augmentations(xb)
-    else:
-        xa_aug    = xa
-        xb_aug    = xb
-
-    # output features
-    za, zb = model_forward_func(xa_aug, xb_aug)
-
-    # invariance loss
-    similarity_index = _ssim(xa, xb)
-    target_distance  = 1.0 - similarity_index
-    distance         = ((za - zb)**2).mean(dim = -1)
-    sim_loss         = ((target_distance - distance)**2).mean()
-
-    # variance loss
-    std_loss = _loss_std(za)
-    std_loss+= _loss_std(zb)
-   
-    # covariance loss 
-    cov_loss = _loss_cov(za)
-    cov_loss+= _loss_cov(zb)
-   
-    # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
-
-    #info for log
-    z_mag      = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std  = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    sim_loss_  = round(sim_loss.detach().cpu().numpy().item(), 6)
-    std_loss_  = round(std_loss.detach().cpu().numpy().item(), 6)
-    cov_loss_  = round(cov_loss.detach().cpu().numpy().item(), 6)
-    ssim_mean  = round(similarity_index.mean().detach().cpu().numpy().item(), 6)
-    ssim_std   = round(similarity_index.std().detach().cpu().numpy().item(), 6)
-    
-    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, ssim_mean, ssim_std]
-
-    return loss, info
 
 
 
