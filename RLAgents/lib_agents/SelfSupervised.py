@@ -412,7 +412,7 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
     z.shape = (seq_length, batch_size, features_count)
     k       = exponential decay for similarity term, k > 0
 '''
-def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
+def loss_vicreg_temporal(model_forward_func, x, k = 0.1):
     seq_length = x.shape[0]
 
     # obtain features
