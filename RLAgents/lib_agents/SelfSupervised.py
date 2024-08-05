@@ -425,6 +425,7 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
 
     r = torch.arange(seq_length)/seq_length
     w = torch.exp(-k*r)
+    w = w.to(x.device)
 
     print("w = ", w.shape, z.shape)
     print(w, w.sum())
