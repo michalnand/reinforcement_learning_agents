@@ -21,7 +21,8 @@ class AgentPPOSNDE():
               
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff 
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_coeff_a = config.reward_int_coeff_a
+        self.reward_int_coeff_b = config.reward_int_coeff_b
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -55,22 +56,29 @@ class AgentPPOSNDE():
         else:
             self._im_ssl_loss = None
 
+        if config.im_temporal_ssl_loss == "vicreg_temporal":
+            self._im_temporal_ssl_loss = loss_vicreg_temporal
+        else:
+            self._im_temporal_ssl_loss = None
+
       
 
 
         self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
-        self.trajectory_length              = config.trajectory_length
+        self.im_seq_length                  = config.im_seq_length
 
         print("state_normalise        = ", self.state_normalise)
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
         print("im_ssl_loss            = ", self._im_ssl_loss)
+        print("im_temporal_ssl_loss   = ", self._im_temporal_ssl_loss)
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
-        print("trajectory_length      = ", self.trajectory_length)
-        print("reward_int_coeff       = ", self.reward_int_coeff)
+        print("im_seq_length          = ", self.im_seq_length)
+        print("reward_int_coeff_a     = ", self.reward_int_coeff_a)
+        print("reward_int_coeff_b     = ", self.reward_int_coeff_b)
         print("rnn_policy             = ", self.rnn_policy)
         print("rnn_seq_length         = ", self.rnn_seq_length)
         
@@ -110,14 +118,16 @@ class AgentPPOSNDE():
 
         self.values_logger  = ValuesLogger() 
 
-        self.values_logger.add("internal_motivation_mean", 0.0)
-        self.values_logger.add("internal_motivation_std" , 0.0)
+        self.values_logger.add("internal_motivation_a_mean", 0.0)
+        self.values_logger.add("internal_motivation_a_std" , 0.0)
+        self.values_logger.add("internal_motivation_b_mean", 0.0)
+        self.values_logger.add("internal_motivation_b_std" , 0.0)
         
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
         
         self.values_logger.add("loss_im", 0.0)
-        self.values_logger.add("loss_distance", 0.0)
+        self.values_logger.add("loss_im_temporal", 0.0)
 
         self.info_logger = {} 
 
@@ -152,8 +162,11 @@ class AgentPPOSNDE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int = self._internal_motivation(states_t)
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
+        rewards_int_a, rewards_int_b = self._internal_motivation(states_t)
+
+        rewards_int = self.reward_int_coeff_a*rewards_int_a
+        rewards_int+= self.reward_int_coeff_b*rewards_int_b
+        rewards_int = torch.clip(rewards_int, 0.0, 1.0).detach().to("cpu")
 
         
         #put into policy buffer
@@ -202,8 +215,10 @@ class AgentPPOSNDE():
             self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std_a, 5), round(hidden_std_b, 5)]
       
         #collect stats
-        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -290,7 +305,7 @@ class AgentPPOSNDE():
         for batch_idx in range(batch_count):    
             #internal motivation loss   
             states, _ = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-            loss_im   = self._internal_motivation(states).mean()
+            loss_im, loss_im_temporal   = self._internal_motivation(states).mean()
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
@@ -301,23 +316,24 @@ class AgentPPOSNDE():
             else:   
                 loss_ssl = 0
 
-            #target distance metric learning    
-            states = self.trajectory_buffer.sample_states_seq(self.trajectory_length, self.ss_batch_size, self.device)
-            loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_features, self.model.forward_im_distance, states)
+            #target temporal SSL regularisation
+            if self._im_temporal_ssl_loss is not None:
+                states = self.trajectory_buffer.sample_states_seq(self.im_seq_length, self.ss_batch_size, self.device)
+                loss_ssl_temporal, im_ssl_temporal = self._im_temporal_ssl_loss(self.model.forward_im_temporal_ssl, states)
 
-            self.info_logger["im_distance"] = im_distance
+            self.info_logger["im_ssl_temporal"] = im_ssl_temporal
          
 
             #total IM loss  
-            loss = loss_im + loss_ssl + loss_distance
+            loss = loss_im + loss_im_temporal + loss_ssl + loss_ssl_temporal
 
-            self.optimizer.zero_grad()            
+            self.optimizer.zero_grad()               
             loss.backward()     
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
             self.optimizer.step()
 
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
-            self.values_logger.add("loss_distance",  loss_distance.detach().cpu().numpy())
+            self.values_logger.add("loss_im_temporal",  loss_im_temporal.detach().cpu().numpy())
 
 
         self.trajectory_buffer.clear() 
@@ -360,12 +376,13 @@ class AgentPPOSNDE():
 
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states):        
-        z_target    = self.model.forward_im_target(states)
-        z_predictor = self.model.forward_im_predictor(states)
+        z_target, z_target_temporal       = self.model.forward_im_target(states)
+        z_predicted, z_predicted_temporal = self.model.forward_im_predictor(states)
 
-        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
+        novelty          = ((z_target.detach() - z_predicted)**2).mean(dim=1)
+        novelty_temporal = ((z_target_temporal.detach() - z_predicted_temporal)**2).mean(dim=1)
 
-        return novelty
+        return novelty, novelty_temporal
  
     def _augmentations_rl_func(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
