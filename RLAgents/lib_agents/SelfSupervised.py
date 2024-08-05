@@ -430,7 +430,7 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
     print("z = ", z.shape)
 
     print("w = ", w.shape)
-        
+
     
     # distance weighted target
     z_target = (w.unsqueeze(1).unsqueeze(2)*z).sum(dim=0)/w.sum()   
@@ -445,6 +445,7 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
     # invariance loss
     sim_loss = _loss_mse(z_target, z_now)
 
+    print("AAAAAA") 
     # variance loss
     std_loss = _loss_std(z_now)
    
