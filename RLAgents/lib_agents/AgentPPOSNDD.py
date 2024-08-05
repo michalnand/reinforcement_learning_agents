@@ -297,6 +297,8 @@ class AgentPPOSNDD():
             #internal motivation loss   
             states, _ = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
             loss_im   = self._internal_motivation(states).mean()
+            
+            self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
@@ -313,6 +315,7 @@ class AgentPPOSNDD():
                 loss_distance, im_distance = self._im_dist_loss(self.model.forward_im_distance, states, steps, self.metric_scaling_func)
 
                 self.info_logger["im_distance"] = im_distance
+                self.values_logger.add("loss_distance",  loss_distance.detach().cpu().numpy())
             else:
                 loss_distance = 0
 
@@ -325,8 +328,7 @@ class AgentPPOSNDD():
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
             self.optimizer.step()
 
-            self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
-            self.values_logger.add("loss_distance",  loss_distance.detach().cpu().numpy())
+            
 
 
         self.trajectory_buffer.clear() 

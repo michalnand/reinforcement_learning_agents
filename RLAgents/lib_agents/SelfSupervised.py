@@ -463,3 +463,36 @@ def loss_metric_distributional(model_forward_func, x, x_steps, scaling_func):
 
     return loss, info
 
+'''
+    z.shape = (seq_length, batch_size, features_count)
+    k       = exponential decay for similarity term, k > 0
+'''
+def loss_vicreg_temporal(z, k = 1.0):
+    seq_length = z.shape[0]
+
+    r = torch.arange(seq_length)/seq_length
+    w = torch.exp(-k*r)
+    
+    # distance weighted target
+    z_target = (w.unsqueeze(1).unsqueeze(2)*z).sum(dim=0)/w.sum()   
+
+    # current time step sample
+    z_now = z[0]
+
+    # invariance loss
+    sim_loss = _loss_mse(z_target, z_now)
+
+    # variance loss
+    std_loss = _loss_std(z_now)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(z_now)
+   
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    return loss
+
+
+
+
