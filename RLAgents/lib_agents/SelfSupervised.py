@@ -427,14 +427,20 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
     w = torch.exp(-k*r)
     w = w.to(x.device)
 
-    print("w = ", w.shape, z.shape)
-    print(w, w.sum())
+    print("z = ", z.shape)
+
+    print("w = ", w.shape)
+        
     
     # distance weighted target
     z_target = (w.unsqueeze(1).unsqueeze(2)*z).sum(dim=0)/w.sum()   
 
+    print("z_target = ", z_target.shape)
+
     # current time step sample 
     z_now = z[0]
+
+    print("z_now = ", z_now.shape)
 
     # invariance loss
     sim_loss = _loss_mse(z_target, z_now)
