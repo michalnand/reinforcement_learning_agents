@@ -305,7 +305,10 @@ class AgentPPOSNDE():
         for batch_idx in range(batch_count):    
             #internal motivation loss   
             states, _ = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-            loss_im, loss_im_temporal   = self._internal_motivation(states).mean()
+            loss_im, loss_im_temporal   = self._internal_motivation(states)
+
+            loss_im = loss_im.mean()
+            loss_im_temporal = loss_im_temporal.mean()
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
