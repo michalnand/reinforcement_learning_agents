@@ -420,7 +420,7 @@ def loss_vicreg_temporal(model_forward_func, x, k = 1.0):
     for n in range(seq_length):
         z.append(model_forward_func(x[n]))
 
-    z = torch.tensor(z)
+    z = torch.stack(z, dim=0)
 
     print("z = ", x.shape, z.shape)
 
