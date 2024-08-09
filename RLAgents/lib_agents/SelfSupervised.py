@@ -106,19 +106,11 @@ def _target_distances(idx_a, idx_b, scaling_func):
 
     d_target = torch.abs(idx_a - idx_b)
     
-
     # target distances scaling if any (e.g. logarithmic)
     if scaling_func is not None:
         d_target_scaled = scaling_func(d_target)
     else:
         d_target_scaled = d_target  
-
-    
-    print("d_target = ", d_target_scaled.shape)
-    print(d_target_scaled)
-    print(torch.diag(d_target_scaled))
-    print("\n\n\n")
-    
 
     return d_target_scaled
 
@@ -188,8 +180,6 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, 
     
     # predict distances, each by each
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
-
-    #print(d_target.float().mean())
     
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
