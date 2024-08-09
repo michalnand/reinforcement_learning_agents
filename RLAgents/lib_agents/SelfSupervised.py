@@ -99,10 +99,126 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
     return loss, info
 
+def _target_distances(dist_a, dist_b, scaling_func):
+    # target each by each distance in steps count
+    d_target = torch.cdist(dist_a.float(), dist_b.float())
+
+    # target distances scaling if any (e.g. logarithmic)
+    if scaling_func is not None:
+        d_target_scaled = scaling_func(d_target)
+    else:
+        d_target_scaled = d_target  
+
+    return d_target_scaled
 
 
+def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func = None):
+
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x
+
+    # obtain features
+    z, d_pred = model_forward_func(x_aug)
+    
+    # predict distances, each by each
+    d_target    = _target_distances(steps, steps, dist_scaling_func)
+    
+    # flatten predicted distances
+    d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
+    d_target    = d_target.long()
+
+    # MSE loss
+    dist_loss = ((d_target - d_pred)**2).mean()
+
+    # variance loss
+    std_loss = _loss_std(z)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(z)
+   
+    # total vicreg loss
+    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    
+
+    #info for log
+    z_mag         = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
+    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    
+    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
+    
+    d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
 
 
+    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+
+    return loss, info
+
+
+def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps, dist_scaling_func = None):
+
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x
+
+    # obtain features
+    z, d_pred = model_forward_func(x_aug)
+
+    print("loss = ", z.shape, d_pred.shape, steps.shape)
+    
+    # predict distances, each by each
+    d_target    = _target_distances(steps, steps, dist_scaling_func)
+    
+    # flatten predicted distances
+    d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
+    d_target    = d_target.long()
+
+    # classification loss
+    loss_func = torch.nn.CrossEntropyLoss()
+    dist_loss = loss_func(d_pred, d_target)   
+
+    # variance loss
+    std_loss = _loss_std(z)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(z)
+   
+    # total vicreg loss
+    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    # accuracy
+    acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
+
+    #info for log
+    z_mag         = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
+    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    
+    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
+    
+    acc_mean      = round(acc.mean().detach().cpu().numpy().item(), 6)
+    acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
+
+
+    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
+
+    return loss, info
+
+
+    
 
 
 '''

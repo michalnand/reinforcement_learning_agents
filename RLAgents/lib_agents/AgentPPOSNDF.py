@@ -21,7 +21,8 @@ class AgentPPOSNDE():
               
         self.ext_adv_coeff      = config.ext_adv_coeff
         self.int_adv_coeff      = config.int_adv_coeff 
-        self.reward_int_coeff   = config.reward_int_coeff
+        self.reward_int_coeff_a = config.reward_int_coeff_a
+        self.reward_int_coeff_b = config.reward_int_coeff_b
 
         self.entropy_beta       = config.entropy_beta
         self.eps_clip           = config.eps_clip 
@@ -29,6 +30,7 @@ class AgentPPOSNDE():
         self.steps              = config.steps
         self.batch_size         = config.batch_size  
         self.ss_batch_size      = config.ss_batch_size   
+        
         
 
         self.training_epochs    = config.training_epochs
@@ -49,29 +51,34 @@ class AgentPPOSNDE():
         else:
             self._rl_ssl_loss = None    
 
-        if config.im_ssl_loss == "vicreg_distance_categorical":
-            self._im_ssl_loss = loss_vicreg_distance_categorical
-        elif config.im_ssl_loss == "vicreg_distance":
-            self._im_ssl_loss = loss_vicreg_distance
+        if config.im_ssl_loss == "vicreg":
+            self._im_ssl_loss = loss_vicreg
         else:
             self._im_ssl_loss = None
 
+        if config.im_temporal_ssl_loss == "vicreg_temporal":
+            self._im_temporal_ssl_loss = loss_vicreg_temporal
+        else:
+            self._im_temporal_ssl_loss = None
 
-        self.metric_scaling_func            = config.metric_scaling_func
+      
+
 
         self.augmentations_rl               = config.augmentations_rl
         self.augmentations_im               = config.augmentations_im
         self.augmentations_probs            = config.augmentations_probs
-        
+        self.im_seq_length                  = config.im_seq_length
 
         print("state_normalise        = ", self.state_normalise)
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
         print("im_ssl_loss            = ", self._im_ssl_loss)
-        print("metric_scaling_func    = ", self.metric_scaling_func)
+        print("im_temporal_ssl_loss   = ", self._im_temporal_ssl_loss)
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
         print("augmentations_probs    = ", self.augmentations_probs)
-        print("reward_int_coeff       = ", self.reward_int_coeff)
+        print("im_seq_length          = ", self.im_seq_length)
+        print("reward_int_coeff_a     = ", self.reward_int_coeff_a)
+        print("reward_int_coeff_b     = ", self.reward_int_coeff_b)
         print("rnn_policy             = ", self.rnn_policy)
         print("rnn_seq_length         = ", self.rnn_seq_length)
         
@@ -111,13 +118,16 @@ class AgentPPOSNDE():
 
         self.values_logger  = ValuesLogger() 
 
-        self.values_logger.add("internal_motivation_mean", 0.0)
-        self.values_logger.add("internal_motivation_std" , 0.0)
+        self.values_logger.add("internal_motivation_a_mean", 0.0)
+        self.values_logger.add("internal_motivation_a_std" , 0.0)
+        self.values_logger.add("internal_motivation_b_mean", 0.0)
+        self.values_logger.add("internal_motivation_b_std" , 0.0)
         
         self.values_logger.add("loss_ppo_actor",  0.0)
         self.values_logger.add("loss_ppo_critic", 0.0)
         
         self.values_logger.add("loss_im", 0.0)
+        self.values_logger.add("loss_im_temporal", 0.0)
 
         self.info_logger = {} 
 
@@ -152,8 +162,11 @@ class AgentPPOSNDE():
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
         #internal motivation
-        rewards_int = self._internal_motivation(states_t)
-        rewards_int = torch.clip(self.reward_int_coeff*rewards_int, 0.0, 1.0).detach().to("cpu")
+        rewards_int_a, rewards_int_b = self._internal_motivation(states_t)
+
+        rewards_int = self.reward_int_coeff_a*rewards_int_a
+        rewards_int+= self.reward_int_coeff_b*rewards_int_b
+        rewards_int = torch.clip(rewards_int, 0.0, 1.0).detach().to("cpu")
 
         
         #put into policy buffer
@@ -202,8 +215,10 @@ class AgentPPOSNDE():
             self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std_a, 5), round(hidden_std_b, 5)]
       
         #collect stats
-        self.values_logger.add("internal_motivation_mean", rewards_int.mean().detach().to("cpu").numpy())
-        self.values_logger.add("internal_motivation_std" , rewards_int.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_mean", rewards_int_a.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_a_std" , rewards_int_a.std().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_mean", rewards_int_b.mean().detach().to("cpu").numpy())
+        self.values_logger.add("internal_motivation_b_std" , rewards_int_b.std().detach().to("cpu").numpy())
         
         self.iterations+= 1
 
@@ -288,34 +303,47 @@ class AgentPPOSNDE():
         
         #main IM training loop
         for batch_idx in range(batch_count):    
-            #internal motivation loss, MSE distillation    
+            #internal motivation loss   
             states, _ = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-            loss_im   = self._internal_motivation(states).mean()
-            
-            self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
+            loss_im, loss_im_temporal   = self._internal_motivation(states)
+
+            loss_im = loss_im.mean()
+            loss_im_temporal = loss_im_temporal.mean()
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
-                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
-
-                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states, steps, self.metric_scaling_func)
+                sa, sb = self.trajectory_buffer.sample_states_pairs(self.ss_batch_size, 0, False, self.device)
+                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, sa, sb)
 
                 self.info_logger["im_ssl"] = im_ssl
             else:   
                 loss_ssl = 0
 
+            #target temporal SSL regularisation
+            if self._im_temporal_ssl_loss is not None:
+                states = self.trajectory_buffer.sample_states_seq(self.im_seq_length, self.ss_batch_size, self.device)
+                loss_ssl_temporal, im_ssl_temporal = self._im_temporal_ssl_loss(self.model.forward_im_temporal_ssl, states)
+
+            self.info_logger["im_ssl_temporal"] = im_ssl_temporal
+         
 
             #total IM loss  
-            loss = loss_im + loss_ssl
+            loss = loss_im + loss_im_temporal + loss_ssl + loss_ssl_temporal
 
-            self.optimizer.zero_grad()            
+            self.optimizer.zero_grad()               
             loss.backward()     
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=0.5)
             self.optimizer.step()
 
+            self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
+            self.values_logger.add("loss_im_temporal",  loss_im_temporal.detach().cpu().numpy())
+
+
         self.trajectory_buffer.clear() 
 
         
+
+
     def _loss_ppo(self, states, logits, actions, returns_ext, returns_int, advantages_ext, advantages_int, hidden_states):
 
         if hidden_states is None:
@@ -351,12 +379,13 @@ class AgentPPOSNDE():
 
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states):        
-        z_target    = self.model.forward_im_target(states)
-        z_predictor = self.model.forward_im_predictor(states)
+        z_target, z_target_temporal       = self.model.forward_im_target(states)
+        z_predicted, z_predicted_temporal = self.model.forward_im_predictor(states)
 
-        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
+        novelty          = ((z_target.detach() - z_predicted)**2).mean(dim=1)
+        novelty_temporal = ((z_target_temporal.detach() - z_predicted_temporal)**2).mean(dim=1)
 
-        return novelty
+        return novelty, novelty_temporal
  
     def _augmentations_rl_func(self, x): 
         mask_result = torch.zeros((x.shape[0], 4), device=x.device, dtype=torch.float32)
@@ -422,3 +451,59 @@ class AgentPPOSNDE():
         
         return states_norm
     
+    
+    def _im_dist_loss(self, features_forward_func, distance_forward_func, states):
+        za = distance_forward_func(features_forward_func(states[0]))
+        zb = distance_forward_func(features_forward_func(states[1]))
+        zc = distance_forward_func(features_forward_func(states[2]))
+
+        loss_cov_var_ = loss_cov_var(za)
+
+        zc_pred = za + 2.0*(zb - za) 
+        dif = (zc - zc_pred)**2
+
+        loss = loss_cov_var_ + dif.mean()
+
+        loss_mean_ = round(dif.mean().detach().cpu().numpy().item(), 6)
+        loss_std_  = round(dif.std().detach().cpu().numpy().item(), 6)
+   
+        info = [loss_mean_, loss_std_]
+
+        return loss, info   
+    
+
+    '''
+    def _im_dist_loss(self, features_forward_func, distance_forward_func, states):
+        seq_length = states.shape[0]
+
+        # obtain features over trajectory
+        z_seq = []
+
+        loss_cov_var_ = -1
+        for n in range(seq_length):
+            z = features_forward_func(states[n])
+            #z = distance_forward_func(z)
+            z_seq.append(z)     
+
+            loss_cov_var_ = loss_cov_var(z)
+  
+        # initial sequence start-point
+        z_pred = z_seq[0]    
+
+        # compute integral over trajectory
+        for n in range(seq_length-1):
+            dz = z_seq[n+1] - z_seq[n]
+            z_pred+= dz
+
+        # compare if matches with sequence end-point
+        dif = (z_seq[-1] - z_pred)**2
+
+        loss = loss_cov_var_ + dif.mean()
+
+        loss_mean_ = round(dif.mean().detach().cpu().numpy().item(), 6)
+        loss_std_  = round(dif.std().detach().cpu().numpy().item(), 6)
+   
+        info = [loss_mean_, loss_std_]
+
+        return loss, info
+    '''
