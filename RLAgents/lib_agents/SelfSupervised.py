@@ -127,6 +127,8 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
     
     # predict distances, each by each
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
+
+    print(d_target)
     
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
