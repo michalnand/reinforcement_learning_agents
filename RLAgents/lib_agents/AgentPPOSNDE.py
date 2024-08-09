@@ -306,7 +306,7 @@ class AgentPPOSNDE():
                 loss_ssl = 0
 
             #total IM loss  
-            loss = loss_im #+ loss_ssl
+            loss = loss_im + loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
