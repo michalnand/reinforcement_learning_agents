@@ -112,13 +112,13 @@ def _target_distances(idx_a, idx_b, scaling_func):
         d_target_scaled = scaling_func(d_target)
     else:
         d_target_scaled = d_target  
-        
-    '''
-    print("d_target = ", d_target_scaled.shape)
-    print(d_target_scaled)
-    print(torch.diag(d_target_scaled))
+
+    
+    print("d_target = ", d_target.shape)
+    print(d_target)
+    print(torch.diag(d_target))
     print("\n\n\n")
-    '''
+    
 
     return d_target_scaled
 

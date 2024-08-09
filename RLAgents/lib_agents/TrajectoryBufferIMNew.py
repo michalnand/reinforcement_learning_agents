@@ -222,23 +222,14 @@ class TrajectoryBufferIMNew:
         return states, steps
     
 
-    def sample_states_steps_pairs(self, batch_size, max_distance, p_random, device):
+    def sample_states_steps_pairs(self, batch_size, max_distance, device):
         count    = self.buffer_size*self.envs_count
         distance = torch.randint(0, max_distance, (batch_size, ))
 
-        print(max_distance)
-        print(distance)
-        print("\n\n\n")
+     
 
         indices_a = torch.randint(0, count, size=(batch_size, ))
         indices_b = torch.clip(indices_a + self.envs_count*distance, 0, count-1)
-
-        
-        # with probability p_random, set completly random indices_b
-        mask = torch.rand(batch_size) < p_random
-        random_idx = torch.where(mask)[0]
-        indices_b[random_idx] = torch.randint(0, count, (len(random_idx),))
-        
 
         xa = (self.states[indices_a]).to(device)  
         xb = (self.states[indices_b]).to(device)
