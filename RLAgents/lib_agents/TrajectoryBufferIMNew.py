@@ -234,9 +234,13 @@ class TrajectoryBufferIMNew:
         random_idx = torch.where(mask)[0]
         indices_b[random_idx] = torch.randint(0, count, (len(random_idx),))
 
+        print(indices_a)    
+        print(indices_b)
+        print("\n\n")
+
         xa = (self.states[indices_a]).to(device)  
         xb = (self.states[indices_b]).to(device)
-        
+
         steps_a = (self.steps[indices_a]).to(device)
         steps_b = (self.steps[indices_b]).to(device)
 
