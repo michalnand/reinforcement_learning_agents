@@ -131,7 +131,7 @@ def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scali
     # flatten predicted distances
     d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
     d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
-    
+
     # MSE loss
     dist_loss = ((d_target - d_pred)**2).mean()
 
@@ -174,8 +174,6 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
 
     # obtain features
     z, d_pred = model_forward_func(x_aug)
-
-    print("loss = ", z.shape, d_pred.shape, steps.shape)
     
     # predict distances, each by each
     d_target    = _target_distances(steps, steps, dist_scaling_func)
