@@ -243,8 +243,6 @@ class TrajectoryBufferIMNew:
         steps_a = (self.steps[indices_a]).to(device)
         steps_b = (self.steps[indices_b]).to(device)
 
-        print(torch.abs(steps_a - steps_b))
-        print("\n\n")
 
         return xa, xb, steps_a, steps_b
 
