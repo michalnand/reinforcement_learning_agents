@@ -150,7 +150,7 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
     cov_loss+= _loss_cov(zb)
    
     # total vicreg loss
-    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss 
 
     
     #info for log
