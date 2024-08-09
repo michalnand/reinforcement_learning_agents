@@ -105,15 +105,18 @@ def _target_distances(idx_a, idx_b, scaling_func):
     idx_b = idx_b.unsqueeze(0).float()
 
     d_target = torch.abs(idx_a - idx_b)
-    print("d_target = ", d_target.shape)
-    print(d_target)
-    print("\n\n\n")
+    
 
     # target distances scaling if any (e.g. logarithmic)
     if scaling_func is not None:
         d_target_scaled = scaling_func(d_target)
     else:
         d_target_scaled = d_target  
+
+    print("d_target = ", d_target_scaled.shape)
+    print(d_target_scaled)
+    print(torch.diag(d_target_scaled))
+    print("\n\n\n")
 
     return d_target_scaled
 
