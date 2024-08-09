@@ -103,7 +103,7 @@ def _target_distances(idx_a, idx_b, scaling_func):
     # target each by each distance in steps count
     idx_a = idx_a.unsqueeze(1).float()
     idx_b = idx_b.unsqueeze(1).float()
-    
+
     d_target = torch.cdist(idx_a.float(), idx_b.float())
 
     # target distances scaling if any (e.g. logarithmic)
@@ -131,8 +131,7 @@ def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scali
     # flatten predicted distances
     d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
     d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
-    d_target    = d_target.long()
-
+    
     # MSE loss
     dist_loss = ((d_target - d_pred)**2).mean()
 
@@ -209,8 +208,8 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
     
-    d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
-    d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
+    d_target_mean = round(d_target.float().mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.float().std().detach().cpu().numpy().item(), 6)
     
     acc_mean      = round(acc.mean().detach().cpu().numpy().item(), 6)
     acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
