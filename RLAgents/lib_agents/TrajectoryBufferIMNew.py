@@ -226,7 +226,6 @@ class TrajectoryBufferIMNew:
         count    = self.buffer_size*self.envs_count
         distance = torch.randint(0, 1 + max_distance, (batch_size, ))
 
-        print(distance) 
 
         indices_a = torch.randint(0, count, size=(batch_size, ))
         indices_b = torch.clip(indices_a + self.envs_count*distance, 0, count-1)
@@ -243,6 +242,10 @@ class TrajectoryBufferIMNew:
 
         steps_a = (self.steps[indices_a]).to(device)
         steps_b = (self.steps[indices_b]).to(device)
+
+        print(distance) 
+        print(torch.abs(steps_a - steps_b))
+        print("\n\n")
 
         return xa, xb, steps_a, steps_b
 
