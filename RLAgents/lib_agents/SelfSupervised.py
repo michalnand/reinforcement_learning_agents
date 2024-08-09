@@ -181,7 +181,7 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, 
     # predict distances, each by each
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
 
-    print(d_target)
+    print(d_target.float().mean())
     
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
