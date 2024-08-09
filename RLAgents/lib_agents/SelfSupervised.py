@@ -118,23 +118,28 @@ def _target_distances(idx_a, idx_b, scaling_func):
 def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
 
     if augmentations is not None:
-        xb_aug, _ = augmentations(xb)
+        xa_aug, _ = augmentations(xa)
     else:
-        xb_aug    = xb    
+        xa_aug    = xa    
 
     # obtain features
-    za, zb, d_pred = model_forward_func(xa, xb_aug)
+    za, zb, _    = model_forward_func(xa, xa_aug)
+    _, _, d_pred = model_forward_func(xa, xb)
+    
     
     # predict distances, each by each
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
-    
+
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1]))
     d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
 
-
     # MSE loss
     dist_loss = ((d_target - d_pred)**2).mean()
+
+    
+    # invariance loss
+    sim_loss = _loss_mse(za, zb) 
 
     # variance loss 
     std_loss = _loss_std(za)
@@ -148,13 +153,13 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
     loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     
-
     #info for log
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
+    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     
     d_target_mean = round(d_target.mean().detach().cpu().numpy().item(), 6)
     d_target_std  = round(d_target.std().detach().cpu().numpy().item(), 6)
@@ -163,7 +168,7 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
     d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
 
 
-    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, dist_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
 
     return loss, info
 
@@ -171,13 +176,15 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
 def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
 
     if augmentations is not None:
-        xb_aug, _ = augmentations(xb)
+        xa_aug, _ = augmentations(xa)
     else:
-        xb_aug    = xb    
+        xa_aug    = xa    
 
     # obtain features
-    za, zb, d_pred = model_forward_func(xa, xb_aug)
+    za, zb, _    = model_forward_func(xa, xa_aug)
+    _, _, d_pred = model_forward_func(xa, xb)
     
+
     # predict distances, each by each
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
     
@@ -188,7 +195,11 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, 
 
     # classification loss
     loss_func = torch.nn.CrossEntropyLoss()
-    dist_loss = loss_func(d_pred, d_target)   
+    dist_loss = loss_func(d_pred, d_target)  
+
+
+    # invariance loss
+    sim_loss = _loss_mse(za, zb) 
 
     # variance loss
     std_loss = _loss_std(za)
@@ -199,17 +210,19 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, 
     cov_loss+= _loss_cov(zb)
 
     # total vicreg loss
-    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss 
 
     # accuracy
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
+
     #info for log
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
+    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     
     d_target_mean = round(d_target.float().mean().detach().cpu().numpy().item(), 6)
     d_target_std  = round(d_target.float().std().detach().cpu().numpy().item(), 6)
@@ -218,7 +231,7 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, 
     acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
 
 
-    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, dist_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
 
     return loss, info
 
