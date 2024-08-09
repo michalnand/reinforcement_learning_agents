@@ -192,6 +192,9 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
    
     # covariance loss 
     cov_loss = _loss_cov(z)
+
+    print(z.shape)
+    print(z[0])
    
     # total vicreg loss
     loss = 0.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
