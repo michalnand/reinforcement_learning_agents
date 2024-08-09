@@ -294,6 +294,7 @@ class AgentPPOSNDE():
             
             self.values_logger.add("loss_im",  loss_im.detach().cpu().numpy())
 
+            '''
             #target SSL regularisation
             if self._im_ssl_loss is not None:
                 states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
@@ -303,10 +304,10 @@ class AgentPPOSNDE():
                 self.info_logger["im_ssl"] = im_ssl
             else:   
                 loss_ssl = 0
-
+            '''
 
             #total IM loss  
-            loss = loss_im + loss_ssl
+            loss = loss_im #+ loss_ssl
 
             self.optimizer.zero_grad()            
             loss.backward()     
