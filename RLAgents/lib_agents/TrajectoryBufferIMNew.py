@@ -179,6 +179,7 @@ class TrajectoryBufferIMNew:
 
         return xa, xb, distance.to(device)
     
+  
 
     def sample_states_pairs_seq(self, seq_length, batch_size, max_distance, stochastic_distance, device):
         count = self.envs_count*(self.buffer_size - seq_length)
@@ -220,6 +221,26 @@ class TrajectoryBufferIMNew:
 
         return states, steps
     
+
+    def sample_states_steps_pairs(self, batch_size, max_distance, p_random, device):
+        count    = self.buffer_size*self.envs_count
+        distance = torch.randint(0, 1 + max_distance, (batch_size, ))
+
+        indices_a = torch.randint(0, count, size=(batch_size, ))
+        indices_b = torch.clip(indices_a + self.envs_count*distance, 0, count-1)
+
+        # with probability p_random, set completly random indices_b
+        mask = torch.rand(batch_size) < p_random
+        random_idx = torch.where(mask)[0]
+        indices_b[random_idx] = torch.randint(0, count, (len(random_idx),))
+
+        xa = (self.states[indices_a]).to(device)  
+        xb = (self.states[indices_b]).to(device)
+        
+        steps_a = (self.steps[indices_a]).to(device)
+        steps_b = (self.steps[indices_b]).to(device)
+
+        return xa, xb, steps_a, steps_b
 
     
     def sample_states_seq(self, seq_length, batch_size, device):

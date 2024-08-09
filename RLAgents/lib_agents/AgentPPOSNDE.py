@@ -14,7 +14,7 @@ class AgentPPOSNDE():
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        self.envs = envs    
+        self.envs = envs        
           
         self.gamma_ext          = config.gamma_ext 
         self.gamma_int          = config.gamma_int
@@ -56,6 +56,8 @@ class AgentPPOSNDE():
         else:
             self._im_ssl_loss = None
 
+        self.max_distance = config.max_distance
+
 
         self.metric_scaling_func            = config.metric_scaling_func
 
@@ -67,6 +69,7 @@ class AgentPPOSNDE():
         print("state_normalise        = ", self.state_normalise)
         print("rl_ssl_loss            = ", self._rl_ssl_loss)
         print("im_ssl_loss            = ", self._im_ssl_loss)
+        print("max_distance           = ", self.max_distance)
         print("metric_scaling_func    = ", self.metric_scaling_func)
         print("augmentations_rl       = ", self.augmentations_rl)
         print("augmentations_im       = ", self.augmentations_im)
@@ -82,7 +85,7 @@ class AgentPPOSNDE():
         self.actions_count  = self.envs.action_space.n
 
         #create model and optimizer
-        self.model      = Model.Model(self.state_shape, self.actions_count)
+        self.model      = Model.Model(self.state_shape, self.actions_count, self.max_distance + 1)
         self.model.to(self.device)
         self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
 
@@ -297,9 +300,9 @@ class AgentPPOSNDE():
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
-                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
+                states_a, states_b, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, self.max_distance, 1.0/(self.max_distance+1), self.device)
 
-                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states, steps, self.metric_scaling_func)
+                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states_a, states_b, steps_a, steps_b, self.metric_scaling_func)
 
                 self.info_logger["im_ssl"] = im_ssl
             else:   

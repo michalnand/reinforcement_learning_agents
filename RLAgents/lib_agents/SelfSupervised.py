@@ -115,31 +115,34 @@ def _target_distances(idx_a, idx_b, scaling_func):
     return d_target_scaled
 
 
-def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func = None):
+def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
 
     if augmentations is not None:
-        x_aug, _ = augmentations(x)
+        xb_aug, _ = augmentations(xb)
     else:
-        x_aug    = x
+        xb_aug    = xb    
 
     # obtain features
-    z, d_pred = model_forward_func(x_aug)
+    za, zb, d_pred = model_forward_func(xa, xb_aug)
     
     # predict distances, each by each
-    d_target    = _target_distances(steps, steps, dist_scaling_func)
+    d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
     
-    # flatten predicted distances   
-    d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], 1))
-    d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1], 1))
+    # flatten predicted distances
+    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
+    
 
     # MSE loss
     dist_loss = ((d_target - d_pred)**2).mean()
 
-    # variance loss
-    std_loss = _loss_std(z)
+    # variance loss 
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
    
     # covariance loss 
-    cov_loss = _loss_cov(z)
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
    
     # total vicreg loss
     loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
@@ -147,8 +150,8 @@ def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scali
     
 
     #info for log
-    z_mag         = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std     = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
     dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
@@ -165,33 +168,35 @@ def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scali
     return loss, info
 
 
-def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps, dist_scaling_func = None):
+def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
 
     if augmentations is not None:
-        x_aug, _ = augmentations(x)
+        xb_aug, _ = augmentations(xb)
     else:
-        x_aug    = x    
+        xb_aug    = xb    
 
     # obtain features
-    z, d_pred = model_forward_func(x_aug)
+    za, zb, d_pred = model_forward_func(xa, xb_aug)
     
     # predict distances, each by each
-    d_target    = _target_distances(steps, steps, dist_scaling_func)
+    d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
     
     # flatten predicted distances
-    d_pred      = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
-    d_target    = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
-    d_target    = d_target.long()
+    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
+    d_target  = d_target.long() 
 
     # classification loss
     loss_func = torch.nn.CrossEntropyLoss()
     dist_loss = loss_func(d_pred, d_target)   
 
     # variance loss
-    std_loss = _loss_std(z)
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
    
     # covariance loss 
-    cov_loss = _loss_cov(z)
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
 
     # total vicreg loss
     loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
@@ -200,8 +205,8 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
     #info for log
-    z_mag         = round(((z**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std     = round(((z**2).std()).detach().cpu().numpy().item(), 6)
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
     dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
