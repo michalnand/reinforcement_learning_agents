@@ -41,7 +41,7 @@ class AgentPPOSNDE():
             self.rnn_seq_length      = config.rnn_seq_length
         else:
             self.rnn_policy          = False
-            self.rnn_seq_length      = -1
+            self.rnn_seq_length      = -1   
             
 
         if config.rl_ssl_loss == "vicreg":

@@ -99,9 +99,12 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
     return loss, info
 
-def _target_distances(dist_a, dist_b, scaling_func):
+def _target_distances(idx_a, idx_b, scaling_func):
     # target each by each distance in steps count
-    d_target = torch.cdist(dist_a.float(), dist_b.float())
+    idx_a = idx_a.unsqueeze(1).float()
+    idx_b = idx_b.unsqueeze(1).float()
+    
+    d_target = torch.cdist(idx_a.float(), idx_b.float())
 
     # target distances scaling if any (e.g. logarithmic)
     if scaling_func is not None:
