@@ -115,29 +115,28 @@ def _target_distances(idx_a, idx_b, scaling_func):
     return d_target_scaled
 
 
-def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
+def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
-        xa_aug, _ = augmentations(xa)
+        x_aug, _ = augmentations(x)
     else:
-        xa_aug    = xa    
+        x_aug    = x    
 
     # obtain features
-    za, zb, _    = model_forward_func(xa, xa_aug)
-    _, _, d_pred = model_forward_func(xa, xb)
+    za, zb, d_pred  = model_forward_func(x, x_aug)
     
     
     # predict distances, each by each
-    d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
+    d_target  = _target_distances(steps, steps, dist_scaling_func)
 
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1]))
     d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
 
+
     # MSE loss
     dist_loss = ((d_target - d_pred)**2).mean()
 
-    
     # invariance loss
     sim_loss = _loss_mse(za, zb) 
 
@@ -173,20 +172,19 @@ def loss_vicreg_distance(model_forward_func, augmentations, xa, xb, steps_a, ste
     return loss, info
 
 
-def loss_vicreg_distance_categorical(model_forward_func, augmentations, xa, xb, steps_a, steps_b, dist_scaling_func):
+def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
-        xa_aug, _ = augmentations(xa)
+        x_aug, _ = augmentations(x)
     else:
-        xa_aug    = xa    
+        x_aug    = x    
 
     # obtain features
-    za, zb, _    = model_forward_func(xa, xa_aug)
-    _, _, d_pred = model_forward_func(xa, xb)
+    za, zb, d_pred  = model_forward_func(x, x_aug)
     
 
-    # predict distances, each by each
-    d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
+    # predict distances, each by each 
+    d_target  = _target_distances(steps, steps, dist_scaling_func)
     
     # flatten predicted distances
     d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))

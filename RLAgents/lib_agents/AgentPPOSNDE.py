@@ -300,9 +300,9 @@ class AgentPPOSNDE():
 
             #target SSL regularisation
             if self._im_ssl_loss is not None:
-                states_a, states_b, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, self.max_distance, self.device)
+                states, steps = self.trajectory_buffer.sample_states_steps(self.ss_batch_size, self.device)
 
-                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states_a, states_b, steps_a, steps_b, self.metric_scaling_func)
+                loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, states, steps, self.metric_scaling_func)
 
                 self.info_logger["im_ssl"] = im_ssl
             else:   
