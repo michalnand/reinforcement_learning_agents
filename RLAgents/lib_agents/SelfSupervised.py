@@ -172,7 +172,7 @@ def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scali
     return loss, info
 
 
-def loss_vicreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func):
+def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
         x_aug, _ = augmentations(x)
