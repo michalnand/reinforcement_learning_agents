@@ -360,7 +360,7 @@ class AgentPPOEuclid():
         # dz.shape     = (episodic_buffer_size, envs_count, n_features)
         # d_pred.shape = (episodic_buffer_size, envs_count, n_classes)
         dz      = self.episodic_buffer - z.unsqueeze(0)
-        d_pred  = self.model.forward_distance(dz)
+        d_pred  = self.model.forward_distance(dz).detach()
 
         # this part converts categorical distances into real numbers, ranging 0..1
         d_probs = torch.softmax(d_pred, dim=-1)
@@ -385,7 +385,7 @@ class AgentPPOEuclid():
 
         #print("d_smallest = ", d_smallest.shape)
 
-        print(d_smallest)
+        print(d_weighted)
 
         # compute internal motivation
         # average distances along 10% closest
