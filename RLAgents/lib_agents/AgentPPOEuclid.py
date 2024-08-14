@@ -383,7 +383,8 @@ class AgentPPOEuclid():
         max_count  = int(p_smallest*d_sorted.shape[0])
         d_smallest = d_sorted[0:max_count, :]
 
-        #print("d_smallest = ", d_smallest.shape)
+        print("d_smallest = ", d_smallest.shape)
+        print(d_smallest[:, 0])
 
         # compute internal motivation
         # average distances along 10% closest
