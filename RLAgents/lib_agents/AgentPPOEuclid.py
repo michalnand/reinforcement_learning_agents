@@ -363,7 +363,7 @@ class AgentPPOEuclid():
         
         
         #d_pred  = self.model.forward_distance(dz).detach()
-        d_pred = (dz**2).mean(dim=-1)
+        d_weighted = (dz**2).mean(dim=-1)
 
         '''
         # this part converts categorical distances into real numbers, ranging 0..1
@@ -380,7 +380,8 @@ class AgentPPOEuclid():
 
         #print("d_weighted = ", d_weighted.shape)
         '''
-        
+
+
         # sort along buffer size dim, start with smallest
         d_sorted = torch.sort(d_weighted, 0, descending=False)[0]
 
