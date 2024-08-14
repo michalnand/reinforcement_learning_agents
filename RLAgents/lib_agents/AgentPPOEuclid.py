@@ -396,10 +396,10 @@ class AgentPPOEuclid():
 
         info = []
 
-        info.append(round(d_weighted.mean().detach().cpu().numpy(), 5))
-        info.append(round(d_weighted.std().detach().cpu().numpy(), 5))
-        info.append(round(d_smallest.mean().detach().cpu().numpy(), 5))
-        info.append(round(d_smallest.std().detach().cpu().numpy(), 5))
+        info.append(round(d_weighted.mean().detach().cpu().numpy().item(), 5))
+        info.append(round(d_weighted.std().detach().cpu().numpy().item(), 5))
+        info.append(round(d_smallest.mean().detach().cpu().numpy().item(), 5))
+        info.append(round(d_smallest.std().detach().cpu().numpy().item(), 5))
 
         return im, info
  
