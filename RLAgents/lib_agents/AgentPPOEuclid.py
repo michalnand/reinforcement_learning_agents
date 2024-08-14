@@ -385,8 +385,6 @@ class AgentPPOEuclid():
 
         #print("d_smallest = ", d_smallest.shape)
 
-        print(d_smallest)
-
         # compute internal motivation
         # average distances along 10% closest
         # bigger distance better exploration
