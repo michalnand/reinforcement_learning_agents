@@ -48,5 +48,6 @@ from .AgentPPOFMContinuous          import AgentPPOFMContinuous
 
 from .AgentRLMPC                    import AgentRLMPC
 
+from .AgentPPOEuclid               import AgentPPOEuclid
 
   
