@@ -347,7 +347,7 @@ class AgentPPOEuclid():
 
    
 
-    def _internal_motivation(self, states, dones, p_smallest = 0.02):        
+    def _internal_motivation(self, states, dones, p_smallest = 0.1):        
         # obtain features
         z  = self.model.forward_im_encoder(states).detach()
 
