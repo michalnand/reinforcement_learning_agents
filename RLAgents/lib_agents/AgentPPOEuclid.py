@@ -367,7 +367,7 @@ class AgentPPOEuclid():
         print("d_probs = ", d_probs.shape)
 
         # create normalised category weights
-        w = torch.arange(d_pred.shape[-1]).unsqueeze(0).unsqueeze(1)
+        w = torch.arange(d_pred.shape[-1]).unsqueeze(0).unsqueeze(1).to(self.device)
         w = w/(d_pred.shape[-1]-1)
 
         # d_weighted.shape = (episodic_buffer_size, envs_count)
