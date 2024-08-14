@@ -346,7 +346,7 @@ class AgentPPOEuclid():
         return loss 
 
    
-
+    '''
     def _internal_motivation(self, states, dones, p_smallest = 0.1):        
         # obtain features
         z  = self.model.forward_im_encoder(states).detach()
@@ -361,11 +361,9 @@ class AgentPPOEuclid():
         # d_pred.shape = (episodic_buffer_size, envs_count, n_classes)
         dz      = self.episodic_buffer - z.unsqueeze(0)
         
+        d_pred  = self.model.forward_distance(dz).detach()
         
-        #d_pred  = self.model.forward_distance(dz).detach()
-        d_weighted = (dz**2).mean(dim=-1)
-
-        '''
+        
         # this part converts categorical distances into real numbers, ranging 0..1
         d_probs = torch.softmax(d_pred, dim=-1)
 
@@ -379,7 +377,7 @@ class AgentPPOEuclid():
         d_weighted = (d_probs*w).sum(dim=-1)
 
         #print("d_weighted = ", d_weighted.shape)
-        '''
+        
 
 
         # sort along buffer size dim, start with smallest
@@ -408,6 +406,53 @@ class AgentPPOEuclid():
 
         info.append(round(d_weighted.mean().detach().cpu().numpy().item(), 5))
         info.append(round(d_weighted.std().detach().cpu().numpy().item(), 5))
+        info.append(round(d_smallest.mean().detach().cpu().numpy().item(), 5))
+        info.append(round(d_smallest.std().detach().cpu().numpy().item(), 5))
+
+        return im, info
+    '''
+
+    def _internal_motivation(self, states, dones, p_smallest = 0.1):        
+        # obtain features
+        z  = self.model.forward_im_encoder(states).detach()
+
+        # fill with constant where episode is done
+        dones_idx = numpy.where(dones)
+        for e in dones_idx:
+            self.episodic_buffer[:, e, :] = z[e]
+
+        # meassure distances from new z and buffered past z
+        # dz.shape     = (episodic_buffer_size, envs_count, n_features)
+        # d_pred.shape = (episodic_buffer_size, envs_count, n_classes)
+        dz  = self.episodic_buffer - z.unsqueeze(0)
+        dz   = (dz**2).mean(dim=-1)
+
+        # sort along buffer size dim, start with smallest
+        d_sorted = torch.sort(dz, 0, descending=False)[0]
+
+        # select 10% smallest distances
+        max_count  = int(p_smallest*d_sorted.shape[0])
+        d_smallest = d_sorted[0:max_count, :]
+
+        print("d_smallest = ", d_smallest.shape)
+        print(d_smallest[:, 0])
+
+        # compute internal motivation
+        # average distances along 10% closest
+        # bigger distance better exploration
+        im = d_smallest.mean(dim=0)
+
+        #print("im = ", im.shape)
+        #print("\n\n")
+
+        # add new features into buffer
+        self.episodic_buffer[self.episodic_buffer_ptr] = z
+        self.episodic_buffer_ptr = (self.episodic_buffer_ptr + 1)%self.episodic_buffer_size
+
+        info = []
+
+        info.append(round(dz.mean().detach().cpu().numpy().item(), 5))
+        info.append(round(dz.std().detach().cpu().numpy().item(), 5))
         info.append(round(d_smallest.mean().detach().cpu().numpy().item(), 5))
         info.append(round(d_smallest.std().detach().cpu().numpy().item(), 5))
 
