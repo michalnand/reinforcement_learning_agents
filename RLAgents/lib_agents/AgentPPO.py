@@ -157,9 +157,9 @@ class AgentPPO():
             for e in dones_idx:
                 self.hidden_state[e] = 0.0
 
-            #hidden space stats
+            #hidden space stats 
             hidden_mean = (self.hidden_state**2).mean().detach().cpu().numpy().item()
-            hidden_std  = self.hidden_state.std(dim=0).mean().detach().cpu().numpy().item()
+            hidden_std  = self.hidden_state.std().detach().cpu().numpy().item()
             self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std, 5)]
       
         self.iterations+= 1
