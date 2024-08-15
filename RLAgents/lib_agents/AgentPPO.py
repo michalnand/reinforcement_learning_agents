@@ -1,6 +1,6 @@
 import numpy
 import torch
-import time
+import time 
 
 from .ValuesLogger      import *
 from .TrajectoryBuffer  import *
@@ -151,7 +151,7 @@ class AgentPPO():
         if self.rnn_policy:
             self.hidden_state = hidden_state_new.detach().clone()
 
-            dones_idx = numpy.where(dones)
+            dones_idx = numpy.where(dones)[0]
 
             #clear rnn hidden state if done
             for e in dones_idx:
