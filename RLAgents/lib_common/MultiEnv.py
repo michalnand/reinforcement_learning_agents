@@ -22,7 +22,7 @@ class MultiEnvSeq:
 				if wrapper is not None:
 					env = wrapper(env)
 			else:
-				env = wrapper
+				env = wrapper()
 
 
 			self.envs.append(env)
