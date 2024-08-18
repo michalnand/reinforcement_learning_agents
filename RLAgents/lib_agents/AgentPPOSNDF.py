@@ -295,6 +295,7 @@ class AgentPPOSNDF():
                 # sample states with different distances levels
                 n_heads = len(self.max_distances)
 
+                '''
                 xa = []
                 xb = []
                 steps_a = []
@@ -311,11 +312,17 @@ class AgentPPOSNDF():
                 xb      = torch.stack(xb)
                 steps_a = torch.stack(steps_a)
                 steps_b = torch.stack(steps_b)
-
+            
+                
                 xa      = xa.reshape((xa.shape[0]*xa.shape[1], ) + xa.shape[2:])
                 xb      = xb.reshape((xb.shape[0]*xb.shape[1], ) + xb.shape[2:])
                 steps_a = steps_a.reshape((steps_a.shape[0]*steps_a.shape[1], ) + steps_a.shape[2:])
                 steps_b = steps_b.reshape((steps_b.shape[0]*steps_b.shape[1], ) + steps_b.shape[2:])
+
+                '''
+
+                
+                xa, xb, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, 8, self.device)
 
                 loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, xa, xb, steps_a, steps_b, n_heads, self.metric_scaling_func)
 
