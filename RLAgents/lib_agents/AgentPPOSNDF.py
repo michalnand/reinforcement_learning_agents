@@ -86,7 +86,7 @@ class AgentPPOSNDF():
 
         #create model and optimizer
         max_distance    = numpy.max(self.max_distances)
-        self.model      = Model.Model(self.state_shape, self.actions_count, max_distance + 1)
+        self.model      = Model.Model(self.state_shape, self.actions_count, max_distance + 1, len(self.max_distances))
         self.model.to(self.device)
         self.optimizer  = torch.optim.Adam(self.model.parameters(), lr=config.learning_rate)
 
@@ -372,6 +372,13 @@ class AgentPPOSNDF():
         z_predictor = self.model.forward_im_predictor(states)
 
         print(">>> IM = ", z_target.shape, z_predictor.shape)
+
+        z_target    = torch.transpose(z_target, 0, 1)
+        z_predictor = torch.transpose(z_predictor, 0, 1)
+
+        print(">>> IM = ", z_target.shape, z_predictor.shape)
+
+        print("\n\n\n")
 
         novelty     = ((z_target - z_predictor)**2)
 
