@@ -250,6 +250,8 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
     # obtain features
     za, zb, d_pred  = model_forward_func(xa, xb_aug)
 
+    print(">>>> ", xa.shape, xb_aug.shape, za.shape, zb.shape, d_pred.shape)
+
     # predict distances, each by each 
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
     

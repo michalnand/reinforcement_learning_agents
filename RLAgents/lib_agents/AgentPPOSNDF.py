@@ -295,7 +295,6 @@ class AgentPPOSNDF():
                 # sample states with different distances levels
                 n_heads = len(self.max_distances)
 
-                '''
                 xa = []
                 xb = []
                 steps_a = []
@@ -307,36 +306,7 @@ class AgentPPOSNDF():
                     steps_a.append(steps_a_)
                     steps_b.append(steps_b_)
 
-                
-
-                xa      = torch.stack(xa)
-                xb      = torch.stack(xb)
-                steps_a = torch.stack(steps_a)
-                steps_b = torch.stack(steps_b)
-            
-                
-                xa      = xa.reshape((xa.shape[0]*xa.shape[1], ) + xa.shape[2:])
-                xb      = xb.reshape((xb.shape[0]*xb.shape[1], ) + xb.shape[2:])
-                steps_a = steps_a.reshape((steps_a.shape[0]*steps_a.shape[1], ) + steps_a.shape[2:])
-                steps_b = steps_b.reshape((steps_b.shape[0]*steps_b.shape[1], ) + steps_b.shape[2:])
-
-                '''
-
-
-                #xa, xb, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, 8, self.device)
-
-
-                xa = []
-                xb = []
-                steps_a = []
-                steps_b = []
-                for n in range(n_heads):
-                    xa_, xb_, steps_a_, steps_b_ = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size//n_heads, self.max_distances[n], self.device)
-                    xa.append(xa_)
-                    xb.append(xb_)
-                    steps_a.append(steps_a_)
-                    steps_b.append(steps_b_)
-
+                # stack into single batch
                 xa = torch.cat(xa)
                 xb = torch.cat(xb)
                 steps_a = torch.cat(steps_a)
