@@ -264,46 +264,23 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
 
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
-    '''
+    # similarity loss
     sim_loss = 0.0
-    std_loss = 0.0
-    cov_loss = 0.0
-
     for head in range(n_heads):
-        # similarity loss
         idx_end = (head + 1)*(za.shape[1]//n_heads)
-        
-        sim_loss+= _loss_mse(za[head, 0:idx_end], zb[head, 0:idx_end]) 
+        za_tmp = za[:, 0:idx_end]
+        zb_tmp = zb[:, 0:idx_end]
 
-        # variance loss
-        std_loss+= _loss_std(za[head])
-        std_loss+= _loss_std(zb[head])
-
-        # covariance loss 
-        cov_loss+= _loss_cov(za[head])
-        cov_loss+= _loss_cov(zb[head])
-    
-    # total vicreg loss
-    sim_loss  = sim_loss/n_heads
-    std_loss  = std_loss/n_heads
-    cov_loss  = cov_loss/n_heads
-    '''
-    
-
-    sim_loss = 0.0
-    std_loss = 0.0
-    cov_loss = 0.0  
-
-    # similarity loss        
-    sim_loss+= _loss_mse(za[0], zb[0]) 
+        sim_loss+= _loss_mse(za_tmp, zb_tmp) 
 
     # variance loss
-    std_loss+= _loss_std(za[0])
-    std_loss+= _loss_std(zb[0])
+    std_loss= _loss_std(za)
+    std_loss+= _loss_std(zb)
 
     # covariance loss 
-    cov_loss+= _loss_cov(za[0])
-    cov_loss+= _loss_cov(zb[0])
+    cov_loss= _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
 
     # total vicreg loss
     loss      = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss 
