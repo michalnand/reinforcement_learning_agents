@@ -247,14 +247,8 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
     else:
         xb_aug    = xb    
 
-    print("ssl loss = ", xa.shape, xb.shape, xb_aug.shape, steps_a.shape, steps_b.shape, n_heads)
-
     # obtain features
     za, zb, d_pred  = model_forward_func(xa, xb_aug)
-
-    print("za = ", za.shape)
-    print("zb = ", zb.shape)
-    print("d_pred = ", d_pred.shape)
 
     # predict distances, each by each 
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
