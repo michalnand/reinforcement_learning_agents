@@ -366,18 +366,12 @@ class AgentPPOSNDF():
         return loss 
 
    
-
     #distillation novelty detection, mse loss
     def _internal_motivation(self, states):        
-        z_target    = self.model.forward_im_target(states).detach()
+        z_target    = self.model.forward_im_target(states)
         z_predictor = self.model.forward_im_predictor(states)
-
-        z_target    = torch.transpose(z_target, 0, 1)
-        z_predictor = torch.transpose(z_predictor, 0, 1)
-
-        novelty     = ((z_target - z_predictor)**2).mean(dim=(1, 2))
-
-        print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
+      
+        novelty     = ((z_target.detach() - z_predictor)**2).mean(dim=1)
 
         return novelty
  
