@@ -306,10 +306,6 @@ class AgentPPOSNDF():
                     steps_a.append(steps_a_)
                     steps_b.append(steps_b_)
 
-                    print("n = ", n, xa_.shape)
-                    print(steps_a_[0:10])
-                    print(steps_b_[0:10])
-                    print("\n\n")
 
                 xa      = torch.stack(xa)
                 xb      = torch.stack(xb)
