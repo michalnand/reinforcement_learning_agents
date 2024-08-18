@@ -276,7 +276,7 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
     cov_loss = 0.0
 
     for head in range(n_heads):
-        print(head, za)
+        print(head, za.shape, zb.shape)
         # similarity loss
         idx_end  = (head+1)*(za.shape[1]//n_heads)
         sim_loss+= _loss_mse(za[head, 0:idx_end], zb[head, 0:idx_end]) 
