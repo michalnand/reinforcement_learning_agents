@@ -250,7 +250,6 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
     # obtain features
     za, zb, d_pred  = model_forward_func(xa, xb_aug)
 
-    print(">>>> ", xa.shape, xb_aug.shape, za.shape, zb.shape, d_pred.shape)
 
     # predict distances, each by each 
     d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
@@ -267,7 +266,7 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
     # similarity loss
-    '''
+    
     sim_loss = 0.0
     for head in range(n_heads):
         batch_range    = (head+1)*(za.shape[0]//n_heads)
@@ -277,9 +276,9 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
         zb_tmp = zb[0:batch_range, features_range:] 
 
         sim_loss+= _loss_mse(za_tmp, zb_tmp) 
-    '''
+    
 
-    sim_loss = _loss_mse(za, zb) 
+    #sim_loss = _loss_mse(za, zb) 
 
     # variance loss
     std_loss= _loss_std(za)
