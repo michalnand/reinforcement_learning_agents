@@ -312,6 +312,7 @@ class AgentPPOSNDF():
                 steps_a = torch.cat(steps_a)
                 steps_b = torch.cat(steps_b)
 
+                # self supervised loss
                 loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, xa, xb, steps_a, steps_b, n_heads, self.metric_scaling_func)
 
                 self.info_logger["im_ssl"] = im_ssl
