@@ -377,6 +377,8 @@ class AgentPPOSNDF():
 
         novelty     = ((z_target - z_predictor)**2).mean(dim=(1, 2))
 
+        print(">>> ", z_target.shape, z_predictor.shape, novelty.shape)
+
         return novelty
  
     def _augmentations_rl_func(self, x): 
