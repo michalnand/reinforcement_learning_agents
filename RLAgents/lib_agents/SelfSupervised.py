@@ -273,8 +273,6 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
         batch_end       = (head+1)*(za.shape[0]//n_heads)
         features_range  = head*(za.shape[1]//n_heads)   
 
-        print(head, batch_start, batch_end, features_range)
-
         za_tmp = za[batch_start:batch_end, features_range:]
         zb_tmp = zb[batch_start:batch_end, features_range:] 
 
