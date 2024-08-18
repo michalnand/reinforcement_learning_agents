@@ -116,7 +116,6 @@ class AgentPPO():
     def step(self, states, training_enabled, legal_actions_mask):        
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
 
-        
         if self.rnn_policy: 
             logits_t, values_t, hidden_state_new = self.model.forward(states_t, self.hidden_state, False)
         else:
