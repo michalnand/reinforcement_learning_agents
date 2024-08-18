@@ -264,14 +264,22 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
 
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
+    print("loss ssl")
     # similarity loss
     sim_loss = 0.0
     for head in range(n_heads):
+        features_range = (head + 1)*(za.shape[1]//n_heads)
+
+        print(head, features_range)
+        '''
         idx_end = (head + 1)*(za.shape[1]//n_heads)
-        za_tmp = za[:, 0:idx_end]
-        zb_tmp = zb[:, 0:idx_end]
+
+        print(">>> ", head, idx_end)
+        za_tmp = za[0:idx_end, features_range:]
+        zb_tmp = zb[0:idx_end, features_range:] 
 
         sim_loss+= _loss_mse(za_tmp, zb_tmp) 
+        '''
 
     # variance loss
     std_loss= _loss_std(za)
