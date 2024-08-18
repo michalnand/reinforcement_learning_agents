@@ -382,6 +382,8 @@ class AgentPPOSNDF():
 
         novelty     = ((z_target - z_predictor)**2)
 
+        print(">>> ", novelty.shape)
+
 
         return novelty
  
