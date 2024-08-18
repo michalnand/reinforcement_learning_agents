@@ -277,10 +277,8 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
 
     for head in range(n_heads):
         # similarity loss
-        idx_end  = (head+1)*(za.shape[1]//n_heads)
+        idx_end = (head + 1)*(za.shape[1]//n_heads)
         
-        print(head, idx_end, za[head, 0:idx_end].shape)
-
         sim_loss+= _loss_mse(za[head, 0:idx_end], zb[head, 0:idx_end]) 
 
         # variance loss
