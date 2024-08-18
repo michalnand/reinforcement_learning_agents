@@ -265,8 +265,7 @@ def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentati
 
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
 
-    # similarity loss
-    
+    # hirechical similarity loss
     sim_loss = 0.0
     for head in range(n_heads):
         batch_start     = head*(za.shape[0]//n_heads)
