@@ -380,7 +380,7 @@ class AgentPPOSNDF():
 
         print("\n\n\n")
 
-        novelty     = ((z_target - z_predictor)**2)
+        novelty     = ((z_target - z_predictor)**2).mean(dim=(1, 2))
 
         print(">>> ", novelty.shape)
 
