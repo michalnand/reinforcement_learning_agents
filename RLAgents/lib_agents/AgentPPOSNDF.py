@@ -307,6 +307,7 @@ class AgentPPOSNDF():
                     steps_a.append(steps_a_)
                     steps_b.append(steps_b_)
 
+                
 
                 xa      = torch.stack(xa)
                 xb      = torch.stack(xb)
@@ -321,8 +322,25 @@ class AgentPPOSNDF():
 
                 '''
 
-                
-                xa, xb, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, 8, self.device)
+
+                #xa, xb, steps_a, steps_b = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size, 8, self.device)
+
+
+                xa = []
+                xb = []
+                steps_a = []
+                steps_b = []
+                for n in range(n_heads):
+                    xa_, xb_, steps_a_, steps_b_ = self.trajectory_buffer.sample_states_steps_pairs(self.ss_batch_size//n_heads, self.max_distances[n], self.device)
+                    xa.append(xa_)
+                    xb.append(xb_)
+                    steps_a.append(steps_a_)
+                    steps_b.append(steps_b_)
+
+                xa = torch.cat(xa)
+                xb = torch.cat(xb)
+                steps_a = torch.cat(steps_a)
+                steps_b = torch.cat(steps_b)
 
                 loss_ssl, im_ssl = self._im_ssl_loss(self.model.forward_im_ssl, self._augmentations_im_func, xa, xb, steps_a, steps_b, n_heads, self.metric_scaling_func)
 
