@@ -306,6 +306,11 @@ class AgentPPOSNDF():
                     steps_a.append(steps_a_)
                     steps_b.append(steps_b_)
 
+                    print("n = ", n, xa_.shape)
+                    print(steps_a_[0:10])
+                    print(steps_b_[0:10])
+                    print("\n\n")
+
                 xa      = torch.stack(xa)
                 xb      = torch.stack(xb)
                 steps_a = torch.stack(steps_a)
@@ -371,19 +376,10 @@ class AgentPPOSNDF():
         z_target    = self.model.forward_im_target(states).detach()
         z_predictor = self.model.forward_im_predictor(states)
 
-        print(">>> IM = ", z_target.shape, z_predictor.shape)
-
         z_target    = torch.transpose(z_target, 0, 1)
         z_predictor = torch.transpose(z_predictor, 0, 1)
 
-        print(">>> IM = ", z_target.shape, z_predictor.shape)
-
-        print("\n\n\n")
-
         novelty     = ((z_target - z_predictor)**2).mean(dim=(1, 2))
-
-        print(">>> ", novelty.shape)
-
 
         return novelty
  
