@@ -117,7 +117,7 @@ class AgentPPO():
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
 
         if self.rnn_policy: 
-            logits_t, values_t, hidden_state_new = self.model.forward(states_t, self.hidden_state, False)
+            logits_t, values_t, hidden_state_new = self.model.forward(states_t, self.hidden_state)
         else:
             logits_t, values_t  = self.model.forward(states_t)
 
@@ -239,7 +239,7 @@ class AgentPPO():
         if hidden_state is None:
             logits_new, values_new    = self.model.forward(states)
         else:
-            logits_new, values_new, _ = self.model.forward(states, hidden_state, True)
+            logits_new, values_new, _ = self.model.forward(states, hidden_state)
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
