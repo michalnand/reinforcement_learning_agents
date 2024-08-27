@@ -61,7 +61,7 @@ class AgentPPO():
  
         
         if self.rnn_policy:
-            self.hidden_state   = torch.zeros((self.envs_count, self.model.rnn_size), dtype=torch.float32, device=self.device)
+            self.hidden_state = torch.zeros((self.envs_count, ) + self.model.rnn_shape , dtype=torch.float32, device=self.device)
             self.rnn_seq_length = config.rnn_seq_length
         else:
             self.hidden_state   = None
@@ -90,10 +90,7 @@ class AgentPPO():
         self.rewards_t = torch.zeros((self.envs_count, ) , dtype=torch.float32)
         self.dones_t   = torch.zeros((self.envs_count, ) , dtype=torch.float32)
 
-        if self.rnn_policy:
-            self.hidden_state = torch.zeros((self.envs_count, ) + self.model.rnn_shape , dtype=torch.float32, device=self.device)
-        
-    
+       
         self.iterations = 0   
 
         self.values_logger  = ValuesLogger()
