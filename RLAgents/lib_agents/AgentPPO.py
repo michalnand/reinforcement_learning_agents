@@ -62,6 +62,7 @@ class AgentPPO():
         
         if self.rnn_policy:
             self.hidden_state = torch.zeros((self.envs_count, ) + self.model.rnn_shape , dtype=torch.float32, device=self.device)
+            self.hidden_state+= 0.001*torch.randn((self.envs_count, ) + self.model.rnn_shape) 
             self.rnn_seq_length = config.rnn_seq_length
         else:
             self.hidden_state   = None
@@ -154,8 +155,8 @@ class AgentPPO():
 
             #clear rnn hidden state if done
             for e in dones_idx:
-                self.hidden_state[e] = 0.0
-
+                self.hidden_state[e] = 0.0 + 0.001*torch.randn(self.model.rnn_shape)
+    
             #hidden space stats 
             hidden_mean = (self.hidden_state**2).mean().detach().cpu().numpy().item()
             hidden_std  = self.hidden_state.std().detach().cpu().numpy().item()
