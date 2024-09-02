@@ -113,7 +113,7 @@ class AgentPPO():
     def step(self, states, training_enabled, legal_actions_mask):        
         states_t  = torch.tensor(states, dtype=torch.float).detach().to(self.device)
 
-        if hasattr(self.model, "set_seq_idx")
+        if hasattr(self.model, "set_seq_idx"):
             self.model.set_seq_idx(self.iterations)
         
         if self.rnn_policy: 
