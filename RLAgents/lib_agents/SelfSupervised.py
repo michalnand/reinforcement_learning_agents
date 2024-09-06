@@ -293,6 +293,63 @@ def loss_vicreg_smooth(model_forward_func, augmentations, x, steps, dist_scaling
     return loss, info
 
 
+
+
+def loss_vicreg_smooth_b(model_forward_func, augmentations, x, steps, dist_scaling_func):
+
+    if augmentations is not None:
+        xa_aug, _ = augmentations(x)
+        xb_aug, _ = augmentations(x)
+    else:
+        xa_aug    = x 
+        xb_aug    = x    
+
+    # create random mixing
+    indices = torch.randperm(x.shape[0])
+    
+    alpha   = torch.rand((x.shape[0], 1), device=x.device)
+    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
+
+    # random weighted mixed input
+    x_mixed = alpha_*xa_aug + (1.0 - alpha_)*xb_aug[indices]
+
+
+    # obtain features
+    za, zb, zy, _  = model_forward_func(xa_aug, xb_aug, x_mixed)
+
+
+    # smoothing loss    
+    dif         = (alpha*za + (1.0 - alpha)*zb[indices]) - zy
+    smooth_loss = (dif**2).mean()
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+
+
+    # total vicreg loss
+    loss = 1.0*smooth_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
+
+    
+
+    #info for log
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
+    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    
+    
+    info = [z_mag, z_mag_std, smooth_loss_, std_loss_, cov_loss_]
+
+    return loss, info
+
+
 def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
