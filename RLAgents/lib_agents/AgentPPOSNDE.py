@@ -49,8 +49,12 @@ class AgentPPOSNDE():
         else:
             self._rl_ssl_loss = None    
 
-        if config.im_ssl_loss == "vicreg_distance_categorical":
+        if config.im_ssl_loss == "vicreg_smooth":
+            self._im_ssl_loss = loss_vicreg_smooth
+        elif config.im_ssl_loss == "vicreg_distance_categorical":
             self._im_ssl_loss = loss_vicreg_distance_categorical
+        elif config.im_ssl_loss == "vicreg_distance_categorical_smooth":
+            self._im_ssl_loss = loss_vicreg_distance_categorical_smooth
         elif config.im_ssl_loss == "vicreg_distance":
             self._im_ssl_loss = loss_vicreg_distance
         else:

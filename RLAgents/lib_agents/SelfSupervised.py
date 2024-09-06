@@ -237,6 +237,145 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
 
 
 
+def loss_vicreg_smooth(model_forward_func, augmentations, x, steps, dist_scaling_func):
+
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x    
+
+    # create random mixing of inputs
+    indices = torch.randperm(x.shape[0])
+    
+    alpha   = torch.rand((x.shape[0], 1))
+    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
+
+    x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
+
+
+
+
+    # obtain features
+    za, zb, zy, _  = model_forward_func(x, x_aug, x_mixed)
+
+
+    # invariance loss
+    sim_loss = _loss_mse(za, zb) 
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+
+    # smoothing loss
+    d           = (alpha*za + (1.0 - alpha)*za[indices]) - zy
+    smooth_loss = (d**2).mean()
+
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*smooth_loss
+
+    
+
+    #info for log
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
+    
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, smooth_loss_]
+
+    return loss, info
+
+
+def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x, steps, dist_scaling_func):
+
+    if augmentations is not None:
+        x_aug, _ = augmentations(x)
+    else:
+        x_aug    = x    
+
+    # create random mixing of inputs
+    indices = torch.randperm(x.shape[0])
+    
+    alpha   = torch.rand((x.shape[0], 1))
+    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
+
+    x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
+
+
+
+
+    # obtain features
+    za, zb, zy, d_pred  = model_forward_func(x, x_aug, x_mixed)
+
+   
+
+
+    # predict distances, each by each 
+    d_target  = _target_distances(steps, steps, dist_scaling_func)
+    
+    # flatten predicted distances
+    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
+    d_target  = d_target.long() 
+
+    # classification loss
+    loss_func = torch.nn.CrossEntropyLoss()
+    dist_loss = loss_func(d_pred, d_target)  
+
+
+    # invariance loss
+    sim_loss = _loss_mse(za, zb) 
+
+    # variance loss
+    std_loss = _loss_std(za)
+    std_loss+= _loss_std(zb)
+   
+    # covariance loss 
+    cov_loss = _loss_cov(za)
+    cov_loss+= _loss_cov(zb)
+
+
+    # smoothing loss
+    d           = (alpha*za + (1.0 - alpha)*za[indices]) - zy
+    smooth_loss = (d**2).mean()
+
+    # total vicreg loss
+    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss + 1.0*smooth_loss
+
+    # accuracy
+    acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
+
+
+    #info for log
+    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
+    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
+    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
+    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
+    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
+    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
+    
+    d_target_mean = round(d_target.float().mean().detach().cpu().numpy().item(), 6)
+    d_target_std  = round(d_target.float().std().detach().cpu().numpy().item(), 6)
+    
+    acc_mean      = round(acc.mean().detach().cpu().numpy().item(), 6)
+    acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
+
+
+    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, dist_loss_, smooth_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
+
+    return loss, info
+
+
+
+
 
 
 
