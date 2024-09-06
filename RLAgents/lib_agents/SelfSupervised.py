@@ -247,7 +247,7 @@ def loss_vicreg_smooth(model_forward_func, augmentations, x, steps, dist_scaling
     # create random mixing of inputs
     indices = torch.randperm(x.shape[0])
     
-    alpha   = torch.rand((x.shape[0], 1))
+    alpha   = torch.rand((x.shape[0], 1), device=x.device)
     alpha_  = alpha.unsqueeze(2).unsqueeze(3)
 
     x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
@@ -303,7 +303,7 @@ def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x
     # create random mixing of inputs
     indices = torch.randperm(x.shape[0])
     
-    alpha   = torch.rand((x.shape[0], 1))
+    alpha   = torch.rand((x.shape[0], 1), device=x.device)
     alpha_  = alpha.unsqueeze(2).unsqueeze(3)
 
     x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
