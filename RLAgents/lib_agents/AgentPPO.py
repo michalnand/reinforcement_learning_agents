@@ -160,6 +160,9 @@ class AgentPPO():
             hidden_mean = (self.hidden_state**2).mean().detach().cpu().numpy().item()
             hidden_std  = self.hidden_state.std().detach().cpu().numpy().item()
             self.info_logger["hidden"] = [ round(hidden_mean, 5), round(hidden_std, 5)]
+
+
+        print("state = ", states.mean(), states.std())
       
         self.iterations+= 1
         return states_new, rewards, dones, infos
