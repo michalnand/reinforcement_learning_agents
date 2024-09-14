@@ -246,13 +246,17 @@ class AgentPPO():
 
         loss = 0.0
         for n in range(seq_length):
-            loss+= self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
+            loss+= self._loss_ppo(logits[n], actions[n], returns[n], advantages[n], logits_new[n], values_new[n])
 
         #loss = loss/seq_length
         return loss
        
 
     def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new):
+
+        print("logits = ", logits.shape, logits_new.shape)
+        print("returns = ", returns.shape, advantages.shape, values_new.shape, actions.shape)
+
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
