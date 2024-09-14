@@ -252,13 +252,11 @@ class AgentPPO():
         return loss
        
 
-    def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new)
-        
+    def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new):
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
-
 
         '''
         compute critic loss, as MSE
