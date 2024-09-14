@@ -253,10 +253,6 @@ class AgentPPO():
        
 
     def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new):
-
-        print("logits = ", logits.shape, logits_new.shape)
-        print("returns = ", returns.shape, advantages.shape, values_new.shape, actions.shape)
-
         log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
