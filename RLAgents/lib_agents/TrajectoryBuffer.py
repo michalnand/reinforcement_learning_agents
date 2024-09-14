@@ -96,17 +96,22 @@ class TrajectoryBuffer:
         states         = torch.zeros((seq_length, batch_size, ) + self.state_shape,  dtype=torch.float32, device=device)
         hidden_states  = torch.zeros((seq_length, batch_size, ) + self.hidden_shape, dtype=torch.float32, device=device)
 
+        logits         = torch.zeros((seq_length, batch_size, self.actions_size), dtype=torch.float32, device=device)
+        actions        = torch.zeros((seq_length, batch_size), dtype=int, device=device)
+
+        returns        = torch.zeros((seq_length, batch_size), dtype=torch.float32, device=device)
+        advantages     = torch.zeros((seq_length, batch_size), dtype=torch.float32, device=device)
+
         for n in range(seq_length):
             states[n]        = self.states[indices].to(device)
             hidden_states[n] = self.hidden_state[indices].to(device)
-
-            if n == (seq_length-1): 
-                logits     = self.logits[indices].to(device)
-                
-                actions    = self.actions[indices].to(device)
-                
-                returns    = self.returns[indices].to(device)
-                advantages = self.advantages[indices].to(device)
+            
+            logits[n]     = self.logits[indices].to(device)
+            
+            actions[n]    = self.actions[indices].to(device)
+            
+            returns[n]    = self.returns[indices].to(device)
+            advantages[n] = self.advantages[indices].to(device)
 
             indices+= self.envs_count 
 

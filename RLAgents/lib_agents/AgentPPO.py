@@ -1,5 +1,5 @@
 import numpy
-import torch
+import torch 
 import time 
 
 from .ValuesLogger      import *
@@ -202,10 +202,10 @@ class AgentPPO():
 
                 if self.rnn_policy:
                     states, logits, actions, returns, advantages, hidden_states = self.trajctory_buffer.sample_batch_seq(self.rnn_seq_length, self.batch_size, self.device)                    
-                    loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages, hidden_states)
+                    loss_ppo = self.loss_rnn_ppo(states, logits, actions, returns, advantages, hidden_states)
                 else:
                     states, logits, actions, returns, advantages = self.trajctory_buffer.sample_batch(self.batch_size, self.device)
-                    loss_ppo = self._loss_ppo(states, logits, actions, returns, advantages)
+                    loss_ppo = self.loss_ppo(states, logits, actions, returns, advantages)
 
                 if self.self_supervised_loss_func is not None:
                     states_a, states_b = self.trajctory_buffer.sample_states_pairs(self.batch_size//self.training_epochs, 0, self.device)
@@ -233,13 +233,28 @@ class AgentPPO():
          
 
     
-    def _loss_ppo(self, states, logits, actions, returns, advantages, hidden_state = None):
-        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
+    def loss_ppo(self, states, logits, actions, returns, advantages):
+        logits_new, values_new  = self.model.forward(states)
 
-        if hidden_state is None:
-            logits_new, values_new    = self.model.forward(states)
-        else:
-            logits_new, values_new, _ = self.model.forward(states, hidden_state)
+        return self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
+    
+
+    def loss_rnn_ppo(self, states, logits, actions, returns, advantages, hidden_states):
+        seq_length = states.shape[0]
+
+        logits_new, values_new, _  = self.model.forward(states, hidden_states)
+
+        loss = 0.0
+        for n in range(seq_length):
+            loss+= self._loss_ppo(logits, actions, returns, advantages, logits_new, values_new)
+
+        #loss = loss/seq_length
+        return loss
+       
+
+    def _loss_ppo(self, logits, actions, returns, advantages, logits_new, values_new)
+        
+        log_probs_old = torch.nn.functional.log_softmax(logits, dim = 1).detach()
 
         probs_new     = torch.nn.functional.softmax(logits_new,     dim = 1)
         log_probs_new = torch.nn.functional.log_softmax(logits_new, dim = 1)
