@@ -249,7 +249,7 @@ class AgentPPO():
         for n in range(seq_length):
             loss+= self._loss_ppo(logits[n], actions[n], returns[n], advantages[n], logits_new[n], values_new[n])
 
-        #loss = loss/seq_length
+        loss = loss/seq_length
         return loss
        
 
