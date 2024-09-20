@@ -79,7 +79,7 @@ def loss_vicreg(model_forward_func, augmentations, xa, xb):
 
     # variance loss
     std_loss = _loss_std(za)
-    std_loss+= _loss_std(zb)
+    std_loss+= _loss_std(zb) 
    
     # covariance loss 
     cov_loss = _loss_cov(za)
@@ -236,160 +236,30 @@ def loss_vicreg_distance_categorical(model_forward_func, augmentations, x, steps
 
 
 
-
-def loss_vicreg_smooth(model_forward_func, augmentations, x, steps, dist_scaling_func):
-
-    if augmentations is not None:
-        x_aug, _ = augmentations(x)
-    else:
-        x_aug    = x    
-
-    # create random mixing of inputs
-    indices = torch.randperm(x.shape[0])
-    
-    alpha   = torch.rand((x.shape[0], 1), device=x.device)
-    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
-
-    x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
-
-
-
-
-    # obtain features
-    za, zb, zy, _  = model_forward_func(x, x_aug, x_mixed)
-
-
-    # invariance loss
-    sim_loss = _loss_mse(za, zb) 
-
-    # variance loss
-    std_loss = _loss_std(za)
-    std_loss+= _loss_std(zb)
-   
-    # covariance loss 
-    cov_loss = _loss_cov(za)
-    cov_loss+= _loss_cov(zb)
-
-
-    # smoothing loss
-    d           = (alpha*za + (1.0 - alpha)*za[indices]) - zy
-    smooth_loss = (d**2).mean()
-
-    # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*smooth_loss
-
-    
-
-    #info for log
-    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
-    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
-    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
-    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
-    
-    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, smooth_loss_]
-
-    return loss, info
-
-
-
-
-def loss_vicreg_smooth_b(model_forward_func, augmentations, x, steps, dist_scaling_func):
-
-    if augmentations is not None:
-        xa_aug, _ = augmentations(x)
-        xb_aug, _ = augmentations(x)
-    else:
-        xa_aug    = x 
-        xb_aug    = x    
-
-    # create random mixing
-    indices = torch.randperm(x.shape[0])
-    
-    alpha   = torch.rand((x.shape[0], 1), device=x.device)
-    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
-
-    # random weighted mixed input
-    x_mixed = alpha_*xa_aug + (1.0 - alpha_)*xb_aug[indices]
-
-
-    # obtain features
-    za, zb, zy, _  = model_forward_func(xa_aug, xb_aug, x_mixed)
-
-
-    # smoothing loss    
-    dif         = (alpha*za + (1.0 - alpha)*zb[indices]) - zy
-    smooth_loss = (dif**2).mean()
-
-    # variance loss
-    std_loss = _loss_std(za)
-    std_loss+= _loss_std(zb)
-   
-    # covariance loss 
-    cov_loss = _loss_cov(za)
-    cov_loss+= _loss_cov(zb)
-
-
-
-    # total vicreg loss
-    loss = 1.0*smooth_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
-
-    
-
-    #info for log
-    z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
-    z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
-    std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
-    cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
-    
-    
-    info = [z_mag, z_mag_std, smooth_loss_, std_loss_, cov_loss_]
-
-    return loss, info
-
-
-def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x, steps, dist_scaling_func):
+def loss_mavacreg_categorical(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
         x_aug, _ = augmentations(x)
     else:
         x_aug    = x    
 
-    # create random mixing of inputs
-    indices = torch.randperm(x.shape[0])
-    
-    alpha   = torch.rand((x.shape[0], 1), device=x.device)
-    alpha_  = alpha.unsqueeze(2).unsqueeze(3)
-
-    x_mixed = alpha_*x + (1.0 - alpha_)*x[indices]
-
-
-
-
     # obtain features
-    za, zb, zy, d_pred  = model_forward_func(x, x_aug, x_mixed)
-
-   
-
-
+    za, zb, d_pred  = model_forward_func(x, x_aug)
+    
     # predict distances, each by each 
     d_target  = _target_distances(steps, steps, dist_scaling_func)
     
-    # flatten predicted distances
-    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    # flatten target and predicted distances
     d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
     d_target  = d_target.long() 
 
+    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
+    
     # classification loss
     loss_func = torch.nn.CrossEntropyLoss()
     dist_loss = loss_func(d_pred, d_target)  
 
 
-    # invariance loss
-    sim_loss = _loss_mse(za, zb) 
-
     # variance loss
     std_loss = _loss_std(za)
     std_loss+= _loss_std(zb)
@@ -398,13 +268,8 @@ def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x
     cov_loss = _loss_cov(za)
     cov_loss+= _loss_cov(zb)
 
-
-    # smoothing loss
-    d           = (alpha*za + (1.0 - alpha)*za[indices]) - zy
-    smooth_loss = (d**2).mean()
-
     # total vicreg loss
-    loss = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss + 1.0*smooth_loss
+    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
     # accuracy
     acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
@@ -413,11 +278,9 @@ def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x
     #info for log
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
-    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
-    smooth_loss_  = round(smooth_loss.detach().cpu().numpy().item(), 6)
     
     d_target_mean = round(d_target.float().mean().detach().cpu().numpy().item(), 6)
     d_target_std  = round(d_target.float().std().detach().cpu().numpy().item(), 6)
@@ -426,90 +289,61 @@ def loss_vicreg_distance_categorical_smooth(model_forward_func, augmentations, x
     acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
 
 
-    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, dist_loss_, smooth_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
+    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
 
     return loss, info
 
 
+    
 
 
-
-
-
-def loss_vicreg_hierarchical_distance_categorical(model_forward_func, augmentations, xa, xb, steps_a, steps_b, n_heads, dist_scaling_func):
+def loss_mavacreg_distance(model_forward_func, augmentations, x, steps, dist_scaling_func):
 
     if augmentations is not None:
-        xb_aug, _ = augmentations(xb)
+        x_aug, _ = augmentations(x)
     else:
-        xb_aug    = xb    
+        x_aug    = x    
 
     # obtain features
-    za, zb, d_pred  = model_forward_func(xa, xb_aug)
-
-
+    za, zb, d_pred  = model_forward_func(x, x_aug)
+    
     # predict distances, each by each 
-    d_target  = _target_distances(steps_a, steps_b, dist_scaling_func)
-    
-    # flatten predicted distances
-    d_pred    = d_pred.reshape((d_pred.shape[0]*d_pred.shape[1], d_pred.shape[2]))
-    d_target  = d_target.reshape((d_target.shape[0]*d_target.shape[1]))
-    d_target  = d_target.long() 
+    d_target  = _target_distances(steps, steps, dist_scaling_func).float()
+  
+    # MSE loss
+    dist_loss = ((d_target - d_pred)**2).mean()
 
-    # classification distance loss
-    loss_func    = torch.nn.CrossEntropyLoss()
-    dist_loss    = loss_func(d_pred, d_target)  
-
-    acc  = (torch.argmax(d_pred, dim=1) == d_target).float()
-
-    # hirechical similarity loss
-    sim_loss = 0.0
-    for head in range(n_heads):
-        batch_start     = head*(za.shape[0]//n_heads)
-        batch_end       = (head+1)*(za.shape[0]//n_heads)
-        features_range  = head*(za.shape[1]//n_heads)   
-
-        za_tmp = za[batch_start:batch_end, features_range:]
-        zb_tmp = zb[batch_start:batch_end, features_range:] 
-
-        sim_loss+= _loss_mse(za_tmp, zb_tmp) 
-    
-
-    #sim_loss = _loss_mse(za, zb) 
 
     # variance loss
-    std_loss= _loss_std(za)
+    std_loss = _loss_std(za)
     std_loss+= _loss_std(zb)
-
+   
     # covariance loss 
-    cov_loss= _loss_cov(za)
+    cov_loss = _loss_cov(za)
     cov_loss+= _loss_cov(zb)
 
-
     # total vicreg loss
-    loss      = 1.0*sim_loss + 1.0*std_loss + (1.0/25.0)*cov_loss + 1.0*dist_loss 
+    loss = 1.0*dist_loss + 1.0*std_loss + (1.0/25.0)*cov_loss
 
-
+  
     #info for log
     z_mag         = round(((za**2).mean()).detach().cpu().numpy().item(), 6)
     z_mag_std     = round(((za**2).std()).detach().cpu().numpy().item(), 6)
-    sim_loss_     = round(sim_loss.detach().cpu().numpy().item(), 6)
+    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     std_loss_     = round(std_loss.detach().cpu().numpy().item(), 6)
     cov_loss_     = round(cov_loss.detach().cpu().numpy().item(), 6)
-    dist_loss_    = round(dist_loss.detach().cpu().numpy().item(), 6)
     
     d_target_mean = round(d_target.float().mean().detach().cpu().numpy().item(), 6)
     d_target_std  = round(d_target.float().std().detach().cpu().numpy().item(), 6)
-    
-    acc_mean      = round(acc.mean().detach().cpu().numpy().item(), 6)
-    acc_std       = round(acc.std().detach().cpu().numpy().item(), 6)
+
+    d_pred_mean   = round(d_pred.mean().detach().cpu().numpy().item(), 6)
+    d_pred_std    = round(d_pred.std().detach().cpu().numpy().item(), 6)
 
 
-    info = [z_mag, z_mag_std, sim_loss_, std_loss_, cov_loss_, dist_loss_, d_target_mean, d_target_std, acc_mean, acc_std]
+    info = [z_mag, z_mag_std, dist_loss_, std_loss_, cov_loss_, d_target_mean, d_target_std, d_pred_mean, d_pred_std]
 
     return loss, info
 
-
-    
 
 
 '''

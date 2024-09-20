@@ -139,7 +139,7 @@ class AgentPPOJEPA():
         #execute action
         states_new, rewards_ext, dones, _, infos = self.envs.step(actions)
 
-        #internal motivation
+        #internal motivation    
         state_now   = self.states_buffer[0] 
         state_prev  = self.states_buffer[self.inference_distance]
         rewards_int = self._internal_motivation(state_now, state_prev)
